@@ -1,0 +1,5 @@
+workouts.db
+workouts.db-journal
+snapshot.json
+__pycache__/
+.dashboard.dev.vars
