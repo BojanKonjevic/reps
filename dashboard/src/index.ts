@@ -91,8 +91,35 @@ const GC = DARK ? "#3a3733" : "#d9d3c0";
 const MC = DARK
   ? { push: "#f2a35e", pull: "#7cc47f", legs: "#6cb6ff", other: "#8a8578" }
   : { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f", other: "#bbb" };
+function fit(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(50, cv.clientWidth), h = Math.max(50, cv.clientHeight);
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, W: w, H: h };
+}
+function putText(g, W, str, x, y, align) {
+  g.textAlign = align || "left";
+  const w = g.measureText(str).width;
+  if (align === "center") x = Math.min(Math.max(x, w / 2 + 2), W - w / 2 - 2);
+  else if (align === "right") x = Math.min(x, W - 2);
+  else x = Math.min(x, W - w - 2);
+  g.fillText(str, Math.max(x, 2), y);
+}
+let SNAP = null;
 async function main(){
-  const snap = await (await fetch("snapshot")).json();
+  SNAP = await (await fetch("snapshot")).json();
+  render();
+  let rt = null;
+  window.addEventListener("resize", () => {
+    if (rt) clearTimeout(rt);
+    rt = setTimeout(render, 250);
+  });
+}
+function render(){
+  const snap = SNAP;
   const W = snap.workouts || [];
   const S = snap.sets || [];
   const BW = snap.bodyweight || [];
@@ -115,6 +142,7 @@ async function main(){
   }));
   line(document.getElementById("chTrend"), days, series);
   const lt = document.getElementById("legTrend");
+  lt.innerHTML = "";
   const cols = LC;
   top.forEach((t, i) => {
     const sp = document.createElement("span"); sp.className = "chip";
@@ -130,6 +158,7 @@ async function main(){
     }
   }
   const nl = document.getElementById("noteList");
+  nl.innerHTML = "";
   Object.keys(noted).sort().slice(-6).forEach(d => {
     const li = document.createElement("li"); li.textContent = d + ": " + noted[d]; nl.appendChild(li);
   });
@@ -143,6 +172,7 @@ async function main(){
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
   const lm = document.getElementById("legMus");
+  lm.innerHTML = "";
   const mc = MC;
   groups.forEach(g => {
     const sp = document.createElement("span"); sp.className = "chip";
@@ -179,6 +209,7 @@ async function main(){
     if (!prs[k] || ev > prs[k].ev) prs[k] = { s, ev };
   }
   const tbl = document.getElementById("prs");
+  while (tbl.rows.length > 1) tbl.deleteRow(1);
   Object.keys(prs).sort().forEach(k => {
     const p = prs[k];
     const tr = document.createElement("tr");
@@ -234,8 +265,8 @@ function fmtV(v) {
   return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
 function line(cv, labels, series) {
-  const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 40;
+  const f = fit(cv);
+  const g = f.g, W = f.W, H = f.H, P = 46;
   let mn = Infinity, mx = 0, any = false;
   for (const s of series) for (const v of s) if (v !== null) { any = true; if (v < mn) mn = v; if (v > mx) mx = v; }
   if (!any) {
@@ -252,8 +283,8 @@ function line(cv, labels, series) {
     const y = H - P - (H - P - 16) * i / 4;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC; g.textAlign = "left";
-    g.fillText(fmtV(v), 2, y + 4);
+    g.fillStyle = TC;
+    putText(g, W, fmtV(v), 4, y + 4, "left");
   }
   const n = series.length ? series[0].length : 0;
   const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
@@ -274,25 +305,18 @@ function line(cv, labels, series) {
       last = i;
       g.beginPath(); g.arc(px(i), py(s[i]), 4, 0, 7); g.fill();
     }
-    if (first >= 0) {
-      g.textAlign = first > n / 2 ? "right" : "left";
-      g.fillText(fmtV(s[first]), px(first) + (first > n / 2 ? -8 : 8), py(s[first]) - 8);
-    }
-    if (last >= 0 && last !== first) {
-      g.textAlign = "left";
-      g.fillText(fmtV(s[last]), px(last) + 8, py(s[last]) - 8);
-    }
+    if (first >= 0) putText(g, W, fmtV(s[first]), px(first) + 8, py(s[first]) - 10, first > n / 2 ? "right" : "left");
+    if (last >= 0 && last !== first) putText(g, W, fmtV(s[last]), px(last) - 8, py(s[last]) - 10, "right");
   });
-  g.fillStyle = TC; g.textAlign = "left";
+  g.fillStyle = TC;
   if (labels.length) {
-    g.fillText(labels[0], P, H - 8);
-    const end = labels[labels.length - 1];
-    g.fillText(end, W - 8 - g.measureText(end).width, H - 8);
+    putText(g, W, labels[0], P, H - 8, "left");
+    putText(g, W, labels[labels.length - 1], W - 8, H - 8, "right");
   }
 }
 function bwline(cv, rows) {
-  const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 40;
+  const f = fit(cv);
+  const g = f.g, W = f.W, H = f.H, P = 46;
   if (!rows.length) {
     g.clearRect(0, 0, W, H);
     g.fillStyle = TC; g.font = "600 14px sans-serif";
@@ -310,8 +334,8 @@ function bwline(cv, rows) {
     const y = H - P - (H - P - 16) * i / 4;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC; g.textAlign = "left";
-    g.fillText(fmtV(v), 2, y + 4);
+    g.fillStyle = TC;
+    putText(g, W, fmtV(v), 4, y + 4, "left");
   }
   const px = i => P + (W - P - 8) * (rows.length === 1 ? 1 : i / (rows.length - 1));
   const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
@@ -323,17 +347,16 @@ function bwline(cv, rows) {
   rows.forEach((r, i) => {
     g.beginPath(); g.arc(px(i), py(r.kg), 5, 0, 7); g.fill();
     g.fillStyle = TC;
-    g.fillText(r.kg.toFixed(1), px(i), py(r.kg) - 12);
+    putText(g, W, r.kg.toFixed(1), px(i), py(r.kg) - 12, "center");
     g.fillStyle = LC[0];
   });
-  g.fillStyle = TC; g.textAlign = "left";
-  g.fillText(rows[0].date, P, H - 8);
-  const end = rows[rows.length - 1].date;
-  g.fillText(end, W - 8 - g.measureText(end).width, H - 8);
+  g.fillStyle = TC;
+  putText(g, W, rows[0].date, P, H - 8, "left");
+  putText(g, W, rows[rows.length - 1].date, W - 8, H - 8, "right");
 }
 function stacked(cv, labels, weeks) {
-  const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 40;
+  const f = fit(cv);
+  const g = f.g, W = f.W, H = f.H, P = 46;
   g.clearRect(0, 0, W, H);
   const groups = ["push", "pull", "legs", "other"];
   let mx = 1;
@@ -342,19 +365,21 @@ function stacked(cv, labels, weeks) {
     if (t > mx) mx = t;
   });
   const bw = (W - P - 8) / Math.max(1, weeks.length);
+  const area = H - P - 42;
   g.font = "600 12px sans-serif";
   weeks.forEach((w, i) => {
     let y0 = H - P;
     groups.forEach(gr => {
-      const h = (H - P - 16) * (w[gr] / mx);
+      const h = area * (w[gr] / mx);
       g.fillStyle = MC[gr];
       g.fillRect(P + i * bw + 3, y0 - h, bw - 6, h);
       y0 -= h;
     });
     const total = groups.reduce((a, k) => a + w[k], 0);
-    g.fillStyle = TC; g.textAlign = "center";
-    g.fillText(String(total), P + i * bw + bw / 2, H - P - (H - P - 16) * (total / mx) - 8);
-    g.fillText(labels[i], P + i * bw + bw / 2, H - 8);
+    const top = H - P - area * (total / mx);
+    g.fillStyle = TC;
+    putText(g, W, String(total), P + i * bw + bw / 2, top - 10, "center");
+    putText(g, W, labels[i], P + i * bw + bw / 2, H - 8, "center");
   });
 }
 main();
