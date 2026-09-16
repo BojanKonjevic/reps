@@ -42,20 +42,28 @@ button.chip.off{opacity:.35;}
 .cap{font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;margin-top:10px;}
 .notes{font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;margin-top:10px;}
 .notes li{margin-bottom:4px;margin-left:20px;}
-.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-family:"IBM Plex Sans",sans-serif;}
-.calhead button{background:none;border:1px solid #d9d3c0;border-radius:8px;padding:4px 12px;font-family:inherit;cursor:pointer;color:inherit;}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;}
-.cal .dw{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#4e5148;text-align:center;padding:4px 0;}
-.cal .cd{aspect-ratio:1.4;border-radius:8px;background:#f5f2e9;display:flex;align-items:center;justify-content:center;color:#6e695c;}
+.calcard{max-width:430px;}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-family:"IBM Plex Sans",sans-serif;}
+.calhead b{font-size:1rem;}
+.calhead button{background:none;border:none;padding:6px;cursor:pointer;color:inherit;display:flex;}
+.calhead button svg{width:18px;height:18px;}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-family:"IBM Plex Sans",sans-serif;font-size:.82rem;}
+.cal .dw{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:#4e5148;text-align:center;padding:3px 0;}
+.cal .cd{aspect-ratio:1;border-radius:9px;background:#f5f2e9;display:flex;align-items:center;justify-content:center;color:#6e695c;position:relative;text-decoration:none;}
 .cal .cd.t{background:#2f7d33;color:#fff;font-weight:600;}
 .cal .cd.today{outline:2px solid #7a5a34;outline-offset:-2px;}
 .cal .cd.fut{background:none;}
+.cal .cd.pr::after{content:"";position:absolute;bottom:4px;left:50%;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:#8a5a00;}
+.back{font-family:"IBM Plex Sans",sans-serif;font-size:.9rem;}
+.prbadge{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.05em;background:#8a5a00;color:#fff;border-radius:20px;padding:1px 9px;}
+.sessnav{display:flex;justify-content:space-between;margin:22px 0 10px;font-family:"IBM Plex Sans",sans-serif;}
 @media (prefers-color-scheme:dark){
-.calhead button{border-color:#232120;}
 .cal .dw{color:#b0aca2;}
 .cal .cd{background:#171514;color:#7f7a6e;}
 .cal .cd.t{background:#2f7d33;color:#fff;}
 .cal .cd.fut{background:none;}
+.cal .cd.pr::after{background:#e6c400;}
+.prbadge{background:#e6c400;color:#111;}
 }
 table{width:100%;border-collapse:collapse;font-family:"IBM Plex Sans",sans-serif;font-size:.95rem;}
 td,th{padding:7px 10px;border-bottom:1px solid #e5dfcd;text-align:left;}
@@ -70,7 +78,7 @@ td,th{border-color:#232120;}
 .dot{background:#232120;}
 .dot.t{background:#2f7d33;}
 }
-</style></head><body><div class="wrap">
+</style></head><body><div class="wrap" id="viewDash">
 <div class="kick">reps</div>
 <h1>Training dashboard</h1>
 <div class="sub" id="sub">loading</div>
@@ -81,9 +89,17 @@ td,th{border-color:#232120;}
 <h2>Weekly volume by muscle</h2>
 <div class="card"><canvas id="chMus" width="860" height="230"></canvas><div class="legend" id="legMus"></div></div>
 <h2>Training calendar</h2>
-<div class="card"><div class="calhead"><button id="calPrev" type="button">prev</button><b id="calTitle"></b><button id="calNext" type="button">next</button></div><div class="cal" id="cal"></div><div class="cap">Highlighted days are trained. Hover for the session.</div></div>
+<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold dot marks a PR day.</div></div>
 <h2>Best sets</h2>
 <div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
+</div>
+<div class="wrap" id="viewSession" hidden>
+<a class="back" href="#/">back to dashboard</a>
+<h1 id="sessTitle">Session</h1>
+<div class="sub" id="sessSub"></div>
+<div id="sessNotes"></div>
+<div id="sessBody"></div>
+<div class="sessnav"><a id="sessPrev" href="#/">older</a><a id="sessNext" href="#/">newer</a></div>
 </div>
 <script>
 const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -112,6 +128,8 @@ function putText(g, W, str, x, y, align) {
 }
 let SNAP = null;
 let TREND = { days: [], series: [], top: [] };
+let D = null;
+let PR = null;
 let HIDDEN = new Set();
 try {
   HIDDEN = new Set(JSON.parse(localStorage.getItem("reps-hidden") || "[]"));
@@ -186,6 +204,8 @@ function render(){
     (dayDetail[d] = dayDetail[d] || []).push(s.exercise + " " + s.weight + "x" + s.reps);
   }
   const startView = lastW || new Date().toISOString().slice(0, 10);
+  D = { W, S, BW };
+  PR = computePRs(W, S);
   let viewY = parseInt(startView.slice(0, 4), 10);
   let viewM = parseInt(startView.slice(5, 7), 10) - 1;
   const drawCal = () => renderCal(viewY, viewM, dayDetail);
@@ -218,7 +238,129 @@ function render(){
     const c2 = document.createElement("td"); c2.textContent = wdate[p.s.workout_id] || "";
     tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2); tbl.appendChild(tr);
   });
+  route();
 }
+function computePRs(W, S) {
+  const wdate = {};
+  for (const w of W) wdate[w.id] = w.date;
+  const order = S.slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id);
+  const best = {}, seen = new Set(), prIds = new Set(), prDates = new Set();
+  order.forEach(s => {
+    const ev = s.weight * (1 + s.reps / 30);
+    if (!seen.has(s.exercise)) { seen.add(s.exercise); best[s.exercise] = ev; return; }
+    if (ev > best[s.exercise]) { best[s.exercise] = ev; prIds.add(s.id); prDates.add(wdate[s.workout_id]); }
+  });
+  return { prIds, prDates };
+}
+function isDate(s) {
+  if (!s || s.length !== 10 || s.charAt(4) !== "-" || s.charAt(7) !== "-") return false;
+  for (let i = 0; i < 10; i += 1) {
+    if (i === 4 || i === 7) continue;
+    const c = s.charAt(i);
+    if (c < "0" || c > "9") return false;
+  }
+  return true;
+}
+function route() {
+  const h = location.hash || "";
+  const ds = h.slice(0, 4) === "#/s/" ? h.slice(4, 14) : "";
+  if (ds && isDate(ds) && D) showSession(ds);
+  else {
+    document.getElementById("viewDash").hidden = false;
+    document.getElementById("viewSession").hidden = true;
+    document.title = "reps dashboard";
+  }
+}
+function showSession(ds) {
+  document.getElementById("viewDash").hidden = true;
+  const v = document.getElementById("viewSession");
+  v.hidden = false;
+  const title = document.getElementById("sessTitle");
+  const sub = document.getElementById("sessSub");
+  const notes = document.getElementById("sessNotes");
+  const body = document.getElementById("sessBody");
+  const prev = document.getElementById("sessPrev");
+  const next = document.getElementById("sessNext");
+  notes.innerHTML = "";
+  body.innerHTML = "";
+  const ws = D.W.filter(w => w.date === ds);
+  const dates = Array.from(new Set(D.W.map(w => w.date))).sort();
+  const ix = dates.indexOf(ds);
+  if (ix > 0) {
+    prev.style.visibility = "";
+    prev.href = "#/s/" + dates[ix - 1];
+    prev.textContent = "older: " + dates[ix - 1];
+  } else prev.style.visibility = "hidden";
+  if (ix >= 0 && ix < dates.length - 1) {
+    next.style.visibility = "";
+    next.href = "#/s/" + dates[ix + 1];
+    next.textContent = "newer: " + dates[ix + 1];
+  } else next.style.visibility = "hidden";
+  if (!ws.length) {
+    title.textContent = ds;
+    sub.textContent = "no session logged this day";
+    document.title = ds + " no session";
+    window.scrollTo(0, 0);
+    return;
+  }
+  title.textContent = new Date(ds + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const wnotes = ws.map(w => w.notes).filter(n => n);
+  if (wnotes.length) {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.textContent = wnotes.join(" / ");
+    notes.appendChild(d);
+  }
+  let nsets = 0;
+  ws.forEach(w => {
+    const sets = D.S.filter(s => s.workout_id === w.id);
+    nsets += sets.length;
+    const order = [], byEx = {};
+    sets.forEach(s => {
+      (byEx[s.exercise] = byEx[s.exercise] || []).push(s);
+      if (order.indexOf(s.exercise) < 0) order.push(s.exercise);
+    });
+    order.forEach(ex => {
+      const h = document.createElement("h2");
+      h.textContent = ex;
+      body.appendChild(h);
+      const card = document.createElement("div");
+      card.className = "card";
+      const tbl = document.createElement("table");
+      const head = document.createElement("tr");
+      ["set", "weight", "e1RM", "rpe", "note"].forEach(t => {
+        const th = document.createElement("th");
+        th.textContent = t;
+        head.appendChild(th);
+      });
+      tbl.appendChild(head);
+      byEx[ex].forEach((s, i) => {
+        const tr = document.createElement("tr");
+        const ev = s.weight * (1 + s.reps / 30);
+        const cells = [String(i + 1), s.weight + " x " + s.reps, ev.toFixed(1), (s.rpe === null || s.rpe === undefined) ? "" : String(s.rpe), s.note || ""];
+        cells.forEach(c => {
+          const td = document.createElement("td");
+          td.textContent = c;
+          tr.appendChild(td);
+        });
+        if (PR.prIds.has(s.id)) {
+          const b = document.createElement("span");
+          b.className = "prbadge";
+          b.textContent = "PR";
+          tr.children[1].appendChild(document.createTextNode(" "));
+          tr.children[1].appendChild(b);
+        }
+        tbl.appendChild(tr);
+      });
+      card.appendChild(tbl);
+      body.appendChild(card);
+    });
+  });
+  sub.textContent = nsets + " sets";
+  document.title = ds + " training";
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
 function muscleOf(n) {
   n = n.toLowerCase();
   if (/(press|bench|dips|pushup|overhead|ohp|lateral|tricep|shoulder|chest)/.test(n)) return "push";
@@ -242,9 +384,11 @@ function renderCal(year, month, dayDetail) {
   const todayS = new Date().toISOString().slice(0, 10);
   for (let d = 1; d <= days; d += 1) {
     const key = year + "-" + String(month + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-    const el = document.createElement("div");
     const trained = dayDetail[key] && dayDetail[key].length > 0;
-    el.className = "cd" + (trained ? " t" : "") + (key === todayS ? " today" : "") + (key > todayS ? " fut" : "");
+    const isPR = PR && PR.prDates.has(key);
+    const el = document.createElement(trained ? "a" : "div");
+    if (trained) el.href = "#/s/" + key;
+    el.className = "cd" + (trained ? " t" : "") + (isPR ? " pr" : "") + (key === todayS ? " today" : "") + (key > todayS ? " fut" : "");
     el.textContent = String(d);
     el.title = trained ? key + ": " + dayDetail[key].join(", ") : key;
     box.appendChild(el);
