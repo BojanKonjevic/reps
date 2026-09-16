@@ -18,9 +18,10 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 1. On any training message, run `today` to see if a workout is open.
 2. If none open and user is training, run `start`.
 3. Before logging a set, check the `context` lifts list for canonical names. Reuse an existing name when it clearly matches.
-4. Log with: `log <exercise> <weight> <reps>` plus optional `rpe=8` and free note text.
-5. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
-6. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
+4. Log with: `log <exercise> <weight> <reps>` plus free note text.
+5. RPE is not tracked. Never ask for it, never log it. Feel goes in plain words in the note instead.
+6. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
+7. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
 
 Units are kg unless user says otherwise. Never invent sets. If a message is ambiguous, hold the log and ask. Partial logging is allowed only when the clear part is unambiguous, the unclear part waits for an answer.
 

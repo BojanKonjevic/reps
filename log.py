@@ -83,13 +83,13 @@ def cmd_log(exercise, weight, reps, rpe, note):
 
 
 def cmd_update(set_id, field, value):
-    allowed = {"weight", "reps", "rpe", "exercise", "note"}
+    allowed = {"weight", "reps", "exercise", "note"}
     if field not in allowed:
-        sys.exit("field must be one of weight reps rpe exercise note")
+        sys.exit("field must be one of weight reps exercise note")
     c = conn()
     if field == "exercise":
         value = value.strip().lower()
-    if field == "weight" or field == "rpe":
+    if field == "weight":
         value = float(value) if value != "" else None
     if field == "reps":
         value = int(value)
@@ -205,7 +205,7 @@ def cmd_context(n):
     best = []
     for r in c.execute("SELECT exercise, COUNT(*) n, MAX(weight) max_w FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         last = c.execute(
-            "SELECT weight, reps, rpe FROM sets WHERE exercise = ? ORDER BY id DESC LIMIT 1", (r["exercise"],)
+            "SELECT weight, reps FROM sets WHERE exercise = ? ORDER BY id DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
         best.append({"exercise": r["exercise"], "sets": r["n"], "max_weight": r["max_w"], "last": dict(last) if last else None})
     totals = c.execute("SELECT COUNT(*) w FROM workouts").fetchone()
@@ -215,7 +215,7 @@ def cmd_context(n):
 
 def usage():
     sys.exit(
-        "usage: log.py start [note] | log <exercise> <weight> <reps> [rpe=N] [note] "
+        "usage: log.py start [note] | log <exercise> <weight> <reps> [note] "
         "| update <id> <field> <value> | end [note] | today | exercises | history <ex> [limit] "
         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync"
     )
@@ -230,14 +230,12 @@ def main():
         cmd_start(" ".join(rest))
     elif cmd == "log" and len(rest) >= 3:
         exercise, weight, reps = rest[0], rest[1], rest[2]
-        rpe = None
         note_parts = []
         for tok in rest[3:]:
             if tok.startswith("rpe="):
-                rpe = float(tok.split("=", 1)[1])
-            else:
-                note_parts.append(tok)
-        cmd_log(exercise, weight, reps, rpe, " ".join(note_parts))
+                continue
+            note_parts.append(tok)
+        cmd_log(exercise, weight, reps, None, " ".join(note_parts))
     elif cmd == "update" and len(rest) >= 3:
         cmd_update(rest[0], rest[1], " ".join(rest[2:]))
     elif cmd == "end":

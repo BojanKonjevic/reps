@@ -55,6 +55,13 @@ button.chip.off{opacity:.35;}
 .cal .cd.fut{background:none;}
 .cal .cd.pr::after{content:"";position:absolute;bottom:4px;left:50%;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:#8a5a00;}
 .back{font-family:"IBM Plex Sans",sans-serif;font-size:.9rem;}
+a{color:#7a5a34;text-decoration:none;}
+a:visited{color:#7a5a34;}
+a:hover{text-decoration:underline;}
+#sessBody h2{font-size:1.1rem;margin:22px 0 6px;}
+table.sess{font-size:.88rem;}
+table.sess td,table.sess th{padding:5px 10px;}
+details.card summary{cursor:pointer;font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;}
 .prbadge{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.05em;background:#8a5a00;color:#fff;border-radius:20px;padding:1px 9px;}
 .sessnav{display:flex;justify-content:space-between;margin:22px 0 10px;font-family:"IBM Plex Sans",sans-serif;}
 @media (prefers-color-scheme:dark){
@@ -64,6 +71,9 @@ button.chip.off{opacity:.35;}
 .cal .cd.fut{background:none;}
 .cal .cd.pr::after{background:#e6c400;}
 .prbadge{background:#e6c400;color:#111;}
+a{color:#f2a35e;}
+a:visited{color:#f2a35e;}
+details.card summary{color:#b0aca2;}
 }
 table{width:100%;border-collapse:collapse;font-family:"IBM Plex Sans",sans-serif;font-size:.95rem;}
 td,th{padding:7px 10px;border-bottom:1px solid #e5dfcd;text-align:left;}
@@ -289,12 +299,12 @@ function showSession(ds) {
   if (ix > 0) {
     prev.style.visibility = "";
     prev.href = "#/s/" + dates[ix - 1];
-    prev.textContent = "older: " + dates[ix - 1];
+    prev.textContent = "previous: " + dates[ix - 1];
   } else prev.style.visibility = "hidden";
   if (ix >= 0 && ix < dates.length - 1) {
     next.style.visibility = "";
     next.href = "#/s/" + dates[ix + 1];
-    next.textContent = "newer: " + dates[ix + 1];
+    next.textContent = "next: " + dates[ix + 1];
   } else next.style.visibility = "hidden";
   if (!ws.length) {
     title.textContent = ds;
@@ -306,10 +316,24 @@ function showSession(ds) {
   title.textContent = new Date(ds + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   const wnotes = ws.map(w => w.notes).filter(n => n);
   if (wnotes.length) {
-    const d = document.createElement("div");
-    d.className = "card";
-    d.textContent = wnotes.join(" / ");
-    notes.appendChild(d);
+    const text = wnotes.join(" / ");
+    if (text.length > 140) {
+      const det = document.createElement("details");
+      det.className = "card";
+      const sum = document.createElement("summary");
+      sum.textContent = "session notes";
+      const p = document.createElement("p");
+      p.textContent = text;
+      p.style.marginTop = "8px";
+      det.appendChild(sum);
+      det.appendChild(p);
+      notes.appendChild(det);
+    } else {
+      const d = document.createElement("div");
+      d.className = "card";
+      d.textContent = text;
+      notes.appendChild(d);
+    }
   }
   let nsets = 0;
   ws.forEach(w => {
@@ -327,8 +351,9 @@ function showSession(ds) {
       const card = document.createElement("div");
       card.className = "card";
       const tbl = document.createElement("table");
+      tbl.className = "sess";
       const head = document.createElement("tr");
-      ["set", "weight", "e1RM", "rpe", "note"].forEach(t => {
+      ["set", "weight", "e1RM", "note"].forEach(t => {
         const th = document.createElement("th");
         th.textContent = t;
         head.appendChild(th);
@@ -337,7 +362,7 @@ function showSession(ds) {
       byEx[ex].forEach((s, i) => {
         const tr = document.createElement("tr");
         const ev = s.weight * (1 + s.reps / 30);
-        const cells = [String(i + 1), s.weight + " x " + s.reps, ev.toFixed(1), (s.rpe === null || s.rpe === undefined) ? "" : String(s.rpe), s.note || ""];
+        const cells = [String(i + 1), s.weight + " x " + s.reps, ev.toFixed(1), s.note || ""];
         cells.forEach(c => {
           const td = document.createElement("td");
           td.textContent = c;
