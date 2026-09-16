@@ -540,14 +540,17 @@ function liftChart(cv, pts, ex) {
   const pad = (mx - mn) * 0.25 || Math.max(1, mx * 0.05);
   mn = Math.max(0, mn - pad);
   mx += pad;
+  const t = niceTicks(mn, mx, 4);
+  mn = t.lo; mx = t.hi;
   const py = v => H - P - (H - P - 18) * ((v - mn) / (mx - mn));
-  for (let i = 0; i <= 4; i += 1) {
-    const v = mn + (mx - mn) * i / 4;
-    const y = H - P - (H - P - 18) * i / 4;
+  const nt = Math.round((t.hi - t.lo) / t.step);
+  for (let i = 0; i <= nt; i += 1) {
+    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+    const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
     g.fillStyle = TC;
-    putText(g, W, fmtV(v), 4, y + 4, "left");
+    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
   }
   let ci = TREND.top.indexOf(ex);
   if (ci < 0) ci = 0;
@@ -617,6 +620,25 @@ function weekKey(dstr) {
 function fmtV(v) {
   return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
+function niceTicks(mn, mx, count) {
+  let span = mx - mn;
+  if (!(span > 0)) span = Math.abs(mx) || 1;
+  const raw = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const cands = [1, 2, 2.5, 5, 10];
+  let step = 10 * mag;
+  for (let i = 0; i < cands.length; i += 1) {
+    if (raw / (cands[i] * mag) <= count) { step = cands[i] * mag; break; }
+  }
+  step = parseFloat(step.toPrecision(12));
+  const lo = parseFloat((Math.floor(mn / step) * step).toPrecision(12));
+  const hi = parseFloat((Math.ceil(mx / step) * step).toPrecision(12));
+  return { lo, hi: hi <= lo ? lo + step : hi, step };
+}
+function fmtTick(v, step) {
+  const dec = step >= 1 ? 0 : Math.min(2, -Math.floor(Math.log10(step) + 1e-9));
+  return v.toFixed(dec);
+}
 function drawTrend() {
   const vis = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
   line(document.getElementById("chTrend"), TREND.days, vis.map(i => ({ v: TREND.series[i], c: i })));
@@ -654,15 +676,18 @@ function line(cv, labels, items) {
   }
   const pad = (mx - mn) * 0.2 || 1;
   mn = Math.max(0, mn - pad); mx += pad;
+  const t = niceTicks(mn, mx, 5);
+  mn = t.lo; mx = t.hi;
   g.clearRect(0, 0, W, H);
   g.font = "600 12px sans-serif";
-  for (let i = 0; i <= 4; i += 1) {
-    const v = mn + (mx - mn) * i / 4;
-    const y = H - P - (H - P - 16) * i / 4;
+  const nt = Math.round((t.hi - t.lo) / t.step);
+  for (let i = 0; i <= nt; i += 1) {
+    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+    const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
     g.fillStyle = TC;
-    putText(g, W, fmtV(v), 4, y + 4, "left");
+    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
   }
   const n = items.length ? items[0].v.length : 0;
   const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
@@ -701,15 +726,18 @@ function bwline(cv, rows) {
   let mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
   const pad = (mx - mn) * 0.5 || 1;
   mn -= pad; mx += pad;
+  const t = niceTicks(mn, mx, 3);
+  mn = t.lo; mx = t.hi;
   g.clearRect(0, 0, W, H);
   g.font = "600 12px sans-serif";
-  for (let i = 0; i <= 4; i += 1) {
-    const v = mn + (mx - mn) * i / 4;
-    const y = H - P - (H - P - 16) * i / 4;
+  const nt = Math.round((t.hi - t.lo) / t.step);
+  for (let i = 0; i <= nt; i += 1) {
+    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+    const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
     g.fillStyle = TC;
-    putText(g, W, fmtV(v), 4, y + 4, "left");
+    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
   }
   const px = i => P + (W - P - 8) * (rows.length === 1 ? 1 : i / (rows.length - 1));
   const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
@@ -740,7 +768,18 @@ function stacked(cv, labels, weeks) {
   });
   const bw = (W - P - 8) / Math.max(1, weeks.length);
   const area = H - P - 42;
+  const t = niceTicks(0, mx, 3);
+  mx = t.hi;
   g.font = "600 12px sans-serif";
+  const nt = Math.round((t.hi - t.lo) / t.step);
+  for (let i = 0; i <= nt; i += 1) {
+    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+    const y = H - P - area * (i / nt);
+    g.strokeStyle = GC; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
+    g.fillStyle = TC;
+    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+  }
   weeks.forEach((w, i) => {
     let y0 = H - P;
     groups.forEach(gr => {
