@@ -82,6 +82,7 @@ a:hover{text-decoration:underline;}
 .cal .cd{background:#171514;color:#7f7a6e;}
 .cal .cd.t{background:#2f7d33;color:#fff;}
 .cal .cd.fut{background:none;}
+.cal .cd.today{outline-color:#f0ede6;}
 .cal .cd.pr::after{background:#e6c400;}
 .prbadge{background:none;color:#e6c400;}
 .setnotes{color:#b0aca2;}
@@ -395,7 +396,7 @@ function render(){
     al.textContent = k;
     a.appendChild(al);
     const b2 = document.createElement("td"); b2.textContent = p.s.weight + " x " + p.s.reps + " (e1RM " + p.ev.toFixed(1) + ")";
-    const c2 = document.createElement("td"); c2.textContent = wdate[p.s.workout_id] || "";
+    const c2 = document.createElement("td"); c2.textContent = (wdate[p.s.workout_id] || "").slice(5);
     tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2); tbl.appendChild(tr);
   });
   route();
@@ -594,7 +595,7 @@ function showLift(ex) {
       const a = document.createElement("td");
       const al = document.createElement("a");
       al.href = "#/s/" + wdate[s.workout_id];
-      al.textContent = wdate[s.workout_id];
+      al.textContent = wdate[s.workout_id].slice(5);
       a.appendChild(al);
       const b2 = document.createElement("td");
       b2.textContent = s.weight + " x " + s.reps;
@@ -673,7 +674,7 @@ function liftChart(cv, pts, ex, hover) {
   putText(g, W, pts[pts.length - 1].date, W - 8, H - 8, "right");
   putText(g, W, fmtV(pts[0].w) + " start", P + 4, py(pts[0].w) - 12, "left");
   const last = pts[pts.length - 1];
-  putText(g, W, fmtV(last.w) + " now", W - 8, py(last.w) - 12, "right");
+  putText(g, W, fmtV(last.w) + " now", W - 8, last.pr ? py(last.w) + 24 : py(last.w) - 12, "right");
   if (hover !== undefined && hover >= 0 && hover < pts.length) {
     const p = pts[hover];
     const x = px(p.date);
@@ -877,7 +878,9 @@ function bwline(cv, rows, hover) {
   rows.forEach((r, i) => {
     g.beginPath(); g.arc(px(i), py(r.kg), 5, 0, 7); g.fill();
     g.fillStyle = TC;
-    putText(g, W, r.kg.toFixed(1), px(i), py(r.kg) - 12, "center");
+    if (i === 0) putText(g, W, r.kg.toFixed(1), px(i) + 8, py(r.kg) - 12, "left");
+    else if (i === rows.length - 1) putText(g, W, r.kg.toFixed(1), px(i) - 8, py(r.kg) - 12, "right");
+    else putText(g, W, r.kg.toFixed(1), px(i), py(r.kg) - 12, "center");
     g.fillStyle = LC[0];
   });
   g.fillStyle = TC;
