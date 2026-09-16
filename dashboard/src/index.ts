@@ -73,6 +73,7 @@ button.chip.off{opacity:.35;}
 a{color:#7a5a34;text-decoration:none;}
 a:visited{color:#7a5a34;}
 a:hover{text-decoration:underline;}
+#prs td a,#liftPRs td a{color:inherit;}
 .ex td:nth-child(1),.ex td:nth-child(2),.ex td:nth-child(3){white-space:nowrap;}
 .setnotes{margin-top:8px;font-size:.82rem;font-family:"IBM Plex Sans",sans-serif;color:#4e5148;}
 .setnotes div{margin-top:4px;}
