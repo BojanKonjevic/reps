@@ -71,6 +71,9 @@ a{color:#7a5a34;text-decoration:none;}
 a:visited{color:#7a5a34;}
 a:hover{text-decoration:underline;}
 .ex td:nth-child(1),.ex td:nth-child(2),.ex td:nth-child(3){white-space:nowrap;}
+.setnotes{margin-top:8px;font-size:.82rem;font-family:"IBM Plex Sans",sans-serif;color:#4e5148;}
+.setnotes div{margin-top:4px;}
+.setnotes b{margin-right:6px;}
 @media (prefers-color-scheme:dark){
 .cal .dw{color:#b0aca2;}
 .cal .cd{background:#171514;color:#7f7a6e;}
@@ -78,6 +81,7 @@ a:hover{text-decoration:underline;}
 .cal .cd.fut{background:none;}
 .cal .cd.pr::after{background:#e6c400;}
 .prbadge{background:none;color:#e6c400;}
+.setnotes{color:#b0aca2;}
 .iconbtn{color:#f0ede6;}
 a{color:#f2a35e;}
 a:visited{color:#f2a35e;}
@@ -340,16 +344,17 @@ function showSession(ds) {
       const tbl = document.createElement("table");
       tbl.className = "sess";
       const head = document.createElement("tr");
-      ["set", "weight", "e1RM", "note"].forEach(t => {
+      ["set", "weight", "e1RM"].forEach(t => {
         const th = document.createElement("th");
         th.textContent = t;
         head.appendChild(th);
       });
       tbl.appendChild(head);
+      const sn = [];
       byEx[ex].forEach((s, i) => {
         const tr = document.createElement("tr");
         const ev = s.weight * (1 + s.reps / 30);
-        const cells = [String(i + 1), s.weight + " x " + s.reps, ev.toFixed(1), s.note || ""];
+        const cells = [String(i + 1), s.weight + " x " + s.reps, ev.toFixed(1)];
         cells.forEach(c => {
           const td = document.createElement("td");
           td.textContent = c;
@@ -362,9 +367,23 @@ function showSession(ds) {
           b.innerHTML = '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
           tr.children[1].appendChild(b);
         }
+        if (s.note) sn.push([i + 1, s.note]);
         tbl.appendChild(tr);
       });
       wrap.appendChild(tbl);
+      if (sn.length) {
+        const nd = document.createElement("div");
+        nd.className = "setnotes";
+        sn.forEach(pair => {
+          const ln = document.createElement("div");
+          const b = document.createElement("b");
+          b.textContent = pair[0];
+          ln.appendChild(b);
+          ln.appendChild(document.createTextNode(pair[1]));
+          nd.appendChild(ln);
+        });
+        wrap.appendChild(nd);
+      }
       body.appendChild(wrap);
     });
   });
