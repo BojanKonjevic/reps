@@ -54,26 +54,33 @@ button.chip.off{opacity:.35;}
 .cal .cd.today{outline:2px solid #7a5a34;outline-offset:-2px;}
 .cal .cd.fut{background:none;}
 .cal .cd.pr::after{content:"";position:absolute;bottom:4px;left:50%;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:#8a5a00;}
-.back{font-family:"IBM Plex Sans",sans-serif;font-size:.9rem;}
+.sesstop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.sesspg{display:flex;gap:2px;}
+.iconbtn{display:inline-flex;padding:8px;border-radius:10px;color:inherit;}
+.iconbtn:hover{background:rgba(127,122,110,.16);text-decoration:none;}
+.iconbtn svg{width:22px;height:22px;display:block;}
+#viewSession h1{font-size:2rem;}
+.exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px;}
+.card.ex{padding:10px 14px;}
+.ex h3{font-size:1rem;margin-bottom:4px;}
+.ex table{font-size:.85rem;}
+.ex td,.ex th{padding:4px 8px;}
+.prbadge{display:inline-flex;vertical-align:-2px;margin-left:6px;color:#8a5a00;}
+.prbadge svg{width:14px;height:14px;display:block;}
 a{color:#7a5a34;text-decoration:none;}
 a:visited{color:#7a5a34;}
 a:hover{text-decoration:underline;}
-#sessBody h2{font-size:1.1rem;margin:22px 0 6px;}
-table.sess{font-size:.88rem;}
-table.sess td,table.sess th{padding:5px 10px;}
-details.card summary{cursor:pointer;font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;}
-.prbadge{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.05em;background:#8a5a00;color:#fff;border-radius:20px;padding:1px 9px;}
-.sessnav{display:flex;justify-content:space-between;margin:22px 0 10px;font-family:"IBM Plex Sans",sans-serif;}
+.ex td:nth-child(1),.ex td:nth-child(2),.ex td:nth-child(3){white-space:nowrap;}
 @media (prefers-color-scheme:dark){
 .cal .dw{color:#b0aca2;}
 .cal .cd{background:#171514;color:#7f7a6e;}
 .cal .cd.t{background:#2f7d33;color:#fff;}
 .cal .cd.fut{background:none;}
 .cal .cd.pr::after{background:#e6c400;}
-.prbadge{background:#e6c400;color:#111;}
+.prbadge{background:none;color:#e6c400;}
+.iconbtn{color:#f0ede6;}
 a{color:#f2a35e;}
 a:visited{color:#f2a35e;}
-details.card summary{color:#b0aca2;}
 }
 table{width:100%;border-collapse:collapse;font-family:"IBM Plex Sans",sans-serif;font-size:.95rem;}
 td,th{padding:7px 10px;border-bottom:1px solid #e5dfcd;text-align:left;}
@@ -104,12 +111,10 @@ td,th{border-color:#232120;}
 <div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
 </div>
 <div class="wrap" id="viewSession" hidden>
-<a class="back" href="#/">back to dashboard</a>
+<div class="sesstop"><a class="iconbtn" href="#/" aria-label="back to dashboard"><svg viewBox="0 0 16 16" width="22" height="22"><path d="M14 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a><span class="sesspg"><a class="iconbtn" id="sessPrev" href="#/" aria-label="previous session"><svg viewBox="0 0 16 16" width="22" height="22"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="iconbtn" id="sessNext" href="#/" aria-label="next session"><svg viewBox="0 0 16 16" width="22" height="22"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></span></div>
 <h1 id="sessTitle">Session</h1>
-<div class="sub" id="sessSub"></div>
 <div id="sessNotes"></div>
-<div id="sessBody"></div>
-<div class="sessnav"><a id="sessPrev" href="#/">older</a><a id="sessNext" href="#/">newer</a></div>
+<div id="sessBody" class="exgrid"></div>
 </div>
 <script>
 const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -286,7 +291,6 @@ function showSession(ds) {
   const v = document.getElementById("viewSession");
   v.hidden = false;
   const title = document.getElementById("sessTitle");
-  const sub = document.getElementById("sessSub");
   const notes = document.getElementById("sessNotes");
   const body = document.getElementById("sessBody");
   const prev = document.getElementById("sessPrev");
@@ -299,16 +303,15 @@ function showSession(ds) {
   if (ix > 0) {
     prev.style.visibility = "";
     prev.href = "#/s/" + dates[ix - 1];
-    prev.textContent = "previous: " + dates[ix - 1];
+    prev.setAttribute("aria-label", "previous session " + dates[ix - 1]);
   } else prev.style.visibility = "hidden";
   if (ix >= 0 && ix < dates.length - 1) {
     next.style.visibility = "";
     next.href = "#/s/" + dates[ix + 1];
-    next.textContent = "next: " + dates[ix + 1];
+    next.setAttribute("aria-label", "next session " + dates[ix + 1]);
   } else next.style.visibility = "hidden";
   if (!ws.length) {
     title.textContent = ds;
-    sub.textContent = "no session logged this day";
     document.title = ds + " no session";
     window.scrollTo(0, 0);
     return;
@@ -316,40 +319,24 @@ function showSession(ds) {
   title.textContent = new Date(ds + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   const wnotes = ws.map(w => w.notes).filter(n => n);
   if (wnotes.length) {
-    const text = wnotes.join(" / ");
-    if (text.length > 140) {
-      const det = document.createElement("details");
-      det.className = "card";
-      const sum = document.createElement("summary");
-      sum.textContent = "session notes";
-      const p = document.createElement("p");
-      p.textContent = text;
-      p.style.marginTop = "8px";
-      det.appendChild(sum);
-      det.appendChild(p);
-      notes.appendChild(det);
-    } else {
-      const d = document.createElement("div");
-      d.className = "card";
-      d.textContent = text;
-      notes.appendChild(d);
-    }
+    const d = document.createElement("div");
+    d.className = "card";
+    d.textContent = wnotes.join(" / ");
+    notes.appendChild(d);
   }
-  let nsets = 0;
   ws.forEach(w => {
     const sets = D.S.filter(s => s.workout_id === w.id);
-    nsets += sets.length;
     const order = [], byEx = {};
     sets.forEach(s => {
       (byEx[s.exercise] = byEx[s.exercise] || []).push(s);
       if (order.indexOf(s.exercise) < 0) order.push(s.exercise);
     });
     order.forEach(ex => {
-      const h = document.createElement("h2");
+      const wrap = document.createElement("div");
+      wrap.className = "card ex";
+      const h = document.createElement("h3");
       h.textContent = ex;
-      body.appendChild(h);
-      const card = document.createElement("div");
-      card.className = "card";
+      wrap.appendChild(h);
       const tbl = document.createElement("table");
       tbl.className = "sess";
       const head = document.createElement("tr");
@@ -371,17 +358,16 @@ function showSession(ds) {
         if (PR.prIds.has(s.id)) {
           const b = document.createElement("span");
           b.className = "prbadge";
-          b.textContent = "PR";
-          tr.children[1].appendChild(document.createTextNode(" "));
+          b.title = "personal record";
+          b.innerHTML = '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
           tr.children[1].appendChild(b);
         }
         tbl.appendChild(tr);
       });
-      card.appendChild(tbl);
-      body.appendChild(card);
+      wrap.appendChild(tbl);
+      body.appendChild(wrap);
     });
   });
-  sub.textContent = nsets + " sets";
   document.title = ds + " training";
   window.scrollTo(0, 0);
 }
