@@ -549,8 +549,10 @@ function liftChart(cv, pts, ex) {
     const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC;
-    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    if (i % 2 === 0 || i === nt) {
+      g.fillStyle = TC;
+      putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    }
   }
   let ci = TREND.top.indexOf(ex);
   if (ci < 0) ci = 0;
@@ -686,8 +688,10 @@ function line(cv, labels, items) {
     const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC;
-    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    if (i % 2 === 0 || i === nt) {
+      g.fillStyle = TC;
+      putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    }
   }
   const n = items.length ? items[0].v.length : 0;
   const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
@@ -736,8 +740,10 @@ function bwline(cv, rows) {
     const y = H - P - (H - P - 18) * i / nt;
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC;
-    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    if (i % 2 === 0 || i === nt) {
+      g.fillStyle = TC;
+      putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    }
   }
   const px = i => P + (W - P - 8) * (rows.length === 1 ? 1 : i / (rows.length - 1));
   const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
@@ -777,8 +783,10 @@ function stacked(cv, labels, weeks) {
     const y = H - P - area * (i / nt);
     g.strokeStyle = GC; g.lineWidth = 1;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    g.fillStyle = TC;
-    putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    if (i % 2 === 0 || i === nt) {
+      g.fillStyle = TC;
+      putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
+    }
   }
   weeks.forEach((w, i) => {
     let y0 = H - P;
