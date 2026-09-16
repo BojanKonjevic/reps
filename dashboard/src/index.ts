@@ -62,7 +62,8 @@ thead th{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#4
 @media (prefers-color-scheme:dark){
 body{background:#080807;color:#f0ede6;}
 .stat,.card{background:#111010;border-color:#232120;}
-.sub,.stat span,.cap,.notes,thead th{color:#b0aca2;}
+.sub,.stat span,.cap,.notes,.legend,thead th{color:#b0aca2;}
+h2{color:#f0ede6;}
 td,th{border-color:#232120;}
 .dot{background:#232120;}
 .dot.t{background:#2f7d33;}
@@ -80,9 +81,16 @@ td,th{border-color:#232120;}
 <h2>Training calendar</h2>
 <div class="card"><div class="calhead"><button id="calPrev" type="button">prev</button><b id="calTitle"></b><button id="calNext" type="button">next</button></div><div class="cal" id="cal"></div><div class="cap">Highlighted days are trained. Hover for the session.</div></div>
 <h2>Best sets</h2>
-<div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set</th><th>date</th></tr></thead></table></div>
+<div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
 </div>
 <script>
+const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+const LC = DARK ? ["#f2a35e", "#7cc47f", "#e6c400", "#f09696"] : ["#7a5a34", "#2f7d33", "#8a5a00", "#b3261e"];
+const TC = DARK ? "#cfc9bc" : "#4e5148";
+const GC = DARK ? "#3a3733" : "#d9d3c0";
+const MC = DARK
+  ? { push: "#f2a35e", pull: "#7cc47f", legs: "#6cb6ff", other: "#8a8578" }
+  : { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f", other: "#bbb" };
 async function main(){
   const snap = await (await fetch("snapshot")).json();
   const W = snap.workouts || [];
@@ -107,7 +115,7 @@ async function main(){
   }));
   line(document.getElementById("chTrend"), days, series);
   const lt = document.getElementById("legTrend");
-  const cols = ["#7a5a34", "#2f7d33", "#8a5a00", "#b3261e"];
+  const cols = LC;
   top.forEach((t, i) => {
     const sp = document.createElement("span"); sp.className = "chip";
     const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = cols[i % cols.length];
@@ -135,7 +143,7 @@ async function main(){
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
   const lm = document.getElementById("legMus");
-  const mc = { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f", other: "#999" };
+  const mc = MC;
   groups.forEach(g => {
     const sp = document.createElement("span"); sp.className = "chip";
     const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = mc[g];
@@ -165,14 +173,18 @@ async function main(){
   const wdate = {};
   for (const w of W) wdate[w.id] = w.date;
   const prs = {};
-  for (const s of S) { const k = s.exercise; if (!prs[k] || s.weight > prs[k].weight) prs[k] = s; }
+  for (const s of S) {
+    const k = s.exercise;
+    const ev = s.weight * (1 + s.reps / 30);
+    if (!prs[k] || ev > prs[k].ev) prs[k] = { s, ev };
+  }
   const tbl = document.getElementById("prs");
   Object.keys(prs).sort().forEach(k => {
     const p = prs[k];
     const tr = document.createElement("tr");
     const a = document.createElement("td"); a.textContent = k;
-    const b2 = document.createElement("td"); b2.textContent = p.weight + " x " + p.reps;
-    const c2 = document.createElement("td"); c2.textContent = wdate[p.workout_id] || "";
+    const b2 = document.createElement("td"); b2.textContent = p.s.weight + " x " + p.s.reps + " (e1RM " + p.ev.toFixed(1) + ")";
+    const c2 = document.createElement("td"); c2.textContent = wdate[p.s.workout_id] || "";
     tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2); tbl.appendChild(tr);
   });
 }
@@ -218,84 +230,131 @@ function weekKey(dstr) {
   const wk = Math.ceil((((d - one) / 86400000) + one.getDay() + 1) / 7);
   return d.getFullYear() + " W" + wk;
 }
-function axes(g, W, H, P) {
-  g.clearRect(0, 0, W, H);
-  g.strokeStyle = "#d9d3c0";
-  for (let i = 0; i < 4; i += 1) {
-    const y = P + (H - 2 * P) * i / 3;
-    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-  }
+function fmtV(v) {
+  return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
 function line(cv, labels, series) {
   const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 28;
-  axes(g, W, H, P);
-  let mx = 0;
-  for (const s of series) for (const v of s) if (v !== null && v > mx) mx = v;
-  mx = mx || 1;
-  const cols = ["#7a5a34", "#2f7d33", "#8a5a00", "#b3261e"];
-  const px = i => P + (W - P - 8) * (series[0].length === 1 ? 1 : i / (series[0].length - 1));
+  const W = cv.width, H = cv.height, P = 40;
+  let mn = Infinity, mx = 0, any = false;
+  for (const s of series) for (const v of s) if (v !== null) { any = true; if (v < mn) mn = v; if (v > mx) mx = v; }
+  if (!any) {
+    g.fillStyle = TC; g.font = "600 14px sans-serif";
+    g.fillText("no sets yet", P + 10, H / 2);
+    return;
+  }
+  const pad = (mx - mn) * 0.2 || 1;
+  mn -= pad; mx += pad;
+  g.clearRect(0, 0, W, H);
+  g.font = "600 12px sans-serif";
+  for (let i = 0; i <= 4; i += 1) {
+    const v = mn + (mx - mn) * i / 4;
+    const y = H - P - (H - P - 16) * i / 4;
+    g.strokeStyle = GC; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
+    g.fillStyle = TC; g.textAlign = "left";
+    g.fillText(fmtV(v), 2, y + 4);
+  }
+  const n = series.length ? series[0].length : 0;
+  const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
+  const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
   series.forEach((s, si) => {
-    g.strokeStyle = cols[si % cols.length]; g.lineWidth = 2.5; g.beginPath();
+    g.strokeStyle = LC[si % LC.length]; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath();
     let started = false;
     for (let i = 0; i < s.length; i += 1) {
       if (s[i] === null) { started = false; continue; }
-      const y = H - P - (H - 2 * P) * (s[i] / mx);
-      if (!started) { g.moveTo(px(i), y); started = true; } else g.lineTo(px(i), y);
+      if (!started) { g.moveTo(px(i), py(s[i])); started = true; } else g.lineTo(px(i), py(s[i]));
     }
     g.stroke();
+    g.fillStyle = LC[si % LC.length];
+    let first = -1, last = -1;
+    for (let i = 0; i < s.length; i += 1) {
+      if (s[i] === null) continue;
+      if (first < 0) first = i;
+      last = i;
+      g.beginPath(); g.arc(px(i), py(s[i]), 4, 0, 7); g.fill();
+    }
+    if (first >= 0) {
+      g.textAlign = first > n / 2 ? "right" : "left";
+      g.fillText(fmtV(s[first]), px(first) + (first > n / 2 ? -8 : 8), py(s[first]) - 8);
+    }
+    if (last >= 0 && last !== first) {
+      g.textAlign = "left";
+      g.fillText(fmtV(s[last]), px(last) + 8, py(s[last]) - 8);
+    }
   });
-  g.fillStyle = "#6e695c"; g.font = "11px sans-serif";
+  g.fillStyle = TC; g.textAlign = "left";
   if (labels.length) {
     g.fillText(labels[0], P, H - 8);
-    g.fillText(labels[labels.length - 1], W - 64, H - 8);
+    const end = labels[labels.length - 1];
+    g.fillText(end, W - 8 - g.measureText(end).width, H - 8);
   }
 }
 function bwline(cv, rows) {
   const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 28;
-  axes(g, W, H, P);
+  const W = cv.width, H = cv.height, P = 40;
   if (!rows.length) {
-    g.fillStyle = "#6e695c"; g.font = "14px sans-serif";
-    g.fillText("no weigh ins yet, say your morning weight in chat", P + 10, H / 2);
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = TC; g.font = "600 14px sans-serif";
+    g.fillText("no weigh ins yet, say your morning weight in chat", P, H / 2);
     return;
   }
   const vals = rows.map(r => r.kg);
   let mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
-  if (mx === mn) { mx += 1; mn -= 1; }
+  const pad = (mx - mn) * 0.5 || 1;
+  mn -= pad; mx += pad;
+  g.clearRect(0, 0, W, H);
+  g.font = "600 12px sans-serif";
+  for (let i = 0; i <= 4; i += 1) {
+    const v = mn + (mx - mn) * i / 4;
+    const y = H - P - (H - P - 16) * i / 4;
+    g.strokeStyle = GC; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
+    g.fillStyle = TC; g.textAlign = "left";
+    g.fillText(fmtV(v), 2, y + 4);
+  }
   const px = i => P + (W - P - 8) * (rows.length === 1 ? 1 : i / (rows.length - 1));
-  const py = v => H - P - (H - 2 * P) * ((v - mn) / (mx - mn));
-  g.strokeStyle = "#7a5a34"; g.lineWidth = 2.5; g.beginPath();
+  const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
+  g.strokeStyle = LC[0]; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath();
   rows.forEach((r, i) => { if (i === 0) g.moveTo(px(i), py(r.kg)); else g.lineTo(px(i), py(r.kg)); });
   g.stroke();
-  g.fillStyle = "#7a5a34";
-  rows.forEach((r, i) => { g.beginPath(); g.arc(px(i), py(r.kg), 3.5, 0, 7); g.fill(); });
-  g.fillStyle = "#6e695c"; g.font = "11px sans-serif";
+  g.fillStyle = LC[0];
+  g.textAlign = "center";
+  rows.forEach((r, i) => {
+    g.beginPath(); g.arc(px(i), py(r.kg), 5, 0, 7); g.fill();
+    g.fillStyle = TC;
+    g.fillText(r.kg.toFixed(1), px(i), py(r.kg) - 12);
+    g.fillStyle = LC[0];
+  });
+  g.fillStyle = TC; g.textAlign = "left";
   g.fillText(rows[0].date, P, H - 8);
-  g.fillText(rows[rows.length - 1].date + "  " + rows[rows.length - 1].kg + " kg", W - 150, H - 8);
+  const end = rows[rows.length - 1].date;
+  g.fillText(end, W - 8 - g.measureText(end).width, H - 8);
 }
 function stacked(cv, labels, weeks) {
   const g = cv.getContext("2d");
-  const W = cv.width, H = cv.height, P = 28;
+  const W = cv.width, H = cv.height, P = 40;
   g.clearRect(0, 0, W, H);
   const groups = ["push", "pull", "legs", "other"];
-  const mc = { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f", other: "#bbb" };
   let mx = 1;
   weeks.forEach(w => {
     const t = groups.reduce((a, k) => a + w[k], 0);
     if (t > mx) mx = t;
   });
   const bw = (W - P - 8) / Math.max(1, weeks.length);
+  g.font = "600 12px sans-serif";
   weeks.forEach((w, i) => {
     let y0 = H - P;
     groups.forEach(gr => {
-      const h = (H - 2 * P) * (w[gr] / mx);
-      g.fillStyle = mc[gr];
+      const h = (H - P - 16) * (w[gr] / mx);
+      g.fillStyle = MC[gr];
       g.fillRect(P + i * bw + 3, y0 - h, bw - 6, h);
       y0 -= h;
     });
-    g.fillStyle = "#6e695c"; g.font = "10px sans-serif";
-    g.fillText(labels[i], P + i * bw + 3, H - 8);
+    const total = groups.reduce((a, k) => a + w[k], 0);
+    g.fillStyle = TC; g.textAlign = "center";
+    g.fillText(String(total), P + i * bw + bw / 2, H - P - (H - P - 16) * (total / mx) - 8);
+    g.fillText(labels[i], P + i * bw + bw / 2, H - 8);
   });
 }
 main();
