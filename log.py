@@ -5,9 +5,11 @@ import json
 import os
 import sqlite3
 import sys
+import urllib.request
 from datetime import date, datetime
 
 DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "workouts.db"))
+CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -28,6 +30,13 @@ CREATE TABLE IF NOT EXISTS sets (
 );
 CREATE INDEX IF NOT EXISTS idx_sets_workout ON sets(workout_id);
 CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise);
+CREATE TABLE IF NOT EXISTS bodyweight (
+  id INTEGER PRIMARY KEY,
+  date TEXT NOT NULL,
+  kg REAL NOT NULL,
+  note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_bw_date ON bodyweight(date);
 """
 
 
@@ -142,7 +151,37 @@ def cmd_export():
     c = conn()
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
     sets = [dict(r) for r in c.execute("SELECT * FROM sets ORDER BY id").fetchall()]
-    print(json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets}, indent=2))
+    bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
+    print(json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}, indent=2))
+
+
+def cmd_weigh(kg, note):
+    c = conn()
+    today = date.today().isoformat()
+    cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, float(kg), note))
+    c.commit()
+    print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": float(kg)}))
+
+
+def cmd_sync():
+    try:
+        cfg = json.load(open(CFG))
+        url, secret = cfg["url"], cfg["secret"]
+    except (OSError, KeyError, ValueError):
+        sys.exit("no sync config, expected url and secret in " + CFG)
+    c = conn()
+    workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
+    sets = [dict(r) for r in c.execute("SELECT * FROM sets ORDER BY id").fetchall()]
+    bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
+    payload = json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}).encode()
+    req = urllib.request.Request(url + "/sync", data=payload, method="PUT",
+                                 headers={"Content-Type": "application/json", "Authorization": "Bearer " + secret,
+                                          "User-Agent": "reps-sync/1"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            print(json.dumps({"synced": True, "bytes": len(payload), "reply": json.loads(res.read().decode())}))
+    except OSError as e:
+        sys.exit("sync failed: " + str(e))
 
 
 def cmd_rename(old, new):
@@ -170,14 +209,15 @@ def cmd_context(n):
         ).fetchone()
         best.append({"exercise": r["exercise"], "sets": r["n"], "max_weight": r["max_w"], "last": dict(last) if last else None})
     totals = c.execute("SELECT COUNT(*) w FROM workouts").fetchone()
-    print(json.dumps({"recent": recent, "lifts": best, "workouts_total": totals["w"]}, indent=2))
+    bw = [dict(r) for r in c.execute("SELECT date, kg, note FROM bodyweight ORDER BY date DESC, id DESC LIMIT 5").fetchall()]
+    print(json.dumps({"recent": recent, "lifts": best, "workouts_total": totals["w"], "bodyweight_last": bw}, indent=2))
 
 
 def usage():
     sys.exit(
         "usage: log.py start [note] | log <exercise> <weight> <reps> [rpe=N] [note] "
         "| update <id> <field> <value> | end [note] | today | exercises | history <ex> [limit] "
-        "| stats | export | rename <old> <new> | context [n]"
+        "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync"
     )
 
 
@@ -218,6 +258,10 @@ def main():
     elif cmd == "context":
         lim = rest[0] if len(rest) > 0 else "3"
         cmd_context(lim)
+    elif cmd == "weigh" and len(rest) >= 1:
+        cmd_weigh(rest[0], " ".join(rest[1:]))
+    elif cmd == "sync":
+        cmd_sync()
     else:
         usage()
 

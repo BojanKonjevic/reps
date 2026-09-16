@@ -19,7 +19,8 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 2. If none open and user is training, run `start`.
 3. Before logging a set, check the `context` lifts list for canonical names. Reuse an existing name when it clearly matches.
 4. Log with: `log <exercise> <weight> <reps>` plus optional `rpe=8` and free note text.
-5. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side.
+5. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
+6. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
 
 Units are kg unless user says otherwise. Never invent sets. If a message is ambiguous, hold the log and ask. Partial logging is allowed only when the clear part is unambiguous, the unclear part waits for an answer.
 
@@ -47,6 +48,14 @@ Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
 `context`, `stats`, and `history <exercise>` give ground truth numbers. Do the math from those, then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence, PRs, stalls, caveats (small sample, grindy notes, missed sessions). Keep it short and honest. Numbers first, take second.
 
+Never present tonnage or total set counts as achievements, in chat or on the dashboard. Totals like that mean nothing about progress. Trends, PRs, and adherence are the currency.
+
+## Dashboard iteration
+
+The dashboard is malleable, not finished. Change it freely whenever the user asks, taste included. It lives in one file, `dashboard/src/index.ts`, and deploys with `wrangler deploy` from `dashboard/` (auth via CLOUDFLARE_API_TOKEN read from `~/.config/reps/cf_token` plus the account id, both already on this machine). Verify live with curl on `/snapshot` and the root page after every deploy.
+
+Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Prefer graphs over headline numbers.
+
 ## Dashboard sync
 
-`export` prints the full snapshot as json. Save it as `snapshot.json` and push it for the Worker dashboard to read. Local SQLite stays the source of truth.
+`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. Sync after every session close and every weigh in that matters.

@@ -3,3 +3,5 @@ workouts.db-journal
 snapshot.json
 __pycache__/
 .dashboard.dev.vars
+.wrangler/
+.DS_Store
