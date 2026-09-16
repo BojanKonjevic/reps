@@ -85,6 +85,7 @@ a:hover{text-decoration:underline;}
 .cal .cd.pr::after{background:#e6c400;}
 .prbadge{background:none;color:#e6c400;}
 .setnotes{color:#b0aca2;}
+.tip{background:#171514;border-color:#3a3733;color:#f0ede6;}
 .iconbtn{color:#f0ede6;}
 a{color:#f2a35e;}
 a:visited{color:#f2a35e;}
@@ -93,6 +94,10 @@ table{width:100%;border-collapse:collapse;font-family:"IBM Plex Sans",sans-serif
 td,th{padding:7px 10px;border-bottom:1px solid #e5dfcd;text-align:left;}
 thead th{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#4e5148;}
 .empty{font-family:"IBM Plex Sans",sans-serif;color:#6e695c;padding:18px 4px;}
+.tip{position:fixed;z-index:60;pointer-events:none;background:#fffdf7;border:1px solid #d9d3c0;border-radius:10px;padding:8px 12px;font-family:"IBM Plex Sans",sans-serif;font-size:.82rem;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:260px;}
+.tip .tt{font-weight:600;margin-bottom:4px;}
+.tip .tr{display:flex;align-items:center;gap:7px;margin-top:2px;}
+.tip .sw{width:14px;height:3px;border-radius:2px;display:inline-block;flex:none;}
 @media (prefers-color-scheme:dark){
 body{background:#080807;color:#f0ede6;}
 .stat,.card{background:#111010;border-color:#232120;}
@@ -169,6 +174,47 @@ let VIEW = "dash";
 let DASHY = 0;
 let LIFTPTS = [];
 const STARC = DARK ? "#e6c400" : "#8a5a00";
+let TIP = null;
+let BWDATA = [];
+let LIFTDATA = null;
+function tipRow(color, text) {
+  const row = document.createElement("div");
+  row.className = "tr";
+  if (color) {
+    const sw = document.createElement("span");
+    sw.className = "sw";
+    sw.style.background = color;
+    row.appendChild(sw);
+  }
+  row.appendChild(document.createTextNode(text));
+  return row;
+}
+function showTip(title, rows, x, y) {
+  if (!TIP) {
+    TIP = document.createElement("div");
+    TIP.className = "tip";
+    TIP.style.display = "none";
+    document.body.appendChild(TIP);
+  }
+  TIP.innerHTML = "";
+  const tt = document.createElement("div");
+  tt.className = "tt";
+  tt.textContent = title;
+  TIP.appendChild(tt);
+  rows.forEach(r => TIP.appendChild(tipRow(r[0], r[1])));
+  TIP.style.display = "block";
+  const w = TIP.offsetWidth;
+  TIP.style.left = (x + 18 + w > window.innerWidth ? x - w - 18 : x + 18) + "px";
+  TIP.style.top = (y + 20) + "px";
+}
+function hideTip() {
+  if (TIP) TIP.style.display = "none";
+}
+function sliceIdx(x, cw, n) {
+  if (n <= 1) return 0;
+  const i = Math.round((x - 46) / ((cw - 46 - 8) / (n - 1)));
+  return Math.min(n - 1, Math.max(0, i));
+}
 let HIDDEN = new Set();
 try {
   HIDDEN = new Set(JSON.parse(localStorage.getItem("reps-hidden") || "[]"));
@@ -198,6 +244,58 @@ async function main(){
   });
   ch.addEventListener("mousemove", ev => {
     ch.style.cursor = near(ev) ? "pointer" : "default";
+  });
+  const trendCv = document.getElementById("chTrend");
+  trendCv.addEventListener("mousemove", ev => {
+    if (!TREND.days.length) return;
+    const r = trendCv.getBoundingClientRect();
+    const idx = sliceIdx(ev.clientX - r.left, r.width, TREND.days.length);
+    drawTrend(idx);
+    const rows = [];
+    TREND.top.forEach((t, i) => {
+      if (HIDDEN.has(t)) return;
+      const v = TREND.series[i][idx];
+      if (v === null || v === undefined) return;
+      rows.push([LC[i % LC.length], t + " " + fmtV(v)]);
+    });
+    if (rows.length) showTip(TREND.days[idx], rows, ev.clientX, ev.clientY);
+    else hideTip();
+  });
+  trendCv.addEventListener("mouseleave", () => { hideTip(); drawTrend(-1); });
+  const bwCv = document.getElementById("chBw");
+  bwCv.addEventListener("mousemove", ev => {
+    if (!BWDATA.length) return;
+    const r = bwCv.getBoundingClientRect();
+    const idx = sliceIdx(ev.clientX - r.left, r.width, BWDATA.length);
+    bwline(bwCv, BWDATA, idx);
+    showTip(BWDATA[idx].date, [[null, BWDATA[idx].kg.toFixed(1) + " kg"]], ev.clientX, ev.clientY);
+  });
+  bwCv.addEventListener("mouseleave", () => { hideTip(); bwline(bwCv, BWDATA, -1); });
+  const liftCv = document.getElementById("chLift");
+  liftCv.addEventListener("mousemove", ev => {
+    if (!LIFTDATA) return;
+    const r = liftCv.getBoundingClientRect();
+    const x = ev.clientX - r.left;
+    let bi = -1, bd = 1e9;
+    LIFTPTS.forEach((p, i) => {
+      const d = Math.abs(p.x - x);
+      if (d < bd) { bd = d; bi = i; }
+    });
+    if (bi < 0 || bd > 40) {
+      hideTip();
+      liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1);
+      liftCv.style.cursor = "default";
+      return;
+    }
+    liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, bi);
+    const p = LIFTDATA.pts[bi];
+    showTip(p.date, [[null, p.w + " x " + p.r + " (e1RM " + p.ev.toFixed(1) + ")" + (p.pr ? " PR" : "")]], ev.clientX, ev.clientY);
+    liftCv.style.cursor = "pointer";
+  });
+  liftCv.addEventListener("mouseleave", () => {
+    hideTip();
+    if (LIFTDATA) liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1);
+    liftCv.style.cursor = "default";
   });
 }
 function render(){
@@ -238,6 +336,7 @@ function render(){
     const li = document.createElement("li"); li.textContent = d + ": " + noted[d]; nl.appendChild(li);
   });
   bwline(document.getElementById("chBw"), BW);
+  BWDATA = BW;
   const groups = ["push", "pull", "legs", "other"];
   const weeks = {};
   for (const s of S) {
@@ -463,6 +562,7 @@ function showLift(ex) {
   if (!sets.length) {
     sub.textContent = "never logged";
     LIFTPTS = [];
+    LIFTDATA = null;
     liftChart(document.getElementById("chLift"), [], ex);
     window.scrollTo(0, 0);
     return;
@@ -480,6 +580,7 @@ function showLift(ex) {
   });
   const best = pts.slice().sort((a, b) => b.ev - a.ev)[0];
   sub.textContent = "best " + best.w + " x " + best.r + " (e1RM " + best.ev.toFixed(1) + ") on " + best.date;
+  LIFTDATA = { pts, ex };
   liftChart(document.getElementById("chLift"), pts, ex);
   const order = D.S.slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id);
   const seen = new Set(), top2 = { ev: 0 };
@@ -517,7 +618,7 @@ function star(g, x, y, r, color) {
   g.closePath();
   g.fill();
 }
-function liftChart(cv, pts, ex) {
+function liftChart(cv, pts, ex, hover) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 46;
   g.clearRect(0, 0, W, H);
@@ -573,6 +674,14 @@ function liftChart(cv, pts, ex) {
   putText(g, W, fmtV(pts[0].w) + " start", P + 4, py(pts[0].w) - 12, "left");
   const last = pts[pts.length - 1];
   putText(g, W, fmtV(last.w) + " now", W - 8, py(last.w) - 12, "right");
+  if (hover !== undefined && hover >= 0 && hover < pts.length) {
+    const p = pts[hover];
+    const x = px(p.date);
+    g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
+    g.globalAlpha = 1;
+    star(g, x, py(p.w) - 12, 10, STARC);
+  }
 }
 window.addEventListener("hashchange", route);
 function muscleOf(n) {
@@ -641,9 +750,9 @@ function fmtTick(v, step) {
   const dec = step >= 1 ? 0 : Math.min(2, -Math.floor(Math.log10(step) + 1e-9));
   return v.toFixed(dec);
 }
-function drawTrend() {
+function drawTrend(hover) {
   const vis = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
-  line(document.getElementById("chTrend"), TREND.days, vis.map(i => ({ v: TREND.series[i], c: i })));
+  line(document.getElementById("chTrend"), TREND.days, vis.map(i => ({ v: TREND.series[i], c: i })), hover === undefined ? -1 : hover);
   const lt = document.getElementById("legTrend");
   lt.innerHTML = "";
   TREND.top.forEach((t, i) => {
@@ -666,7 +775,7 @@ function drawTrend() {
     lt.appendChild(b);
   });
 }
-function line(cv, labels, items) {
+function line(cv, labels, items, hover) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 46;
   let mn = Infinity, mx = 0, any = false;
@@ -716,8 +825,20 @@ function line(cv, labels, items) {
     putText(g, W, labels[0], P, H - 8, "left");
     putText(g, W, labels[labels.length - 1], W - 8, H - 8, "right");
   }
+  if (hover !== undefined && hover >= 0 && hover < n) {
+    const x = px(hover);
+    g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
+    g.globalAlpha = 1;
+    items.forEach(it => {
+      const v = it.v[hover];
+      if (v === null || v === undefined) return;
+      g.fillStyle = LC[it.c % LC.length];
+      g.beginPath(); g.arc(x, py(v), 6, 0, 7); g.fill();
+    });
+  }
 }
-function bwline(cv, rows) {
+function bwline(cv, rows, hover) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 46;
   if (!rows.length) {
@@ -761,6 +882,14 @@ function bwline(cv, rows) {
   g.fillStyle = TC;
   putText(g, W, rows[0].date, P, H - 8, "left");
   putText(g, W, rows[rows.length - 1].date, W - 8, H - 8, "right");
+  if (hover !== undefined && hover >= 0 && hover < rows.length) {
+    const x = px(hover);
+    g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
+    g.globalAlpha = 1;
+    g.fillStyle = LC[0];
+    g.beginPath(); g.arc(x, py(rows[hover].kg), 7, 0, 7); g.fill();
+  }
 }
 function stacked(cv, labels, weeks) {
   const f = fit(cv);
