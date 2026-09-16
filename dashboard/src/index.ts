@@ -27,13 +27,15 @@ const PAGE = `<!doctype html>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#f5f2e9;color:#1f211c;font-family:"IBM Plex Serif",Georgia,serif;line-height:1.6;padding:40px 24px 90px;}
-.wrap{max-width:880px;margin:0 auto;}
+.wrap{max-width:1240px;margin:0 auto;}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
+@media (max-width:900px){.cols2{grid-template-columns:1fr;}}
 .kick{font-family:"IBM Plex Sans",sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#75603a;margin-bottom:8px;}
 h1{font-size:2.6rem;letter-spacing:-.02em;margin-bottom:6px;}
 .sub{font-family:"IBM Plex Sans",sans-serif;color:#4e5148;margin-bottom:26px;}
 h2{font-size:1.35rem;margin:34px 0 10px;}
 .card{background:#fffdf7;border:1px solid #d9d3c0;border-radius:14px;padding:16px;margin:12px 0;}
-canvas{width:100%;height:230px;display:block;}
+canvas{width:100%;height:250px;display:block;}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;}
 .chip{display:inline-flex;align-items:center;gap:7px;}
 button.chip{background:none;border:1px solid transparent;border-radius:8px;padding:4px 8px;cursor:pointer;color:inherit;font-family:inherit;font-size:.85rem;}
@@ -42,7 +44,7 @@ button.chip.off{opacity:.35;}
 .cap{font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;margin-top:10px;}
 .notes{font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;margin-top:10px;}
 .notes li{margin-bottom:4px;margin-left:20px;}
-.calcard{max-width:430px;}
+.calcard{min-width:0;}
 .calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-family:"IBM Plex Sans",sans-serif;}
 .calhead b{font-size:1rem;}
 .calhead button{background:none;border:none;padding:6px;cursor:pointer;color:inherit;display:flex;}
@@ -103,14 +105,18 @@ td,th{border-color:#232120;}
 <div class="kick">reps</div>
 <h1>Training dashboard</h1>
 <div class="sub" id="sub">loading</div>
-<h2>Estimated 1RM trend</h2>
-<div class="card"><canvas id="chTrend" width="860" height="230"></canvas><div class="legend" id="legTrend"></div><div class="cap">Best set per session. Dots under the axis mark sessions with notes.</div><ul class="notes" id="noteList"></ul></div>
-<h2>Bodyweight</h2>
-<div class="card"><canvas id="chBw" width="860" height="230"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div>
-<h2>Weekly volume by muscle</h2>
-<div class="card"><canvas id="chMus" width="860" height="230"></canvas><div class="legend" id="legMus"></div></div>
-<h2>Training calendar</h2>
-<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold dot marks a PR day.</div></div>
+<div class="cols2">
+<div><h2>Estimated 1RM trend</h2>
+<div class="card"><canvas id="chTrend" width="860" height="250"></canvas><div class="legend" id="legTrend"></div><div class="cap">Best set per session.</div></div></div>
+<div><h2>Bodyweight</h2>
+<div class="card"><canvas id="chBw" width="860" height="250"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div></div>
+</div>
+<div class="cols2">
+<div><h2>Weekly volume by muscle</h2>
+<div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div></div>
+<div><h2>Training calendar</h2>
+<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold dot marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
+</div>
 <h2>Best sets</h2>
 <div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
 </div>
