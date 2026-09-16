@@ -65,6 +65,7 @@ button.chip.off{opacity:.35;}
 .exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px;}
 .card.ex{padding:10px 14px;}
 .ex h3{font-size:1rem;margin-bottom:4px;}
+.ex h3 a{color:inherit;}
 .ex table{font-size:.85rem;}
 .ex td,.ex th{padding:4px 8px;}
 .prbadge{display:inline-flex;vertical-align:-2px;margin-left:6px;color:#8a5a00;}
@@ -126,6 +127,14 @@ td,th{border-color:#232120;}
 <div id="sessNotes"></div>
 <div id="sessBody" class="exgrid"></div>
 </div>
+<div class="wrap" id="viewLift" hidden>
+<div class="sesstop"><a class="iconbtn" href="#/" aria-label="back to dashboard"><svg viewBox="0 0 16 16" width="22" height="22"><path d="M14 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+<h1 id="liftTitle">Lift</h1>
+<div class="sub" id="liftSub"></div>
+<div class="card"><canvas id="chLift" width="860" height="260"></canvas><div class="cap">Top set weight per session. Stars mark sessions with an e1RM PR. Tap a point to open the session.</div></div>
+<h2>PR history</h2>
+<div class="card"><table id="liftPRs"><thead><tr><th>date</th><th>set</th><th>e1RM</th></tr></thead></table></div>
+</div>
 <script>
 const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 try { history.scrollRestoration = "manual"; } catch (e) {}
@@ -158,6 +167,8 @@ let D = null;
 let PR = null;
 let VIEW = "dash";
 let DASHY = 0;
+let LIFTPTS = [];
+const STARC = DARK ? "#e6c400" : "#8a5a00";
 let HIDDEN = new Set();
 try {
   HIDDEN = new Set(JSON.parse(localStorage.getItem("reps-hidden") || "[]"));
@@ -169,6 +180,24 @@ async function main(){
   window.addEventListener("resize", () => {
     if (rt) clearTimeout(rt);
     rt = setTimeout(render, 250);
+  });
+  const ch = document.getElementById("chLift");
+  const near = ev => {
+    const r = ch.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    let bp = null, bd = 1e9;
+    LIFTPTS.forEach(p => {
+      const d = Math.abs(p.x - x) + Math.abs(p.y - y);
+      if (d < bd) { bd = d; bp = p; }
+    });
+    return bd < 34 ? bp : null;
+  };
+  ch.addEventListener("click", ev => {
+    const p = near(ev);
+    if (p) location.hash = "#/s/" + p.date;
+  });
+  ch.addEventListener("mousemove", ev => {
+    ch.style.cursor = near(ev) ? "pointer" : "default";
   });
 }
 function render(){
@@ -261,7 +290,11 @@ function render(){
   Object.keys(prs).sort().forEach(k => {
     const p = prs[k];
     const tr = document.createElement("tr");
-    const a = document.createElement("td"); a.textContent = k;
+    const a = document.createElement("td");
+    const al = document.createElement("a");
+    al.href = "#/l/" + encodeURIComponent(k);
+    al.textContent = k;
+    a.appendChild(al);
     const b2 = document.createElement("td"); b2.textContent = p.s.weight + " x " + p.s.reps + " (e1RM " + p.ev.toFixed(1) + ")";
     const c2 = document.createElement("td"); c2.textContent = wdate[p.s.workout_id] || "";
     tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2); tbl.appendChild(tr);
@@ -292,21 +325,28 @@ function isDate(s) {
 function route() {
   const h = location.hash || "";
   const ds = h.slice(0, 4) === "#/s/" ? h.slice(4, 14) : "";
+  const lift = h.slice(0, 4) === "#/l/" ? decodeURIComponent(h.slice(4)) : "";
   if (ds && isDate(ds) && D) {
     if (VIEW === "dash") DASHY = window.scrollY;
     VIEW = "sess";
     showSession(ds);
+  } else if (lift && D) {
+    if (VIEW === "dash") DASHY = window.scrollY;
+    VIEW = "lift";
+    showLift(lift);
   } else {
-    const restore = VIEW === "sess";
+    const restore = VIEW !== "dash";
     VIEW = "dash";
     document.getElementById("viewDash").hidden = false;
     document.getElementById("viewSession").hidden = true;
+    document.getElementById("viewLift").hidden = true;
     document.title = "reps dashboard";
     if (restore) window.scrollTo(0, DASHY);
   }
 }
 function showSession(ds) {
   document.getElementById("viewDash").hidden = true;
+  document.getElementById("viewLift").hidden = true;
   const v = document.getElementById("viewSession");
   v.hidden = false;
   const title = document.getElementById("sessTitle");
@@ -354,7 +394,10 @@ function showSession(ds) {
       const wrap = document.createElement("div");
       wrap.className = "card ex";
       const h = document.createElement("h3");
-      h.textContent = ex;
+      const hl = document.createElement("a");
+      hl.href = "#/l/" + encodeURIComponent(ex);
+      hl.textContent = ex;
+      h.appendChild(hl);
       wrap.appendChild(h);
       const tbl = document.createElement("table");
       tbl.className = "sess";
@@ -404,6 +447,127 @@ function showSession(ds) {
   });
   document.title = ds + " training";
   window.scrollTo(0, 0);
+}
+function showLift(ex) {
+  document.getElementById("viewDash").hidden = true;
+  document.getElementById("viewSession").hidden = true;
+  const v = document.getElementById("viewLift");
+  v.hidden = false;
+  const title = document.getElementById("liftTitle");
+  const sub = document.getElementById("liftSub");
+  const tbl = document.getElementById("liftPRs");
+  while (tbl.rows.length > 1) tbl.deleteRow(1);
+  title.textContent = ex;
+  document.title = ex;
+  const sets = D.S.filter(s => s.exercise === ex);
+  if (!sets.length) {
+    sub.textContent = "never logged";
+    LIFTPTS = [];
+    liftChart(document.getElementById("chLift"), [], ex);
+    window.scrollTo(0, 0);
+    return;
+  }
+  const wdate = {};
+  for (const w of D.W) wdate[w.id] = w.date;
+  const byDate = {};
+  sets.forEach(s => {
+    const d = wdate[s.workout_id];
+    (byDate[d] = byDate[d] || []).push(s);
+  });
+  const pts = Object.keys(byDate).sort().map(d => {
+    const top = byDate[d].slice().sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
+    return { date: d, w: top.weight, r: top.reps, ev: top.weight * (1 + top.reps / 30), pr: byDate[d].some(s => PR.prIds.has(s.id)) };
+  });
+  const best = pts.slice().sort((a, b) => b.ev - a.ev)[0];
+  sub.textContent = "best " + best.w + " x " + best.r + " (e1RM " + best.ev.toFixed(1) + ") on " + best.date;
+  liftChart(document.getElementById("chLift"), pts, ex);
+  const order = D.S.slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id);
+  const seen = new Set(), top2 = { ev: 0 };
+  order.forEach(s => {
+    if (s.exercise !== ex) return;
+    const ev = s.weight * (1 + s.reps / 30);
+    if (!seen.has(ex)) { seen.add(ex); top2.ev = ev; return; }
+    if (ev > top2.ev) {
+      top2.ev = ev;
+      const tr = document.createElement("tr");
+      const a = document.createElement("td");
+      const al = document.createElement("a");
+      al.href = "#/s/" + wdate[s.workout_id];
+      al.textContent = wdate[s.workout_id];
+      a.appendChild(al);
+      const b2 = document.createElement("td");
+      b2.textContent = s.weight + " x " + s.reps;
+      const c2 = document.createElement("td");
+      c2.textContent = ev.toFixed(1);
+      tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2);
+      tbl.appendChild(tr);
+    }
+  });
+  window.scrollTo(0, 0);
+}
+function star(g, x, y, r, color) {
+  g.fillStyle = color;
+  g.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    const a = -Math.PI / 2 + i * Math.PI / 5;
+    const px = x + rr * Math.cos(a), py = y + rr * Math.sin(a);
+    if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+  }
+  g.closePath();
+  g.fill();
+}
+function liftChart(cv, pts, ex) {
+  const f = fit(cv);
+  const g = f.g, W = f.W, H = f.H, P = 46;
+  g.clearRect(0, 0, W, H);
+  g.font = "600 12px sans-serif";
+  LIFTPTS = [];
+  if (!pts.length) {
+    g.fillStyle = TC;
+    putText(g, W, "no sets logged for this lift yet", P, H / 2, "left");
+    return;
+  }
+  const d0 = pts[0].date;
+  const todayS = new Date().toISOString().slice(0, 10);
+  const d1 = pts[pts.length - 1].date > todayS ? pts[pts.length - 1].date : todayS;
+  const t0 = new Date(d0 + "T12:00:00").getTime();
+  const t1 = new Date(d1 + "T12:00:00").getTime();
+  const span = Math.max(1, t1 - t0);
+  const px = dt => P + (W - P - 8) * ((new Date(dt + "T12:00:00").getTime() - t0) / span);
+  let mn = Infinity, mx = 0;
+  pts.forEach(p => { if (p.w < mn) mn = p.w; if (p.w > mx) mx = p.w; });
+  const pad = (mx - mn) * 0.25 || Math.max(1, mx * 0.05);
+  mn = Math.max(0, mn - pad);
+  mx += pad;
+  const py = v => H - P - (H - P - 18) * ((v - mn) / (mx - mn));
+  for (let i = 0; i <= 4; i += 1) {
+    const v = mn + (mx - mn) * i / 4;
+    const y = H - P - (H - P - 18) * i / 4;
+    g.strokeStyle = GC; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
+    g.fillStyle = TC;
+    putText(g, W, fmtV(v), 4, y + 4, "left");
+  }
+  let ci = TREND.top.indexOf(ex);
+  if (ci < 0) ci = 0;
+  const col = LC[ci % LC.length];
+  g.strokeStyle = col; g.lineWidth = 3; g.lineJoin = "round";
+  g.beginPath();
+  pts.forEach((p, i) => { if (i === 0) g.moveTo(px(p.date), py(p.w)); else g.lineTo(px(p.date), py(p.w)); });
+  g.stroke();
+  pts.forEach(p => {
+    const x = px(p.date), y = py(p.w);
+    LIFTPTS.push({ x, y, date: p.date });
+    if (p.pr) star(g, x, y - 12, 7, STARC);
+    else { g.fillStyle = col; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  });
+  g.fillStyle = TC;
+  putText(g, W, pts[0].date, P, H - 8, "left");
+  putText(g, W, pts[pts.length - 1].date, W - 8, H - 8, "right");
+  putText(g, W, fmtV(pts[0].w) + " start", P + 4, py(pts[0].w) - 12, "left");
+  const last = pts[pts.length - 1];
+  putText(g, W, fmtV(last.w) + " now", W - 8, py(last.w) - 12, "right");
 }
 window.addEventListener("hashchange", route);
 function muscleOf(n) {
