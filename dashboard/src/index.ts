@@ -85,7 +85,6 @@ a:hover{text-decoration:underline;}
 .cal .cd.pr::after{background:#e6c400;}
 .prbadge{background:none;color:#e6c400;}
 .setnotes{color:#b0aca2;}
-.tip{background:#171514;border-color:#3a3733;color:#f0ede6;}
 .iconbtn{color:#f0ede6;}
 a{color:#f2a35e;}
 a:visited{color:#f2a35e;}
@@ -106,6 +105,7 @@ h2{color:#f0ede6;}
 td,th{border-color:#232120;}
 .dot{background:#232120;}
 .dot.t{background:#2f7d33;}
+.tip{background:#171514;border-color:#3a3733;color:#f0ede6;}
 }
 </style></head><body><div class="wrap" id="viewDash">
 <div class="kick">reps</div>
