@@ -55,7 +55,7 @@ Never present tonnage or total set counts as achievements, in chat or on the das
 
 The dashboard is malleable, not finished. Change it freely whenever the user asks, taste included. It lives in one file, `dashboard/src/index.ts`, and deploys with `wrangler deploy` from `dashboard/` (auth via CLOUDFLARE_API_TOKEN read from `~/.config/reps/cf_token` plus the account id, both already on this machine). Verify live with curl on `/snapshot` and the root page after every deploy.
 
-Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers.
+Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Muscle groups for the volume chart live in the worker muscleOf patterns, lifts that match nothing are left out entirely, extend the patterns when the split changes. Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers.
 
 ## Dashboard sync
 

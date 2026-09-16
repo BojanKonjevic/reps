@@ -147,8 +147,8 @@ const LC = DARK ? ["#f2a35e", "#7cc47f", "#e6c400", "#f09696"] : ["#7a5a34", "#2
 const TC = DARK ? "#cfc9bc" : "#4e5148";
 const GC = DARK ? "#3a3733" : "#d9d3c0";
 const MC = DARK
-  ? { push: "#f2a35e", pull: "#7cc47f", legs: "#6cb6ff", other: "#8a8578" }
-  : { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f", other: "#bbb" };
+  ? { push: "#f2a35e", pull: "#7cc47f", legs: "#6cb6ff" }
+  : { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f" };
 function fit(cv) {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(50, cv.clientWidth), h = Math.max(50, cv.clientHeight);
@@ -337,11 +337,11 @@ function render(){
   });
   bwline(document.getElementById("chBw"), BW);
   BWDATA = BW;
-  const groups = ["push", "pull", "legs", "other"];
+  const groups = ["push", "pull", "legs"];
   const weeks = {};
   for (const s of S) {
     const k = weekKey(s.created.slice(0, 10));
-    weeks[k] = weeks[k] || { push: 0, pull: 0, legs: 0, other: 0 };
+    weeks[k] = weeks[k] || { push: 0, pull: 0, legs: 0 };
     weeks[k][muscleOf(s.exercise)] += 1;
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
@@ -691,6 +691,7 @@ function muscleOf(n) {
   if (/(squat|deadlift|leg|lunge|calf|rdl|hip)/.test(n)) return "legs";
   return "other";
 }
+// Unmapped lifts fall into other and are excluded from the volume chart. Extend the patterns above when the split changes.
 function renderCal(year, month, dayDetail) {
   const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   document.getElementById("calTitle").textContent = names[month] + " " + year;
@@ -895,7 +896,7 @@ function stacked(cv, labels, weeks) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 46;
   g.clearRect(0, 0, W, H);
-  const groups = ["push", "pull", "legs", "other"];
+  const groups = ["push", "pull", "legs"];
   let mx = 1;
   weeks.forEach(w => {
     const t = groups.reduce((a, k) => a + w[k], 0);
