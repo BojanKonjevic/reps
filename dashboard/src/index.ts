@@ -122,6 +122,7 @@ td,th{border-color:#232120;}
 </div>
 <script>
 const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+try { history.scrollRestoration = "manual"; } catch (e) {}
 const LC = DARK ? ["#f2a35e", "#7cc47f", "#e6c400", "#f09696"] : ["#7a5a34", "#2f7d33", "#8a5a00", "#b3261e"];
 const TC = DARK ? "#cfc9bc" : "#4e5148";
 const GC = DARK ? "#3a3733" : "#d9d3c0";
@@ -149,6 +150,8 @@ let SNAP = null;
 let TREND = { days: [], series: [], top: [] };
 let D = null;
 let PR = null;
+let VIEW = "dash";
+let DASHY = 0;
 let HIDDEN = new Set();
 try {
   HIDDEN = new Set(JSON.parse(localStorage.getItem("reps-hidden") || "[]"));
@@ -283,11 +286,17 @@ function isDate(s) {
 function route() {
   const h = location.hash || "";
   const ds = h.slice(0, 4) === "#/s/" ? h.slice(4, 14) : "";
-  if (ds && isDate(ds) && D) showSession(ds);
-  else {
+  if (ds && isDate(ds) && D) {
+    if (VIEW === "dash") DASHY = window.scrollY;
+    VIEW = "sess";
+    showSession(ds);
+  } else {
+    const restore = VIEW === "sess";
+    VIEW = "dash";
     document.getElementById("viewDash").hidden = false;
     document.getElementById("viewSession").hidden = true;
     document.title = "reps dashboard";
+    if (restore) window.scrollTo(0, DASHY);
   }
 }
 function showSession(ds) {
