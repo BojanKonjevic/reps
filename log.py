@@ -67,7 +67,7 @@ def _migrate_v1_to_v2(c):
 
 
 MIGRATIONS = {
-    1: _migrate_v1_to_v2,
+    2: _migrate_v1_to_v2,
 }
 
 
@@ -206,6 +206,12 @@ def cmd_update(set_id, field, value):
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
             sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
+        # Update set_muscles junction table for renamed exercise
+        old_ex = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()["exercise"]
+        new_ex = value
+        c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
+        for muscle in mapping["muscles"].split(","):
+            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
     print(json.dumps({"updated": int(set_id)}))
@@ -335,6 +341,9 @@ def parse_mev_from_science():
                         mev_bounds[name_map[muscle]] = int(mev_match.group(1))
     except (OSError, ValueError):
         pass
+    if len(mev_bounds) < len(name_map):
+        missing = set(name_map.values()) - set(mev_bounds.keys())
+        print(f"WARNING: parse_mev_from_science parsed {len(mev_bounds)}/{len(name_map)} muscles; missing: {missing}")
     return mev_bounds
 
 
@@ -381,10 +390,12 @@ def cmd_audit():
         JOIN lift_muscle_map m ON m.exercise = s.exercise
         LEFT JOIN set_muscles sm ON sm.set_id = s.id
         GROUP BY s.id
-        HAVING logged != m.muscles
     """).fetchall()
     for d in drift:
-        flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
+        logged_set = set(d['logged'].split(',')) if d['logged'] else set()
+        mapped_set = set(d['mapped'].split(',')) if d['mapped'] else set()
+        if logged_set != mapped_set:
+            flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
     
     # Check 4: Implausible progression jumps
     sets = c.execute("""
