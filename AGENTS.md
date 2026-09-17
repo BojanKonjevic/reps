@@ -6,7 +6,7 @@ Chat first workout log. The agent owns meaning, `log.py` only stores.
 
 Fresh agents have no chat memory, so rebuild it from files first:
 
-1. Read `MEMORY.md`. Active rules there beat default mappings and beat raw history. Check memory before asking anything about units, mappings, or program, many questions answer themselves there.
+1. Read `MEMORY.md` and `SCIENCE.md`. Active rules in MEMORY.md beat SCIENCE.md defaults which beat raw history. SCIENCE.md provides evidence-based bounds for goal realism, peak prescriptions, split suggestions, and any judgment call. My logged data in MEMORY.md beats SCIENCE.md defaults for my specific lifts. Check both before asking anything about units, mappings, or program.
 2. Check dates: compare today against every rule expiry plus the Needs confirm section. If a rule expired since last session or expires within 7 days, ask once before logging anything it affects (example: incline block ended Nov 1 and user still logs incline, ask to extend or close). Move expired rules to Needs confirm, never delete silently.
 3. Stale workout check: `start` reports `age_days` when a workout is already open. Hard signals it is stale: open date is not today, or `age_days >= 1`, or gap since `last_set_created` is over 8h. Soft signals: user trains a different muscle group than the open session, or says something like "just got to the gym" after yesterday's sets with no `done`. Any hard signal, or two soft ones, means ask "new workout?" before writing anything. Answering yes means explicitly closing the old one first so it gets its `end` note, never auto closing silently.
 4. Compaction check: MEMORY.md has a Last compacted stamp. If today is past the 1st and the stamp is older than the most recent 1st, run compaction now (see Memory writeback). Skippable on request with "do it later", and then it must not nag again that day.
@@ -108,7 +108,17 @@ Chat history dies with the session, files survive. When user states something du
 
 Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
-## Analysis
+## SCIENCE.md updates
+
+"audit the research" triggers a refresh of SCIENCE.md. Process:
+
+1. Search for recent (last 2–3 years) meta-analyses and systematic reviews on each topic SCIENCE.md covers: volume landmarks, frequency, rep ranges, proximity to failure, progression rates, deload, exercise selection.
+2. Weigh findings using the trust hierarchy in SCIENCE.md's header (meta-analyses > RCTs > practitioner synthesis > anecdotal).
+3. For each entry: if new evidence shifts the tier or the number, propose the change with citation (author/group + year). Conflicting findings → state the range and why, keep Contested tier.
+4. Present proposed changes for approval. Nothing overwrites silently — same approval pattern as Goals flow. On approval, rewrite the affected sections, update "last reviewed" date.
+5. Personal deviations section is never touched by this process; only I add there.
+
+This is distinct from data-quality audits or compaction. It only refreshes the external evidence base.
 
 `context`, `stats`, `calendar`, `session`, `range`, and `history <exercise>` give ground truth numbers. Gym mode reasons from `context` only. Review mode may pull hundreds of sessions at once with `range` or `notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence from `calendar` dates and gaps (raw dates in, verdict out, travel and sick notes from memory decide miss versus planned rest), PRs, stalls, caveats (small sample, pain notes, missed sessions). Keep it short and honest. Numbers first, take second.
 
