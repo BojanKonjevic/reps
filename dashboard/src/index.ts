@@ -497,16 +497,16 @@ function showSession(ds) {
   if (ix > 0) {
     prev.style.visibility = "";
     prev.href = "#/s/" + dates[ix - 1];
-    prev.setAttribute("aria-label", "previous session " + dates[ix - 1]);
+    prev.setAttribute("aria-label", "previous session " + fmtD(dates[ix - 1]));
   } else prev.style.visibility = "hidden";
   if (ix >= 0 && ix < dates.length - 1) {
     next.style.visibility = "";
     next.href = "#/s/" + dates[ix + 1];
-    next.setAttribute("aria-label", "next session " + dates[ix + 1]);
+    next.setAttribute("aria-label", "next session " + fmtD(dates[ix + 1]));
   } else next.style.visibility = "hidden";
   if (!ws.length) {
-    title.textContent = ds;
-    document.title = ds + " no session";
+    title.textContent = fmtD(ds);
+    document.title = fmtD(ds) + " no session";
     window.scrollTo(0, 0);
     return;
   }
@@ -585,7 +585,7 @@ function showSession(ds) {
       body.appendChild(wrap);
     });
   });
-  document.title = ds + " training";
+  document.title = fmtD(ds) + " training";
   window.scrollTo(0, 0);
 }
 function showLift(ex) {

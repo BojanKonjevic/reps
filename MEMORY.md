@@ -12,7 +12,7 @@ Empty. Rules whose date passed move here, never deleted silently. Agent asks onc
 
 None yet. Add dated rules here when user states something durable.
 Format: start date, rule, expiry if any.
-Example: 2026-09-01 incline barbell bench press is the main press until 2026-11-01, flat only on request.
+Example: Sep 1 2026 incline barbell bench press is the main press until Nov 1 2026, flat only on request.
 
 ## Program
 
