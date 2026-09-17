@@ -36,13 +36,29 @@ CREATE TABLE IF NOT EXISTS bodyweight (
   note TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_bw_date ON bodyweight(date);
+CREATE TABLE IF NOT EXISTS schema_version (
+  version INTEGER PRIMARY KEY,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
+CURRENT_SCHEMA_VERSION = 1
 
 
 def conn():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA foreign_keys=ON")
     c.executescript(SCHEMA)
+    # Schema migration
+    cur = c.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
+    current = cur.fetchone()[0]
+    if current < CURRENT_SCHEMA_VERSION:
+        if current == 0:
+            # Initial migration - already handled by SCHEMA
+            pass
+        c.execute("INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
+        c.commit()
     try:
         c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
     except sqlite3.OperationalError:
@@ -193,6 +209,10 @@ def cmd_sync():
     except (OSError, KeyError, ValueError):
         sys.exit("no sync config, expected url and secret in " + CFG)
     c = conn()
+    # Integrity check before sync
+    integrity = c.execute("PRAGMA integrity_check").fetchone()[0]
+    if integrity != "ok":
+        sys.exit("database integrity check failed: " + integrity)
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
     sets = [dict(r) for r in c.execute("SELECT * FROM sets ORDER BY id").fetchall()]
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
