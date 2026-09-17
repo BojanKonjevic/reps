@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import sqlite3
 import sys
 import urllib.request
@@ -10,6 +11,7 @@ from datetime import date, datetime
 
 DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
+SCIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SCIENCE.md")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -45,8 +47,13 @@ CREATE TABLE IF NOT EXISTS lift_muscle_map (
   muscles TEXT NOT NULL,
   is_bodyweight_only INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS set_muscles (
+  set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+  muscle TEXT NOT NULL,
+  PRIMARY KEY (set_id, muscle)
+);
 """
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def conn():
@@ -62,6 +69,13 @@ def conn():
         if current == 0:
             # Initial migration - already handled by SCHEMA
             pass
+        elif current == 1:
+            # Migration v2: create set_muscles table and populate from muscles column
+            c.execute("""
+                INSERT INTO set_muscles (set_id, muscle)
+                SELECT id, trim(value) FROM sets, json_each('["' || replace(muscles, ',', '","') || '"]')
+                WHERE muscles != ''
+            """)
         c.execute("INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
         c.commit()
     try:
@@ -141,8 +155,12 @@ def cmd_log(exercise, weight, reps, note, muscles):
         "INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (wid, exercise, weight, reps, note, created, muscles),
     )
+    set_id = cur.lastrowid
+    # Populate set_muscles junction table
+    for muscle in muscles.split(","):
+        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     c.commit()
-    print(json.dumps({"set_id": cur.lastrowid, "workout_id": wid}))
+    print(json.dumps({"set_id": set_id, "workout_id": wid}))
 
 
 def cmd_update(set_id, field, value):
@@ -154,6 +172,11 @@ def cmd_update(set_id, field, value):
         value = value.strip().lower()
     if field == "muscles":
         value = clean_muscles(value)
+    if field == "muscles":
+        # Update set_muscles junction table
+        c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
+        for muscle in value.split(","):
+            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     if field == "weight":
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
@@ -171,7 +194,7 @@ def cmd_update(set_id, field, value):
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
             sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
-    c.execute(f"UPDATE sets SET {field} = ? WHERE id = ?", (value, int(set_id)))
+    c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
     print(json.dumps({"updated": int(set_id)}))
 
@@ -264,6 +287,45 @@ def cmd_restore():
     print(json.dumps({"restored": True, "from": sql_file}))
 
 
+def parse_mev_from_science():
+    """Parse MEV (minimum effective volume) bounds from SCIENCE.md."""
+    mev_bounds = {}
+    # Normalize muscle names from SCIENCE.md to match database convention
+    name_map = {
+        'chest': 'chest',
+        'back': 'back',
+        'shoulders (side delt)': 'shoulders',
+        'biceps': 'biceps',
+        'triceps': 'triceps',
+        'quads': 'quads',
+        'hamstrings': 'hamstrings',
+        'glutes': 'glutes',
+        'abs': 'abs',
+    }
+    try:
+        with open(SCIENCE_FILE, 'r') as f:
+            content = f.read()
+        in_volume_section = False
+        for line in content.split('\n'):
+            if line.strip().startswith('## Volume landmarks'):
+                in_volume_section = True
+                continue
+            if in_volume_section and line.strip().startswith('## '):
+                in_volume_section = False
+                break
+            if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|---'):
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 4 and parts[1] and parts[2]:
+                    muscle = parts[1].lower()
+                    mev_str = parts[2]
+                    mev_match = re.match(r'(\d+)', mev_str)
+                    if mev_match and muscle in name_map:
+                        mev_bounds[name_map[muscle]] = int(mev_match.group(1))
+    except (OSError, ValueError):
+        pass
+    return mev_bounds
+
+
 def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
@@ -288,16 +350,26 @@ def cmd_audit():
     flags = []
     
     # Check 2: Missing muscle tags
-    missing = c.execute("SELECT id, exercise, date FROM sets WHERE muscles = '' OR muscles IS NULL").fetchall()
+    missing = c.execute("""
+        SELECT s.id, s.exercise, w.date 
+        FROM sets s 
+        JOIN workouts w ON w.id = s.workout_id 
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id 
+        WHERE sm.muscle IS NULL
+    """).fetchall()
     for m in missing:
         flags.append({"check": "missing_muscles", "severity": "high", "evidence": f"set {m['id']} ({m['exercise']} on {m['date']}) has no muscles", "fix": "retag <exercise> <muscles>"})
     
     # Check 3: Muscle mapping drift
     drift = c.execute("""
-        SELECT s.id, s.exercise, s.muscles as logged, m.muscles as mapped
+        SELECT s.id, s.exercise, 
+               group_concat(sm.muscle, ',') as logged, 
+               m.muscles as mapped
         FROM sets s
         JOIN lift_muscle_map m ON m.exercise = s.exercise
-        WHERE s.muscles != m.muscles
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        GROUP BY s.id
+        HAVING logged != m.muscles
     """).fetchall()
     for d in drift:
         flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
@@ -349,14 +421,16 @@ def cmd_audit():
     # Check 8: Volume vs MEV
     from datetime import date, timedelta
     base = date.today() - timedelta(weeks=10)
-    for muscle in ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"]:
-        mev = {"chest": 8, "back": 10, "shoulders": 6, "biceps": 6, "triceps": 6, "quads": 8, "hamstrings": 6, "glutes": 6, "abs": 6}[muscle]
+    mev_bounds = parse_mev_from_science()
+    for muscle, mev in mev_bounds.items():
         weeks = c.execute("""
             SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
-            FROM sets s JOIN workouts w ON w.id = s.workout_id
-            WHERE s.muscles LIKE ? AND date(w.date) >= ?
+            FROM sets s 
+            JOIN workouts w ON w.id = s.workout_id
+            JOIN set_muscles sm ON sm.set_id = s.id
+            WHERE sm.muscle = ? AND date(w.date) >= ?
             GROUP BY week ORDER BY week
-        """, (f"%{muscle}%", base.isoformat())).fetchall()
+        """, (muscle, base.isoformat())).fetchall()
         low_weeks = sum(1 for w in weeks if w["sets"] < mev)
         if low_weeks >= 4:
             flags.append({"check": "volume_below_mev", "severity": "medium", "evidence": f"{muscle}: {low_weeks} of last {len(weeks)} weeks below MEV ({mev})", "fix": "add volume, or add Active rule explaining"})
@@ -419,6 +493,12 @@ def cmd_retag(exercise, muscles, bodyweight=False):
     if bodyweight:
         is_bw = 1
     cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (muscles, exercise))
+    # Update set_muscles for all affected sets
+    c.execute("DELETE FROM set_muscles WHERE set_id IN (SELECT id FROM sets WHERE exercise = ?)", (exercise,))
+    for set_row in c.execute("SELECT id FROM sets WHERE exercise = ?", (exercise,)).fetchall():
+        set_id = set_row["id"]
+        for muscle in muscles.split(","):
+            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               (exercise, muscles, is_bw))
     c.commit()
