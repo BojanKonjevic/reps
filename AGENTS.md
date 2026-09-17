@@ -6,22 +6,26 @@ Chat first workout log. The agent owns meaning, `log.py` only stores.
 
 Fresh agents have no chat memory, so rebuild it from files first:
 
-1. Read `MEMORY.md`. Active rules there beat default mappings and beat raw history.
+1. Read `MEMORY.md`. Active rules there beat default mappings and beat raw history. Check memory before asking anything about units, mappings, or program, many questions answer themselves there.
 2. Check dates: compare today against every rule expiry plus the Needs confirm section. If a rule expired since last session or expires within 7 days, ask once before logging anything it affects (example: incline block ended Nov 1 and user still logs incline, ask to extend or close). Move expired rules to Needs confirm, never delete silently.
-3. Run `context` (last 3 workouts plus per lift last and best). That is your working memory, enough for most sessions.
-4. Only drill down with `history <exercise>` or `today` when the question needs it. Never load full `export` into chat, it is for the dashboard file only.
+3. Stale workout check: `start` reports `age_days` when a workout is already open. Hard signals it is stale: open date is not today, or `age_days >= 1`, or gap since `last_set_created` is over 8h. Soft signals: user trains a different muscle group than the open session, or says something like "just got to the gym" after yesterday's sets with no `done`. Any hard signal, or two soft ones, means ask "new workout?" before writing anything. Answering yes means explicitly closing the old one first so it gets its `end` note, never auto closing silently.
+4. Compaction check: MEMORY.md has a Last compacted stamp. If today is past the 1st and the stamp is older than the most recent 1st, run compaction now (see Memory writeback). Skippable on request with "do it later", and then it must not nag again that day.
+5. Run `context` (last 3 workouts plus per lift last and best). That is gym mode working memory, enough for logging. Review mode (at home, analysis, postplan docs) may pull bulk instead: `session <date>`, `range <from> <to>`, `notes [limit]`, `calendar`. Never load full `export` into chat, it is for the dashboard file only.
 
 Core principle: a wrong log poisons every future analysis, a question costs nothing. When unsure about exercise, weight, reps, or which rule applies, ask first or verify with a query. Never guess into the db.
 
 ## How to log
 
-1. On any training message, run `today` to see if a workout is open.
-2. If none open and user is training, run `start`.
+1. Workouts are only created explicitly. `log` fails when no workout is open, it never auto creates. On any training message, run `today` to see if a workout is open, then `start` when sure a new session began.
+2. Talk stays conversational, no rigid syntax. The agent infers batch logging from plain talk: "squat 90 5/5/7, last grindy" or three rapid "same x5" messages means fan out to multiple `log` calls in one burst. Mid workout replies stay terse ("logged 3x"), full summary at `end`.
 3. Before logging a set, check the `context` lifts list for canonical names. Reuse an existing name when it clearly matches.
 4. Log with: `log <exercise> <weight> <reps>` plus free note text.
 5. RPE is not tracked. Never ask for it, never log it. Feel goes in plain words in the note instead.
-6. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
-7. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
+6. Warmups are not tracked. Never log them, they pollute maxes and PRs.
+7. Weights are always kg unless the user says otherwise. On lbs input convert (divide by 2.205) and state the conversion in the reply. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
+8. Weighted bodyweight work logs extra only: dips at bodyweight plus 20kg is `log dips 20 <reps>`. Zero weight sets should not exist in real data.
+9. Corrections and removals are explicit. Ordinal to id mapping ("second squat was 92.5") is agent reasoning over `today`, but the destructive call itself needs an exact id: `update <id> <field> <value>`, `delete-set <id>`, `delete-workout <id>`, `update-workout <id> <field> <value>` (fields: notes, date, status). Never infer an id for a delete, confirm it in chat first.
+10. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
 
 Units are kg unless user says otherwise. Never invent sets. If a message is ambiguous, hold the log and ask. Partial logging is allowed only when the clear part is unambiguous, the unclear part waits for an answer.
 
@@ -42,12 +46,15 @@ Chat history dies with the session, files survive. When user states something du
 1. Prefs and plans (`always incline, never flat`, `incline block until November`, injury notes) go to `MEMORY.md` under Active rules with start date and expiry. Expired rules move to Needs confirm and get asked about once, then reactivated with a new date or archived. Nothing durable is ever deleted without an answer.
 2. Session feel and life context go to workout notes via `end`. Set level notes go on the set.
 3. At month end on request, append a short rollup to `MEMORY.md` under Monthly rollups: trend plus caveats in a few lines. Raw sets stay in SQLite, never paste them into memory files.
+4. Compaction runs once a month. When the Session start check triggers it: archive expired rules older than 60 days, fold superseded State lines into one current line each, rewrite last month's rollup short. Rollups are never deleted. Update the Last compacted stamp when done. If the user says later, skip silently until next session.
 
 Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
 ## Analysis
 
-`context`, `stats`, and `history <exercise>` give ground truth numbers. Do the math from those, then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence, PRs, stalls, caveats (small sample, grindy notes, missed sessions). Keep it short and honest. Numbers first, take second.
+`context`, `stats`, `calendar`, `session`, `range`, and `history <exercise>` give ground truth numbers. Gym mode reasons from `context` only. Review mode may pull hundreds of sessions at once with `range` or `notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence from `calendar` dates and gaps (raw dates in, verdict out, travel and sick notes from memory decide miss versus planned rest), PRs, stalls, caveats (small sample, grindy notes, missed sessions). Keep it short and honest. Numbers first, take second.
+
+Volume is anatomical by muscle group. Tracked groups live in MEMORY.md under Tracked muscles (currently chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs; never neck, calves, forearms, traps). If a new movement maps to an untracked group or no clear group, ask once whether to track it, then follow the answer.
 
 Never present tonnage or total set counts as achievements, in chat or on the dashboard. Totals like that mean nothing about progress. Trends, PRs, and adherence are the currency. A PR is any set beating the prior best e1RM for that lift. The first logged set per lift is the baseline, not a PR.
 
@@ -55,7 +62,9 @@ Never present tonnage or total set counts as achievements, in chat or on the das
 
 The dashboard is malleable, not finished. Change it freely whenever the user asks, taste included. It lives in one file, `dashboard/src/index.ts`, and deploys with `wrangler deploy` from `dashboard/` (auth via CLOUDFLARE_API_TOKEN read from `~/.config/reps/cf_token` plus the account id, both already on this machine). Verify live with curl on `/snapshot` and the root page after every deploy.
 
-Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Muscle groups for the volume chart live in the worker muscleOf patterns, lifts that match nothing are left out entirely, extend the patterns when the split changes. Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers. PR marker is the trophy icon everywhere (session tables, calendar corner, lift chart canvas), never dots, rings, stars, or pills.
+Every UI change gets verified with screenshots before reporting done: phone width plus desktop width, light plus dark, checking the changed view. Headless setup from prior sessions lives under /tmp, reuse it. No unit tests for the dashboard file yet, screenshots are the test.
+
+Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Muscle groups for the volume chart live in the worker muscleOf patterns and mirror MEMORY.md Tracked muscles, lifts that match nothing are left out entirely, extend the patterns when the split changes. The trend chart shows every lift with toggle chips (top 8 on by default, All and None buttons, picks persist), palette holds 24 colors. Zero weight sets are excluded from trend lines. Session tables use real thead and tbody. Saved legend prefs prune names missing from the snapshot on load. Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers. PR marker is the trophy icon everywhere (session tables, calendar corner, lift chart canvas), never dots, rings, stars, or pills.
 
 ## Dashboard sync
 

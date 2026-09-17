@@ -10,11 +10,19 @@ const BLANK = {
   bodyweight: [],
 };
 
+const GROUPS = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"];
+
 function muscleOf(name: string): string {
   const n = name.toLowerCase();
-  if (/(press|bench|dips|pushup|overhead|ohp|lateral|tricep|shoulder|chest)/.test(n)) return "push";
-  if (/(row|pullup|pulldown|curl|chinup|bicep|lat|rear delt)/.test(n)) return "pull";
-  if (/(squat|deadlift|leg|lunge|calf|rdl|hip)/.test(n)) return "legs";
+  if (/(leg curl|nordic|hamstring|good morning|romanian|rdl|deadlift)/.test(n)) return "hamstrings";
+  if (/(tricep|pushdown|skull)/.test(n)) return "triceps";
+  if (/(bench|chest|fly|pushup|push up|dips|incline)/.test(n)) return "chest";
+  if (/(overhead|ohp|shoulder|lateral|rear delt|face pull|arnold)/.test(n)) return "shoulders";
+  if (/(pullup|chinup|pulldown|pendlay|pullover| lat | rows| row )/.test(" " + n + " ")) return "back";
+  if (/(bicep|curl|hammer|preacher)/.test(n)) return "biceps";
+  if (/(squat|leg press|lunge|leg extension|hack)/.test(n)) return "quads";
+  if (/(hip thrust|glute|hip abduct)/.test(n)) return "glutes";
+  if (/(crunch|plank|leg raise|knee raise|hanging|abs|core|ab wheel)/.test(n)) return "abs";
   return "other";
 }
 
@@ -37,6 +45,11 @@ h2{font-size:1.35rem;margin:34px 0 10px;}
 .card{background:#fffdf7;border:1px solid #d9d3c0;border-radius:14px;padding:16px;margin:12px 0;}
 canvas{width:100%;height:250px;display:block;}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;}
+#legTrend{max-height:132px;overflow-y:auto;}
+button.chip.mini{border:1px solid #d9d3c0;font-weight:600;}
+@media (prefers-color-scheme:dark){
+button.chip.mini{border-color:#3a3733;}
+}
 .chip{display:inline-flex;align-items:center;gap:7px;}
 button.chip{background:none;border:1px solid transparent;border-radius:8px;padding:4px 8px;cursor:pointer;color:inherit;font-family:inherit;font-size:.85rem;}
 button.chip.off{opacity:.35;}
@@ -152,12 +165,16 @@ td,th{border-color:#232120;}
 <script>
 const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 try { history.scrollRestoration = "manual"; } catch (e) {}
-const LC = DARK ? ["#f2a35e", "#7cc47f", "#e6c400", "#f09696"] : ["#7a5a34", "#2f7d33", "#8a5a00", "#b3261e"];
+const LC = [];
+for (let i = 0; i < 24; i += 1) {
+  const h = Math.round((i * 137.5) % 360);
+  LC.push(DARK ? "hsl(" + h + ",72%,62%)" : "hsl(" + h + ",62%,38%)");
+}
 const TC = DARK ? "#cfc9bc" : "#4e5148";
 const GC = DARK ? "#3a3733" : "#d9d3c0";
 const MC = DARK
-  ? { push: "#f2a35e", pull: "#7cc47f", legs: "#6cb6ff" }
-  : { push: "#7a5a34", pull: "#2f7d33", legs: "#375f8f" };
+  ? { chest: "#f2a35e", back: "#7cc47f", shoulders: "#e6c400", biceps: "#6cb6ff", triceps: "#f09696", quads: "#c792ea", hamstrings: "#4dd0e1", glutes: "#a5d6a7", abs: "#ffab91" }
+  : { chest: "#7a5a34", back: "#2f7d33", shoulders: "#8a5a00", biceps: "#375f8f", triceps: "#b3261e", quads: "#6a3fb5", hamstrings: "#0f766e", glutes: "#4d7c0f", abs: "#c2410c" };
 function fit(cv) {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(50, cv.clientWidth), h = Math.max(50, cv.clientHeight);
@@ -225,9 +242,19 @@ function sliceIdx(x, cw, n) {
   return Math.min(n - 1, Math.max(0, i));
 }
 let HIDDEN = new Set();
+let HADHIDDEN = false;
 try {
-  HIDDEN = new Set(JSON.parse(localStorage.getItem("reps-hidden") || "[]"));
+  const raw = localStorage.getItem("reps-hidden");
+  if (raw !== null) {
+    HADHIDDEN = true;
+    HIDDEN = new Set(JSON.parse(raw));
+  }
 } catch (e) {}
+function saveHidden() {
+  try {
+    localStorage.setItem("reps-hidden", JSON.stringify(Array.from(HIDDEN)));
+  } catch (e) {}
+}
 async function main(){
   SNAP = await (await fetch("snapshot")).json();
   render();
@@ -317,12 +344,19 @@ function render(){
     : "no sync yet, log your first session";
   const wdates = W.map(w => w.date).sort();
   const lastW = wdates.length ? wdates[wdates.length - 1] : null;
+  const wdate0 = {};
+  for (const w of W) wdate0[w.id] = w.date;
+  const wday = s => wdate0[s.workout_id] || s.created.slice(0, 10);
+  const T = S.filter(s => s.weight > 0);
   const byDate = {};
-  for (const s of S) { const d = s.created.slice(0, 10); (byDate[d] = byDate[d] || []).push(s); }
+  for (const s of T) { const d = wday(s); (byDate[d] = byDate[d] || []).push(s); }
   const e1 = s => s.weight * (1 + s.reps / 30);
   const counts = {};
-  for (const s of S) counts[s.exercise] = (counts[s.exercise] || 0) + 1;
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+  for (const s of T) counts[s.exercise] = (counts[s.exercise] || 0) + 1;
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  Array.from(HIDDEN).forEach(n => { if (top.indexOf(n) < 0) HIDDEN.delete(n); });
+  if (!HADHIDDEN) top.slice(8).forEach(n => HIDDEN.add(n));
+  saveHidden();
   const days = Object.keys(byDate).sort();
   const series = top.map(t => days.map(d => {
     const sets = byDate[d].filter(s => s.exercise === t);
@@ -335,7 +369,7 @@ function render(){
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
   for (const s of S) {
     if (s.note && s.note.toLowerCase().indexOf("grindy") > -1) {
-      const d = s.created.slice(0, 10);
+      const d = wday(s);
       noted[d] = (noted[d] ? noted[d] + " / " : "") + s.exercise + ": " + s.note;
     }
   }
@@ -346,12 +380,14 @@ function render(){
   });
   bwline(document.getElementById("chBw"), BW);
   BWDATA = BW;
-  const groups = ["push", "pull", "legs"];
+  const groups = GROUPS;
+  const blank = () => ({ chest: 0, back: 0, shoulders: 0, biceps: 0, triceps: 0, quads: 0, hamstrings: 0, glutes: 0, abs: 0 });
   const weeks = {};
   for (const s of S) {
-    const k = weekKey(s.created.slice(0, 10));
-    weeks[k] = weeks[k] || { push: 0, pull: 0, legs: 0 };
-    weeks[k][muscleOf(s.exercise)] += 1;
+    const k = weekKey(wday(s));
+    weeks[k] = weeks[k] || blank();
+    const g = muscleOf(s.exercise);
+    if (g !== "other") weeks[k][g] += 1;
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
   const lm = document.getElementById("legMus");
@@ -363,9 +399,9 @@ function render(){
     sp.appendChild(sw); sp.appendChild(document.createTextNode(g)); lm.appendChild(sp);
   });
   const dayDetail = {};
-  for (const w of W) dayDetail[w.date] = [];
+  for (const w of W) dayDetail[w.date] = dayDetail[w.date] || [];
   for (const s of S) {
-    const d = s.created.slice(0, 10);
+    const d = wday(s);
     (dayDetail[d] = dayDetail[d] || []).push(s.exercise + " " + s.weight + "x" + s.reps);
   }
   const startView = lastW || new Date().toISOString().slice(0, 10);
@@ -509,13 +545,18 @@ function showSession(ds) {
       wrap.appendChild(h);
       const tbl = document.createElement("table");
       tbl.className = "sess";
+      const thead = document.createElement("thead");
       const head = document.createElement("tr");
       ["set", "weight", "e1RM"].forEach(t => {
         const th = document.createElement("th");
+        th.setAttribute("scope", "col");
         th.textContent = t;
         head.appendChild(th);
       });
-      tbl.appendChild(head);
+      thead.appendChild(head);
+      tbl.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      tbl.appendChild(tbody);
       const sn = [];
       byEx[ex].forEach((s, i) => {
         const tr = document.createElement("tr");
@@ -534,7 +575,7 @@ function showSession(ds) {
           tr.children[1].appendChild(b);
         }
         if (s.note) sn.push([i + 1, s.note]);
-        tbl.appendChild(tr);
+        tbody.appendChild(tr);
       });
       wrap.appendChild(tbl);
       if (sn.length) {
@@ -717,14 +758,21 @@ function liftChart(cv, pts, ex, hover) {
   }
 }
 window.addEventListener("hashchange", route);
+const GROUPS = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"];
 function muscleOf(n) {
   n = n.toLowerCase();
-  if (/(press|bench|dips|pushup|overhead|ohp|lateral|tricep|shoulder|chest)/.test(n)) return "push";
-  if (/(row|pullup|pulldown|curl|chinup|bicep|lat|rear delt)/.test(n)) return "pull";
-  if (/(squat|deadlift|leg|lunge|calf|rdl|hip)/.test(n)) return "legs";
+  if (/(leg curl|nordic|hamstring|good morning|romanian|rdl|deadlift)/.test(n)) return "hamstrings";
+  if (/(tricep|pushdown|skull)/.test(n)) return "triceps";
+  if (/(bench|chest|fly|pushup|push up|dips|incline)/.test(n)) return "chest";
+  if (/(overhead|ohp|shoulder|lateral|rear delt|face pull|arnold)/.test(n)) return "shoulders";
+  if (/(pullup|chinup|pulldown|pendlay|pullover| lat | rows| row )/.test(" " + n + " ")) return "back";
+  if (/(bicep|curl|hammer|preacher)/.test(n)) return "biceps";
+  if (/(squat|leg press|lunge|leg extension|hack)/.test(n)) return "quads";
+  if (/(hip thrust|glute|hip abduct)/.test(n)) return "glutes";
+  if (/(crunch|plank|leg raise|knee raise|hanging|abs|core|ab wheel)/.test(n)) return "abs";
   return "other";
 }
-// Unmapped lifts fall into other and are excluded from the volume chart. Extend the patterns above when the split changes.
+// Unmapped lifts fall into other and are excluded from the volume chart. Extend the patterns above when the split changes, mirroring MEMORY.md Tracked muscles.
 function renderCal(year, month, dayDetail) {
   const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   document.getElementById("calTitle").textContent = names[month] + " " + year;
@@ -743,8 +791,10 @@ function renderCal(year, month, dayDetail) {
   const wByDate = {};
   if (D && D.W) for (const w of D.W) { (wByDate[w.date] = wByDate[w.date] || []).push(w); }
   const sByDate = {};
+  const wid2date = {};
+  if (D && D.W) for (const w of D.W) wid2date[w.id] = w.date;
   if (D && D.S) for (const s of D.S) {
-    const d = (s.created || "").slice(0, 10);
+    const d = wid2date[s.workout_id] || (s.created || "").slice(0, 10);
     (sByDate[d] = sByDate[d] || []).push(s);
   }
   for (let d = 1; d <= days; d += 1) {
@@ -831,6 +881,20 @@ function drawTrend(hover) {
   line(document.getElementById("chTrend"), TREND.days, vis.map(i => ({ v: TREND.series[i], c: i })), hover === undefined ? -1 : hover);
   const lt = document.getElementById("legTrend");
   lt.innerHTML = "";
+  [["All", false], ["None", true]].forEach(pair => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip mini";
+    b.textContent = pair[0];
+    b.addEventListener("click", () => {
+      HADHIDDEN = true;
+      if (pair[1]) TREND.top.forEach(t => HIDDEN.add(t));
+      else HIDDEN.clear();
+      saveHidden();
+      drawTrend();
+    });
+    lt.appendChild(b);
+  });
   TREND.top.forEach((t, i) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -842,10 +906,9 @@ function drawTrend(hover) {
     b.appendChild(sw);
     b.appendChild(document.createTextNode(t));
     b.addEventListener("click", () => {
+      HADHIDDEN = true;
       if (HIDDEN.has(t)) HIDDEN.delete(t); else HIDDEN.add(t);
-      try {
-        localStorage.setItem("reps-hidden", JSON.stringify(Array.from(HIDDEN)));
-      } catch (e) {}
+      saveHidden();
       drawTrend();
     });
     lt.appendChild(b);
@@ -881,6 +944,13 @@ function line(cv, labels, items, hover) {
   const n = items.length ? items[0].v.length : 0;
   const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
   const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
+  const drawnYs = [];
+  const tryLabel = (txt, x, y, align) => {
+    const free = yy => !drawnYs.some(dy => Math.abs(dy - yy) < 14);
+    if (free(y)) { drawnYs.push(y); putText(g, W, txt, x, y, align); }
+    else if (free(y + 22)) { drawnYs.push(y + 22); putText(g, W, txt, x, y + 22, align); }
+  };
+  const ends = [], starts = [];
   items.forEach(it => {
     const s = it.v;
     const col = LC[it.c % LC.length];
@@ -893,9 +963,11 @@ function line(cv, labels, items, hover) {
     g.fillStyle = col;
     pts.forEach(pi => { g.beginPath(); g.arc(px(pi), py(s[pi]), 4, 0, 7); g.fill(); });
     const first = pts[0], last = pts[pts.length - 1];
-    putText(g, W, fmtV(s[first]), px(first) + 8, py(s[first]) - 10, first > n / 2 ? "right" : "left");
-    if (last !== first) putText(g, W, fmtV(s[last]), px(last) - 8, py(s[last]) - 10, "right");
+    starts.push([col, fmtV(s[first]), px(first) + 8, py(s[first]) - 10, first > n / 2 ? "right" : "left"]);
+    if (last !== first) ends.push([col, fmtV(s[last]), px(last) - 8, py(s[last]) - 10, "right"]);
   });
+  ends.forEach(a => { g.fillStyle = a[0]; tryLabel(a[1], a[2], a[3], a[4]); });
+  starts.forEach(a => { g.fillStyle = a[0]; tryLabel(a[1], a[2], a[3], a[4]); });
   g.fillStyle = TC;
   if (labels.length) {
     putText(g, W, labels[0], P, H - 8, "left");
@@ -973,7 +1045,7 @@ function stacked(cv, labels, weeks) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 46;
   g.clearRect(0, 0, W, H);
-  const groups = ["push", "pull", "legs"];
+  const groups = GROUPS;
   let mx = 1;
   weeks.forEach(w => {
     const t = groups.reduce((a, k) => a + w[k], 0);
