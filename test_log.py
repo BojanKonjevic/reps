@@ -198,6 +198,10 @@ def test_update_exercise_normalizes_case(log_module):
     log_module.cmd_log("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
+    # Add mapping for target exercise first
+    c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
+              ("incline bench", "chest,triceps", 0))
+    c.commit()
     log_module.cmd_update(set_id, "exercise", "Incline Bench")
     updated = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
     assert updated["exercise"] == "incline bench"

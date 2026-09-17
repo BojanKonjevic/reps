@@ -11,6 +11,13 @@ from datetime import date, datetime
 DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
+# Bodyweight-only exercises that can have weight=0 (extra load on top of bodyweight)
+BODYWEIGHT_EXERCISES = frozenset({
+    "pullup", "chinup", "dip", "pushup", "push up", "pistol squat",
+    "hanging leg raise", "hanging knee raise", "l-sit", "plank",
+    "ab wheel", "muscle up", "handstand pushup", "inverted row",
+})
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
   id INTEGER PRIMARY KEY,
@@ -39,6 +46,11 @@ CREATE INDEX IF NOT EXISTS idx_bw_date ON bodyweight(date);
 CREATE TABLE IF NOT EXISTS schema_version (
   version INTEGER PRIMARY KEY,
   applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS lift_muscle_map (
+  exercise TEXT PRIMARY KEY,
+  muscles TEXT NOT NULL,
+  is_bodyweight_only INTEGER NOT NULL DEFAULT 0
 );
 """
 CURRENT_SCHEMA_VERSION = 1
@@ -107,11 +119,32 @@ def cmd_log(exercise, weight, reps, note, muscles):
     w = open_workout(c)
     if not w:
         sys.exit("no open workout, run start first (workouts are only created explicitly)")
+    exercise = exercise.strip().lower()
+    weight = float(weight)
+    reps = int(reps)
+    muscles = clean_muscles(muscles)
+
+    # Validation: zero-weight sets only allowed for bodyweight exercises
+    if weight == 0 and exercise not in BODYWEIGHT_EXERCISES:
+        sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise)")
+
+    # Validation: muscles required if no mapping exists
+    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+    if not mapping:
+        if not muscles:
+            sys.exit(f"muscles= required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
+        # Auto-create mapping for new exercise
+        c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
+                  (exercise, muscles, 1 if exercise in BODYWEIGHT_EXERCISES else 0))
+    elif not muscles:
+        # Use stored mapping
+        muscles = mapping["muscles"]
+
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute(
         "INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (wid, exercise.strip().lower(), float(weight), int(reps), note, created, clean_muscles(muscles)),
+        (wid, exercise, weight, reps, note, created, muscles),
     )
     c.commit()
     print(json.dumps({"set_id": cur.lastrowid, "workout_id": wid}))
@@ -130,8 +163,17 @@ def cmd_update(set_id, field, value):
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
         value = float(value)
+        # Validate zero-weight against exercise type
+        row = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
+        if row and value == 0 and row["exercise"] not in BODYWEIGHT_EXERCISES:
+            sys.exit(f"zero weight not allowed for '{row['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         value = int(value)
+    if field == "exercise":
+        # Validate new exercise has mapping or muscles provided elsewhere
+        mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
+        if not mapping:
+            sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
     c.execute(f"UPDATE sets SET {field} = ? WHERE id = ?", (value, int(set_id)))
     c.commit()
     print(json.dumps({"updated": int(set_id)}))
@@ -225,6 +267,13 @@ def cmd_sync():
             print(json.dumps({"synced": True, "bytes": len(payload), "reply": json.loads(res.read().decode())}))
     except OSError as e:
         sys.exit("sync failed: " + str(e))
+    
+    # Dump SQL for git history
+    sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
+    with open(sql_file, 'w') as f:
+        for line in c.iterdump():
+            f.write(f"{line}\n")
+    print(f"dumped SQL to {sql_file}")
 
 
 def cmd_rename(old, new):
@@ -236,9 +285,13 @@ def cmd_rename(old, new):
 
 def cmd_retag(exercise, muscles):
     c = conn()
-    cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (clean_muscles(muscles), exercise.strip().lower()))
+    exercise = exercise.strip().lower()
+    muscles = clean_muscles(muscles)
+    cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (muscles, exercise))
+    c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
+              (exercise, muscles, 1 if exercise in BODYWEIGHT_EXERCISES else 0))
     c.commit()
-    print(json.dumps({"retag_exercise": exercise.strip().lower(), "updated": cur.rowcount}))
+    print(json.dumps({"retag_exercise": exercise, "updated": cur.rowcount}))
 
 
 def cmd_delete_set(set_id):
