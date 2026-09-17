@@ -80,7 +80,7 @@ Short and conversational, but every claim grounded in numbers just pulled: PRs h
 
 "goal", alone or in context, manages lifting goals. Stating one ("bench 100 for 3 in 2 months"), checking one ("how is my bench goal"), adjusting or dropping one. Multiple goals stay active at once, each wakes only on relevant sessions.
 
-1. Realism gate first. Compare the target against current bests and the timeframe. Absurd goals get flagged in chat instantly and recorded as rejected in one line so they are never re-litigated. Sane goals get written.
+1. Realism gate first. Compare the target against current bests and the timeframe. Absurd goals get flagged in chat instantly and written nowhere. Sane goals get written.
 2. Accepted goals get a trajectory: numbered sessions from today forward with exact weights and reps, inching up every session or every other one. Sessions are numbered (session 1, session 2), not dated, so skipped days change nothing. The deadline lives on its own line.
 3. Evolution: on every relevant log, re-read Goals, compare reality to plan, rewrite the remaining trajectory off new data. Exact match means leave it alone.
 4. Slippage: when the remaining sessions no longer fit before the deadline at the current pace, ask whether to extend the deadline or compress the jumps. Never silently compress.
