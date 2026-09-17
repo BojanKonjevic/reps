@@ -61,6 +61,15 @@ Form and intent matter: dips done upright are chest, done leaning forward with e
 4. Realism guardrails: jumps stay proportional to history, never a leap (no 120 after a 100 best). No attempts through flagged pain, no PR day on the first session back from a break (say so, program maintenance instead). Injuries and active rules always win.
 5. Mark PR attempts clearly. The user confirms or edits before training. Nothing is logged until actually performed, then the normal log flow takes over with targets known.
 
+## Split
+
+MEMORY.md Split is the exact program: which day holds which exercises in which order. One slot per line, interchangeable moves on one line separated by / (flies / pec deck).
+
+1. At every session `end`, reconcile: append newly logged exercises to that day's slots in performed order. Early sessions build the section, later ones just confirm it.
+2. A one-off swap ("pec deck instead of flies today") logs under the existing slot and adds the alternate. It never rewrites the split.
+3. Rewrite the section only when the user says the split changed, with a new updated date. Never infer a program change from one unusual session.
+4. Program mode reads Split first: it defines what a full day contains.
+
 ## Memory writeback
 
 Chat history dies with the session, files survive. When user states something durable, write it down:

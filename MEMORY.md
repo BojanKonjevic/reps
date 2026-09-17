@@ -18,6 +18,16 @@ Example: 2026-09-01 incline barbell bench press is the main press until 2026-11-
 
 3 days on, 1 off. Current split and main lifts go here once known.
 
+## Split
+
+Push / pull / legs. Slots in training order, one per line, interchangeable moves on one line separated by /. Reconciled at every session end, rewritten only when the user says the split changed.
+
+### Push
+
+### Pull
+
+### Legs
+
 ## Tracked muscles
 
 chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs. Never neck, calves, forearms, traps. New movements mapping elsewhere get asked about once.
