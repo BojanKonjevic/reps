@@ -170,18 +170,15 @@ td,th{border-color:#232120;}
 <div class="card"><table id="liftPRs"><thead><tr><th>date</th><th>set</th><th>e1RM</th></tr></thead></table></div>
 </div>
 <script>
-const DARK = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 try { history.scrollRestoration = "manual"; } catch (e) {}
 const LC = [];
 for (let i = 0; i < 24; i += 1) {
   const h = Math.round((i * 137.5) % 360);
-  LC.push(DARK ? "hsl(" + h + ",72%,62%)" : "hsl(" + h + ",62%,38%)");
+  LC.push("hsl(" + h + ",72%,62%)");
 }
-const TC = DARK ? "#cfc9bc" : "#4e5148";
-const GC = DARK ? "#3a3733" : "#d9d3c0";
-const MC = DARK
-  ? { chest: "#ffa726", back: "#66bb6a", shoulders: "#e6c400", biceps: "#42a5f5", triceps: "#ef5350", quads: "#ab47bc", hamstrings: "#26c6da", glutes: "#ec407a", abs: "#b0bec5" }
-  : { chest: "#7a5a34", back: "#2f7d33", shoulders: "#8a5a00", biceps: "#375f8f", triceps: "#b3261e", quads: "#6a3fb5", hamstrings: "#0f766e", glutes: "#4d7c0f", abs: "#c2410c" };
+const TC = "#cfc9bc";
+const GC = "#3a3733";
+const MC = { chest: "#ffa726", back: "#66bb6a", shoulders: "#e6c400", biceps: "#42a5f5", triceps: "#ef5350", quads: "#ab47bc", hamstrings: "#26c6da", glutes: "#ec407a", abs: "#b0bec5" };
 function fit(cv) {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(50, cv.clientWidth), h = Math.max(50, cv.clientHeight);
@@ -206,7 +203,7 @@ let PR = null;
 let VIEW = "dash";
 let DASHY = 0;
 let LIFTPTS = [];
-const STARC = DARK ? "#e6c400" : "#8a5a00";
+const STARC = "#e6c400";
 let TIP = null;
 let BWDATA = [];
 let LIFTDATA = null;
@@ -818,7 +815,7 @@ function renderCal(year, month, dayDetail) {
           const g = byEx[ex];
           const top = g.slice().sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
           const hasPR = g.some(s => PR && PR.prIds.has(s.id));
-          rows.push([hasPR ? (DARK ? "#e6c400" : "#c99700") : null, ex + " " + g.length + " x " + top.weight + "x" + top.reps + (hasPR ? " PR" : "")]);
+          rows.push([hasPR ? "#e6c400" : null, ex + " " + g.length + " x " + top.weight + "x" + top.reps + (hasPR ? " PR" : "")]);
         });
         if (order.length > 6) rows.push([null, "+" + (order.length - 6) + " more lifts"]);
         const wnotes = (wByDate[key] || []).map(w => w.notes).filter(n => n);
