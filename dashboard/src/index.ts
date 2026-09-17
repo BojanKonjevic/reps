@@ -47,10 +47,10 @@ let D: { W: any[]; S: any[]; BW: any[] } | null = null;
 let PR: PRData | null = null;
 let DASHY = 0;
 let VIEW = 'dash';
-let HIDDEN = new Set<string>();
+const HIDDEN = new Set<string>();
 let HADHIDDEN = false;
 let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
-let BWDATA: any[] = [];
+let BWDATA: { date: string; kg: number }[] = [];
 
 function saveHidden() {
   try {

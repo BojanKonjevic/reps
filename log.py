@@ -184,7 +184,6 @@ def cmd_update(set_id, field, value):
         value = value.strip().lower()
     if field == "muscles":
         value = clean_muscles(value)
-    if field == "muscles":
         # Update set_muscles junction table
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in value.split(","):
@@ -207,8 +206,6 @@ def cmd_update(set_id, field, value):
         if not mapping:
             sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
         # Update set_muscles junction table for renamed exercise
-        old_ex = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()["exercise"]
-        new_ex = value
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
