@@ -180,7 +180,7 @@ for (let i = 0; i < 24; i += 1) {
 const TC = DARK ? "#cfc9bc" : "#4e5148";
 const GC = DARK ? "#3a3733" : "#d9d3c0";
 const MC = DARK
-  ? { chest: "#f2a35e", back: "#7cc47f", shoulders: "#e6c400", biceps: "#6cb6ff", triceps: "#f09696", quads: "#c792ea", hamstrings: "#4dd0e1", glutes: "#a5d6a7", abs: "#ffab91" }
+  ? { chest: "#ffa726", back: "#66bb6a", shoulders: "#e6c400", biceps: "#42a5f5", triceps: "#ef5350", quads: "#ab47bc", hamstrings: "#26c6da", glutes: "#ec407a", abs: "#b0bec5" }
   : { chest: "#7a5a34", back: "#2f7d33", shoulders: "#8a5a00", biceps: "#375f8f", triceps: "#b3261e", quads: "#6a3fb5", hamstrings: "#0f766e", glutes: "#4d7c0f", abs: "#c2410c" };
 function fit(cv) {
   const dpr = window.devicePixelRatio || 1;
@@ -887,6 +887,7 @@ function drawMinis() {
   for (const s of SNAP.sets) {
     if (PR && PR.prIds.has(s.id)) (prDate[s.exercise] = prDate[s.exercise] || {})[wd[s.workout_id] || ""] = true;
   }
+  const jobs = [];
   shown.forEach(i => {
     const t = TREND.top[i];
     const vals = TREND.series[i];
@@ -898,11 +899,6 @@ function drawMinis() {
     al.href = "#/l/" + encodeURIComponent(t);
     al.textContent = t;
     h.appendChild(al);
-    const nv = document.createElement("span");
-    let lastv = null;
-    for (let k = vals.length - 1; k >= 0; k -= 1) if (vals[k] !== null) { lastv = vals[k]; break; }
-    nv.textContent = lastv === null ? "" : fmtV(lastv);
-    h.appendChild(nv);
     wrap.appendChild(h);
     const cv = document.createElement("canvas");
     wrap.appendChild(cv);
@@ -910,10 +906,34 @@ function drawMinis() {
       if (ev.target.tagName !== "A") location.hash = "#/l/" + encodeURIComponent(t);
     });
     grid.appendChild(wrap);
-    mini(cv, TREND.days, vals, LC[i % LC.length], prDate[t] || {});
+    const col = LC[i % LC.length], prs = prDate[t] || {};
+    jobs.push([cv, vals, col, prs]);
+    cv.addEventListener("mousemove", ev => {
+      const r = cv.getBoundingClientRect();
+      const n = vals.length;
+      const pxi = k => 30 + (r.width - 30 - 6) * (n <= 1 ? 1 : k / (n - 1));
+      let bi = -1, bd = 1e9;
+      for (let k = 0; k < n; k += 1) {
+        if (vals[k] === null) continue;
+        const d = Math.abs(pxi(k) - (ev.clientX - r.left));
+        if (d < bd) { bd = d; bi = k; }
+      }
+      if (bi < 0 || bd > 30) {
+        hideTip();
+        mini(cv, TREND.days, vals, col, prs);
+        return;
+      }
+      mini(cv, TREND.days, vals, col, prs, bi);
+      showTip(TREND.days[bi], [[col, fmtV(vals[bi]) + (prs[TREND.days[bi]] ? " PR" : "")]], ev.clientX, ev.clientY);
+    });
+    cv.addEventListener("mouseleave", () => {
+      hideTip();
+      mini(cv, TREND.days, vals, col, prs);
+    });
   });
+  jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2], j[3]));
 }
-function mini(cv, days, vals, col, prs) {
+function mini(cv, days, vals, col, prs, hover) {
   const f = fit(cv);
   const g = f.g, W = f.W, H = f.H, P = 30;
   g.clearRect(0, 0, W, H);
@@ -950,6 +970,18 @@ function mini(cv, days, vals, col, prs) {
   g.fillStyle = col;
   pts.forEach(pi => { g.beginPath(); g.arc(px(pi), py(vals[pi]), 2.5, 0, 7); g.fill(); });
   pts.forEach(pi => { if (prs[days[pi]]) trophy(g, px(pi), py(vals[pi]) - 9, 5, STARC); });
+  const li = pts[pts.length - 1];
+  g.fillStyle = col;
+  if (li > n / 2) putText(g, W, fmtV(vals[li]), px(li) - 8, py(vals[li]) - 10, "right");
+  else putText(g, W, fmtV(vals[li]), px(li) + 8, py(vals[li]) - 10, "left");
+  if (hover !== undefined && hover >= 0 && hover < n && vals[hover] !== null) {
+    const x = px(hover);
+    g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, 6); g.lineTo(x, H - 15); g.stroke();
+    g.globalAlpha = 1;
+    g.fillStyle = col;
+    g.beginPath(); g.arc(x, py(vals[hover]), 5, 0, 7); g.fill();
+  }
   g.fillStyle = TC;
   if (days.length > 1) {
     putText(g, W, days[0].slice(5), P, H - 1, "left");
