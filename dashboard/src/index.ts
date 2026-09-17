@@ -45,17 +45,21 @@ button.chip.off{opacity:.35;}
 .notes{font-family:"IBM Plex Sans",sans-serif;font-size:.88rem;color:#4e5148;margin-top:10px;}
 .notes li{margin-bottom:4px;margin-left:20px;}
 .calcard{min-width:0;}
-.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-family:"IBM Plex Sans",sans-serif;}
-.calhead b{font-size:1rem;}
-.calhead button{background:none;border:none;padding:6px;cursor:pointer;color:inherit;display:flex;}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-family:"IBM Plex Sans",sans-serif;}
+.calhead b{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;}
+.calhead button{background:none;border:none;border-radius:8px;padding:6px;cursor:pointer;color:inherit;display:flex;}
+.calhead button:hover{background:rgba(127,122,110,.16);}
 .calhead button svg{width:18px;height:18px;}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-family:"IBM Plex Sans",sans-serif;font-size:.82rem;}
-.cal .dw{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:#4e5148;text-align:center;padding:3px 0;}
-.cal .cd{aspect-ratio:1;border-radius:9px;background:#f5f2e9;display:flex;align-items:center;justify-content:center;color:#6e695c;position:relative;text-decoration:none;}
-.cal .cd.t{background:#2f7d33;color:#fff;font-weight:600;}
-.cal .cd.today{outline:2px solid #7a5a34;outline-offset:-2px;}
-.cal .cd.fut{background:none;}
-.cal .cd.pr::after{content:"";position:absolute;bottom:4px;left:50%;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:#8a5a00;}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-family:"IBM Plex Sans",sans-serif;font-size:.86rem;max-width:380px;}
+.cal .dw{font-size:.66rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8a8478;text-align:center;padding:4px 0;}
+.cal .cd{min-height:34px;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center;color:#6e695c;position:relative;text-decoration:none;font-weight:500;}
+.cal a.cd.t{background:#2f7d33;color:#fff;font-weight:600;}
+.cal a.cd.t:hover{background:#27692b;text-decoration:none;}
+.cal .cd.today{box-shadow:inset 0 0 0 2px #7a5a34;}
+.cal a.cd.t.today{box-shadow:inset 0 0 0 2px rgba(255,255,255,.85);}
+.cal .cd.fut{opacity:.32;}
+.cal a.cd.pr{box-shadow:0 0 0 2px #fffdf7,0 0 0 4px #c99700;}
+.cal a.cd.pr.today{box-shadow:0 0 0 2px #fffdf7,0 0 0 4px #c99700,inset 0 0 0 2px rgba(255,255,255,.85);}
 .sesstop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
 .sesspg{display:flex;gap:2px;}
 .iconbtn{display:inline-flex;padding:8px;border-radius:10px;color:inherit;}
@@ -80,11 +84,13 @@ a:hover{text-decoration:underline;}
 .setnotes b{margin-right:6px;}
 @media (prefers-color-scheme:dark){
 .cal .dw{color:#b0aca2;}
-.cal .cd{background:#171514;color:#7f7a6e;}
-.cal .cd.t{background:#2f7d33;color:#fff;}
-.cal .cd.fut{background:none;}
-.cal .cd.today{outline-color:#f0ede6;}
-.cal .cd.pr::after{background:#e6c400;}
+.cal .cd{color:#7f7a6e;}
+.cal a.cd.t{background:#3d9a42;color:#fff;}
+.cal a.cd.t:hover{background:#4cb052;}
+.cal .cd.today{box-shadow:inset 0 0 0 2px #f0ede6;}
+.cal a.cd.t.today{box-shadow:inset 0 0 0 2px rgba(255,255,255,.9);}
+.cal a.cd.pr{box-shadow:0 0 0 2px #111010,0 0 0 4px #e6c400;}
+.cal a.cd.pr.today{box-shadow:0 0 0 2px #111010,0 0 0 4px #e6c400,inset 0 0 0 2px rgba(255,255,255,.9);}
 .prbadge{background:none;color:#e6c400;}
 .setnotes{color:#b0aca2;}
 .iconbtn{color:#f0ede6;}
@@ -123,7 +129,7 @@ td,th{border-color:#232120;}
 <div><h2>Weekly volume by muscle</h2>
 <div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div></div>
 <div><h2>Training calendar</h2>
-<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold dot marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
+<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold ring marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
 </div>
 <h2>Best sets</h2>
 <div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
@@ -699,6 +705,7 @@ function renderCal(year, month, dayDetail) {
   document.getElementById("calTitle").textContent = names[month] + " " + year;
   const box = document.getElementById("cal");
   box.innerHTML = "";
+  hideTip();
   ["M", "T", "W", "T", "F", "S", "S"].forEach(d => {
     const h = document.createElement("div"); h.className = "dw"; h.textContent = d; box.appendChild(h);
   });
@@ -708,6 +715,13 @@ function renderCal(year, month, dayDetail) {
   for (let i = 0; i < lead; i += 1) box.appendChild(document.createElement("div"));
   const days = new Date(year, month + 1, 0).getDate();
   const todayS = new Date().toISOString().slice(0, 10);
+  const wByDate = {};
+  if (D && D.W) for (const w of D.W) { (wByDate[w.date] = wByDate[w.date] || []).push(w); }
+  const sByDate = {};
+  if (D && D.S) for (const s of D.S) {
+    const d = (s.created || "").slice(0, 10);
+    (sByDate[d] = sByDate[d] || []).push(s);
+  }
   for (let d = 1; d <= days; d += 1) {
     const key = year + "-" + String(month + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
     const trained = dayDetail[key] && dayDetail[key].length > 0;
@@ -716,7 +730,34 @@ function renderCal(year, month, dayDetail) {
     if (trained) el.href = "#/s/" + key;
     el.className = "cd" + (trained ? " t" : "") + (isPR ? " pr" : "") + (key === todayS ? " today" : "") + (key > todayS ? " fut" : "");
     el.textContent = String(d);
-    el.title = trained ? key + ": " + dayDetail[key].join(", ") : key;
+    if (trained) {
+      el.addEventListener("click", hideTip);
+      el.addEventListener("mousemove", ev => {
+        const sets = sByDate[key] || [];
+        const order = [];
+        const byEx = {};
+        sets.forEach(s => {
+          (byEx[s.exercise] = byEx[s.exercise] || []).push(s);
+          if (order.indexOf(s.exercise) < 0) order.push(s.exercise);
+        });
+        const rows = [];
+        order.slice(0, 6).forEach(ex => {
+          const g = byEx[ex];
+          const top = g.slice().sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
+          const hasPR = g.some(s => PR && PR.prIds.has(s.id));
+          rows.push([hasPR ? (DARK ? "#e6c400" : "#c99700") : null, ex + " " + g.length + " x " + top.weight + "x" + top.reps + (hasPR ? " PR" : "")]);
+        });
+        if (order.length > 6) rows.push([null, "+" + (order.length - 6) + " more lifts"]);
+        const wnotes = (wByDate[key] || []).map(w => w.notes).filter(n => n);
+        if (wnotes.length && rows.length < 7) {
+          const n = wnotes.join(" / ");
+          rows.push([null, n.length > 90 ? n.slice(0, 90) + "..." : n]);
+        }
+        const title = new Date(key + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) + (isPR ? "  PR" : "");
+        showTip(title, rows.length ? rows : [[null, "tap to open"]], ev.clientX, ev.clientY);
+      });
+      el.addEventListener("mouseleave", hideTip);
+    }
     box.appendChild(el);
   }
 }
