@@ -409,18 +409,20 @@ def cmd_rename(old, new):
     print(json.dumps({"renamed": cur.rowcount}))
 
 
-def cmd_retag(exercise, muscles):
+def cmd_retag(exercise, muscles, bodyweight=False):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
     # Preserve existing is_bodyweight_only if mapping exists, default to 0
     existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     is_bw = existing["is_bodyweight_only"] if existing else 0
+    if bodyweight:
+        is_bw = 1
     cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (muscles, exercise))
     c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               (exercise, muscles, is_bw))
     c.commit()
-    print(json.dumps({"retag_exercise": exercise, "updated": cur.rowcount}))
+    print(json.dumps({"retag_exercise": exercise, "updated": cur.rowcount, "is_bodyweight_only": is_bw}))
 
 
 def cmd_delete_set(set_id):
@@ -589,7 +591,10 @@ def main():
     elif cmd == "rename" and len(rest) >= 2:
         cmd_rename(rest[0], " ".join(rest[1:]))
     elif cmd == "retag" and len(rest) >= 2:
-        cmd_retag(rest[0], ",".join(rest[1:]))
+        bodyweight = "--bodyweight" in rest
+        rest = [r for r in rest if r != "--bodyweight"]
+        if len(rest) >= 2:
+            cmd_retag(rest[0], ",".join(rest[1:]), bodyweight)
     elif cmd == "delete-set" and len(rest) >= 1:
         cmd_delete_set(rest[0])
     elif cmd == "delete-workout" and len(rest) >= 1:
