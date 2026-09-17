@@ -330,7 +330,7 @@ function render(){
   const S = snap.sets || [];
   const BW = snap.bodyweight || [];
   document.getElementById("sub").textContent = W.length
-    ? W.length + " sessions, latest " + W.map(w => w.date).sort().pop()
+    ? W.length + " sessions, latest " + fmtD(W.map(w => w.date).sort().pop())
     : "no sync yet, log your first session";
   const wdates = W.map(w => w.date).sort();
   const lastW = wdates.length ? wdates[wdates.length - 1] : null;
@@ -367,7 +367,7 @@ function render(){
   const nl = document.getElementById("noteList");
   nl.innerHTML = "";
   Object.keys(noted).sort().slice(-6).forEach(d => {
-    const li = document.createElement("li"); li.textContent = d + ": " + noted[d]; nl.appendChild(li);
+    const li = document.createElement("li"); li.textContent = fmtD(d) + ": " + noted[d]; nl.appendChild(li);
   });
   bwline(document.getElementById("chBw"), BW);
   BWDATA = BW;
@@ -430,7 +430,7 @@ function render(){
     al.textContent = k;
     a.appendChild(al);
     const b2 = document.createElement("td"); b2.textContent = p.s.weight + " x " + p.s.reps + " (e1RM " + p.ev.toFixed(1) + ")";
-    const c2 = document.createElement("td"); c2.textContent = (wdate[p.s.workout_id] || "").slice(5);
+    const c2 = document.createElement("td"); c2.textContent = fmtD(wdate[p.s.workout_id] || "");
     tr.appendChild(a); tr.appendChild(b2); tr.appendChild(c2); tbl.appendChild(tr);
   });
   route();
@@ -619,7 +619,7 @@ function showLift(ex) {
     return { date: d, w: top.weight, r: top.reps, ev: top.weight * (1 + top.reps / 30), pr: byDate[d].some(s => PR.prIds.has(s.id)) };
   });
   const best = pts.slice().sort((a, b) => b.ev - a.ev)[0];
-  sub.textContent = "best " + best.w + " x " + best.r + " (e1RM " + best.ev.toFixed(1) + ") on " + best.date;
+  sub.textContent = "best " + best.w + " x " + best.r + " (e1RM " + best.ev.toFixed(1) + ") on " + fmtD(best.date);
   LIFTDATA = { pts, ex };
   liftChart(document.getElementById("chLift"), pts, ex);
   const order = D.S.slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id);
@@ -634,7 +634,7 @@ function showLift(ex) {
       const a = document.createElement("td");
       const al = document.createElement("a");
       al.href = "#/s/" + wdate[s.workout_id];
-      al.textContent = wdate[s.workout_id].slice(5);
+      al.textContent = fmtD(wdate[s.workout_id]);
       a.appendChild(al);
       const b2 = document.createElement("td");
       b2.textContent = s.weight + " x " + s.reps;
@@ -729,8 +729,8 @@ function liftChart(cv, pts, ex, hover) {
     else { g.fillStyle = col; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
   });
   g.fillStyle = TC;
-  putText(g, W, pts[0].date, P, H - 8, "left");
-  putText(g, W, pts[pts.length - 1].date, W - 8, H - 8, "right");
+  putText(g, W, fmtD(pts[0].date), P, H - 8, "left");
+  putText(g, W, fmtD(pts[pts.length - 1].date), W - 8, H - 8, "right");
   putText(g, W, fmtV(pts[0].w) + " start", P + 4, py(pts[0].w) - 12, "left");
   const last = pts[pts.length - 1];
   putText(g, W, fmtV(last.w) + " now", W - 8, last.pr ? py(last.w) + 24 : py(last.w) - 12, "right");
@@ -846,6 +846,10 @@ function weekKey(dstr) {
 }
 function fmtV(v) {
   return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
+}
+function fmtD(dstr) {
+  const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return M[parseInt(dstr.slice(5, 7), 10) - 1] + " " + parseInt(dstr.slice(8, 10), 10);
 }
 function niceTicks(mn, mx, count) {
   let span = mx - mn;
@@ -984,8 +988,8 @@ function mini(cv, days, vals, col, prs, hover) {
   }
   g.fillStyle = TC;
   if (days.length > 1) {
-    putText(g, W, days[0].slice(5), P, H - 1, "left");
-    putText(g, W, days[days.length - 1].slice(5), W - 6, H - 1, "right");
+    putText(g, W, fmtD(days[0]), P, H - 1, "left");
+    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 1, "right");
   }
 }
 function drawTrendChips() {
@@ -1068,8 +1072,8 @@ function bwline(cv, rows, hover) {
     g.fillStyle = LC[0];
   });
   g.fillStyle = TC;
-  putText(g, W, rows[0].date, P, H - 8, "left");
-  putText(g, W, rows[rows.length - 1].date, W - 8, H - 8, "right");
+  putText(g, W, fmtD(rows[0].date), P, H - 8, "left");
+  putText(g, W, fmtD(rows[rows.length - 1].date), W - 8, H - 8, "right");
   if (hover !== undefined && hover >= 0 && hover < rows.length) {
     const x = px(hover);
     g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
