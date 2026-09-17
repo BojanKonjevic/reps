@@ -124,4 +124,4 @@ Conventions: keep everything in the single file, keep charts honest (e1RM is wei
 
 ## Dashboard sync
 
-`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth, and it is tracked in git: commit and push it after every sync. A poisoned session is reverted with `git checkout` on the db, no manual surgery. If a push ever conflicts (two sessions writing at once), pull first, then push.
+`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth, and it is tracked in git: commit and push it after every sync. Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. A poisoned session is reverted with `git checkout` on the db, no manual surgery. If a push ever conflicts (two sessions writing at once), pull first, then push.
