@@ -57,7 +57,7 @@ Form and intent matter: dips done upright are chest, done leaning forward with e
 
 1. Figure out today's slot from the push/pull/legs rotation, `calendar`, and memory. If the slot is unclear (back from travel, missed days), ask.
 2. Pull recent history for that slot: last 2 to 3 same type sessions plus bests. Every number derives from it, never from vibes.
-3. Prescribe the full day: exercises, sets, reps, weights. Aim for about four PR attempts, all small and realistic: plus 2.5kg for same reps up top, plus 2.5 to 5 on legs, or plus reps at same weight. Accessories hold steady unless a rep PR is due. If active goals cover today's lifts, their trajectory prescriptions become the attempts, holds respected and never overridden. Remaining attempts come from history.
+3. Prescribe the full day: exercises, sets, reps, weights. Aim for about four PR attempts, all small and realistic: plus 2.5kg for same reps up top, plus 2.5 to 5 on legs, or plus reps at same weight. Accessories hold steady unless a rep PR is due. If active goals cover today's lifts, their trajectory prescriptions become the attempts, holds respected and never overridden. Remaining attempts come from history. Peak never re-derives a number its goal trajectory already states; without a goal for a movement, peak is the programmer.
 4. Realism guardrails: jumps stay proportional to history, never a leap (no 120 after a 100 best). No attempts through flagged pain, no PR day on the first session back from a break (say so, program maintenance instead). Injuries and active rules always win.
 5. Mark PR attempts clearly. The user confirms or edits before training. Nothing is logged until actually performed, then the normal log flow takes over with targets known.
 
