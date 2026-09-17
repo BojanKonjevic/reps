@@ -83,7 +83,8 @@ Chat history dies with the session, files survive. When user states something du
 1. Prefs and plans (`always incline, never flat`, `incline block until November`, injury notes) go to `MEMORY.md` under Active rules with start date and expiry. Expired rules move to Needs confirm and get asked about once, then reactivated with a new date or archived. Nothing durable is ever deleted without an answer.
 2. Session feel and life context go to workout notes via `end`. Set level notes go on the set.
 3. At month end on request, append a short rollup to `MEMORY.md` under Monthly rollups: trend plus caveats in a few lines. Raw sets stay in SQLite, never paste them into memory files.
-4. Compaction runs once a month. When the Session start check triggers it: archive expired rules older than 60 days, fold superseded State lines into one current line each, rewrite last month's rollup short. Rollups are never deleted. Update the Last compacted stamp when done. If the user says later, skip silently until next session.
+4. Compaction runs once a month. When the Session start check triggers it: archive expired rules older than 60 days, fold superseded State lines into one current line each, write last month's rollup. Rollups are never deleted. Update the Last compacted stamp when done. If the user says later, skip silently until next session.
+5. Every compaction publishes last month's rollup as a postplan doc (PRs, stalls, adherence with miss versus rest verdicts, next block suggestion) using the postplan workflow, links it in chat, and stores the link with the rollup in MEMORY.md.
 
 Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
