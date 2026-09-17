@@ -110,9 +110,9 @@ Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
 ## SCIENCE.md updates
 
-"audit the research" triggers a refresh of SCIENCE.md. Process:
+"audit the research" or similar phrases triggers a refresh of SCIENCE.md. Process:
 
-1. Search for recent (last 2–3 years) meta-analyses and systematic reviews on each topic SCIENCE.md covers: volume landmarks, frequency, rep ranges, proximity to failure, progression rates, deload, exercise selection.
+1. Search for recent (ideally last 2–3 years) meta-analyses and systematic reviews on each topic SCIENCE.md covers: volume landmarks, frequency, rep ranges, proximity to failure, progression rates, deload, exercise selection.
 2. Weigh findings using the trust hierarchy in SCIENCE.md's header (meta-analyses > RCTs > practitioner synthesis > anecdotal).
 3. For each entry: if new evidence shifts the tier or the number, propose the change with citation (author/group + year). Conflicting findings → state the range and why, keep Contested tier.
 4. Present proposed changes for approval. Nothing overwrites silently — same approval pattern as Goals flow. On approval, rewrite the affected sections, update "last reviewed" date.
