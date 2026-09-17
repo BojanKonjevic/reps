@@ -32,6 +32,12 @@ Push / pull / legs. Slots in training order, one per line, interchangeable moves
 
 chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs. Never neck, calves, forearms, traps. New movements mapping elsewhere get asked about once.
 
+## Goals
+
+Triggered by the word "goal". One block per goal: target, deadline, trajectory as numbered sessions (dates float, sessions don't).
+
+None yet.
+
 ## Lift mapping
 
 Exercise to muscle groups, asked once and recorded. Form dependent entries note the form.
