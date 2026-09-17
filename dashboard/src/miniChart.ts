@@ -1,6 +1,6 @@
-import { fit, putText, TC, GC, trophy, drawYAxis } from "./charts";
-import { fmtV, fmtD, fmtTick } from "./utils";
-import { niceTicks } from "./utils";
+import { fit, putText, TC, GC, trophy, drawYAxis } from './charts';
+import { fmtV, fmtD, fmtTick } from './utils';
+import { niceTicks } from './utils';
 
 export function mini(
   cv: HTMLCanvasElement,
@@ -8,22 +8,22 @@ export function mini(
   vals: (number | null)[],
   col: string,
   prs: Record<string, boolean>,
-  hover: number,
+  hover: number
 ) {
   const { g, W, H } = fit(cv);
   const P = 30;
   g.clearRect(0, 0, W, H);
-  g.font = "600 11px sans-serif";
+  g.font = '600 11px sans-serif';
   const pts = [];
   for (let i = 0; i < vals.length; i += 1) if (vals[i] !== null) pts.push(i);
   if (!pts.length) {
     g.fillStyle = TC;
-    putText(g, W, "no data", P, H / 2, "left");
+    putText(g, W, 'no data', P, H / 2, 'left');
     return;
   }
   let mn = Infinity,
     mx = 0;
-  pts.forEach((pi) => {
+  pts.forEach(pi => {
     const v = vals[pi]!;
     if (v < mn) mn = v;
     if (v > mx) mx = v;
@@ -41,7 +41,7 @@ export function mini(
   drawYAxis(g, W, H, P, mn, mx, t);
   g.strokeStyle = col;
   g.lineWidth = 2.5;
-  g.lineJoin = "round";
+  g.lineJoin = 'round';
   g.beginPath();
   pts.forEach((pi, k) => {
     if (k === 0) g.moveTo(px(pi), py(vals[pi]!));
@@ -49,19 +49,18 @@ export function mini(
   });
   g.stroke();
   g.fillStyle = col;
-  pts.forEach((pi) => {
+  pts.forEach(pi => {
     g.beginPath();
     g.arc(px(pi), py(vals[pi]!), 2.5, 0, 7);
     g.fill();
   });
-  pts.forEach((pi) => {
-    if (prs[days[pi]]) trophy(g, px(pi), py(vals[pi]!) - 9, 5, "#e6c400");
+  pts.forEach(pi => {
+    if (prs[days[pi]]) trophy(g, px(pi), py(vals[pi]!) - 9, 5, '#e6c400');
   });
   const li = pts[pts.length - 1];
   g.fillStyle = col;
-  if (li > n / 2)
-    putText(g, W, fmtV(vals[li]!), px(li) - 8, py(vals[li]!) - 10, "right");
-  else putText(g, W, fmtV(vals[li]!), px(li) + 8, py(vals[li]!) - 10, "left");
+  if (li > n / 2) putText(g, W, fmtV(vals[li]!), px(li) - 8, py(vals[li]!) - 10, 'right');
+  else putText(g, W, fmtV(vals[li]!), px(li) + 8, py(vals[li]!) - 10, 'left');
   if (hover !== undefined && hover >= 0 && hover < n && vals[hover] !== null) {
     const x = px(hover);
     g.strokeStyle = TC;
@@ -79,7 +78,7 @@ export function mini(
   }
   g.fillStyle = TC;
   if (days.length > 1) {
-    putText(g, W, fmtD(days[0]), P, H - 1, "left");
-    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 1, "right");
+    putText(g, W, fmtD(days[0]), P, H - 1, 'left');
+    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 1, 'right');
   }
 }
