@@ -55,6 +55,11 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
     except SystemExit as e:
         assert "zero weight not allowed" in str(e).lower()
     
+    # Set up pullup as bodyweight exercise
+    c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
+              ("pullup", "back,biceps", 1))
+    c.commit()
+    
     # This should work - pullup is bodyweight
     log.cmd_log("pullup", 0, 5, "", "back")
 

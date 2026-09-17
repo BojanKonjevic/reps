@@ -162,4 +162,14 @@ Conventions: keep charts honest (e1RM is weight times 1 plus reps over 30), keep
 
 ## Dashboard sync
 
-`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth, and it is tracked in git: commit and push it after every sync. Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. A poisoned session is reverted with `git checkout` on the db, no manual surgery. If a push ever conflicts (two sessions writing at once), pull first, then push.
+`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. The `workouts.db` binary is gitignored; instead `sync` dumps a text SQL dump (`workouts.sql`) which is committed to git. This gives clean diffs and readable history.
+
+Recovery: if `workouts.db` is corrupted or poisoned, do not `git checkout workouts.db` (it is ignored). Instead:
+```
+git checkout workouts.sql
+rm -f workouts.db
+sqlite3 workouts.db < workouts.sql
+```
+Or run `log.py restore` which does this automatically.
+
+Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. If a push ever conflicts (two sessions writing at once), pull first, then push.

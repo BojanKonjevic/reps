@@ -11,13 +11,6 @@ from datetime import date, datetime
 DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
-# Bodyweight-only exercises that can have weight=0 (extra load on top of bodyweight)
-BODYWEIGHT_EXERCISES = frozenset({
-    "pullup", "chinup", "dip", "pushup", "push up", "pistol squat",
-    "hanging leg raise", "hanging knee raise", "l-sit", "plank",
-    "ab wheel", "muscle up", "handstand pushup", "inverted row",
-})
-
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
   id INTEGER PRIMARY KEY,
@@ -125,20 +118,22 @@ def cmd_log(exercise, weight, reps, note, muscles):
     muscles = clean_muscles(muscles)
 
     # Validation: zero-weight sets only allowed for bodyweight exercises
-    if weight == 0 and exercise not in BODYWEIGHT_EXERCISES:
-        sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise)")
+    mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+    if weight == 0:
+        if not mapping or mapping["is_bodyweight_only"] != 1:
+            sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise)")
 
     # Validation: muscles required if no mapping exists
-    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     if not mapping:
         if not muscles:
             sys.exit(f"muscles= required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
         # Auto-create mapping for new exercise
+        # Agent must specify is_bodyweight_only via retag or external tool; default to 0
         c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-                  (exercise, muscles, 1 if exercise in BODYWEIGHT_EXERCISES else 0))
+                  (exercise, muscles, 0))
     elif not muscles:
         # Use stored mapping
-        muscles = mapping["muscles"]
+        muscles = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()["muscles"]
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -165,8 +160,10 @@ def cmd_update(set_id, field, value):
         value = float(value)
         # Validate zero-weight against exercise type
         row = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
-        if row and value == 0 and row["exercise"] not in BODYWEIGHT_EXERCISES:
-            sys.exit(f"zero weight not allowed for '{row['exercise']}' (not a bodyweight-only exercise)")
+        if row and value == 0:
+            mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (row["exercise"],)).fetchone()
+            if not mapping or mapping["is_bodyweight_only"] != 1:
+                sys.exit(f"zero weight not allowed for '{row['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         value = int(value)
     if field == "exercise":
@@ -244,6 +241,135 @@ def cmd_weigh(kg, note):
     print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": float(kg)}))
 
 
+def cmd_restore():
+    sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
+    if not os.path.exists(sql_file):
+        sys.exit("no workouts.sql found, cannot restore")
+    # Use a fresh connection without schema init
+    import sqlite3
+    c = sqlite3.connect(DB)
+    c.row_factory = sqlite3.Row
+    # Drop all tables before restoring
+    c.executescript("""
+        DROP TABLE IF EXISTS sets;
+        DROP TABLE IF EXISTS workouts;
+        DROP TABLE IF EXISTS bodyweight;
+        DROP TABLE IF EXISTS lift_muscle_map;
+        DROP TABLE IF EXISTS schema_version;
+    """)
+    c.commit()
+    with open(sql_file, 'r') as f:
+        c.executescript(f.read())
+    c.commit()
+    print(json.dumps({"restored": True, "from": sql_file}))
+
+
+def cmd_audit():
+    """Run deterministic audit checks and output flagged items."""
+    c = conn()
+    import itertools
+    
+    def levenshtein(a, b):
+        if len(a) < len(b):
+            a, b = b, a
+        if len(b) == 0:
+            return len(a)
+        previous_row = list(range(len(b) + 1))
+        for i, ca in enumerate(a):
+            current_row = [i + 1]
+            for j, cb in enumerate(b):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (ca != cb)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        return previous_row[-1]
+    
+    flags = []
+    
+    # Check 2: Missing muscle tags
+    missing = c.execute("SELECT id, exercise, date FROM sets WHERE muscles = '' OR muscles IS NULL").fetchall()
+    for m in missing:
+        flags.append({"check": "missing_muscles", "severity": "high", "evidence": f"set {m['id']} ({m['exercise']} on {m['date']}) has no muscles", "fix": "retag <exercise> <muscles>"})
+    
+    # Check 3: Muscle mapping drift
+    drift = c.execute("""
+        SELECT s.id, s.exercise, s.muscles as logged, m.muscles as mapped
+        FROM sets s
+        JOIN lift_muscle_map m ON m.exercise = s.exercise
+        WHERE s.muscles != m.muscles
+    """).fetchall()
+    for d in drift:
+        flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
+    
+    # Check 4: Implausible progression jumps
+    sets = c.execute("""
+        SELECT s.id, s.exercise, s.weight, s.reps, w.date,
+               s.weight * (1 + s.reps / 30.0) as e1rm
+        FROM sets s JOIN workouts w ON w.id = s.workout_id
+        WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
+    """).fetchall()
+    
+    by_ex = {}
+    for s in sets:
+        by_ex.setdefault(s["exercise"], []).append(s)
+    
+    for ex, ex_sets in by_ex.items():
+        # Group by date
+        by_date = {}
+        for s in ex_sets:
+            d = s["date"]
+            if d not in by_date or s["e1rm"] > by_date[d]:
+                by_date[d] = s["e1rm"]
+        dates = sorted(by_date.keys())
+        for i in range(1, len(dates)):
+            prev = by_date[dates[i-1]]
+            curr = by_date[dates[i]]
+            if prev > 0:
+                pct = (curr - prev) / prev * 100
+                if pct > 1.0:  # intermediate compound bound from SCIENCE.md
+                    flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
+    
+    # Check 1: Exercise name duplicates
+    exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
+    for a, b in itertools.combinations(exercises, 2):
+        if levenshtein(a, b) <= 2:
+            flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= 2)", "fix": "rename <old> <new>"})
+    
+    # Check 7: Stale open workouts
+    stale = c.execute("""
+        SELECT w.id, w.date FROM workouts w
+        WHERE w.status = 'open'
+          AND (date(w.date) < date('now') OR 
+               (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', '-8 hours'))
+    """).fetchall()
+    for s in stale:
+        flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
+    
+    # Check 8: Volume vs MEV
+    from datetime import date, timedelta
+    base = date.today() - timedelta(weeks=10)
+    for muscle in ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"]:
+        mev = {"chest": 8, "back": 10, "shoulders": 6, "biceps": 6, "triceps": 6, "quads": 8, "hamstrings": 6, "glutes": 6, "abs": 6}[muscle]
+        weeks = c.execute("""
+            SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
+            FROM sets s JOIN workouts w ON w.id = s.workout_id
+            WHERE s.muscles LIKE ? AND date(w.date) >= ?
+            GROUP BY week ORDER BY week
+        """, (f"%{muscle}%", base.isoformat())).fetchall()
+        low_weeks = sum(1 for w in weeks if w["sets"] < mev)
+        if low_weeks >= 4:
+            flags.append({"check": "volume_below_mev", "severity": "medium", "evidence": f"{muscle}: {low_weeks} of last {len(weeks)} weeks below MEV ({mev})", "fix": "add volume, or add Active rule explaining"})
+    
+    # Output report
+    print(f"Audit complete: {len(flags)} flags")
+    for i, f in enumerate(flags, 1):
+        print(f"{i}. [{f['check']}] — {f['severity'].upper()}")
+        print(f"   Evidence: {f['evidence']}")
+        print(f"   Fix: {f['fix']}")
+    print(json.dumps({"flags": flags}))
+
+
 def cmd_sync():
     try:
         cfg = json.load(open(CFG))
@@ -287,9 +413,12 @@ def cmd_retag(exercise, muscles):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
+    # Preserve existing is_bodyweight_only if mapping exists, default to 0
+    existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+    is_bw = existing["is_bodyweight_only"] if existing else 0
     cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (muscles, exercise))
     c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-              (exercise, muscles, 1 if exercise in BODYWEIGHT_EXERCISES else 0))
+              (exercise, muscles, is_bw))
     c.commit()
     print(json.dumps({"retag_exercise": exercise, "updated": cur.rowcount}))
 
@@ -421,7 +550,7 @@ def usage():
         "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
         "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
-        "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync"
+        "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync | restore | audit"
     )
 
 
@@ -482,6 +611,10 @@ def main():
         cmd_weigh(rest[0], " ".join(rest[1:]))
     elif cmd == "sync":
         cmd_sync()
+    elif cmd == "restore":
+        cmd_restore()
+    elif cmd == "audit":
+        cmd_audit()
     else:
         usage()
 
