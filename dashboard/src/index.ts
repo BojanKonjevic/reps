@@ -12,20 +12,6 @@ const BLANK = {
 
 const GROUPS = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"];
 
-function muscleOf(name: string): string {
-  const n = name.toLowerCase();
-  if (/(leg curl|nordic|hamstring|good morning|romanian|rdl|deadlift)/.test(n)) return "hamstrings";
-  if (/(tricep|pushdown|skull)/.test(n)) return "triceps";
-  if (/(bench|chest|fly|pushup|push up|dips|incline)/.test(n)) return "chest";
-  if (/(overhead|ohp|shoulder|lateral|rear delt|face pull|arnold)/.test(n)) return "shoulders";
-  if (/(pullup|chinup|pulldown|pendlay|pullover| lat | rows| row )/.test(" " + n + " ")) return "back";
-  if (/(bicep|curl|hammer|preacher)/.test(n)) return "biceps";
-  if (/(squat|leg press|lunge|leg extension|hack)/.test(n)) return "quads";
-  if (/(hip thrust|glute|hip abduct)/.test(n)) return "glutes";
-  if (/(crunch|plank|leg raise|knee raise|hanging|abs|core|ab wheel)/.test(n)) return "abs";
-  return "other";
-}
-
 const PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -375,8 +361,7 @@ function render(){
     const k = weekKey(wday(s));
     weeks[k] = weeks[k] || blank();
     const stored = (s.muscles || "").split(",").map(x => x.trim().toLowerCase()).filter(x => x);
-    const gs = stored.length ? stored : [muscleOf(s.exercise)];
-    gs.forEach(g => { if (g in weeks[k]) weeks[k][g] += 1; });
+    stored.forEach(g => { if (g in weeks[k]) weeks[k][g] += 1; });
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
   const lm = document.getElementById("legMus");
@@ -746,21 +731,6 @@ function liftChart(cv, pts, ex, hover) {
   }
 }
 window.addEventListener("hashchange", route);
-const GROUPS = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "abs"];
-function muscleOf(n) {
-  n = n.toLowerCase();
-  if (/(leg curl|nordic|hamstring|good morning|romanian|rdl|deadlift)/.test(n)) return "hamstrings";
-  if (/(tricep|pushdown|skull)/.test(n)) return "triceps";
-  if (/(bench|chest|fly|pushup|push up|dips|incline)/.test(n)) return "chest";
-  if (/(overhead|ohp|shoulder|lateral|rear delt|face pull|arnold)/.test(n)) return "shoulders";
-  if (/(pullup|chinup|pulldown|pendlay|pullover| lat | rows| row )/.test(" " + n + " ")) return "back";
-  if (/(bicep|curl|hammer|preacher)/.test(n)) return "biceps";
-  if (/(squat|leg press|lunge|leg extension|hack)/.test(n)) return "quads";
-  if (/(hip thrust|glute|hip abduct)/.test(n)) return "glutes";
-  if (/(crunch|plank|leg raise|knee raise|hanging|abs|core|ab wheel)/.test(n)) return "abs";
-  return "other";
-}
-// Unmapped lifts fall into other and are excluded from the volume chart. Extend the patterns above when the split changes, mirroring MEMORY.md Tracked muscles.
 function renderCal(year, month, dayDetail) {
   const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   document.getElementById("calTitle").textContent = names[month] + " " + year;

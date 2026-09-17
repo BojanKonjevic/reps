@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS sets (
   exercise TEXT NOT NULL,
   weight REAL NOT NULL,
   reps INTEGER NOT NULL,
-  rpe REAL,
   note TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL
 );
@@ -52,7 +51,14 @@ def conn():
 
 
 def clean_muscles(value):
-    return ",".join(p.strip().lower() for p in value.split(",") if p.strip())
+    seen = set()
+    out = []
+    for p in value.split(","):
+        m = p.strip().lower()
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return ",".join(out)
 
 
 def open_workout(c):
@@ -80,7 +86,7 @@ def cmd_start(note):
     print(json.dumps({"workout_id": cur.lastrowid, "reused": False, "date": today}))
 
 
-def cmd_log(exercise, weight, reps, rpe, note, muscles):
+def cmd_log(exercise, weight, reps, note, muscles):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -88,8 +94,8 @@ def cmd_log(exercise, weight, reps, rpe, note, muscles):
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute(
-        "INSERT INTO sets (workout_id, exercise, weight, reps, rpe, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (wid, exercise.strip().lower(), float(weight), int(reps), rpe, note, created, clean_muscles(muscles)),
+        "INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (wid, exercise.strip().lower(), float(weight), int(reps), note, created, clean_muscles(muscles)),
     )
     c.commit()
     print(json.dumps({"set_id": cur.lastrowid, "workout_id": wid}))
@@ -243,7 +249,10 @@ def cmd_update_workout(workout_id, field, value):
     if field not in allowed:
         sys.exit("field must be one of notes date status")
     if field == "date":
-        date.fromisoformat(value)
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            sys.exit("date must be YYYY-MM-DD")
     if field == "status" and value not in ("open", "done"):
         sys.exit("status must be open or done")
     c = conn()
@@ -355,13 +364,11 @@ def main():
         note_parts = []
         muscles = ""
         for tok in rest[3:]:
-            if tok.startswith("rpe="):
-                continue
             if tok.startswith("muscles="):
                 muscles = tok[len("muscles="):]
                 continue
             note_parts.append(tok)
-        cmd_log(exercise, weight, reps, None, " ".join(note_parts), muscles)
+        cmd_log(exercise, weight, reps, " ".join(note_parts), muscles)
     elif cmd == "update" and len(rest) >= 3:
         cmd_update(rest[0], rest[1], " ".join(rest[2:]))
     elif cmd == "end":
