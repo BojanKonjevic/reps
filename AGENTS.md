@@ -70,6 +70,12 @@ MEMORY.md Split is the exact program: which day holds which exercises in which o
 3. Rewrite the section only when the user says the split changed, with a new updated date. Never infer a program change from one unusual session.
 4. Program mode reads Split first: it defines what a full day contains.
 
+## Session report
+
+Every session that ends explicitly ("done", "finished") or implicitly (clearly over, user moving on) gets a short report in chat. No postplan, just a message. Sessions closed only because a new day found them stale get no report, their data is suspect.
+
+Short and conversational, but every claim grounded in numbers just pulled: PRs hit, top sets versus the last same slot session, targets hit or missed on a peak day, anything notable from notes (pain, bad sleep). One take at most, no essays, no generic motivation.
+
 ## Memory writeback
 
 Chat history dies with the session, files survive. When user states something durable, write it down:
