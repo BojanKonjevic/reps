@@ -46,7 +46,7 @@ h2{font-size:1.35rem;margin:34px 0 10px;}
 canvas{width:100%;height:250px;display:block;}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;}
 #legTrend{max-height:132px;overflow-y:auto;}
-.minigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 12px;}
+.minigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px 12px;}
 .mini{min-width:0;}
 .mini canvas{width:100%;height:110px;display:block;cursor:pointer;}
 .minititle{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;margin-bottom:2px;}
@@ -142,15 +142,13 @@ td,th{border-color:#232120;}
 <div class="kick">reps</div>
 <h1>Training dashboard</h1>
 <div class="sub" id="sub">loading</div>
-<div class="cols2">
 <div><h2>Estimated 1RM trend</h2>
 <div class="card"><div class="minigrid" id="trendGrid"></div><div class="legend" id="legTrend"></div><div class="cap">Best set per session, each lift on its own scale. Tap a lift for detail.</div></div></div>
-<div><h2>Bodyweight</h2>
-<div class="card"><canvas id="chBw" width="860" height="250"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div></div>
-</div>
 <div class="cols2">
 <div><h2>Weekly volume by muscle</h2>
-<div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div></div>
+<div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div>
+<h2>Bodyweight</h2>
+<div class="card"><canvas id="chBw" width="860" height="250"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div></div>
 <div><h2>Training calendar</h2>
 <div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Trophy marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
 </div>
