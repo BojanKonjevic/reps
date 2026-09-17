@@ -22,6 +22,15 @@ Example: 2026-09-01 incline barbell bench press is the main press until 2026-11-
 
 chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs. Never neck, calves, forearms, traps. New movements mapping elsewhere get asked about once.
 
+## Lift mapping
+
+Exercise to muscle groups, asked once and recorded. Form dependent entries note the form.
+
+- back squat -> quads, glutes
+- dips -> triceps (their form, elbows tucked, triceps main)
+- flat barbell bench press -> chest (chest only by convention, no shoulder or tricep credit)
+- lat pulldown -> back
+
 ## State
 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.

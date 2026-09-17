@@ -19,7 +19,7 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 1. Workouts are only created explicitly. `log` fails when no workout is open, it never auto creates. On any training message, run `today` to see if a workout is open, then `start` when sure a new session began.
 2. Talk stays conversational, no rigid syntax. The agent infers batch logging from plain talk: "squat 90 5/5/7, last grindy" or three rapid "same x5" messages means fan out to multiple `log` calls in one burst. Mid workout replies stay terse ("logged 3x"), full summary at `end`.
 3. Before logging a set, check the `context` lifts list for canonical names. Reuse an existing name when it clearly matches.
-4. Log with: `log <exercise> <weight> <reps>` plus free note text.
+4. Log with: `log <exercise> <weight> <reps>` plus free note text, plus `muscles=a,b` naming every muscle group the movement trains (see Muscle attribution).
 5. RPE is not tracked. Never ask for it, never log it. Feel goes in plain words in the note instead.
 6. Warmups are not tracked. Never log them, they pollute maxes and PRs.
 7. Weights are always kg unless the user says otherwise. On lbs input convert (divide by 2.205) and state the conversion in the reply. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
@@ -39,6 +39,18 @@ You own the ontology. There is no alias list in code.
 4. If user names something new that has no close match, ask once, then reuse that spelling forever.
 5. If duplicates happen, merge with `rename <old> <new>`.
 
+## Muscle attribution
+
+One movement trains as many groups as it trains. Back squat is quads plus glutes, never quads alone. Each set carries its own muscle list, so compounds give full credit to every group they hit.
+
+Default to asking. Only skip the question when the movement is extremely clearly one muscle and nothing else (lat pulldown is back, curls are biceps). Anything with a plausible second muscle gets one question, then the answer is recorded forever:
+
+1. Check `MEMORY.md` Lift mapping first. A recorded mapping wins, no re-asking.
+2. If unmapped and not extremely clear, ask which groups it trains, log with `muscles=a,b`.
+3. Write the answer into Lift mapping. If the user corrects an old mapping, fix past sets with `retag <exercise> <muscles>` too.
+
+Form and intent matter: dips done upright are chest, done leaning forward with elbows tucked are triceps. When form changes the muscles, ask, don't assume from the name alone.
+
 ## Memory writeback
 
 Chat history dies with the session, files survive. When user states something durable, write it down:
@@ -54,7 +66,7 @@ Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
 `context`, `stats`, `calendar`, `session`, `range`, and `history <exercise>` give ground truth numbers. Gym mode reasons from `context` only. Review mode may pull hundreds of sessions at once with `range` or `notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence from `calendar` dates and gaps (raw dates in, verdict out, travel and sick notes from memory decide miss versus planned rest), PRs, stalls, caveats (small sample, grindy notes, missed sessions). Keep it short and honest. Numbers first, take second.
 
-Volume is anatomical by muscle group. Tracked groups live in MEMORY.md under Tracked muscles (currently chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs; never neck, calves, forearms, traps). If a new movement maps to an untracked group or no clear group, ask once whether to track it, then follow the answer.
+Volume is anatomical by muscle group, and one set can count for several groups at once. Tracked groups live in MEMORY.md under Tracked muscles (currently chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs; never neck, calves, forearms, traps). Per lift attribution lives in Lift mapping. If a new movement maps to an untracked group or no clear group, ask once whether to track it, then follow the answer.
 
 Never present tonnage or total set counts as achievements, in chat or on the dashboard. Totals like that mean nothing about progress. Trends, PRs, and adherence are the currency. A PR is any set beating the prior best e1RM for that lift. The first logged set per lift is the baseline, not a PR.
 
@@ -64,7 +76,7 @@ The dashboard is malleable, not finished. Change it freely whenever the user ask
 
 Every UI change gets verified with dark screenshots before reporting done: phone width plus desktop width, checking the changed view. There is no light theme, never verify it. Harness is `node shot.js` in `~/.shot/` (playwright-core driving the cached chrome-headless-shell with dark emulation, plain chrome headless flags ignore dark mode so never trust those). No unit tests for the dashboard file yet, screenshots are the test.
 
-Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Muscle groups for the volume chart live in the worker muscleOf patterns and mirror MEMORY.md Tracked muscles, lifts that match nothing are left out entirely, extend the patterns when the split changes. The trend section is small multiples, one mini chart per lift on its own scale with PR trophies and tap-through to the lift page, visibility follows toggle chips (top 8 on by default, All and None buttons, picks persist), palette holds 24 colors. Zero weight sets are excluded from trend lines. Session tables use real thead and tbody. Saved legend prefs prune names missing from the snapshot on load. Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers. PR marker is the trophy icon everywhere (session tables, calendar corner, lift chart canvas), never dots, rings, stars, or pills.
+Conventions: keep everything in the single file, keep charts honest (e1RM is weight times 1 plus reps over 30), keep the snapshot schema forward compatible (the worker ignores unknown fields, so the CLI can add new sections without breaking the page). Each set carries its own muscle list, the volume chart reads it directly and one set can credit several groups. The worker muscleOf patterns stay only as fallback for sets logged before attribution existed, and mirror MEMORY.md Tracked muscles. Lifts matching nothing are left out entirely. The trend section is small multiples, one mini chart per lift on its own scale with PR trophies and tap-through to the lift page, visibility follows toggle chips (top 8 on by default, All and None buttons, picks persist), palette holds 24 colors. Zero weight sets are excluded from trend lines. Session tables use real thead and tbody. Saved legend prefs prune names missing from the snapshot on load. Never use backslash escapes in dashboard/src/index.ts, the deploy pipeline strips them and silently breaks the page. Prefer graphs over headline numbers. PR marker is the trophy icon everywhere (session tables, calendar corner, lift chart canvas), never dots, rings, stars, or pills.
 
 ## Dashboard sync
 

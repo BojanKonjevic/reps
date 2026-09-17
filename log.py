@@ -44,7 +44,15 @@ def conn():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     c.executescript(SCHEMA)
+    try:
+        c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
     return c
+
+
+def clean_muscles(value):
+    return ",".join(p.strip().lower() for p in value.split(",") if p.strip())
 
 
 def open_workout(c):
@@ -72,7 +80,7 @@ def cmd_start(note):
     print(json.dumps({"workout_id": cur.lastrowid, "reused": False, "date": today}))
 
 
-def cmd_log(exercise, weight, reps, rpe, note):
+def cmd_log(exercise, weight, reps, rpe, note, muscles):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -80,20 +88,22 @@ def cmd_log(exercise, weight, reps, rpe, note):
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute(
-        "INSERT INTO sets (workout_id, exercise, weight, reps, rpe, note, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (wid, exercise.strip().lower(), float(weight), int(reps), rpe, note, created),
+        "INSERT INTO sets (workout_id, exercise, weight, reps, rpe, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (wid, exercise.strip().lower(), float(weight), int(reps), rpe, note, created, clean_muscles(muscles)),
     )
     c.commit()
     print(json.dumps({"set_id": cur.lastrowid, "workout_id": wid}))
 
 
 def cmd_update(set_id, field, value):
-    allowed = {"weight", "reps", "exercise", "note"}
+    allowed = {"weight", "reps", "exercise", "note", "muscles"}
     if field not in allowed:
-        sys.exit("field must be one of weight reps exercise note")
+        sys.exit("field must be one of weight reps exercise note muscles")
     c = conn()
     if field == "exercise":
         value = value.strip().lower()
+    if field == "muscles":
+        value = clean_muscles(value)
     if field == "weight":
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
@@ -196,6 +206,13 @@ def cmd_rename(old, new):
     cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new.strip().lower(), old.strip().lower()))
     c.commit()
     print(json.dumps({"renamed": cur.rowcount}))
+
+
+def cmd_retag(exercise, muscles):
+    c = conn()
+    cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (clean_muscles(muscles), exercise.strip().lower()))
+    c.commit()
+    print(json.dumps({"retag_exercise": exercise.strip().lower(), "updated": cur.rowcount}))
 
 
 def cmd_delete_set(set_id):
@@ -318,8 +335,8 @@ def cmd_context(n):
 
 def usage():
     sys.exit(
-        "usage: log.py start [note] | log <exercise> <weight> <reps> [note] "
-        "| update <id> <field> <value> | update-workout <id> <field> <value> "
+        "usage: log.py start [note] | log <exercise> <weight> <reps> [note] [muscles=a,b] "
+        "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
         "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync"
@@ -336,11 +353,15 @@ def main():
     elif cmd == "log" and len(rest) >= 3:
         exercise, weight, reps = rest[0], rest[1], rest[2]
         note_parts = []
+        muscles = ""
         for tok in rest[3:]:
             if tok.startswith("rpe="):
                 continue
+            if tok.startswith("muscles="):
+                muscles = tok[len("muscles="):]
+                continue
             note_parts.append(tok)
-        cmd_log(exercise, weight, reps, None, " ".join(note_parts))
+        cmd_log(exercise, weight, reps, None, " ".join(note_parts), muscles)
     elif cmd == "update" and len(rest) >= 3:
         cmd_update(rest[0], rest[1], " ".join(rest[2:]))
     elif cmd == "end":
@@ -358,6 +379,8 @@ def main():
         cmd_export()
     elif cmd == "rename" and len(rest) >= 2:
         cmd_rename(rest[0], " ".join(rest[1:]))
+    elif cmd == "retag" and len(rest) >= 2:
+        cmd_retag(rest[0], ",".join(rest[1:]))
     elif cmd == "delete-set" and len(rest) >= 1:
         cmd_delete_set(rest[0])
     elif cmd == "delete-workout" and len(rest) >= 1:

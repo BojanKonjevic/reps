@@ -146,7 +146,7 @@ td,th{border-color:#232120;}
 <div class="card"><div class="minigrid" id="trendGrid"></div><div class="legend" id="legTrend"></div><div class="cap">Best set per session, each lift on its own scale. Tap a lift for detail.</div></div></div>
 <div class="cols2">
 <div><h2>Weekly volume by muscle</h2>
-<div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div>
+<div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div><div class="cap">One set can count for several muscles.</div></div>
 <h2>Bodyweight</h2>
 <div class="card"><canvas id="chBw" width="860" height="250"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div></div>
 <div><h2>Training calendar</h2>
@@ -377,8 +377,9 @@ function render(){
   for (const s of S) {
     const k = weekKey(wday(s));
     weeks[k] = weeks[k] || blank();
-    const g = muscleOf(s.exercise);
-    if (g !== "other") weeks[k][g] += 1;
+    const stored = (s.muscles || "").split(",").map(x => x.trim().toLowerCase()).filter(x => x);
+    const gs = stored.length ? stored : [muscleOf(s.exercise)];
+    gs.forEach(g => { if (g in weeks[k]) weeks[k][g] += 1; });
   }
   stacked(document.getElementById("chMus"), Object.keys(weeks).sort(), Object.keys(weeks).sort().map(k => weeks[k]));
   const lm = document.getElementById("legMus");
