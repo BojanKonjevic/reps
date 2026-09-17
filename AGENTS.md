@@ -122,7 +122,25 @@ This is distinct from data-quality audits or compaction. It only refreshes the e
 
 ## AUDIT.md (audit the data)
 
-"audit the data" triggers a non-deterministic data quality check per AUDIT.md protocol. This is a correlated check (same reasoning that could produce a bad log does the checking) — it complements the pytest layer, does not replace it. Run the fixed checklist against pulled data (`context`, `history`, `range`, `calendar`), cite specific rows/dates/ids for every flag, output report only with severity and one-line fix. Never auto-correct. After run, log one line in MEMORY.md State: `YYYY-MM-DD: audit ran, N flags (X high, Y medium, Z low)`.
+"audit the data" triggers a non-deterministic data quality check per AUDIT.md protocol. This is a correlated check (same reasoning that could produce a bad log does the checking) — it complements the pytest layer, does not replace it.
+
+When user says "audit the data", execute this runbook **exactly**:
+
+1. **Pull data**: run `context` (recent 3 workouts + per-lift bests), then `range <from> <to>` covering last 90 days (or `export` if history is thin). Also `calendar` for gaps. Also `exercises` for name list.
+2. **Run checklist** (from AUDIT.md) in order. For each item:
+   - Execute the described query against the pulled data
+   - If flagged: record `flag: {check: N, severity: high|medium|low, evidence: "specific rows/dates/ids", fix: "one-line fix"}`
+   - Never auto-correct
+3. **Output report**: one message with all flags, formatted:
+   ```
+   Audit complete: N flags (X high, Y medium, Z low)
+   
+   1. [check name] — severity
+      Evidence: ...
+      Fix: ...
+   ```
+4. **Log to MEMORY.md**: append to State section: `YYYY-MM-DD: audit ran, N flags (X high, Y medium, Z low)`
+5. **Stop** — do not auto-fix, do not continue to other tasks.
 
 ## ISSUES.md
 
