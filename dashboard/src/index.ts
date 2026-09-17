@@ -50,16 +50,17 @@ button.chip.off{opacity:.35;}
 .calhead button{background:none;border:none;border-radius:8px;padding:6px;cursor:pointer;color:inherit;display:flex;}
 .calhead button:hover{background:rgba(127,122,110,.16);}
 .calhead button svg{width:18px;height:18px;}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-family:"IBM Plex Sans",sans-serif;font-size:.86rem;max-width:380px;}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-family:"IBM Plex Sans",sans-serif;font-size:.86rem;}
 .cal .dw{font-size:.66rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#8a8478;text-align:center;padding:4px 0;}
-.cal .cd{min-height:34px;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center;color:#6e695c;position:relative;text-decoration:none;font-weight:500;}
+.cal .cd{min-height:36px;height:36px;width:36px;margin:0 auto;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#6e695c;position:relative;text-decoration:none;font-weight:500;}
 .cal a.cd.t{background:#2f7d33;color:#fff;font-weight:600;}
 .cal a.cd.t:hover{background:#27692b;text-decoration:none;}
 .cal .cd.today{box-shadow:inset 0 0 0 2px #7a5a34;}
 .cal a.cd.t.today{box-shadow:inset 0 0 0 2px rgba(255,255,255,.85);}
 .cal .cd.fut{opacity:.32;}
-.cal a.cd.pr{box-shadow:0 0 0 2px #fffdf7,0 0 0 4px #c99700;}
-.cal a.cd.pr.today{box-shadow:0 0 0 2px #fffdf7,0 0 0 4px #c99700,inset 0 0 0 2px rgba(255,255,255,.85);}
+.cal .prt{position:absolute;top:-6px;right:-8px;width:13px;height:13px;color:#8a5a00;pointer-events:none;}
+.cal .prt svg{width:13px;height:13px;display:block;}
+.cal a.cd.t .prt{color:#ffe45e;}
 .sesstop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
 .sesspg{display:flex;gap:2px;}
 .iconbtn{display:inline-flex;padding:8px;border-radius:10px;color:inherit;}
@@ -89,8 +90,8 @@ a:hover{text-decoration:underline;}
 .cal a.cd.t:hover{background:#4cb052;}
 .cal .cd.today{box-shadow:inset 0 0 0 2px #f0ede6;}
 .cal a.cd.t.today{box-shadow:inset 0 0 0 2px rgba(255,255,255,.9);}
-.cal a.cd.pr{box-shadow:0 0 0 2px #111010,0 0 0 4px #e6c400;}
-.cal a.cd.pr.today{box-shadow:0 0 0 2px #111010,0 0 0 4px #e6c400,inset 0 0 0 2px rgba(255,255,255,.9);}
+.cal .prt{color:#e6c400;}
+.cal a.cd.t .prt{color:#ffe45e;}
 .prbadge{background:none;color:#e6c400;}
 .setnotes{color:#b0aca2;}
 .iconbtn{color:#f0ede6;}
@@ -129,7 +130,7 @@ td,th{border-color:#232120;}
 <div><h2>Weekly volume by muscle</h2>
 <div class="card"><canvas id="chMus" width="860" height="250"></canvas><div class="legend" id="legMus"></div></div></div>
 <div><h2>Training calendar</h2>
-<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Gold ring marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
+<div class="card calcard"><div class="calhead"><button id="calPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M10 3 L5 8 L10 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="calTitle"></b><button id="calNext" type="button" aria-label="Next month"><svg viewBox="0 0 16 16" width="18" height="18"><path d="M6 3 L11 8 L6 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="cal" id="cal"></div><div class="cap">Tap a highlighted day for the session. Trophy marks a PR day.</div><div class="cap">Recent notes</div><ul class="notes" id="noteList"></ul></div></div>
 </div>
 <h2>Best sets</h2>
 <div class="card"><table id="prs"><thead><tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr></thead></table></div>
@@ -144,7 +145,7 @@ td,th{border-color:#232120;}
 <div class="sesstop"><a class="iconbtn" href="#/" aria-label="back to dashboard"><svg viewBox="0 0 16 16" width="22" height="22"><path d="M14 8H3M7 4L3 8l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
 <h1 id="liftTitle">Lift</h1>
 <div class="sub" id="liftSub"></div>
-<div class="card"><canvas id="chLift" width="860" height="260"></canvas><div class="cap">Top set weight per session. Stars mark sessions with an e1RM PR. Tap a point to open the session.</div></div>
+<div class="card"><canvas id="chLift" width="860" height="260"></canvas><div class="cap">Top set weight per session. Trophies mark sessions with an e1RM PR. Tap a point to open the session.</div></div>
 <h2>PR history</h2>
 <div class="card"><table id="liftPRs"><thead><tr><th>date</th><th>set</th><th>e1RM</th></tr></thead></table></div>
 </div>
@@ -614,17 +615,37 @@ function showLift(ex) {
   });
   window.scrollTo(0, 0);
 }
-function star(g, x, y, r, color) {
+function trophy(g, x, y, r, color) {
+  const s = r / 8;
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
   g.fillStyle = color;
+  g.strokeStyle = color;
+  g.lineWidth = 1.4;
+  g.lineCap = "round";
   g.beginPath();
-  for (let i = 0; i < 10; i += 1) {
-    const rr = i % 2 === 0 ? r : r * 0.45;
-    const a = -Math.PI / 2 + i * Math.PI / 5;
-    const px = x + rr * Math.cos(a), py = y + rr * Math.sin(a);
-    if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
-  }
+  g.moveTo(-3, -6.5);
+  g.lineTo(3, -6.5);
+  g.lineTo(3, -2.3);
+  g.arc(0, -2.3, 3, 0, Math.PI, false);
   g.closePath();
   g.fill();
+  g.beginPath();
+  g.arc(-3.6, -4.2, 1.8, Math.PI * 0.4, Math.PI * 1.4, true);
+  g.stroke();
+  g.beginPath();
+  g.arc(3.6, -4.2, 1.8, Math.PI * 1.6, Math.PI * 0.6, true);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(0, 0.7);
+  g.lineTo(0, 2.8);
+  g.moveTo(-1.8, 4.8);
+  g.lineTo(1.8, 4.8);
+  g.moveTo(-2.6, 6.5);
+  g.lineTo(2.6, 6.5);
+  g.stroke();
+  g.restore();
 }
 function liftChart(cv, pts, ex, hover) {
   const f = fit(cv);
@@ -673,7 +694,7 @@ function liftChart(cv, pts, ex, hover) {
   pts.forEach(p => {
     const x = px(p.date), y = py(p.w);
     LIFTPTS.push({ x, y, date: p.date });
-    if (p.pr) star(g, x, y - 12, 7, STARC);
+    if (p.pr) trophy(g, x, y - 14, 7, STARC);
     else { g.fillStyle = col; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
   });
   g.fillStyle = TC;
@@ -688,7 +709,7 @@ function liftChart(cv, pts, ex, hover) {
     g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
     g.globalAlpha = 1;
-    star(g, x, py(p.w) - 12, 10, STARC);
+    trophy(g, x, py(p.w) - 14, 10, STARC);
   }
 }
 window.addEventListener("hashchange", route);
@@ -728,8 +749,15 @@ function renderCal(year, month, dayDetail) {
     const isPR = PR && PR.prDates.has(key);
     const el = document.createElement(trained ? "a" : "div");
     if (trained) el.href = "#/s/" + key;
-    el.className = "cd" + (trained ? " t" : "") + (isPR ? " pr" : "") + (key === todayS ? " today" : "") + (key > todayS ? " fut" : "");
+    el.className = "cd" + (trained ? " t" : "") + (key === todayS ? " today" : "") + (key > todayS ? " fut" : "");
     el.textContent = String(d);
+    if (isPR) {
+      const tr = document.createElement("span");
+      tr.className = "prt";
+      tr.title = "personal record";
+      tr.innerHTML = '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      el.appendChild(tr);
+    }
     if (trained) {
       el.addEventListener("click", hideTip);
       el.addEventListener("mousemove", ev => {
