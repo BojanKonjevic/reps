@@ -49,12 +49,12 @@ No magic threshold; 5–20 all work if RPE 8–10. Below 5 shifts to strength, a
 
 ## Proximity to failure
 
-| Guidance                                                   | Tier                             | Source                                              |
-| ---------------------------------------------------------- | -------------------------------- | --------------------------------------------------- |
-| 0–2 RIR (RPE 8–10) for hypertrophy                         | Settled                          | Helms 2016, 2018; Grgic 2018; Morton 2019 RCT       |
-| 0 RIR (true failure) not required, equal growth at 1–2 RIR | Contested                        | Some RCTs show equivalence, others slight edge to 0 |
-| Compound lifts: stop 1–2 RIR for fatigue management        | Opinion (practitioner consensus) | RP, Helms, Israetel                                 |
-| Isolation: 0–1 RIR acceptable, lower systemic cost         | Opinion                          | RP, Helms                                           |
+| Guidance                                                   | Tier                             | Source                                                       |
+| ---------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| 0–2 RIR (RPE 8–10) for hypertrophy                         | Settled                          | Helms 2016, 2018; Grgic 2018; Morton 2019 RCT                |
+| 0 RIR (true failure) not required, equal growth at 1–2 RIR | Contested                        | Some RCTs show equivalence, others slight edge to 0          |
+| Compound lifts: stop 1–2 RIR for fatigue management        | Opinion (practitioner consensus) | RP, Helms, Israetel                                          |
+| Isolation: 0–1 RIR acceptable, lower systemic cost         | Opinion                          | RP, Helms                                                    |
 | Training to failure every set → manage volume down         | Opinion (practitioner consensus) | RP, Helms — higher per-set fatigue, lower recoverable volume |
 
 ## Rate of progression bounds
@@ -71,20 +71,20 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 
 ## Deload / fatigue management
 
-| Guidance                                                              | Tier      | Source                                    |
-| --------------------------------------------------------------------- | --------- | ----------------------------------------- |
-| Deload every 4–8 weeks (reduce volume 40–60%, intensity same)         | Contested | Practitioner consensus, little direct RCT |
-| Reactive deload: when performance drops 5%+ across 2 sessions         | Opinion   | RP, Helms autoregulation                  |
+| Guidance                                                                           | Tier      | Source                                    |
+| ---------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
+| Deload every 4–8 weeks (reduce volume 40–60%, intensity same)                      | Contested | Practitioner consensus, little direct RCT |
+| Reactive deload: when performance drops 5%+ across 2 sessions                      | Opinion   | RP, Helms autoregulation                  |
 | Passive deload every 4th day (3 on 1 off schedules), active deload every 4–6 weeks | Opinion   | Fits 3 on 1 off structure                 |
-| No evidence for "deload week" vs "deload session" superiority         | Opinion   | Unstudied                                 |
+| No evidence for "deload week" vs "deload session" superiority                      | Opinion   | Unstudied                                 |
 
 ## Exercise selection principles
 
-| Principle                                                                           | Tier      | Source                                         |
-| ----------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
-| 1–2 compounds + 1–2 isolations per muscle/session                                   | Opinion   | RP, Helms template                             |
-| Movement pattern variety across week (vertical/horizontal push/pull)                | Settled   | Joint health, motor unit coverage              |
-| Lengthened-position bias for hypertrophy (stretch under load)                       | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
+| Principle                                                                                                   | Tier      | Source                                         |
+| ----------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
+| 1–2 compounds + 1–2 isolations per muscle/session                                                           | Opinion   | RP, Helms template                             |
+| Movement pattern variety across week (vertical/horizontal push/pull)                                        | Settled   | Joint health, motor unit coverage              |
+| Lengthened-position bias for hypertrophy (stretch under load)                                               | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
 | Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023                    |
 
 ## Personal deviations
