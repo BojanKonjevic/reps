@@ -56,32 +56,44 @@ CREATE TABLE IF NOT EXISTS set_muscles (
 CURRENT_SCHEMA_VERSION = 2
 
 
+# Migration functions - each takes a connection and performs one schema version upgrade
+def _migrate_v1_to_v2(c):
+    """Migration v2: create set_muscles table and populate from muscles column"""
+    c.execute("""
+        INSERT INTO set_muscles (set_id, muscle)
+        SELECT sets.id, trim(value) FROM sets, json_each('["' || replace(muscles, ',', '","') || '"]')
+        WHERE muscles != ''
+    """)
+
+
+MIGRATIONS = {
+    1: _migrate_v1_to_v2,
+}
+
+
+def _run_migrations(c):
+    """Run pending schema migrations in order."""
+    cur = c.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
+    current = cur.fetchone()[0]
+    for version in range(current + 1, CURRENT_SCHEMA_VERSION + 1):
+        if version in MIGRATIONS:
+            MIGRATIONS[version](c)
+        c.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
+        c.commit()
+
+
 def conn():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
     c.executescript(SCHEMA)
-    # Schema migration
-    cur = c.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
-    current = cur.fetchone()[0]
-    if current < CURRENT_SCHEMA_VERSION:
-        if current == 0:
-            # Initial migration - already handled by SCHEMA
-            pass
-        elif current == 1:
-            # Migration v2: create set_muscles table and populate from muscles column
-            c.execute("""
-                INSERT INTO set_muscles (set_id, muscle)
-                SELECT id, trim(value) FROM sets, json_each('["' || replace(muscles, ',', '","') || '"]')
-                WHERE muscles != ''
-            """)
-        c.execute("INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
-        c.commit()
+    # Ensure muscles column exists before migrations that depend on it
     try:
         c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
     except sqlite3.OperationalError:
         pass
+    _run_migrations(c)
     return c
 
 
