@@ -46,6 +46,15 @@ h2{font-size:1.35rem;margin:34px 0 10px;}
 canvas{width:100%;height:250px;display:block;}
 .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;}
 #legTrend{max-height:132px;overflow-y:auto;}
+.minigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 12px;}
+.mini{min-width:0;}
+.mini canvas{width:100%;height:110px;display:block;cursor:pointer;}
+.minititle{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;margin-bottom:2px;}
+.minititle a{color:inherit;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.minititle span{font-family:"JetBrains Mono",monospace;color:#4e5148;flex:none;}
+@media (prefers-color-scheme:dark){
+.minititle span{color:#b0aca2;}
+}
 button.chip.mini{border:1px solid #d9d3c0;font-weight:600;}
 @media (prefers-color-scheme:dark){
 button.chip.mini{border-color:#3a3733;}
@@ -135,7 +144,7 @@ td,th{border-color:#232120;}
 <div class="sub" id="sub">loading</div>
 <div class="cols2">
 <div><h2>Estimated 1RM trend</h2>
-<div class="card"><canvas id="chTrend" width="860" height="250"></canvas><div class="legend" id="legTrend"></div><div class="cap">Best set per session.</div></div></div>
+<div class="card"><div class="minigrid" id="trendGrid"></div><div class="legend" id="legTrend"></div><div class="cap">Best set per session, each lift on its own scale. Tap a lift for detail.</div></div></div>
 <div><h2>Bodyweight</h2>
 <div class="card"><canvas id="chBw" width="860" height="250"></canvas><div class="cap">Morning weigh ins, as logged in chat.</div></div></div>
 </div>
@@ -281,23 +290,6 @@ async function main(){
   ch.addEventListener("mousemove", ev => {
     ch.style.cursor = near(ev) ? "pointer" : "default";
   });
-  const trendCv = document.getElementById("chTrend");
-  trendCv.addEventListener("mousemove", ev => {
-    if (!TREND.days.length) return;
-    const r = trendCv.getBoundingClientRect();
-    const idx = sliceIdx(ev.clientX - r.left, r.width, TREND.days.length);
-    drawTrend(idx);
-    const rows = [];
-    TREND.top.forEach((t, i) => {
-      if (HIDDEN.has(t)) return;
-      const v = TREND.series[i][idx];
-      if (v === null || v === undefined) return;
-      rows.push([LC[i % LC.length], t + " " + fmtV(v)]);
-    });
-    if (rows.length) showTip(TREND.days[idx], rows, ev.clientX, ev.clientY);
-    else hideTip();
-  });
-  trendCv.addEventListener("mouseleave", () => { hideTip(); drawTrend(-1); });
   const bwCv = document.getElementById("chBw");
   bwCv.addEventListener("mousemove", ev => {
     if (!BWDATA.length) return;
@@ -364,7 +356,8 @@ function render(){
     return Math.max.apply(null, sets.map(e1));
   }));
   TREND = { days, series, top };
-  drawTrend();
+  PR = computePRs(W, S);
+  refreshTrend();
   const noted = {};
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
   for (const s of S) {
@@ -406,7 +399,6 @@ function render(){
   }
   const startView = lastW || new Date().toISOString().slice(0, 10);
   D = { W, S, BW };
-  PR = computePRs(W, S);
   let viewY = parseInt(startView.slice(0, 4), 10);
   let viewM = parseInt(startView.slice(5, 7), 10) - 1;
   const drawCal = () => renderCal(viewY, viewM, dayDetail);
@@ -876,9 +868,97 @@ function fmtTick(v, step) {
   const dec = step >= 1 ? 0 : Math.min(2, -Math.floor(Math.log10(step) + 1e-9));
   return v.toFixed(dec);
 }
-function drawTrend(hover) {
-  const vis = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
-  line(document.getElementById("chTrend"), TREND.days, vis.map(i => ({ v: TREND.series[i], c: i })), hover === undefined ? -1 : hover);
+function refreshTrend() {
+  drawTrendChips();
+  drawMinis();
+}
+function drawMinis() {
+  const grid = document.getElementById("trendGrid");
+  grid.innerHTML = "";
+  const shown = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
+  if (!shown.length) {
+    const e = document.createElement("div");
+    e.className = "empty";
+    e.textContent = "everything hidden, use All to bring lifts back";
+    grid.appendChild(e);
+    return;
+  }
+  const wd = {};
+  for (const w of SNAP.workouts) wd[w.id] = w.date;
+  const prDate = {};
+  for (const s of SNAP.sets) {
+    if (PR && PR.prIds.has(s.id)) (prDate[s.exercise] = prDate[s.exercise] || {})[wd[s.workout_id] || ""] = true;
+  }
+  shown.forEach(i => {
+    const t = TREND.top[i];
+    const vals = TREND.series[i];
+    const wrap = document.createElement("div");
+    wrap.className = "mini";
+    const h = document.createElement("div");
+    h.className = "minititle";
+    const al = document.createElement("a");
+    al.href = "#/l/" + encodeURIComponent(t);
+    al.textContent = t;
+    h.appendChild(al);
+    const nv = document.createElement("span");
+    let lastv = null;
+    for (let k = vals.length - 1; k >= 0; k -= 1) if (vals[k] !== null) { lastv = vals[k]; break; }
+    nv.textContent = lastv === null ? "" : fmtV(lastv);
+    h.appendChild(nv);
+    wrap.appendChild(h);
+    const cv = document.createElement("canvas");
+    wrap.appendChild(cv);
+    wrap.addEventListener("click", ev => {
+      if (ev.target.tagName !== "A") location.hash = "#/l/" + encodeURIComponent(t);
+    });
+    grid.appendChild(wrap);
+    mini(cv, TREND.days, vals, LC[i % LC.length], prDate[t] || {});
+  });
+}
+function mini(cv, days, vals, col, prs) {
+  const f = fit(cv);
+  const g = f.g, W = f.W, H = f.H, P = 30;
+  g.clearRect(0, 0, W, H);
+  g.font = "600 11px sans-serif";
+  const pts = [];
+  for (let i = 0; i < vals.length; i += 1) if (vals[i] !== null) pts.push(i);
+  if (!pts.length) {
+    g.fillStyle = TC;
+    putText(g, W, "no data", P, H / 2, "left");
+    return;
+  }
+  let mn = Infinity, mx = 0;
+  pts.forEach(pi => { const v = vals[pi]; if (v < mn) mn = v; if (v > mx) mx = v; });
+  if (!(mx > mn)) mx = mn + 1;
+  const pad = (mx - mn) * 0.3 || 1;
+  mn = Math.max(0, mn - pad); mx += pad;
+  const t = niceTicks(mn, mx, 2);
+  mn = t.lo; mx = t.hi;
+  const n = vals.length;
+  const px = i => P + (W - P - 6) * (n <= 1 ? 1 : i / (n - 1));
+  const py = v => H - 15 - (H - 15 - 6) * ((v - mn) / (mx - mn));
+  const nt = Math.round((t.hi - t.lo) / t.step);
+  for (let i = 0; i <= nt; i += 1) {
+    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+    const y = H - 15 - (H - 15 - 6) * i / nt;
+    g.strokeStyle = GC; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 6, y); g.stroke();
+    g.fillStyle = TC;
+    putText(g, W, fmtTick(v, t.step), 2, y + 3, "left");
+  }
+  g.strokeStyle = col; g.lineWidth = 2.5; g.lineJoin = "round"; g.beginPath();
+  pts.forEach((pi, k) => { if (k === 0) g.moveTo(px(pi), py(vals[pi])); else g.lineTo(px(pi), py(vals[pi])); });
+  g.stroke();
+  g.fillStyle = col;
+  pts.forEach(pi => { g.beginPath(); g.arc(px(pi), py(vals[pi]), 2.5, 0, 7); g.fill(); });
+  pts.forEach(pi => { if (prs[days[pi]]) trophy(g, px(pi), py(vals[pi]) - 9, 5, STARC); });
+  g.fillStyle = TC;
+  if (days.length > 1) {
+    putText(g, W, days[0].slice(5), P, H - 1, "left");
+    putText(g, W, days[days.length - 1].slice(5), W - 6, H - 1, "right");
+  }
+}
+function drawTrendChips() {
   const lt = document.getElementById("legTrend");
   lt.innerHTML = "";
   [["All", false], ["None", true]].forEach(pair => {
@@ -891,7 +971,7 @@ function drawTrend(hover) {
       if (pair[1]) TREND.top.forEach(t => HIDDEN.add(t));
       else HIDDEN.clear();
       saveHidden();
-      drawTrend();
+      refreshTrend();
     });
     lt.appendChild(b);
   });
@@ -909,82 +989,10 @@ function drawTrend(hover) {
       HADHIDDEN = true;
       if (HIDDEN.has(t)) HIDDEN.delete(t); else HIDDEN.add(t);
       saveHidden();
-      drawTrend();
+      refreshTrend();
     });
     lt.appendChild(b);
   });
-}
-function line(cv, labels, items, hover) {
-  const f = fit(cv);
-  const g = f.g, W = f.W, H = f.H, P = 46;
-  let mn = Infinity, mx = 0, any = false;
-  for (const it of items) for (const v of it.v) if (v !== null) { any = true; if (v < mn) mn = v; if (v > mx) mx = v; }
-  if (!any) {
-    g.fillStyle = TC; g.font = "600 14px sans-serif";
-    g.fillText("no sets yet", P + 10, H / 2);
-    return;
-  }
-  const pad = (mx - mn) * 0.2 || 1;
-  mn = Math.max(0, mn - pad); mx += pad;
-  const t = niceTicks(mn, mx, 5);
-  mn = t.lo; mx = t.hi;
-  g.clearRect(0, 0, W, H);
-  g.font = "600 12px sans-serif";
-  const nt = Math.round((t.hi - t.lo) / t.step);
-  for (let i = 0; i <= nt; i += 1) {
-    const v = parseFloat((t.lo + i * t.step).toPrecision(12));
-    const y = H - P - (H - P - 18) * i / nt;
-    g.strokeStyle = GC; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke();
-    if (i % 2 === 0 || i === nt) {
-      g.fillStyle = TC;
-      putText(g, W, fmtTick(v, t.step), 4, y + 4, "left");
-    }
-  }
-  const n = items.length ? items[0].v.length : 0;
-  const px = i => P + (W - P - 8) * (n <= 1 ? 1 : i / (n - 1));
-  const py = v => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
-  const drawnYs = [];
-  const tryLabel = (txt, x, y, align) => {
-    const free = yy => !drawnYs.some(dy => Math.abs(dy - yy) < 14);
-    if (free(y)) { drawnYs.push(y); putText(g, W, txt, x, y, align); }
-    else if (free(y + 22)) { drawnYs.push(y + 22); putText(g, W, txt, x, y + 22, align); }
-  };
-  const ends = [], starts = [];
-  items.forEach(it => {
-    const s = it.v;
-    const col = LC[it.c % LC.length];
-    const pts = [];
-    for (let i = 0; i < s.length; i += 1) if (s[i] !== null) pts.push(i);
-    if (!pts.length) return;
-    g.strokeStyle = col; g.lineWidth = 3; g.lineJoin = "round"; g.beginPath();
-    pts.forEach((pi, k) => { if (k === 0) g.moveTo(px(pi), py(s[pi])); else g.lineTo(px(pi), py(s[pi])); });
-    g.stroke();
-    g.fillStyle = col;
-    pts.forEach(pi => { g.beginPath(); g.arc(px(pi), py(s[pi]), 4, 0, 7); g.fill(); });
-    const first = pts[0], last = pts[pts.length - 1];
-    starts.push([col, fmtV(s[first]), px(first) + 8, py(s[first]) - 10, first > n / 2 ? "right" : "left"]);
-    if (last !== first) ends.push([col, fmtV(s[last]), px(last) - 8, py(s[last]) - 10, "right"]);
-  });
-  ends.forEach(a => { g.fillStyle = a[0]; tryLabel(a[1], a[2], a[3], a[4]); });
-  starts.forEach(a => { g.fillStyle = a[0]; tryLabel(a[1], a[2], a[3], a[4]); });
-  g.fillStyle = TC;
-  if (labels.length) {
-    putText(g, W, labels[0], P, H - 8, "left");
-    putText(g, W, labels[labels.length - 1], W - 8, H - 8, "right");
-  }
-  if (hover !== undefined && hover >= 0 && hover < n) {
-    const x = px(hover);
-    g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
-    g.globalAlpha = 1;
-    items.forEach(it => {
-      const v = it.v[hover];
-      if (v === null || v === undefined) return;
-      g.fillStyle = LC[it.c % LC.length];
-      g.beginPath(); g.arc(x, py(v), 6, 0, 7); g.fill();
-    });
-  }
 }
 function bwline(cv, rows, hover) {
   const f = fit(cv);
