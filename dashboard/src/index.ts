@@ -22,8 +22,7 @@ import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
 import { bwline } from './bwChart';
 import { stacked } from './stackedChart';
-import { computePRs, PRData } from './prs';
-import { weekKey, shift } from './date';
+import { computePRs } from './prs';
 import { tipRow, showTip, hideTip } from './tip';
 
 interface Env {
@@ -52,7 +51,6 @@ let HIDDEN = new Set<string>();
 let HADHIDDEN = false;
 let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
 let BWDATA: any[] = [];
-let LIFTPTS: Array<{ x: number; y: number; date: string }> = [];
 
 function saveHidden() {
   try {
@@ -75,7 +73,7 @@ async function main() {
       y = ev.clientY - r.top;
     let bp: any = null,
       bd = 1e9;
-    LIFTPTS.forEach(p => {
+    getLiftPts().forEach(p => {
       const d = Math.abs(p.x - x) + Math.abs(p.y - y);
       if (d < bd) {
         bd = d;
@@ -110,7 +108,7 @@ async function main() {
     const x = ev.clientX - r.left;
     let bi = -1,
       bd = 1e9;
-    LIFTPTS.forEach((p, i) => {
+    getLiftPts().forEach((p, i) => {
       const d = Math.abs(p.x - x);
       if (d < bd) {
         bd = d;
@@ -312,50 +310,6 @@ function render() {
       tbl.appendChild(tr);
     });
   route();
-}
-
-function computePRs(W: any[], S: any[]): PRData {
-  const wdate: Record<number, string> = {};
-  for (const w of W) wdate[w.id] = w.date;
-  const order = S.slice().sort((a, b) =>
-    a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id
-  );
-  const best: Record<string, number> = {};
-  const seen = new Set<string>();
-  const prIds = new Set<number>();
-  const prDates = new Set<string>();
-  order.forEach(s => {
-    const ev = s.weight * (1 + s.reps / 30);
-    if (!seen.has(s.exercise)) {
-      seen.add(s.exercise);
-      best[s.exercise] = ev;
-      return;
-    }
-    if (ev > best[s.exercise]) {
-      best[s.exercise] = ev;
-      prIds.add(s.id);
-      prDates.add(wdate[s.workout_id]);
-    }
-  });
-  return { prIds, prDates };
-}
-
-interface PRData {
-  prIds: Set<number>;
-  prDates: Set<string>;
-}
-
-function weekKey(dstr: string): string {
-  const d = new Date(dstr + 'T12:00:00');
-  const one = new Date(d.getFullYear(), 0, 1);
-  const wk = Math.ceil(((d - one) / 86400000 + one.getDay() + 1) / 7);
-  return d.getFullYear() + ' W' + wk;
-}
-
-function shift(dstr: string, n: number): string {
-  const d = new Date(dstr + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
 }
 
 function renderCal(year: number, month: number, dayDetail: Record<string, string[]>) {
@@ -615,7 +569,6 @@ function showLift(ex: string) {
   const sets = D!.S.filter(s => s.exercise === ex);
   if (!sets.length) {
     sub.textContent = 'never logged';
-    LIFTPTS = [];
     LIFTDATA = null;
     liftChart(document.getElementById('chLift') as HTMLCanvasElement, [], ex, -1);
     window.scrollTo(0, 0);

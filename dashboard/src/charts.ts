@@ -110,8 +110,6 @@ export function drawYAxis(
   W: number,
   H: number,
   P: number,
-  mn: number,
-  mx: number,
   t: { lo: number; hi: number; step: number },
   color = GC
 ) {

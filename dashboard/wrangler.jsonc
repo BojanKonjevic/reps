@@ -1,1 +1,8 @@
-{"compatibility_date": "2026-09-01", "main": "src/index.ts", "name": "reps", "r2_buckets": [{"binding": "SNAPSHOTS", "bucket_name": "reps-snapshots"}]}
+{
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "name": "reps",
+  "r2_buckets": [
+    { "binding": "SNAPSHOTS", "bucket_name": "reps-snapshots" }
+  ]
+}
