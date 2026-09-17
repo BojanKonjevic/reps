@@ -709,7 +709,11 @@ function liftChart(cv, pts, ex, hover) {
     g.strokeStyle = TC; g.globalAlpha = 0.45; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - P); g.stroke();
     g.globalAlpha = 1;
-    trophy(g, x, py(p.w) - 14, 10, STARC);
+    if (p.pr) trophy(g, x, py(p.w) - 14, 10, STARC);
+    else {
+      g.fillStyle = col;
+      g.beginPath(); g.arc(x, py(p.w), 6, 0, 7); g.fill();
+    }
   }
 }
 window.addEventListener("hashchange", route);
