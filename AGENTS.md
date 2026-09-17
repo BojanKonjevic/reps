@@ -25,7 +25,7 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 7. Weights are always kg unless the user says otherwise. On lbs input convert (divide by 2.205) and state the conversion in the reply. Morning weight goes with `weigh <kg>` plus optional note, for example `weigh 84.2 fasted`. One entry per day is enough, latest wins on the chart.
 8. Weighted bodyweight work logs extra only: dips at bodyweight plus 20kg is `log dips 20 <reps>`. Zero weight sets should not exist in real data.
 9. Corrections and removals are explicit. Ordinal to id mapping ("second squat was 92.5") is agent reasoning over `today`, but the destructive call itself needs an exact id: `update <id> <field> <value>`, `delete-set <id>`, `delete-workout <id>`, `update-workout <id> <field> <value>` (fields: notes, date, status). Never infer an id for a delete, confirm it in chat first.
-10. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard.
+10. On `done`, `finished`, or clear end of session, run `end` with a short session summary (feel, sleep, pain, what moved well). That note is how future sessions remember the qualitative side. Then run `sync` to push the dashboard, then commit `workouts.db` and push the repo (`data: <today's date>` as message). The db is tracked in git, that commit is the backup and the undo button. This repo is fully agent written, committing and pushing here needs no permission.
 
 Units are kg unless user says otherwise. Never invent sets. If a message is ambiguous, hold the log and ask. Partial logging is allowed only when the clear part is unambiguous, the unclear part waits for an answer.
 
@@ -80,4 +80,4 @@ Conventions: keep everything in the single file, keep charts honest (e1RM is wei
 
 ## Dashboard sync
 
-`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. Sync after every session close and every weigh in that matters.
+`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth, and it is tracked in git: commit and push it after every sync. A poisoned session is reverted with `git checkout` on the db, no manual surgery. If a push ever conflicts (two sessions writing at once), pull first, then push.
