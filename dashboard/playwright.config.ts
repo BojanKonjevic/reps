@@ -13,11 +13,20 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', use: { ...devices['iPhone 12'] } },
   ],
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+  },
+  snapshotDir: './e2e/snapshots',
+  snapshotPathTemplate: '{testDir}/snapshots/{arg}{ext}',
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixels: 100,
+      threshold: 0.2,
+    },
   },
 });

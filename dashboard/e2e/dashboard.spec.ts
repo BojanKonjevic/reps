@@ -38,4 +38,18 @@ test.describe('Dashboard', () => {
     await expect(prev).toBeVisible();
     await expect(next).toBeVisible();
   });
+
+  test('dashboard visual regression - desktop', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page).toHaveScreenshot('dashboard-desktop.png', { maxDiffPixels: 100 });
+  });
+
+  test('dashboard visual regression - mobile', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setViewportSize({ width: 375, height: 667 });
+    await expect(page).toHaveScreenshot('dashboard-mobile.png', { maxDiffPixels: 100 });
+  });
 });
