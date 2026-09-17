@@ -85,11 +85,11 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | 1–2 compounds + 1–2 isolations per muscle/session                                   | Opinion   | RP, Helms template                             |
 | Movement pattern variety across week (vertical/horizontal push/pull)                | Settled   | Joint health, motor unit coverage              |
 | Lengthened-position bias for hypertrophy (stretch under load)                       | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
-| Shortened-position isolation movements (flies, pec deck) — pair with lengthened variant if gap | Opinion   | Cable fly, machine pullover, DB pullover       |
+| Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023                    |
 
 ## Personal deviations
 
 - Sep 17 2026: 3 on 1 off schedule (passive deload every 4th day), Opinion
 - Sep 17 2026: Every set taken to failure (my style) → volume managed accordingly, Opinion
-- Sep 17 2026: Interchangeable fly/pec deck slots are shortened-position only; lengthened variant not yet in split, Opinion
+- Sep 17 2026: Fly/pec deck interchangeable slots used at full ROM; lengthened variant not in split, Opinion
 - Sep 17 2026: Peak guardrail "no 120 after 100 best" aligns with progression bounds, Opinion
