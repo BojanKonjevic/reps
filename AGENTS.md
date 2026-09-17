@@ -17,7 +17,7 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 ## How to log
 
 1. Workouts are only created explicitly. `log` fails when no workout is open, it never auto creates. On any training message, run `today` to see if a workout is open, then `start` when sure a new session began.
-2. Talk stays conversational, no rigid syntax. The agent infers batch logging from plain talk: "squat 90 5/5/7, last grindy" or three rapid "same x5" messages means fan out to multiple `log` calls in one burst. Mid workout replies stay terse ("logged 3x"), full summary at `end`.
+2. Talk stays conversational, no rigid syntax. The agent infers batch logging from plain talk: "squat 90 5/5/7, last to failure" or three rapid "same x5" messages means fan out to multiple `log` calls in one burst. Mid workout replies stay terse ("logged 3x"), full summary at `end`.
 3. Before logging a set, check the `context` lifts list for canonical names. Reuse an existing name when it clearly matches.
 4. Log with: `log <exercise> <weight> <reps>` plus free note text, plus `muscles=a,b` naming every muscle group the movement trains (see Muscle attribution).
 5. RPE is not tracked. Never ask for it, never log it. Feel goes in plain words in the note instead.
@@ -58,7 +58,7 @@ Form and intent matter: dips done upright are chest, done leaning forward with e
 1. Figure out today's slot from the push/pull/legs rotation, `calendar`, and memory. If the slot is unclear (back from travel, missed days), ask.
 2. Pull recent history for that slot: last 2 to 3 same type sessions plus bests. Every number derives from it, never from vibes.
 3. Prescribe the full day: exercises, sets, reps, weights. Aim for about four PR attempts, all small and realistic: plus 2.5kg for same reps up top, plus 2.5 to 5 on legs, or plus reps at same weight. Accessories hold steady unless a rep PR is due.
-4. Realism guardrails: no jumps on lifts with recent grindy notes (failure alone means nothing, everything goes to failure), no attempts through flagged pain, no PR day on the first session back from a break (say so, program maintenance instead). Injuries and active rules always win.
+4. Realism guardrails: jumps stay proportional to history, never a leap (no 120 after a 100 best). No attempts through flagged pain, no PR day on the first session back from a break (say so, program maintenance instead). Injuries and active rules always win.
 5. Mark PR attempts clearly. The user confirms or edits before training. Nothing is logged until actually performed, then the normal log flow takes over with targets known.
 
 ## Memory writeback
@@ -74,7 +74,7 @@ Keep `MEMORY.md` short. Current state only, dated lines, no essays.
 
 ## Analysis
 
-`context`, `stats`, `calendar`, `session`, `range`, and `history <exercise>` give ground truth numbers. Gym mode reasons from `context` only. Review mode may pull hundreds of sessions at once with `range` or `notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence from `calendar` dates and gaps (raw dates in, verdict out, travel and sick notes from memory decide miss versus planned rest), PRs, stalls, caveats (small sample, grindy notes, missed sessions). Keep it short and honest. Numbers first, take second.
+`context`, `stats`, `calendar`, `session`, `range`, and `history <exercise>` give ground truth numbers. Gym mode reasons from `context` only. Review mode may pull hundreds of sessions at once with `range` or `notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, 3 on 1 off adherence from `calendar` dates and gaps (raw dates in, verdict out, travel and sick notes from memory decide miss versus planned rest), PRs, stalls, caveats (small sample, pain notes, missed sessions). Keep it short and honest. Numbers first, take second.
 
 Volume is anatomical by muscle group, and one set can count for several groups at once. Tracked groups live in MEMORY.md under Tracked muscles (currently chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs; never neck, calves, forearms, traps). Per lift attribution lives in Lift mapping. If a new movement maps to an untracked group or no clear group, ask once whether to track it, then follow the answer.
 
