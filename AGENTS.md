@@ -86,6 +86,14 @@ Short and conversational, but every claim grounded in numbers just pulled: PRs h
 4. Slippage: when the remaining sessions no longer fit before the deadline at the current pace, ask whether to extend the deadline or compress the jumps. Never silently compress.
 5. Split changes remap the remaining session numbers to the new days, the sequence itself survives.
 
+## Suggest (suggest)
+
+"suggest", alone or with context ("suggest something for pull", "suggest but nothing for legs"), means propose goals. The agent picks them, the user approves them.
+
+1. Pull as much history as needed for a confident read: `range` and `history` back until trends are clear, not a fixed window. Thin history means fewer suggestions or none, said honestly.
+2. Propose several concrete goals: movement, exact target, deadline. Each one already realism checked, with one line on why it fits (rate of gain, fresh stall broken, lagging lift).
+3. Nothing is written until the user picks. Approval converts straight into the Goals flow with a trajectory.
+
 ## Memory writeback
 
 Chat history dies with the session, files survive. When user states something durable, write it down:
