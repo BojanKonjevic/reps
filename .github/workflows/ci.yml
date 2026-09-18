@@ -7,7 +7,32 @@ on:
     branches: [main]
 
 jobs:
-  dashboard:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        run: npm ci
+        working-directory: ./dashboard
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run pre-commit on all files
+        uses: pre-commit/action@v3
+
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,24 +50,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Check for backslash escapes
-        run: |
-          if grep -rnF '\' src/ --include="*.ts" --include="*.html" | grep -v "__tests__"; then
-            echo "ERROR: Backslash escapes found in dashboard source"
-            exit 1
-          fi
-
-      - name: Run format check
-        run: npm run format -- --check
-
-      - name: Run lint
-        run: npm run lint
-
-      - name: Run unit tests
-        run: npm run test
-        env:
-          CI: true
 
       - name: Build
         run: npm run build
@@ -81,20 +88,3 @@ jobs:
           name: playwright-screenshots
           path: dashboard/test-results/
           retention-days: 7
-
-  python:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Install pytest
-        run: pip install pytest
-
-      - name: Run CLI tests
-        run: python -m pytest tests/ -v

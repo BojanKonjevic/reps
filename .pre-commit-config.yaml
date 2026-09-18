@@ -1,0 +1,50 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: backslash-gate
+        name: dashboard backslash escapes
+        entry: scripts/check_backslash.sh
+        language: script
+        always_run: true
+        pass_filenames: false
+      - id: dashboard-format
+        name: prettier check
+        entry: npm --prefix dashboard run format -- --check
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: dashboard-lint
+        name: eslint
+        entry: npm --prefix dashboard run lint
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: dashboard-typecheck
+        name: tsc noEmit
+        entry: npm --prefix dashboard run typecheck
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: dashboard-test
+        name: vitest run
+        entry: npm --prefix dashboard run test
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: python-tests
+        name: pytest
+        entry: pytest
+        language: python
+        language_version: python3
+        additional_dependencies: [pytest]
+        args: [tests/, -q]
+        always_run: true
+        pass_filenames: false
