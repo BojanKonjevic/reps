@@ -39,8 +39,8 @@ Slots in training order with working set counts, one per line, interchangeable m
 ### Lower A
 
 1. hack squat x2
-2. leg press x2
-3. leg extension x3
+2. leg extension x3
+3. leg press x2
 4. seated leg curl x3
 5. adductor machine x2
 6. crunch machine x3
@@ -51,23 +51,22 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 1. straight bar pulldown x3
 2. reverse-grip smith incline press x3
-3. machine shoulder press x2
-4. hammer strength row x2
+3. hammer strength row x2
+4. machine shoulder press x2
 5. cable lat raise x2
 6. ezbar curl x2
-7. incline dumbbell curl x2
-8. ezbar skullcrusher x2
-9. unilateral cable pushdown x3
-10. face pull / cable rear delt fly x2
+7. ezbar skullcrusher x2
+8. unilateral cable pushdown x3
+9. face pull / cable rear delt fly x2
 
 ### Upper C
 
 1. hammer strength press x2
-2. pec deck x3
-3. cable pullover x2
-4. hammer strength row x2
-5. preacher curl x2
-6. rope hammer curl x2
+2. hammer strength row x2
+3. pec deck x3
+4. cable pullover x2
+5. bayesian curl x2
+6. preacher curl x2
 7. cable pushdown x2
 8. machine lat raise x2
 9. cable wrist extension x2
