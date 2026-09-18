@@ -36,7 +36,7 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 | Glutes     | 2–3           | Contested | Can tolerate more, individual                     |
 | Abs        | 3–4           | Contested | Low damage, high recoverability                   |
 
-Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. A 2x/week frequency (e.g., push/pull/legs on 3 on 1 off) falls inside the settled range.
+Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range.
 
 ## Rep range guidance
 
@@ -77,7 +77,7 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | ---------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
 | Deload every 4–8 weeks (reduce volume 40–60%, intensity same)                      | Contested | Practitioner consensus, little direct RCT |
 | Reactive deload: when performance drops 5%+ across 2 sessions                      | Opinion   | RP, Helms autoregulation                  |
-| Passive deload every 4th day (3 on 1 off schedules), active deload every 4–6 weeks | Opinion   | Fits 3 on 1 off structure                 |
+| Passive rest after Upper B and after Lower B (2 per 7-session rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
 | No evidence for "deload week" vs "deload session" superiority                      | Opinion   | Unstudied                                 |
 
 ## Exercise selection principles
@@ -91,7 +91,10 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 
 ## Personal deviations
 
-- Sep 17 2026: 3 on 1 off schedule (passive deload every 4th day), Opinion
+- Sep 18 2026: Upper/Lower rotation, rest after Upper B and Lower B (replaces 3 on 1 off), Opinion
+- Sep 18 2026: side delts 4x/week (~12 sets), above the default 2-3x frequency. Priority muscle, low per-session dose, tolerated. Opinion
+- Sep 18 2026: abs 4/wk at 2x, below MEV 6 and below the 3-4x frequency guidance. Candidate fix is crunch x3 on both lower days. Opinion
+- Sep 18 2026: no direct glute work, RDL plus leg press judged sufficient, Opinion
 - Sep 17 2026: Every set taken to failure (my style) → volume managed accordingly, Opinion
-- Sep 17 2026: Fly/pec deck interchangeable slots used at full ROM; lengthened variant not in split, Opinion
+- Sep 17 2026: Fly/pec deck used at full ROM, Opinion
 - Sep 17 2026: Peak guardrail "no 120 after 100 best" aligns with progression bounds, Opinion
