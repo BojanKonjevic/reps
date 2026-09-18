@@ -13,7 +13,7 @@ export function bwline(
     g.clearRect(0, 0, W, H);
     g.fillStyle = TC;
     g.font = "600 14px 'IBM Plex Sans', sans-serif";
-    g.fillText('no weigh ins yet, say your morning weight in chat', P, H / 2);
+    g.fillText('no weigh ins yet, say your gym weight in chat', P, H / 2);
     return;
   }
   const vals = rows.map(r => r.kg);
