@@ -1,30 +1,12 @@
 import { fmtV, fmtD, isDate } from './utils';
-import {
-  putText,
-  LC,
-  TC,
-  GC,
-  STARC,
-  MC,
-  GROUPS,
-  trophy,
-  drawYAxis,
-  drawXAxisLabels,
-  drawValueLabels,
-  drawHoverLine,
-  drawPoint,
-  drawHoverLine,
-  drawPoint,
-  drawHoverPoint,
-  drawLine,
-} from './charts';
+import { LC, MC, GROUPS } from './charts';
 import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
 import { bwline } from './bwChart';
 import { stacked } from './stackedChart';
 import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
-import { tipRow, showTip, hideTip } from './tip';
+import { showTip, hideTip } from './tip';
 
 interface Env {
   SNAPSHOTS: R2Bucket;
