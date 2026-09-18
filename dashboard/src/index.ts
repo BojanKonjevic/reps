@@ -49,7 +49,7 @@ let PR: PRData | null = null;
 let DASHY = 0;
 let VIEW = 'dash';
 const HIDDEN = new Set<string>();
-let HADHIDDEN = false;
+const HADHIDDEN = false;
 let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
 let BWDATA: { date: string; kg: number }[] = [];
 
@@ -603,7 +603,7 @@ function showLift(ex: string) {
     a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id
   );
   const seen = new Set<string>();
-  let top2 = { ev: 0 };
+  const top2 = { ev: 0 };
   order.forEach(s => {
     if (s.exercise !== ex) return;
     const ev = s.weight * (1 + s.reps / 30);

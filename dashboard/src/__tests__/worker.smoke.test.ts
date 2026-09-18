@@ -49,8 +49,26 @@ describe('worker entry (no DOM globals)', () => {
       exported: 'x',
       workouts: [{ id: 1, date: '2026-09-10', status: 'done', notes: 'push' }],
       sets: [
-        { id: 1, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 5, note: '', created: '2026-09-10T18:00:00', muscles: 'chest' },
-        { id: 2, workout_id: 1, exercise: 'overhead press', weight: 42.5, reps: 7, note: 'grindy', created: '2026-09-10T18:15:00', muscles: 'shoulders,triceps' },
+        {
+          id: 1,
+          workout_id: 1,
+          exercise: 'flat barbell bench press',
+          weight: 90,
+          reps: 5,
+          note: '',
+          created: '2026-09-10T18:00:00',
+          muscles: 'chest',
+        },
+        {
+          id: 2,
+          workout_id: 1,
+          exercise: 'overhead press',
+          weight: 42.5,
+          reps: 7,
+          note: 'grindy',
+          created: '2026-09-10T18:15:00',
+          muscles: 'shoulders,triceps',
+        },
       ],
       bodyweight: [{ id: 1, date: '2026-09-10', kg: 84.2, note: 'fasted' }],
     };
