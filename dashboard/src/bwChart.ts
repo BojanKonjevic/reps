@@ -27,7 +27,7 @@ export function bwline(
   mx = t.hi;
   g.clearRect(0, 0, W, H);
   g.font = '600 12px sans-serif';
-  drawYAxis(g, W, H, P, mn, mx, t);
+  drawYAxis(g, W, H, P, t);
   const px = (i: number) => P + (W - P - 8) * (rows.length === 1 ? 1 : i / (rows.length - 1));
   const py = (v: number) => H - P - (H - P - 16) * ((v - mn) / (mx - mn));
   g.strokeStyle = LC[0];

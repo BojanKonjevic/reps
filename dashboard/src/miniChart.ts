@@ -38,7 +38,7 @@ export function mini(
   const n = vals.length;
   const px = (i: number) => P + (W - P - 6) * (n <= 1 ? 1 : i / (n - 1));
   const py = (v: number) => H - 15 - (H - 15 - 6) * ((v - mn) / (mx - mn));
-  drawYAxis(g, W, H, P, mn, mx, t);
+  drawYAxis(g, W, H, P, t);
   g.strokeStyle = col;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';

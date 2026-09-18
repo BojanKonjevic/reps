@@ -154,7 +154,7 @@ Never present tonnage or total set counts as achievements, in chat or on the das
 
 ## Dashboard iteration
 
-The dashboard is malleable, not finished. Change it freely whenever the user asks, taste included. It lives in `dashboard/src/` (10 modular files: index.ts, html.ts, utils.ts, charts.ts, liftChart.ts, miniChart.ts, bwChart.ts, stackedChart.ts, date.ts, tip.ts) and deploys with `wrangler deploy` from `dashboard/` (auth via CLOUDFLARE_API_TOKEN read from `~/.config/reps/cf_token` plus the account id, both already on this machine). Verify live with curl on `/snapshot` and the root page after every deploy.
+The dashboard is malleable, not finished. Change it freely whenever the user asks, taste included. It lives in `dashboard/` (`index.html` at root plus `src/` modules: index.ts, utils.ts, charts.ts, liftChart.ts, miniChart.ts, bwChart.ts, stackedChart.ts, date.ts, tip.ts, prs.ts) and deploys with `npm run deploy` from `dashboard/` (auth via CLOUDFLARE_API_TOKEN read from `~/.config/reps/cf_token` plus the account id, both already on this machine). Verify live with curl on `/snapshot` and the root page after every deploy.
 
 Every UI change gets verified with dark screenshots before reporting done: phone width plus desktop width, checking the changed view. Harness is `node shot.js` in `~/.shot/` (playwright-core driving the cached chrome-headless-shell with dark emulation). No unit tests for the dashboard file yet, screenshots are the test.
 

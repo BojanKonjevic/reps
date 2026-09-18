@@ -23,6 +23,7 @@ import { mini } from './miniChart';
 import { bwline } from './bwChart';
 import { stacked } from './stackedChart';
 import { computePRs } from './prs';
+import { weekKey } from './date';
 import { tipRow, showTip, hideTip } from './tip';
 
 interface Env {
@@ -632,8 +633,10 @@ function showLift(ex: string) {
   window.scrollTo(0, 0);
 }
 
-window.addEventListener('hashchange', route);
-main();
+if (typeof window !== 'undefined') {
+  window.addEventListener('hashchange', route);
+  main();
+}
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {

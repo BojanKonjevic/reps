@@ -146,6 +146,7 @@ export function drawXAxisLabels(
 export function drawValueLabels(
   g: CanvasRenderingContext2D,
   W: number,
+  P: number,
   py: (v: number) => number,
   firstVal: number,
   lastVal: number,

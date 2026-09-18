@@ -59,9 +59,9 @@ export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, h
   mn = t.lo;
   mx = t.hi;
   const py = (v: number) => H - P - (H - P - 18) * ((v - mn) / (mx - mn));
-  drawYAxis(g, W, H, P, mn, mx, t);
+  drawYAxis(g, W, H, P, t);
   drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
-  drawValueLabels(g, W, py, pts[0].w, pts[pts.length - 1].w, pts[pts.length - 1].pr);
+  drawValueLabels(g, W, P, py, pts[0].w, pts[pts.length - 1].w, pts[pts.length - 1].pr);
   const col = LC[0];
   const linePts = pts.map(p => ({ x: px(p.date), y: py(p.w) }));
   drawLine(g, linePts, col);
