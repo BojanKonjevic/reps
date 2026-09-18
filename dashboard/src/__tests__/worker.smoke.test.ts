@@ -26,7 +26,9 @@ const authed = (r2: unknown) => ({ SNAPSHOTS: r2, SYNC_SECRET: 'test-secret' }) 
 
 describe('worker entry (no DOM globals)', () => {
   it('serves BLANK snapshot when bucket empty', async () => {
-    const res = await worker.fetch(new Request('http://localhost/snapshot'), { SNAPSHOTS: memR2() } as any);
+    const res = await worker.fetch(new Request('http://localhost/snapshot'), {
+      SNAPSHOTS: memR2(),
+    } as any);
     expect(res.status).toBe(200);
     const body: any = await res.json();
     expect(body.workouts).toEqual([]);
@@ -41,9 +43,17 @@ describe('worker entry (no DOM globals)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('round-trips a sync payload', async () => {
+  it('round-trips a sync payload with data intact', async () => {
     const r2 = memR2();
-    const payload = { exported: 'x', workouts: [], sets: [], bodyweight: [] };
+    const payload = {
+      exported: 'x',
+      workouts: [{ id: 1, date: '2026-09-10', status: 'done', notes: 'push' }],
+      sets: [
+        { id: 1, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 5, note: '', created: '2026-09-10T18:00:00', muscles: 'chest' },
+        { id: 2, workout_id: 1, exercise: 'overhead press', weight: 42.5, reps: 7, note: 'grindy', created: '2026-09-10T18:15:00', muscles: 'shoulders,triceps' },
+      ],
+      bodyweight: [{ id: 1, date: '2026-09-10', kg: 84.2, note: 'fasted' }],
+    };
     const put = await worker.fetch(
       new Request('http://localhost/sync', {
         method: 'PUT',
@@ -55,12 +65,15 @@ describe('worker entry (no DOM globals)', () => {
     expect(put.status).toBe(200);
     const get = await worker.fetch(new Request('http://localhost/snapshot'), authed(r2));
     const body: any = await get.json();
-    expect(body.sets).toEqual([]);
-    expect(body.exported).toBe('x');
+    expect(body.workouts).toEqual(payload.workouts);
+    expect(body.sets).toEqual(payload.sets);
+    expect(body.bodyweight).toEqual(payload.bodyweight);
   });
 
   it('404s unknown paths', async () => {
-    const res = await worker.fetch(new Request('http://localhost/nope'), { SNAPSHOTS: memR2() } as any);
+    const res = await worker.fetch(new Request('http://localhost/nope'), {
+      SNAPSHOTS: memR2(),
+    } as any);
     expect(res.status).toBe(404);
   });
 });
