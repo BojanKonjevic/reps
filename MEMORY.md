@@ -101,7 +101,7 @@ None yet.
 Exercise to muscle groups, asked once and recorded. Form dependent entries note the form.
 
 - back squat -> quads, glutes
-- dips -> triceps (their form, elbows tucked, triceps main)
+- dips -> triceps (my form, elbows tucked, triceps main)
 - flat barbell bench press -> chest, shoulders (front delts work too, triceps excluded by convention)
 - lat pulldown -> back
 - reverse-grip smith incline press -> chest (upper chest emphasis)

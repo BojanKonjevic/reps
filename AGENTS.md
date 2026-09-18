@@ -38,7 +38,6 @@ You own the ontology. There is no alias list in code.
 1. Normalize to lowercase training names, for example `flat barbell bench press`, `back squat`, `overhead press`.
 2. Known shorthands: `ohp` means overhead press, `bench` means flat barbell bench press unless MEMORY.md or context says otherwise (for example an active incline block), `squat` means back squat unless context says front or split.
 3. `same` or `again` refers to the last exercise in the open workout.
-4. `cable pushdown` alone means the bilateral standard pushdown. Unilateral is always stated explicitly.
 4. If user names something new that has no close match, ask once, then reuse that spelling forever.
 5. If duplicates happen, merge with `rename <old> <new>`.
 
@@ -80,6 +79,7 @@ Every session that ends explicitly ("done", "finished") or implicitly (clearly o
 Short and conversational, but every claim grounded in numbers just pulled: PRs hit, top sets versus the last same slot session, targets hit or missed on a peak day, anything notable from notes (pain, bad sleep). One take at most, no essays, no generic motivation.
 
 Plus, when they trigger, each in one line:
+
 - Trajectory rewrite: if a goal trajectory changed this session, state what changed (old versus new numbers for the upcoming sessions), why (which logged result caused it), and which neighboring sessions shifted. Silence when the plan survived intact.
 - Deload watch: if a lift drops ~5%+ e1RM for two consecutive same slot sessions, flag that one more like this triggers a reactive deload per SCIENCE.md. Rare by design.
 - Stall note: if a main lift has no PR in 3 same slot sessions, say so.
@@ -138,13 +138,15 @@ When user says "audit the data", execute this runbook **exactly**:
    - If flagged: record `flag: {check: N, severity: high|medium|low, evidence: "specific rows/dates/ids", fix: "one-line fix"}`
    - Never auto-correct
 3. **Output report**: one message with all flags, formatted:
+
    ```
    Audit complete: N flags (X high, Y medium, Z low)
-   
+
    1. [check name] — severity
       Evidence: ...
       Fix: ...
    ```
+
 4. **Log to MEMORY.md**: append to State section: `YYYY-MM-DD: audit ran, N flags (X high, Y medium, Z low)`
 5. **Stop** — do not auto-fix, do not continue to other tasks.
 
@@ -171,11 +173,13 @@ Conventions: keep charts honest (e1RM is weight times 1 plus reps over 30), keep
 `sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. The `workouts.db` binary is gitignored; instead `sync` dumps a text SQL dump (`workouts.sql`) which is committed to git. This gives clean diffs and readable history.
 
 Recovery: if `workouts.db` is corrupted or poisoned, do not `git checkout workouts.db` (it is ignored). Instead:
+
 ```
 git checkout workouts.sql
 rm -f workouts.db
 sqlite3 workouts.db < workouts.sql
 ```
+
 Or run `log.py restore` which does this automatically.
 
 Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. Deterministic checks live in `tests/` (`python -m pytest tests/`). If a push ever conflicts (two sessions writing at once), pull first, then push.
