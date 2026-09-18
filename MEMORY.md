@@ -20,66 +20,66 @@ Upper/Lower rotation, no fixed weekdays: Upper A, Lower A, Upper B, rest, Upper 
 
 ## Split
 
-Slots in training order, one per line, interchangeable moves on one line separated by /. Reconciled at every session end, rewritten only when the user says the split changed.
+Slots in training order with working set counts, one per line, interchangeable moves on one line separated by /. Reconciled at every session end, rewritten only when the user says the split changed.
 
 ### Upper A
 
-1. incline barbell bench press
-2. hammer strength row
-3. pec deck
-4. low to high row (hammer strength)
-5. machine shoulder press
-6. cable lat raise
-7. bayesian curl
-8. overhead cable extension
-9. cable reverse curl
-10. face pull / cable rear delt fly
+1. incline barbell bench press x3
+2. hammer strength row x2
+3. pec deck x2
+4. low to high row x2
+5. machine shoulder press x2
+6. cable lat raise x2
+7. bayesian curl x2
+8. overhead cable extension x2
+9. cable reverse curl x2
+10. face pull / cable rear delt fly x2
 
 ### Lower A
 
-1. leg extension
-2. hack squat
-3. leg press (feet low)
-4. seated leg curl
-5. adductor machine
-6. crunch machine
-7. cable lat raise
-8. machine lat raise
+1. leg extension x3
+2. hack squat x3
+3. leg press (feet low) x2
+4. seated leg curl x2
+5. adductor machine x2
+6. crunch machine x2-3
+7. cable lat raise x2
+8. machine lat raise x2
 
 ### Upper B
 
-1. machine shoulder press
-2. straight bar pulldown
-3. incline dumbbell press
-4. hammer strength row
-5. cable lat raise
-6. machine lat raise
-7. incline dumbbell curl
-8. ezbar skullcrusher
-9. unilateral cable pushdown
-10. cable wrist curl
+1. machine shoulder press x3
+2. straight bar pulldown x3
+3. reverse-grip smith incline press x2
+4. hammer strength row x2
+5. cable lat raise x2
+6. machine lat raise x2
+7. incline dumbbell curl x2
+8. ezbar skullcrusher x2
+9. unilateral cable pushdown x3
+10. cable wrist curl x2
 
 ### Upper C
 
-1. cable fly
-2. hammer strength press
-3. cable pullover
-4. machine row
-5. preacher curl
-6. rope hammer curl
-7. overhead cable extension
-8. cable lat raise
-9. cable wrist extension
-10. face pull
+1. cable fly x3
+2. hammer strength press x2
+3. cable pullover x2
+4. machine row x2
+5. preacher curl x2
+6. rope hammer curl x2
+7. overhead cable extension x2
+8. cable lat raise x2
+9. cable wrist extension x2
+10. face pull x2
 
 ### Lower B
 
-1. rdl
-2. leg press (feet high)
-3. hack squat
-4. leg extension
-5. seated leg curl
-6. crunch machine
+1. rdl x3
+2. leg press (feet high) x2
+3. hack squat x2
+4. leg extension x2
+5. seated leg curl x2
+6. crunch machine x2
 
 ## Tracked muscles
 
@@ -99,6 +99,7 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 - dips -> triceps (their form, elbows tucked, triceps main)
 - flat barbell bench press -> chest (chest only by convention, no shoulder or tricep credit)
 - lat pulldown -> back
+- reverse-grip smith incline press -> chest (upper chest emphasis)
 
 ## State
 

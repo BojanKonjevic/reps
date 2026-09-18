@@ -65,7 +65,7 @@ Form and intent matter: dips done upright are chest, done leaning forward with e
 
 ## Split
 
-MEMORY.md Split is the exact program: which day holds which exercises in which order. One slot per line, interchangeable moves on one line separated by / (flies / pec deck).
+MEMORY.md Split is the exact program: which day holds which exercises in which order, with working set counts. One slot per line as movement x sets, interchangeable moves on one line separated by /.
 
 1. At every session `end`, reconcile: append newly logged exercises to that day's slots in performed order. Early sessions build the section, later ones just confirm it.
 2. A one-off swap ("pec deck instead of flies today") logs under the existing slot and adds the alternate. It never rewrites the split.
