@@ -232,6 +232,7 @@ function render() {
     hamstrings: 0,
     glutes: 0,
     abs: 0,
+    forearms: 0,
   });
   const weeks: Record<string, Record<string, number>> = {};
   for (const s of S) {

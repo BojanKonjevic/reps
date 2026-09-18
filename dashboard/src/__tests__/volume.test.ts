@@ -11,6 +11,7 @@ describe('volume aggregation logic', () => {
     hamstrings: 0,
     glutes: 0,
     abs: 0,
+    forearms: 0,
   });
 
   it('aggregates stored muscles per set', () => {
@@ -30,12 +31,12 @@ describe('volume aggregation logic', () => {
     const weeks: Record<string, Record<string, number>> = {};
     const k = '2026 W1';
     weeks[k] = blank();
-    const muscles = 'chest,neck,forearms';
+    const muscles = 'chest,neck';
     muscles.split(',').forEach(g => {
       if (g in weeks[k]) weeks[k][g] += 1;
     });
     expect(weeks[k].chest).toBe(1);
-    // neck and forearms not in GROUPS, ignored
+    // neck not in GROUPS, ignored
   });
 
   it('sums multiple sets correctly', () => {

@@ -20,6 +20,7 @@ export const MC: Record<string, string> = {
   hamstrings: '#26c6da',
   glutes: '#ec407a',
   abs: '#b0bec5',
+  forearms: '#8d6e63',
 };
 export const GROUPS = [
   'chest',
@@ -31,6 +32,7 @@ export const GROUPS = [
   'hamstrings',
   'glutes',
   'abs',
+  'forearms',
 ];
 
 export interface ChartContext {

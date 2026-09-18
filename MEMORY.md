@@ -10,27 +10,80 @@ Empty. Rules whose date passed move here, never deleted silently. Agent asks onc
 
 ## Active rules
 
-None yet. Add dated rules here when user states something durable.
-Format: start date, rule, expiry if any.
-Example: Sep 1 2026 incline barbell bench press is the main press until Nov 1 2026, flat only on request.
+- Sep 18 2026: straps on anything grip-limited, including wrapping straps around cable attachments instead of handles. Grip is never a limiter.
+  Format: start date, rule, expiry if any.
+  Example: Sep 1 2026 incline barbell bench press is the main press until Nov 1 2026, flat only on request.
 
 ## Program
 
-3 days on, 1 off. Current split and main lifts go here once known.
+Upper/Lower, 5 days: Mon Upper A, Tue Lower A, Wed Upper B, Thu rest, Fri Upper C, Sat Lower B, Sun rest. Brand new as of Sep 18 2026, moving here from 3.5 years of PPL. Experimental until stated otherwise.
 
 ## Split
 
-Push / pull / legs. Slots in training order, one per line, interchangeable moves on one line separated by /. Reconciled at every session end, rewritten only when the user says the split changed.
+Slots in training order, one per line, interchangeable moves on one line separated by /. Reconciled at every session end, rewritten only when the user says the split changed.
 
-### Push
+### Upper A
 
-### Pull
+1. incline barbell bench press
+2. hammer strength row
+3. pec deck
+4. low to high row (hammer strength)
+5. machine shoulder press
+6. cable lat raise
+7. bayesian curl
+8. overhead cable extension
+9. cable reverse curl
+10. face pull / cable rear delt fly
 
-### Legs
+### Lower A
+
+1. leg extension
+2. hack squat
+3. leg press (feet low)
+4. seated leg curl
+5. adductor machine
+6. crunch machine
+7. cable lat raise
+8. machine lat raise
+
+### Upper B
+
+1. machine shoulder press
+2. straight bar pulldown
+3. incline dumbbell press
+4. hammer strength row
+5. cable lat raise
+6. machine lat raise
+7. incline dumbbell curl
+8. ezbar skullcrusher
+9. unilateral cable pushdown
+10. cable wrist curl
+
+### Upper C
+
+1. cable fly
+2. hammer strength press
+3. cable pullover
+4. machine row
+5. preacher curl
+6. rope hammer curl
+7. overhead cable extension
+8. cable lat raise
+9. cable wrist extension
+10. face pull
+
+### Lower B
+
+1. rdl
+2. leg press (feet high)
+3. hack squat
+4. leg extension
+5. seated leg curl
+6. crunch machine
 
 ## Tracked muscles
 
-chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs. Never neck, calves, forearms, traps. New movements mapping elsewhere get asked about once.
+chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs, forearms. Never neck, calves, traps. New movements mapping elsewhere get asked about once.
 
 ## Goals
 

@@ -20,6 +20,8 @@ Last reviewed: Sep 17 2026
 
 MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
+Forearms: no trusted landmarks, literature too thin for numbers. Current plan uses ~6 sets/week across 3 exposures (Opinion). Small, slow-twitch dominant, low systemic cost, same logic as abs guidance.
+
 ## Frequency guidance
 
 | Muscle     | Sessions/week | Tier      | Source                                            |
