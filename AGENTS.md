@@ -38,6 +38,7 @@ You own the ontology. There is no alias list in code.
 1. Normalize to lowercase training names, for example `flat barbell bench press`, `back squat`, `overhead press`.
 2. Known shorthands: `ohp` means overhead press, `bench` means flat barbell bench press unless MEMORY.md or context says otherwise (for example an active incline block), `squat` means back squat unless context says front or split.
 3. `same` or `again` refers to the last exercise in the open workout.
+4. `cable pushdown` alone means the bilateral standard pushdown. Unilateral is always stated explicitly.
 4. If user names something new that has no close match, ask once, then reuse that spelling forever.
 5. If duplicates happen, merge with `rename <old> <new>`.
 
