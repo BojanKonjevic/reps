@@ -45,9 +45,9 @@ You own the ontology. There is no alias list in code.
 
 One movement trains as many groups as it trains. Back squat is quads plus glutes, never quads alone. Each set carries its own muscle list, so compounds give full credit to every group they hit.
 
-Default to asking. Only skip the question when the movement is extremely clearly one muscle and nothing else (lat pulldown is back, curls are biceps). Anything with a plausible second muscle gets one question, then the answer is recorded forever:
+Default to asking. Only skip the question when the movement is extremely clearly one muscle and nothing else (curls are biceps, pushdowns are triceps; even lat pulldown plausibly involves biceps, so it gets asked). Anything with a plausible second muscle gets one question, then the answer is recorded forever:
 
-1. Check `MEMORY.md` Lift mapping first. A recorded mapping wins, no re-asking. But a mapping covers exactly the lift named, never its variants: incline bench is not flat bench for mapping purposes, even when a convention looks extendable. When tempted to extend, still ask.
+1. Check `MEMORY.md` Lift mapping first. A recorded mapping wins, no re-asking. But a mapping covers exactly the lift named, never its variants: the flat bench mapping does not cover incline smith underhand, even when a convention looks extendable. When tempted to extend, still ask.
 2. If unmapped and not extremely clear, ask which groups it trains, log with `muscles=a,b`.
 3. Write the answer into Lift mapping. If the user corrects an old mapping, fix past sets with `retag <exercise> <muscles>` too.
 
