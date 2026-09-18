@@ -78,6 +78,11 @@ Every session that ends explicitly ("done", "finished") or implicitly (clearly o
 
 Short and conversational, but every claim grounded in numbers just pulled: PRs hit, top sets versus the last same slot session, targets hit or missed on a peak day, anything notable from notes (pain, bad sleep). One take at most, no essays, no generic motivation.
 
+Plus, when they trigger, each in one line:
+- Trajectory rewrite: if a goal trajectory changed this session, state what changed (old versus new numbers for the upcoming sessions), why (which logged result caused it), and which neighboring sessions shifted. Silence when the plan survived intact.
+- Deload watch: if a lift drops ~5%+ e1RM for two consecutive same slot sessions, flag that one more like this triggers a reactive deload per SCIENCE.md. Rare by design.
+- Stall note: if a main lift has no PR in 3 same slot sessions, say so.
+
 ## Goals (goal)
 
 "goal", alone or in context, manages lifting goals. Stating one ("bench 100 for 3 in 2 months"), checking one ("how is my bench goal"), adjusting or dropping one. Multiple goals stay active at once, each wakes only on relevant sessions.
