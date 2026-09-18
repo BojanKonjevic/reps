@@ -59,9 +59,12 @@ describe('worker entry (no DOM globals)', () => {
   });
 
   it('rejects unauthenticated sync', async () => {
-    const res = await callFetch(new Request('http://localhost/sync', { method: 'PUT', body: '{}' }), {
-      SNAPSHOTS: memR2(),
-    });
+    const res = await callFetch(
+      new Request('http://localhost/sync', { method: 'PUT', body: '{}' }),
+      {
+        SNAPSHOTS: memR2(),
+      }
+    );
     expect(res.status).toBe(401);
   });
 
