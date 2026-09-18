@@ -72,6 +72,11 @@ function saveHidden() {
 
 async function main() {
   SNAP = await (await fetch('snapshot')).json();
+  try {
+    await document.fonts.ready;
+  } catch {
+    // fonts API unavailable, render anyway
+  }
   render();
   let rt: number | null = null;
   window.addEventListener('resize', () => {

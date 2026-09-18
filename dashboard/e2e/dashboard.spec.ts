@@ -24,9 +24,6 @@ const MOCK_SNAPSHOT = {
 
 async function gotoDashboard(page: Page) {
   await page.clock.install({ time: BASE_TIME });
-  // Block webfonts: external fetch is nondeterministic across environments.
-  await page.route('**/fonts.googleapis.com/**', r => r.abort());
-  await page.route('**/fonts.gstatic.com/**', r => r.abort());
   await page.route('**/snapshot', r =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_SNAPSHOT) })
   );

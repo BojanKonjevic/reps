@@ -13,7 +13,7 @@ export function mini(
   const { g, W, H } = fit(cv);
   const P = 30;
   g.clearRect(0, 0, W, H);
-  g.font = '600 11px sans-serif';
+  g.font = '600 11px \'IBM Plex Sans\', sans-serif';
   const pts = [];
   for (let i = 0; i < vals.length; i += 1) if (vals[i] !== null) pts.push(i);
   if (!pts.length) {
