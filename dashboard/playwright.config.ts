@@ -32,8 +32,9 @@ export default defineConfig({
   snapshotDir: './e2e/snapshots',
   snapshotPathTemplate: '{testDir}/snapshots/{arg}{ext}',
   expect: {
+    // See dashboard.spec.ts for why this is ratio-based, not pixel-based.
     toHaveScreenshot: {
-      maxDiffPixels: 100,
+      maxDiffPixelRatio: 0.05,
       threshold: 0.2,
     },
   },
