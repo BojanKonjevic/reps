@@ -50,12 +50,14 @@ test.describe('Dashboard', () => {
   test('dashboard visual regression - desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop snapshot only on chromium');
     await gotoDashboard(page);
+    await expect(page.locator('#sub')).toContainText('2 sessions');
     await expect(page).toHaveScreenshot('dashboard-desktop.png', { maxDiffPixels: 100 });
   });
 
   test('dashboard visual regression - mobile', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile snapshot only on mobile');
     await gotoDashboard(page);
+    await expect(page.locator('#sub')).toContainText('2 sessions');
     await expect(page).toHaveScreenshot('dashboard-mobile.png', { maxDiffPixels: 100 });
   });
 });

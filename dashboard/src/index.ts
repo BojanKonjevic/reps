@@ -73,7 +73,19 @@ function saveHidden() {
 async function main() {
   SNAP = await (await fetch('snapshot')).json();
   try {
-    await document.fonts.ready;
+    // Explicitly load every family/weight before first paint AND first
+    // canvas draw: fonts.ready alone resolves while nothing is pending,
+    // which still races fallback rendering on slow networks.
+    await Promise.all([
+      document.fonts.load('500 16px "IBM Plex Serif"'),
+      document.fonts.load('600 16px "IBM Plex Serif"'),
+      document.fonts.load('700 16px "IBM Plex Serif"'),
+      document.fonts.load('400 16px "IBM Plex Sans"'),
+      document.fonts.load('500 16px "IBM Plex Sans"'),
+      document.fonts.load('600 16px "IBM Plex Sans"'),
+      document.fonts.load('400 16px "JetBrains Mono"'),
+      document.fonts.load('500 16px "JetBrains Mono"'),
+    ]);
   } catch {
     // fonts API unavailable, render anyway
   }
