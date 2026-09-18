@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run pre-commit on all files
-        uses: pre-commit/action@v3
+        uses: pre-commit/action@v3.0.1
 
   build:
     runs-on: ubuntu-latest
