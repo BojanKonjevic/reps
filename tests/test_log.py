@@ -389,3 +389,66 @@ def test_today_returns_open_false_when_none(log_module):
     output = capture_stdout(log_module.cmd_today)
     data = json.loads(output)
     assert data["open"] is False
+
+
+def test_log_bw_flag_bootstraps_bodyweight_exercise(log_module):
+    """log with bw flag allows zero weight on a brand new exercise."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("pullup", 0, 8, "", "back,biceps", True)
+    mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = 'pullup'").fetchone()
+    assert mapping["is_bodyweight_only"] == 1
+
+
+def test_log_zero_weight_rejected_without_bw_flag(log_module):
+    """zero weight on a mapped non bodyweight lift fails even with muscles given."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    try:
+        log_module.cmd_log("bench", 0, 5, "", "chest")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "zero weight not allowed" in str(e).lower()
+
+
+def test_log_rejects_negative_weight_and_bad_reps(log_module):
+    """negative weight and non positive reps never reach the db."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    for w, r in [(-5, 5), (100, 0), (100, -3)]:
+        try:
+            log_module.cmd_log("bench", w, r, "", "chest")
+            assert False, "should have exited"
+        except SystemExit:
+            pass
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 0
+
+
+def test_rename_moves_muscle_mapping(log_module):
+    """rename moves the lift_muscle_map entry so the new name stays mapped."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    output = capture_stdout(log_module.cmd_rename, "bench", "flat bench")
+    data = json.loads(output)
+    assert data["renamed"] == 1
+    assert data["map_moved"] is True
+    assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 0
+    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'flat bench'").fetchone()
+    assert row["muscles"] == "chest"
+
+
+def test_context_reports_max_e1rm(log_module):
+    """context lifts report max e1RM, not just max top weight."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 10, "", "chest")
+    log_module.cmd_log("bench", 105, 1, "", "chest")
+    log_module.cmd_end("done")
+    output = capture_stdout(log_module.cmd_context, "3")
+    data = json.loads(output)
+    bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
+    assert bench["max_e1rm"] == round(100 * (1 + 10 / 30.0), 1)
+    assert bench["max_weight"] == 100

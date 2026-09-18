@@ -1,12 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import worker from '../index';
+import worker from '../worker';
 
 // NOTE: this file intentionally runs in plain node with no DOM globals.
-// Importing the worker module must not throw: any unguarded
-// window/document/localStorage access at module scope fails this whole
-// file before assertions even run. That is the regression gate — the same
-// file ships to browsers AND to the Workers runtime.
+// The worker module must stay DOM free so it can run on the Workers runtime.
+// Importing it must not throw: any window/document/localStorage access at
+// module scope fails this whole file before assertions even run.
 
 interface R2Stub {
   get(key: string): Promise<Response | null>;

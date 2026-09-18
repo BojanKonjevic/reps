@@ -2,7 +2,7 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "name": "reps",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "r2_buckets": [
     { "binding": "SNAPSHOTS", "bucket_name": "reps-snapshots" }
   ]

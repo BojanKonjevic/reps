@@ -1,4 +1,4 @@
-import { fmtV, fmtD, isDate } from './utils';
+import { fmtV, fmtD, isDate, e1rm } from './utils';
 import { LC, MC, GROUPS } from './charts';
 import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
@@ -8,22 +8,34 @@ import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
 import { showTip, hideTip } from './tip';
 
-interface Env {
-  SNAPSHOTS: R2Bucket;
-  SYNC_SECRET: string;
+interface SnapWorkout {
+  id: number;
+  date: string;
+  status: string;
+  notes: string;
 }
 
-const BLANK = {
-  note: 'no sync yet, run sync from the CLI after a session',
-  workouts: [],
-  sets: [],
-  bodyweight: [],
-};
+interface SnapSet {
+  id: number;
+  workout_id: number;
+  exercise: string;
+  weight: number;
+  reps: number;
+  note: string;
+  created: string;
+  muscles: string;
+}
+
+interface SnapBodyweight {
+  date: string;
+  kg: number;
+  note: string;
+}
 
 let SNAP: any = null;
 let TREND = {
   days: [] as string[],
-  series: [] as number[][],
+  series: [] as Array<Array<number | null>>,
   top: [] as string[],
 };
 let D: { W: any[]; S: any[]; BW: any[] } | null = null;
@@ -40,7 +52,7 @@ try {
     for (const n of JSON.parse(raw)) HIDDEN.add(n);
   }
 } catch {
-  // storage unavailable (e.g. Workers runtime), start fresh
+  // storage unavailable, start fresh
 }
 let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
 let BWDATA: { date: string; kg: number }[] = [];
@@ -52,7 +64,7 @@ function saveHidden() {
 }
 
 async function main() {
-  SNAP = await (await fetch('snapshot')).json();
+  SNAP = await (await fetch('/snapshot')).json();
   try {
     // Explicitly load every family/weight before first paint AND first
     // canvas draw: fonts.ready alone resolves while nothing is pending,
@@ -71,7 +83,7 @@ async function main() {
     // fonts API unavailable, render anyway
   }
   render();
-  let rt: number | null = null;
+  let rt: ReturnType<typeof setTimeout> | null = null;
   window.addEventListener('resize', () => {
     if (rt) clearTimeout(rt);
     rt = setTimeout(render, 250);
@@ -156,9 +168,9 @@ function sliceIdx(x: number, cw: number, n: number): number {
 
 function render() {
   const snap = SNAP;
-  const W = snap.workouts || [];
-  const S = snap.sets || [];
-  const BW = snap.bodyweight || [];
+  const W: SnapWorkout[] = snap.workouts || [];
+  const S: SnapSet[] = snap.sets || [];
+  const BW: SnapBodyweight[] = snap.bodyweight || [];
   document.getElementById('sub')!.textContent = W.length
     ? W.length +
       ' sessions, latest ' +
@@ -179,7 +191,7 @@ function render() {
     const d = wday(s);
     (byDate[d] = byDate[d] || []).push(s);
   }
-  const e1 = (s: any) => s.weight * (1 + s.reps / 30);
+  const e1 = (s: any) => e1rm(s.weight, s.reps);
   const counts: Record<string, number> = {};
   for (const s of T) counts[s.exercise] = (counts[s.exercise] || 0) + 1;
   const top = Object.entries(counts)
@@ -275,32 +287,32 @@ function render() {
   let viewY = parseInt(startView.slice(0, 4), 10);
   let viewM = parseInt(startView.slice(5, 7), 10) - 1;
   const drawCal = () => renderCal(viewY, viewM, dayDetail);
-  document.getElementById('calPrev')!.addEventListener('click', () => {
+  document.getElementById('calPrev')!.onclick = () => {
     viewM -= 1;
     if (viewM < 0) {
       viewM = 11;
       viewY -= 1;
     }
     drawCal();
-  });
-  document.getElementById('calNext')!.addEventListener('click', () => {
+  };
+  document.getElementById('calNext')!.onclick = () => {
     viewM += 1;
     if (viewM > 11) {
       viewM = 0;
       viewY += 1;
     }
     drawCal();
-  });
+  };
   drawCal();
   const wdate: Record<number, string> = {};
   for (const w of W) wdate[w.id] = w.date;
   const prs: Record<string, { s: any; ev: number }> = {};
   for (const s of S) {
     const k = s.exercise;
-    const ev = s.weight * (1 + s.reps / 30);
+    const ev = e1rm(s.weight, s.reps);
     if (!prs[k] || ev > prs[k].ev) prs[k] = { s, ev };
   }
-  const tbl = document.getElementById('prs')!;
+  const tbl = document.getElementById('prs') as HTMLTableElement;
   while (tbl.rows.length > 1) tbl.deleteRow(1);
   Object.keys(prs)
     .sort()
@@ -373,7 +385,8 @@ function renderCal(year: number, month: number, dayDetail: Record<string, string
     const trained = dayDetail[key] && dayDetail[key].length > 0;
     const isPR = PR && PR.prDates.has(key);
     const el = document.createElement(trained ? 'a' : 'div');
-    if (trained) el.href = '#/s/' + key;
+    const link = trained ? (el as HTMLAnchorElement) : null;
+    if (link) link.href = '#/s/' + key;
     el.className =
       'cd' +
       (trained ? ' t' : '') +
@@ -388,9 +401,9 @@ function renderCal(year: number, month: number, dayDetail: Record<string, string
         '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
       el.appendChild(tr);
     }
-    if (trained) {
-      el.addEventListener('click', hideTip);
-      el.addEventListener('mousemove', ev => {
+    if (link) {
+      link.addEventListener('click', hideTip);
+      link.addEventListener('mousemove', ev => {
         const sets = sByDate[key] || [];
         const order: string[] = [];
         const byEx: Record<string, any[]> = {};
@@ -422,7 +435,7 @@ function renderCal(year: number, month: number, dayDetail: Record<string, string
           }) + (isPR ? '  PR' : '');
         showTip(title, rows.length ? rows : [[null, 'tap to open']], ev.clientX, ev.clientY);
       });
-      el.addEventListener('mouseleave', hideTip);
+      link.addEventListener('mouseleave', hideTip);
     }
     box.appendChild(el);
   }
@@ -459,8 +472,8 @@ function showSession(ds: string) {
   const title = document.getElementById('sessTitle')!;
   const notes = document.getElementById('sessNotes')!;
   const body = document.getElementById('sessBody')!;
-  const prev = document.getElementById('sessPrev')!;
-  const next = document.getElementById('sessNext')!;
+  const prev = document.getElementById('sessPrev') as HTMLAnchorElement;
+  const next = document.getElementById('sessNext') as HTMLAnchorElement;
   notes.innerHTML = '';
   body.innerHTML = '';
   const ws = D!.W.filter(w => w.date === ds);
@@ -528,7 +541,7 @@ function showSession(ds: string) {
       const sn: Array<[number, string]> = [];
       byEx[ex].forEach((s, i) => {
         const tr = document.createElement('tr');
-        const ev = s.weight * (1 + s.reps / 30);
+        const ev = e1rm(s.weight, s.reps);
         const cells = [String(i + 1), s.weight + ' x ' + s.reps, ev.toFixed(1)];
         cells.forEach(c => {
           const td = document.createElement('td');
@@ -574,7 +587,7 @@ function showLift(ex: string) {
   v.hidden = false;
   const title = document.getElementById('liftTitle')!;
   const sub = document.getElementById('liftSub')!;
-  const tbl = document.getElementById('liftPRs')!;
+  const tbl = document.getElementById('liftPRs') as HTMLTableElement;
   while (tbl.rows.length > 1) tbl.deleteRow(1);
   title.textContent = ex;
   document.title = ex;
@@ -601,7 +614,7 @@ function showLift(ex: string) {
         date: d,
         w: top.weight,
         r: top.reps,
-        ev: top.weight * (1 + top.reps / 30),
+        ev: e1rm(top.weight, top.reps),
         pr: byDate[d].some(s => PR!.prIds.has(s.id)),
       };
     });
@@ -617,7 +630,7 @@ function showLift(ex: string) {
   const top2 = { ev: 0 };
   order.forEach(s => {
     if (s.exercise !== ex) return;
-    const ev = s.weight * (1 + s.reps / 30);
+    const ev = e1rm(s.weight, s.reps);
     if (!seen.has(ex)) {
       seen.add(ex);
       top2.ev = ev;
@@ -763,41 +776,5 @@ function drawTrendChips() {
   });
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('hashchange', route);
-  main();
-}
-
-export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
-    const url = new URL(req.url);
-    if (req.method === 'PUT' && url.pathname === '/sync') {
-      const auth = req.headers.get('authorization') || '';
-      if (!env.SYNC_SECRET || auth !== 'Bearer ' + env.SYNC_SECRET) {
-        return Response.json({ error: 'unauthorized' }, { status: 401 });
-      }
-      const raw = await req.text();
-      if (raw.length > 2000000) {
-        return Response.json({ error: 'snapshot too large' }, { status: 413 });
-      }
-      try {
-        JSON.parse(raw);
-      } catch {
-        return Response.json({ error: 'not json' }, { status: 400 });
-      }
-      await env.SNAPSHOTS.put('snapshot.json', raw, {
-        httpMetadata: { contentType: 'application/json' },
-      });
-      return Response.json({ ok: true, bytes: raw.length });
-    }
-    if (url.pathname === '/snapshot') {
-      const obj = await env.SNAPSHOTS.get('snapshot.json');
-      if (!obj) return Response.json(BLANK);
-      return new Response(obj.body, {
-        headers: { 'content-type': 'application/json' },
-      });
-    }
-    // Root path handled by static assets (index.html)
-    return new Response('not found', { status: 404 });
-  },
-};
+window.addEventListener('hashchange', route);
+main();

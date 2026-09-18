@@ -8,7 +8,7 @@ export function mini(
   vals: (number | null)[],
   col: string,
   prs: Record<string, boolean>,
-  hover: number
+  hover?: number
 ) {
   const { g, W, H } = fit(cv);
   const P = 30;

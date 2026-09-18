@@ -4,6 +4,7 @@ workouts.db-wal
 workouts.db-shm
 snapshot.json
 __pycache__/
+.pytest_cache/
 .dashboard.dev.vars
 .wrangler/
 .DS_Store

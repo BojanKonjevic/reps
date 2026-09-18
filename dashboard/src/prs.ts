@@ -1,3 +1,5 @@
+import { e1rm } from './utils';
+
 export interface PRData {
   prIds: Set<number>;
   prDates: Set<string>;
@@ -14,7 +16,7 @@ export function computePRs(W: any[], S: any[]): PRData {
   const prIds = new Set<number>();
   const prDates = new Set<string>();
   order.forEach(s => {
-    const ev = s.weight * (1 + s.reps / 30);
+    const ev = e1rm(s.weight, s.reps);
     if (!seen.has(s.exercise)) {
       seen.add(s.exercise);
       best[s.exercise] = ev;

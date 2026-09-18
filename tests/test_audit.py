@@ -58,12 +58,12 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
         assert False, "should have exited"
     except SystemExit as e:
         assert "zero weight not allowed" in str(e).lower()
-    
+
     # Set up pullup as bodyweight exercise
     c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               ("pullup", "back,biceps", 1))
     c.commit()
-    
+
     # This should work - pullup is bodyweight
     log.cmd_log("pullup", 0, 5, "", "back")
 
@@ -75,7 +75,7 @@ def test_audit_muscle_mapping_drift(audit_db):
     log.cmd_log("bench", 100, 5, "", "chest")  # creates mapping chest
     log.cmd_log("squat", 150, 5, "", "quads,glutes")  # creates mapping quads,glutes
     log.cmd_end("done")
-    
+
     # Manually corrupt one set's muscles via the junction table
     bench_id = c.execute("SELECT id FROM sets WHERE exercise = 'bench'").fetchone()["id"]
     c.execute("DELETE FROM set_muscles WHERE set_id = ?", (bench_id,))
@@ -105,7 +105,7 @@ def test_audit_stale_open_workout(audit_db):
     """Check 7: Stale open workouts (age_days >= 1 or gap > 8h)."""
     from datetime import date, timedelta
     log, c = audit_db
-    
+
     # Create a workout from yesterday
     d_yesterday = (date.today() - timedelta(days=1)).isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', 'stale')", (d_yesterday,))
@@ -114,18 +114,18 @@ def test_audit_stale_open_workout(audit_db):
     cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
     c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
-    
+
     # Also create a fresh open workout
     log.cmd_start("fresh")
     log.cmd_log("bench", 100, 5, "", "chest")
-    
+
     stale = c.execute("""
         SELECT w.id, w.date FROM workouts w
         WHERE w.status = 'open'
-          AND (date(w.date) < date('now') OR 
+          AND (date(w.date) < date('now') OR
                (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', '-8 hours'))
     """).fetchall()
-    
+
     assert len(stale) >= 1
     assert any(s["id"] == wid for s in stale)
 
@@ -133,7 +133,7 @@ def test_audit_stale_open_workout(audit_db):
 def test_audit_duplicate_exercise_names(audit_db):
     """Check 1: Exercise name duplicates (Levenshtein <= 2)."""
     import itertools
-    
+
     def levenshtein(a, b):
         if len(a) < len(b):
             a, b = b, a
@@ -149,21 +149,21 @@ def test_audit_duplicate_exercise_names(audit_db):
                 current_row.append(min(insertions, deletions, substitutions))
             previous_row = current_row
         return previous_row[-1]
-    
+
     log, c = audit_db
     log.cmd_start("test")
     # Add some exercises with near-duplicate names (Levenshtein <= 2)
     for ex in ["bench", "benches", "squat", "sqaut", "deadlift"]:
         log.cmd_log(ex, 100, 5, "", "chest")
     log.cmd_end("done")
-    
+
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
-    
+
     near_dupes = []
     for a, b in itertools.combinations(exercises, 2):
         if levenshtein(a, b) <= 2:
             near_dupes.append((a, b))
-    
+
     # Should find near-duplicates (bench/benches, squat/sqaut)
     assert len(near_dupes) >= 1
 
@@ -172,7 +172,7 @@ def test_audit_progression_jumps(audit_db):
     """Check 4: Implausible e1RM jumps (> bounds per SCIENCE.md)."""
     from datetime import date, timedelta
     log, c = audit_db
-    
+
     # Create sessions with normal progression on different days
     base = date.today() - timedelta(days=20)
     for i, w in enumerate([100, 102.5, 105, 107.5, 110]):  # ~2.5% jumps
@@ -183,7 +183,7 @@ def test_audit_progression_jumps(audit_db):
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, w))
         c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
-    
+
     # Add an implausible jump (20%) on a later date
     d = (base + timedelta(days=20)).isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
@@ -192,7 +192,7 @@ def test_audit_progression_jumps(audit_db):
     cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 132, 5, '', datetime('now'))", (wid,))
     c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
-    
+
     # Check for jumps > 1% (intermediate compound bound from SCIENCE.md)
     sets = c.execute("""
         SELECT s.id, s.weight, s.reps, w.date,
@@ -200,7 +200,7 @@ def test_audit_progression_jumps(audit_db):
         FROM sets s JOIN workouts w ON w.id = s.workout_id
         WHERE s.exercise = 'bench' ORDER BY w.date, s.id
     """).fetchall()
-    
+
     # Compute session-to-session e1RM changes
     by_session = {}
     for s in sets:
@@ -209,7 +209,7 @@ def test_audit_progression_jumps(audit_db):
             by_session[d] = s["e1rm"]
         else:
             by_session[d] = max(by_session[d], s["e1rm"])
-    
+
     dates = sorted(by_session.keys())
     big_jumps = []
     for i in range(1, len(dates)):
@@ -219,7 +219,7 @@ def test_audit_progression_jumps(audit_db):
             pct = (curr - prev) / prev * 100
             if pct > 1.0:  # intermediate compound bound
                 big_jumps.append((dates[i-1], dates[i], pct))
-    
+
     assert len(big_jumps) >= 1
     assert big_jumps[-1][2] > 15  # the 20% jump
 
@@ -228,7 +228,7 @@ def test_audit_volume_below_mev(audit_db):
     """Check 8: Muscle groups below MEV for 4+ consecutive weeks."""
     from datetime import date, timedelta
     log, c = audit_db
-    
+
     # Add data across 5 weeks with low chest volume
     base = date.today() - timedelta(weeks=6)
     for week in range(5):
@@ -249,11 +249,11 @@ def test_audit_volume_below_mev(audit_db):
         WHERE sm.muscle = 'chest'
         GROUP BY week ORDER BY week
     """).fetchall()
-    
+
     # MEV for chest is 8 sets/week from SCIENCE.md
     mev = 8
     low_weeks = sum(1 for w in weeks if w["sets"] < mev)
-    
+
     # With only 2 sets/week, all 5 weeks are below MEV
     assert low_weeks == 5
 

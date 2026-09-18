@@ -1,3 +1,5 @@
+import { fmtV, fmtD, fmtTick } from './utils';
+
 export const LC: string[] = (() => {
   const arr: string[] = [];
   for (let i = 0; i < 24; i += 1) {
@@ -226,5 +228,3 @@ export function drawLine(
   });
   g.stroke();
 }
-
-import { fmtV, fmtD, fmtTick } from './utils';

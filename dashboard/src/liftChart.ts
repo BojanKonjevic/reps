@@ -28,7 +28,7 @@ export interface LiftPoint {
 
 let LIFTPTS: Array<{ x: number; y: number; date: string }> = [];
 
-export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, hover: number) {
+export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, hover?: number) {
   const { g, W, H } = fit(cv);
   const P = 46;
   g.clearRect(0, 0, W, H);

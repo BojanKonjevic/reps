@@ -29,8 +29,6 @@ CREATE TABLE IF NOT EXISTS sets (
   note TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL
 );
--- NOTE: sets.muscles was dropped in v3 (junction table set_muscles is the
--- only store). Exports rebuild the comma string from the junction table.
 CREATE INDEX IF NOT EXISTS idx_sets_workout ON sets(workout_id);
 CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise);
 CREATE TABLE IF NOT EXISTS bodyweight (
@@ -40,10 +38,6 @@ CREATE TABLE IF NOT EXISTS bodyweight (
   note TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_bw_date ON bodyweight(date);
-CREATE TABLE IF NOT EXISTS schema_version (
-  version INTEGER PRIMARY KEY,
-  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
 CREATE TABLE IF NOT EXISTS lift_muscle_map (
   exercise TEXT PRIMARY KEY,
   muscles TEXT NOT NULL,
@@ -55,46 +49,6 @@ CREATE TABLE IF NOT EXISTS set_muscles (
   PRIMARY KEY (set_id, muscle)
 );
 """
-CURRENT_SCHEMA_VERSION = 3
-
-
-# Migration functions - each takes a connection and performs one schema version upgrade
-def _migrate_v1_to_v2(c):
-    """Migration v2: create set_muscles table and populate from muscles column"""
-    try:
-        c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-    c.execute("""
-        INSERT INTO set_muscles (set_id, muscle)
-        SELECT sets.id, trim(value) FROM sets, json_each('["' || replace(muscles, ',', '","') || '"]')
-        WHERE muscles != ''
-    """)
-
-
-def _migrate_v2_to_v3(c):
-    """Migration v3: drop sets.muscles, junction table is the only store"""
-    try:
-        c.execute("ALTER TABLE sets DROP COLUMN muscles")
-    except sqlite3.OperationalError:
-        pass
-
-
-MIGRATIONS = {
-    2: _migrate_v1_to_v2,
-    3: _migrate_v2_to_v3,
-}
-
-
-def _run_migrations(c):
-    """Run pending schema migrations in order."""
-    cur = c.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
-    current = cur.fetchone()[0]
-    for version in range(current + 1, CURRENT_SCHEMA_VERSION + 1):
-        if version in MIGRATIONS:
-            MIGRATIONS[version](c)
-        c.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
-        c.commit()
 
 
 def conn():
@@ -103,7 +57,6 @@ def conn():
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
     c.executescript(SCHEMA)
-    _run_migrations(c)
     return c
 
 
@@ -164,7 +117,7 @@ def cmd_start(note):
     print(json.dumps({"workout_id": cur.lastrowid, "reused": False, "date": today}))
 
 
-def cmd_log(exercise, weight, reps, note, muscles):
+def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -172,25 +125,28 @@ def cmd_log(exercise, weight, reps, note, muscles):
     exercise = exercise.strip().lower()
     weight = float(weight)
     reps = int(reps)
+    if weight < 0:
+        sys.exit("weight cannot be negative")
+    if reps <= 0:
+        sys.exit("reps must be a positive integer")
     muscles = clean_muscles(muscles)
 
-    # Validation: zero-weight sets only allowed for bodyweight exercises
     mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     if weight == 0:
-        if not mapping or mapping["is_bodyweight_only"] != 1:
-            sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise)")
+        if bodyweight:
+            pass
+        elif not mapping or mapping["is_bodyweight_only"] != 1:
+            sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise, add bw flag for bodyweight moves)")
 
-    # Validation: muscles required if no mapping exists
     if not mapping:
         if not muscles:
             sys.exit(f"muscles= required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
-        # Auto-create mapping for new exercise
-        # Agent must specify is_bodyweight_only via retag or external tool; default to 0
         c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-                  (exercise, muscles, 0))
+                  (exercise, muscles, 1 if bodyweight else 0))
     elif not muscles:
-        # Use stored mapping
         muscles = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()["muscles"]
+    elif bodyweight and mapping["is_bodyweight_only"] != 1:
+        c.execute("UPDATE lift_muscle_map SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -215,7 +171,6 @@ def cmd_update(set_id, field, value):
         value = value.strip().lower()
     if field == "muscles":
         value = clean_muscles(value)
-        # Junction table is the only store for per-set muscles
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in value.split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -223,6 +178,8 @@ def cmd_update(set_id, field, value):
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
         value = float(value)
+        if value < 0:
+            sys.exit("weight cannot be negative")
         # Validate zero-weight against exercise type
         row = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
         if row and value == 0:
@@ -231,12 +188,12 @@ def cmd_update(set_id, field, value):
                 sys.exit(f"zero weight not allowed for '{row['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         value = int(value)
+        if value <= 0:
+            sys.exit("reps must be a positive integer")
     if field == "exercise":
-        # Validate new exercise has mapping or muscles provided elsewhere
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
             sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
-        # Update set_muscles junction table for renamed exercise
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -289,9 +246,9 @@ def cmd_stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
     out = {"workouts": len(workouts), "by_exercise": {}}
-    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
+    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(weight * (1 + reps / 30.0)) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
     for r in rows:
-        out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"]}
+        out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
     print(json.dumps(out, indent=2))
 
 
@@ -306,26 +263,27 @@ def cmd_export():
 def cmd_weigh(kg, note):
     c = conn()
     today = date.today().isoformat()
-    cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, float(kg), note))
+    kg = float(kg)
+    if kg <= 0:
+        sys.exit("bodyweight must be positive")
+    cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, kg, note))
     c.commit()
-    print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": float(kg)}))
+    print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": kg}))
 
 
 def cmd_restore():
     sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
     if not os.path.exists(sql_file):
         sys.exit("no workouts.sql found, cannot restore")
-    # Use a fresh connection without schema init
     import sqlite3
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
-    # Drop all tables before restoring
     c.executescript("""
+        DROP TABLE IF EXISTS set_muscles;
         DROP TABLE IF EXISTS sets;
         DROP TABLE IF EXISTS workouts;
         DROP TABLE IF EXISTS bodyweight;
         DROP TABLE IF EXISTS lift_muscle_map;
-        DROP TABLE IF EXISTS schema_version;
     """)
     c.commit()
     with open(sql_file, 'r') as f:
@@ -348,7 +306,9 @@ def parse_mev_from_science():
         'hamstrings': 'hamstrings',
         'glutes': 'glutes',
         'abs': 'abs',
+        'forearms': 'forearms',
     }
+    opinion_fallback = {'forearms': 6}
     try:
         with open(SCIENCE_FILE, 'r') as f:
             content = f.read()
@@ -360,7 +320,7 @@ def parse_mev_from_science():
             if in_volume_section and line.strip().startswith('## '):
                 in_volume_section = False
                 break
-            if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|---'):
+            if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|' + '-' * 3):
                 parts = [p.strip() for p in line.split('|')]
                 if len(parts) >= 4 and parts[1] and parts[2]:
                     muscle = parts[1].lower()
@@ -370,6 +330,8 @@ def parse_mev_from_science():
                         mev_bounds[name_map[muscle]] = int(mev_match.group(1))
     except (OSError, ValueError):
         pass
+    for muscle, fallback in opinion_fallback.items():
+        mev_bounds.setdefault(muscle, fallback)
     if len(mev_bounds) < len(name_map):
         missing = set(name_map.values()) - set(mev_bounds.keys())
         print(f"WARNING: parse_mev_from_science parsed {len(mev_bounds)}/{len(name_map)} muscles; missing: {missing}")
@@ -380,7 +342,7 @@ def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
     import itertools
-    
+
     def levenshtein(a, b):
         if len(a) < len(b):
             a, b = b, a
@@ -396,24 +358,24 @@ def cmd_audit():
                 current_row.append(min(insertions, deletions, substitutions))
             previous_row = current_row
         return previous_row[-1]
-    
+
     flags = []
-    
+
     # Check 2: Missing muscle tags
     missing = c.execute("""
-        SELECT s.id, s.exercise, w.date 
-        FROM sets s 
-        JOIN workouts w ON w.id = s.workout_id 
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id 
+        SELECT s.id, s.exercise, w.date
+        FROM sets s
+        JOIN workouts w ON w.id = s.workout_id
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id
         WHERE sm.muscle IS NULL
     """).fetchall()
     for m in missing:
         flags.append({"check": "missing_muscles", "severity": "high", "evidence": f"set {m['id']} ({m['exercise']} on {m['date']}) has no muscles", "fix": "retag <exercise> <muscles>"})
-    
+
     # Check 3: Muscle mapping drift
     drift = c.execute("""
-        SELECT s.id, s.exercise, 
-               group_concat(sm.muscle, ',') as logged, 
+        SELECT s.id, s.exercise,
+               group_concat(sm.muscle, ',') as logged,
                m.muscles as mapped
         FROM sets s
         JOIN lift_muscle_map m ON m.exercise = s.exercise
@@ -425,7 +387,7 @@ def cmd_audit():
         mapped_set = set(d['mapped'].split(',')) if d['mapped'] else set()
         if logged_set != mapped_set:
             flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
-    
+
     # Check 4: Implausible progression jumps
     sets = c.execute("""
         SELECT s.id, s.exercise, s.weight, s.reps, w.date,
@@ -433,43 +395,45 @@ def cmd_audit():
         FROM sets s JOIN workouts w ON w.id = s.workout_id
         WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
     """).fetchall()
-    
+
     by_ex = {}
     for s in sets:
         by_ex.setdefault(s["exercise"], []).append(s)
-    
+
     for ex, ex_sets in by_ex.items():
-        # Group by date
         by_date = {}
         for s in ex_sets:
             d = s["date"]
             if d not in by_date or s["e1rm"] > by_date[d]:
                 by_date[d] = s["e1rm"]
         dates = sorted(by_date.keys())
+        row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (ex,)).fetchone()
+        groups = len((row["muscles"] or "").split(",")) if row and row["muscles"] else 1
+        bound = 2.0 if groups > 1 else 1.5
         for i in range(1, len(dates)):
             prev = by_date[dates[i-1]]
             curr = by_date[dates[i]]
             if prev > 0:
                 pct = (curr - prev) / prev * 100
-                if pct > 1.0:  # intermediate compound bound from SCIENCE.md
-                    flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
-    
+                if pct > bound:
+                    flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump, bound {bound}%) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
+
     # Check 1: Exercise name duplicates
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
     for a, b in itertools.combinations(exercises, 2):
         if levenshtein(a, b) <= 2:
             flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= 2)", "fix": "rename <old> <new>"})
-    
+
     # Check 7: Stale open workouts
     stale = c.execute("""
         SELECT w.id, w.date FROM workouts w
         WHERE w.status = 'open'
-          AND (date(w.date) < date('now') OR 
+          AND (date(w.date) < date('now') OR
                (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', '-8 hours'))
     """).fetchall()
     for s in stale:
         flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
-    
+
     # Check 8: Volume vs MEV
     from datetime import date, timedelta
     base = date.today() - timedelta(weeks=10)
@@ -477,7 +441,7 @@ def cmd_audit():
     for muscle, mev in mev_bounds.items():
         weeks = c.execute("""
             SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
-            FROM sets s 
+            FROM sets s
             JOIN workouts w ON w.id = s.workout_id
             JOIN set_muscles sm ON sm.set_id = s.id
             WHERE sm.muscle = ? AND date(w.date) >= ?
@@ -486,14 +450,14 @@ def cmd_audit():
         low_weeks = sum(1 for w in weeks if w["sets"] < mev)
         if low_weeks >= 4:
             flags.append({"check": "volume_below_mev", "severity": "medium", "evidence": f"{muscle}: {low_weeks} of last {len(weeks)} weeks below MEV ({mev})", "fix": "add volume, or add Active rule explaining"})
-    
+
     # Output report
-    print(f"Audit complete: {len(flags)} flags")
+    print(f"Audit complete: {len(flags)} flags (checks 5 and 6 are manual only, see AUDIT.md)")
     for i, f in enumerate(flags, 1):
-        print(f"{i}. [{f['check']}] — {f['severity'].upper()}")
+        print(f"{i}. [{f['check']}] - {f['severity'].upper()}")
         print(f"   Evidence: {f['evidence']}")
         print(f"   Fix: {f['fix']}")
-    print(json.dumps({"flags": flags}))
+    print(json.dumps({"flags": flags, "skipped": ["goal_trajectory", "split_slots"]}))
 
 
 def cmd_sync():
@@ -519,7 +483,7 @@ def cmd_sync():
             print(json.dumps({"synced": True, "bytes": len(payload), "reply": json.loads(res.read().decode())}))
     except OSError as e:
         sys.exit("sync failed: " + str(e))
-    
+
     # Dump SQL for git history
     sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
     with open(sql_file, 'w') as f:
@@ -530,21 +494,29 @@ def cmd_sync():
 
 def cmd_rename(old, new):
     c = conn()
-    cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new.strip().lower(), old.strip().lower()))
+    old = old.strip().lower()
+    new = new.strip().lower()
+    cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old))
+    renamed = cur.rowcount
+    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
+    map_moved = False
+    if mapping:
+        c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
+                  (new, mapping["muscles"], mapping["is_bodyweight_only"]))
+        c.execute("DELETE FROM lift_muscle_map WHERE exercise = ?", (old,))
+        map_moved = True
     c.commit()
-    print(json.dumps({"renamed": cur.rowcount}))
+    print(json.dumps({"renamed": renamed, "map_moved": map_moved}))
 
 
 def cmd_retag(exercise, muscles, bodyweight=False):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
-    # Preserve existing is_bodyweight_only if mapping exists, default to 0
     existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     is_bw = existing["is_bodyweight_only"] if existing else 0
     if bodyweight:
         is_bw = 1
-    # Junction table is the only store for per-set muscles
     c.execute("DELETE FROM set_muscles WHERE set_id IN (SELECT id FROM sets WHERE exercise = ?)", (exercise,))
     updated = 0
     for set_row in c.execute("SELECT id FROM sets WHERE exercise = ?", (exercise,)).fetchall():
@@ -669,11 +641,17 @@ def cmd_context(n):
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         recent.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
     best = []
-    for r in c.execute("SELECT exercise, COUNT(*) n, MAX(weight) max_w FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
+    for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
+        top = c.execute(
+            "SELECT weight, reps, weight * (1 + reps / 30.0) AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
+        ).fetchone()
         last = c.execute(
             "SELECT weight, reps FROM sets WHERE exercise = ? ORDER BY id DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
-        best.append({"exercise": r["exercise"], "sets": r["n"], "max_weight": r["max_w"], "last": dict(last) if last else None})
+        best.append({"exercise": r["exercise"], "sets": r["n"],
+                     "max_e1rm": round(top["e1rm"], 1) if top else None,
+                     "max_weight": top["weight"] if top else None,
+                     "last": dict(last) if last else None})
     totals = c.execute("SELECT COUNT(*) w FROM workouts").fetchone()
     bw = [dict(r) for r in c.execute("SELECT date, kg, note FROM bodyweight ORDER BY date DESC, id DESC LIMIT 5").fetchall()]
     print(json.dumps({"recent": recent, "lifts": best, "workouts_total": totals["w"], "bodyweight_last": bw}, indent=2))
@@ -681,8 +659,8 @@ def cmd_context(n):
 
 def usage():
     sys.exit(
-        "usage: log.py start [note] | log <exercise> <weight> <reps> [note] [muscles=a,b] "
-        "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> "
+        "usage: log.py start [note] | log <exercise> <weight> <reps> [note] [muscles=a,b] [bw] "
+        "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> [bw] "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
         "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync | restore | audit"
@@ -700,12 +678,16 @@ def main():
         exercise, weight, reps = rest[0], rest[1], rest[2]
         note_parts = []
         muscles = ""
+        bodyweight = False
         for tok in rest[3:]:
             if tok.startswith("muscles="):
                 muscles = tok[len("muscles="):]
                 continue
+            if tok == "bw":
+                bodyweight = True
+                continue
             note_parts.append(tok)
-        cmd_log(exercise, weight, reps, " ".join(note_parts), muscles)
+        cmd_log(exercise, weight, reps, " ".join(note_parts), muscles, bodyweight)
     elif cmd == "update" and len(rest) >= 3:
         cmd_update(rest[0], rest[1], " ".join(rest[2:]))
     elif cmd == "end":
@@ -724,8 +706,8 @@ def main():
     elif cmd == "rename" and len(rest) >= 2:
         cmd_rename(rest[0], " ".join(rest[1:]))
     elif cmd == "retag" and len(rest) >= 2:
-        bodyweight = "--bodyweight" in rest
-        rest = [r for r in rest if r != "--bodyweight"]
+        bodyweight = "bw" in rest
+        rest = [r for r in rest if r != "bw"]
         if len(rest) >= 2:
             cmd_retag(rest[0], ",".join(rest[1:]), bodyweight)
     elif cmd == "delete-set" and len(rest) >= 1:

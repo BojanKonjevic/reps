@@ -5,7 +5,7 @@ import { niceTicks } from './utils';
 export function bwline(
   cv: HTMLCanvasElement,
   rows: Array<{ date: string; kg: number }>,
-  hover: number
+  hover?: number
 ) {
   const { g, W, H } = fit(cv);
   const P = 46;

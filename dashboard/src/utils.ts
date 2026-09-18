@@ -1,3 +1,7 @@
+export function e1rm(w: number, r: number): number {
+  return w * (1 + r / 30);
+}
+
 export function fmtV(v: number): string {
   return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
