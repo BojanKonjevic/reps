@@ -48,9 +48,9 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 ### Upper B
 
-1. machine shoulder press x3
-2. straight bar pulldown x3
-3. reverse-grip smith incline press x2
+1. straight bar pulldown x3
+2. reverse-grip smith incline press x3
+3. machine shoulder press x2
 4. hammer strength row x2
 5. cable lat raise x2
 6. machine lat raise x2
