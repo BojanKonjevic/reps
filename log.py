@@ -61,6 +61,10 @@ CURRENT_SCHEMA_VERSION = 3
 # Migration functions - each takes a connection and performs one schema version upgrade
 def _migrate_v1_to_v2(c):
     """Migration v2: create set_muscles table and populate from muscles column"""
+    try:
+        c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
     c.execute("""
         INSERT INTO set_muscles (set_id, muscle)
         SELECT sets.id, trim(value) FROM sets, json_each('["' || replace(muscles, ',', '","') || '"]')
@@ -99,11 +103,6 @@ def conn():
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
     c.executescript(SCHEMA)
-    # Ensure muscles column exists before migrations that depend on it
-    try:
-        c.execute("ALTER TABLE sets ADD COLUMN muscles TEXT NOT NULL DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
     _run_migrations(c)
     return c
 
