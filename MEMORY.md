@@ -16,7 +16,7 @@ Empty. Rules whose date passed move here, never deleted silently. Agent asks onc
 
 ## Program
 
-Upper/Lower, 5 days: Mon Upper A, Tue Lower A, Wed Upper B, Thu rest, Fri Upper C, Sat Lower B, Sun rest. Brand new as of Sep 18 2026, moving here from 3.5 years of PPL. Experimental until stated otherwise.
+Upper/Lower rotation, no fixed weekdays: Upper A, Lower A, Upper B, rest, Upper C, Lower B, rest, repeat. Brand new as of Sep 18 2026, moving here from 3.5 years of PPL. Experimental until stated otherwise.
 
 ## Split
 
