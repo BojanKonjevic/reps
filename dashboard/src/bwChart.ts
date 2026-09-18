@@ -1,5 +1,5 @@
-import { fit, putText, LC, TC, GC, drawYAxis } from './charts';
-import { fmtD, fmtTick } from './utils';
+import { fit, putText, LC, TC, drawYAxis } from './charts';
+import { fmtD } from './utils';
 import { niceTicks } from './utils';
 
 export function bwline(

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { GROUPS } from '../charts';
 
 describe('volume aggregation logic', () => {
   const blank = () => ({

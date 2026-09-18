@@ -1,6 +1,5 @@
 import { fmtV, fmtD, isDate } from './utils';
 import {
-  fit,
   putText,
   LC,
   TC,
