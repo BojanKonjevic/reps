@@ -166,7 +166,8 @@ def test_range_returns_correct_date_bounds(log_module):
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', ?)", (d, note))
         c.commit()
         wid = cur.lastrowid
-        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'bench', 100, 5, '', datetime('now'), 'chest')", (wid,))
+        cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
+        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
     output = capture_stdout(log_module.cmd_range, d1, d2)
     data = json.loads(output)
@@ -187,8 +188,8 @@ def test_update_muscles_uses_cleaning(log_module):
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     log_module.cmd_update(set_id, "muscles", " chest , back , CHEST ")
-    updated = c.execute("SELECT muscles FROM sets WHERE id = ?", (set_id,)).fetchone()
-    assert updated["muscles"] == "chest,back"
+    updated = c.execute("SELECT muscle FROM set_muscles WHERE set_id = ? ORDER BY muscle", (set_id,)).fetchall()
+    assert [r["muscle"] for r in updated] == ["back", "chest"]
 
 
 def test_update_exercise_normalizes_case(log_module):
@@ -235,8 +236,9 @@ def test_retag_updates_all_matching_exercises(log_module):
     output = capture_stdout(log_module.cmd_retag, "bench", "chest,triceps")
     data = json.loads(output)
     assert data["updated"] == 2
-    muscles = [r["muscles"] for r in c.execute("SELECT muscles FROM sets").fetchall()]
-    assert all(m == "chest,triceps" for m in muscles)
+    for r in c.execute("SELECT id FROM sets").fetchall():
+        muscles = sorted(x["muscle"] for x in c.execute("SELECT muscle FROM set_muscles WHERE set_id = ?", (r["id"],)).fetchall())
+        assert muscles == ["chest", "triceps"]
 
 
 def test_start_reuses_open_workout(log_module):

@@ -1,4 +1,4 @@
-import { fmtV, fmtD, fmtTick, isDate, niceTicks, Ticks } from './utils';
+import { fmtV, fmtD, isDate } from './utils';
 import {
   fit,
   putText,
@@ -14,15 +14,16 @@ import {
   drawValueLabels,
   drawHoverLine,
   drawPoint,
+  drawHoverLine,
+  drawPoint,
   drawHoverPoint,
   drawLine,
-  ChartContext,
 } from './charts';
 import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
 import { bwline } from './bwChart';
 import { stacked } from './stackedChart';
-import { computePRs } from './prs';
+import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
 import { tipRow, showTip, hideTip } from './tip';
 
@@ -49,7 +50,17 @@ let PR: PRData | null = null;
 let DASHY = 0;
 let VIEW = 'dash';
 const HIDDEN = new Set<string>();
-const HADHIDDEN = false;
+let HADHIDDEN = false;
+try {
+  const raw = localStorage.getItem('reps-hidden');
+  if (raw !== null) {
+    HADHIDDEN = true;
+    HIDDEN.clear();
+    for (const n of JSON.parse(raw)) HIDDEN.add(n);
+  }
+} catch {
+  // storage unavailable (e.g. Workers runtime), start fresh
+}
 let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
 let BWDATA: { date: string; kg: number }[] = [];
 
@@ -191,6 +202,7 @@ function render() {
   );
   TREND = { days, series, top };
   PR = computePRs(W, S);
+  refreshTrend();
   D = { W, S, BW };
   const noted: Record<string, string> = {};
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
@@ -631,6 +643,119 @@ function showLift(ex: string) {
     }
   });
   window.scrollTo(0, 0);
+}
+
+function refreshTrend() {
+  drawTrendChips();
+  drawMinis();
+}
+function drawMinis() {
+  const grid = document.getElementById('trendGrid')!;
+  grid.innerHTML = '';
+  const shown = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
+  if (!shown.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'everything hidden, use All to bring lifts back';
+    grid.appendChild(e);
+    return;
+  }
+  const wd: Record<number, string> = {};
+  for (const w of SNAP.workouts) wd[w.id] = w.date;
+  const prDate: Record<string, Record<string, boolean>> = {};
+  for (const s of SNAP.sets) {
+    if (PR && PR.prIds.has(s.id))
+      (prDate[s.exercise] = prDate[s.exercise] || {})[wd[s.workout_id] || ''] = true;
+  }
+  const jobs: Array<[HTMLCanvasElement, (number | null)[], string, Record<string, boolean>]> = [];
+  shown.forEach(i => {
+    const t = TREND.top[i];
+    const vals = TREND.series[i];
+    const wrap = document.createElement('div');
+    wrap.className = 'mini';
+    const h = document.createElement('div');
+    h.className = 'minititle';
+    const al = document.createElement('a');
+    al.href = '#/l/' + encodeURIComponent(t);
+    al.textContent = t;
+    h.appendChild(al);
+    wrap.appendChild(h);
+    const cv = document.createElement('canvas');
+    wrap.appendChild(cv);
+    wrap.addEventListener('click', ev => {
+      if ((ev.target as HTMLElement).tagName !== 'A') location.hash = '#/l/' + encodeURIComponent(t);
+    });
+    grid.appendChild(wrap);
+    const col = LC[i % LC.length],
+      prs = prDate[t] || {};
+    jobs.push([cv, vals, col, prs]);
+    cv.addEventListener('mousemove', ev => {
+      const r = cv.getBoundingClientRect();
+      const n = vals.length;
+      const pxi = (k: number) => 30 + (r.width - 30 - 6) * (n <= 1 ? 1 : k / (n - 1));
+      let bi = -1,
+        bd = 1e9;
+      for (let k = 0; k < n; k += 1) {
+        if (vals[k] === null) continue;
+        const d = Math.abs(pxi(k) - (ev.clientX - r.left));
+        if (d < bd) {
+          bd = d;
+          bi = k;
+        }
+      }
+      if (bi < 0 || bd > 30) {
+        hideTip();
+        mini(cv, TREND.days, vals, col, prs);
+        return;
+      }
+      mini(cv, TREND.days, vals, col, prs, bi);
+      showTip(TREND.days[bi], [[col, fmtV(vals[bi]!) + (prs[TREND.days[bi]] ? ' PR' : '')]], ev.clientX, ev.clientY);
+    });
+    cv.addEventListener('mouseleave', () => {
+      hideTip();
+      mini(cv, TREND.days, vals, col, prs);
+    });
+  });
+  jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2], j[3]));
+}
+function drawTrendChips() {
+  const lt = document.getElementById('legTrend')!;
+  lt.innerHTML = '';
+  const mkBtn = (label: string, hide: boolean) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      HADHIDDEN = true;
+      if (hide) TREND.top.forEach(t => HIDDEN.add(t));
+      else HIDDEN.clear();
+      saveHidden();
+      refreshTrend();
+    });
+    lt.appendChild(b);
+  };
+  mkBtn('All', false);
+  mkBtn('None', true);
+  TREND.top.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (HIDDEN.has(t) ? ' off' : '');
+    b.setAttribute('aria-pressed', HIDDEN.has(t) ? 'false' : 'true');
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = LC[i % LC.length];
+    b.appendChild(sw);
+    b.appendChild(document.createTextNode(t));
+    b.addEventListener('click', () => {
+      HADHIDDEN = true;
+      if (HIDDEN.has(t)) HIDDEN.delete(t);
+      else HIDDEN.add(t);
+      saveHidden();
+      refreshTrend();
+    });
+    lt.appendChild(b);
+  });
 }
 
 if (typeof window !== 'undefined') {

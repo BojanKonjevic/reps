@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS sets (
   note TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL
 );
+-- NOTE: sets.muscles was dropped in v3 (junction table set_muscles is the
+-- only store). Exports rebuild the comma string from the junction table.
 CREATE INDEX IF NOT EXISTS idx_sets_workout ON sets(workout_id);
 CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise);
 CREATE TABLE IF NOT EXISTS bodyweight (
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS set_muscles (
   PRIMARY KEY (set_id, muscle)
 );
 """
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 # Migration functions - each takes a connection and performs one schema version upgrade
@@ -66,8 +68,17 @@ def _migrate_v1_to_v2(c):
     """)
 
 
+def _migrate_v2_to_v3(c):
+    """Migration v3: drop sets.muscles, junction table is the only store"""
+    try:
+        c.execute("ALTER TABLE sets DROP COLUMN muscles")
+    except sqlite3.OperationalError:
+        pass
+
+
 MIGRATIONS = {
     2: _migrate_v1_to_v2,
+    3: _migrate_v2_to_v3,
 }
 
 
@@ -106,6 +117,27 @@ def clean_muscles(value):
             seen.add(m)
             out.append(m)
     return ",".join(out)
+
+
+def attach_muscles(c, sets):
+    """Attach a sorted comma 'muscles' string to set dicts from the junction table."""
+    ids = [s["id"] for s in sets]
+    if not ids:
+        return [dict(s) for s in sets]
+    rows = c.execute(
+        "SELECT set_id, muscle FROM set_muscles WHERE set_id IN (%s) ORDER BY set_id, muscle"
+        % ",".join("?" * len(ids)),
+        ids,
+    ).fetchall()
+    by_id: dict = {}
+    for r in rows:
+        by_id.setdefault(r["set_id"], []).append(r["muscle"])
+    out = []
+    for s in sets:
+        d = dict(s)
+        d["muscles"] = ",".join(by_id.get(s["id"], []))
+        out.append(d)
+    return out
 
 
 def open_workout(c):
@@ -164,8 +196,8 @@ def cmd_log(exercise, weight, reps, note, muscles):
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute(
-        "INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (wid, exercise, weight, reps, note, created, muscles),
+        "INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, ?, ?, ?, ?, ?)",
+        (wid, exercise, weight, reps, note, created),
     )
     set_id = cur.lastrowid
     # Populate set_muscles junction table
@@ -184,7 +216,7 @@ def cmd_update(set_id, field, value):
         value = value.strip().lower()
     if field == "muscles":
         value = clean_muscles(value)
-        # Update set_muscles junction table
+        # Junction table is the only store for per-set muscles
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in value.split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -209,7 +241,8 @@ def cmd_update(set_id, field, value):
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
-    c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
+    if field != "muscles":
+        c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
     print(json.dumps({"updated": int(set_id)}))
 
@@ -235,7 +268,7 @@ def cmd_today():
         print(json.dumps({"open": False}))
         return
     sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-    print(json.dumps({"open": True, "workout": dict(w), "sets": [dict(s) for s in sets]}, indent=2))
+    print(json.dumps({"open": True, "workout": dict(w), "sets": attach_muscles(c, sets)}, indent=2))
 
 
 def cmd_exercises():
@@ -250,7 +283,7 @@ def cmd_history(exercise, limit):
         "SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY s.id DESC LIMIT ?",
         (exercise.strip().lower(), int(limit)),
     ).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
+    print(json.dumps(attach_muscles(c, rows), indent=2))
 
 
 def cmd_stats():
@@ -266,7 +299,7 @@ def cmd_stats():
 def cmd_export():
     c = conn()
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
-    sets = [dict(r) for r in c.execute("SELECT * FROM sets ORDER BY id").fetchall()]
+    sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
     print(json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}, indent=2))
 
@@ -476,7 +509,7 @@ def cmd_sync():
     if integrity != "ok":
         sys.exit("database integrity check failed: " + integrity)
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
-    sets = [dict(r) for r in c.execute("SELECT * FROM sets ORDER BY id").fetchall()]
+    sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
     payload = json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}).encode()
     req = urllib.request.Request(url + "/sync", data=payload, method="PUT",
@@ -512,17 +545,18 @@ def cmd_retag(exercise, muscles, bodyweight=False):
     is_bw = existing["is_bodyweight_only"] if existing else 0
     if bodyweight:
         is_bw = 1
-    cur = c.execute("UPDATE sets SET muscles = ? WHERE exercise = ?", (muscles, exercise))
-    # Update set_muscles for all affected sets
+    # Junction table is the only store for per-set muscles
     c.execute("DELETE FROM set_muscles WHERE set_id IN (SELECT id FROM sets WHERE exercise = ?)", (exercise,))
+    updated = 0
     for set_row in c.execute("SELECT id FROM sets WHERE exercise = ?", (exercise,)).fetchall():
         set_id = set_row["id"]
         for muscle in muscles.split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
+        updated += 1
     c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               (exercise, muscles, is_bw))
     c.commit()
-    print(json.dumps({"retag_exercise": exercise, "updated": cur.rowcount, "is_bodyweight_only": is_bw}))
+    print(json.dumps({"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": is_bw}))
 
 
 def cmd_delete_set(set_id):
@@ -574,7 +608,7 @@ def cmd_session(datestr):
     out = []
     for w in wrows:
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-        out.append({"workout": dict(w), "sets": [dict(s) for s in sets]})
+        out.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
     print(json.dumps({"date": day, "workouts": out}, indent=2))
 
 
@@ -586,7 +620,7 @@ def cmd_range(fromstr, tostr):
     out = []
     for w in wrows:
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-        out.append({"workout": dict(w), "sets": [dict(s) for s in sets]})
+        out.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
     print(json.dumps({"from": d0, "to": d1, "workouts": out}, indent=2))
 
 
@@ -634,7 +668,7 @@ def cmd_context(n):
     recent = []
     for w in reversed(wrows):
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-        recent.append({"workout": dict(w), "sets": [dict(s) for s in sets]})
+        recent.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
     best = []
     for r in c.execute("SELECT exercise, COUNT(*) n, MAX(weight) max_w FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         last = c.execute(

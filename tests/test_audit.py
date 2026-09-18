@@ -34,12 +34,16 @@ def test_audit_missing_muscle_tags(audit_db):
     log, c = audit_db
     log.cmd_start("test")
     log.cmd_log("bench", 100, 5, "", "chest")
-    # Insert directly to bypass validation for audit test
+    # Insert directly to bypass validation for audit test (no junction rows)
     wid = c.execute("SELECT id FROM workouts WHERE status = 'open'").fetchone()["id"]
-    c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'squat', 150, 5, '', datetime('now'), '')", (wid,))
+    c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'squat', 150, 5, '', datetime('now'))", (wid,))
     c.commit()
-    
-    missing = c.execute("SELECT id, exercise FROM sets WHERE muscles = '' OR muscles IS NULL").fetchall()
+
+    missing = c.execute("""
+        SELECT s.id, s.exercise FROM sets s
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        WHERE sm.muscle IS NULL
+    """).fetchall()
     assert len(missing) == 1
     assert missing[0]["exercise"] == "squat"
 
@@ -72,18 +76,25 @@ def test_audit_muscle_mapping_drift(audit_db):
     log.cmd_log("squat", 150, 5, "", "quads,glutes")  # creates mapping quads,glutes
     log.cmd_end("done")
     
-    # Manually corrupt one set's muscles
-    c.execute("UPDATE sets SET muscles = 'back' WHERE exercise = 'bench'")
+    # Manually corrupt one set's muscles via the junction table
+    bench_id = c.execute("SELECT id FROM sets WHERE exercise = 'bench'").fetchone()["id"]
+    c.execute("DELETE FROM set_muscles WHERE set_id = ?", (bench_id,))
+    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'back')", (bench_id,))
     c.commit()
-    
-    # Check for drift
+
+    # Check for drift (compare as sets, order-insensitive)
     drift = c.execute("""
-        SELECT s.id, s.exercise, s.muscles as logged, m.muscles as mapped
+        SELECT s.id, s.exercise,
+               group_concat(sm.muscle, ',') as logged,
+               m.muscles as mapped
         FROM sets s
         JOIN lift_muscle_map m ON m.exercise = s.exercise
-        WHERE s.muscles != m.muscles
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        GROUP BY s.id
     """).fetchall()
-    
+    drift = [d for d in drift
+             if set((d["logged"] or "").split(",")) != set(d["mapped"].split(","))]
+
     assert len(drift) == 1
     assert drift[0]["exercise"] == "bench"
     assert drift[0]["logged"] == "back"
@@ -100,7 +111,8 @@ def test_audit_stale_open_workout(audit_db):
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', 'stale')", (d_yesterday,))
     c.commit()
     wid = cur.lastrowid
-    c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'bench', 100, 5, '', datetime('now'), 'chest')", (wid,))
+    cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
+    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
     
     # Also create a fresh open workout
@@ -168,7 +180,8 @@ def test_audit_progression_jumps(audit_db):
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
         wid = cur.lastrowid
-        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'bench', ?, 5, '', datetime('now'), 'chest')", (wid, w))
+        cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, w))
+        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
     
     # Add an implausible jump (20%) on a later date
@@ -176,7 +189,8 @@ def test_audit_progression_jumps(audit_db):
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
     c.commit()
     wid = cur.lastrowid
-    c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'bench', 132, 5, '', datetime('now'), 'chest')", (wid,))
+    cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 132, 5, '', datetime('now'))", (wid,))
+    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
     
     # Check for jumps > 1% (intermediate compound bound from SCIENCE.md)
@@ -222,15 +236,17 @@ def test_audit_volume_below_mev(audit_db):
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
         wid = cur.lastrowid
-        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'bench', 100, 5, '', datetime('now'), 'chest')", (wid,))
-        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created, muscles) VALUES (?, 'fly', 20, 10, '', datetime('now'), 'chest')", (wid,))
+        for ex, wt, rp in [("bench", 100, 5), ("fly", 20, 10)]:
+            cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, ?, ?, ?, '', datetime('now'))", (wid, ex, wt, rp))
+            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
-    
+
     # Compute weekly chest sets
     weeks = c.execute("""
         SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
         FROM sets s JOIN workouts w ON w.id = s.workout_id
-        WHERE s.muscles LIKE '%chest%'
+        JOIN set_muscles sm ON sm.set_id = s.id
+        WHERE sm.muscle = 'chest'
         GROUP BY week ORDER BY week
     """).fetchall()
     
