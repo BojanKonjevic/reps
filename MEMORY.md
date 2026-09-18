@@ -139,6 +139,8 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.
 
+- Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day).
+
 ## Monthly rollups
 
 One short block per month, written on request at month end. Trend plus caveats, not raw sets. Raw sets stay in SQLite.
