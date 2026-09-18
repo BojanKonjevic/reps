@@ -4,7 +4,9 @@ describe('volume aggregation logic', () => {
   const blank = () => ({
     chest: 0,
     back: 0,
-    shoulders: 0,
+    'front delt': 0,
+    'side delt': 0,
+    'rear delt': 0,
     biceps: 0,
     triceps: 0,
     quads: 0,
@@ -12,6 +14,7 @@ describe('volume aggregation logic', () => {
     glutes: 0,
     abs: 0,
     forearms: 0,
+    adductors: 0,
   });
 
   it('aggregates stored muscles per set', () => {
@@ -50,5 +53,20 @@ describe('volume aggregation logic', () => {
     );
     expect(weeks[k].chest).toBe(3);
     expect(weeks[k].triceps).toBe(1);
+  });
+
+  it('counts split delt heads and adductors', () => {
+    const weeks: Record<string, Record<string, number>> = {};
+    const k = '2026 W1';
+    weeks[k] = blank();
+    ['chest,front delt', 'side delt', 'rear delt', 'adductors'].forEach(m =>
+      m.split(',').forEach(g => {
+        if (g in weeks[k]) weeks[k][g] += 1;
+      })
+    );
+    expect(weeks[k]['front delt']).toBe(1);
+    expect(weeks[k]['side delt']).toBe(1);
+    expect(weeks[k]['rear delt']).toBe(1);
+    expect(weeks[k].adductors).toBe(1);
   });
 });

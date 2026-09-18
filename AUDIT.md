@@ -31,7 +31,8 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 4. Implausible progression jumps
 
-- For each exercise in `history` (recent 30 sets), compute session-to-session e1RM change. Flag any jump > SCIENCE.md rate-of-progression upper bound for that lift type (novice compound 2%/session, intermediate 1%, advanced 0.5%, isolation 1.5%) unless the set note contains "deload", "return", "program change", "injury", or similar.
+- For each exercise in `history` (recent 30 sets), compute session-to-session e1RM change. The deterministic `audit` command flags jumps above a proxy bound: 2% for multi-muscle lifts, 1.5% for single-muscle lifts (the loosest plausible SCIENCE.md rates: novice compound 2%, isolation 1.5%). Skips jumps where set or workout notes on either session explain them (keywords: deload, return, program change, injury, technique, sick, travel).
+- The agent's manual pass may apply the finer per-type bounds (novice compound 2%/session, intermediate 1%, advanced 0.5%, isolation 1.5%) on top.
 - Evidence: set ids, dates, weights, reps, e1RM before/after, % jump, bound used.
 - Fix: verify data entry, add explanatory note, or `update` weight/reps.
 
@@ -55,7 +56,7 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 8. Volume vs frequency guidance
 
-- For each tracked muscle in MEMORY.md Tracked muscles: compute weekly sets/week from `range` (last 8 weeks). Compare against SCIENCE.md frequency guidance (2–3 for upper, 2 for legs, 3–4 for abs). Flag muscle groups averaging < MEV (from SCIENCE.md volume landmarks) for ≥ 4 consecutive weeks with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization).
+- For each tracked muscle in MEMORY.md Tracked muscles: compute weekly sets/week from `range` (last 8 weeks). Compare against SCIENCE.md frequency guidance (2–3 for upper, 2 for legs, 3–4 for abs). Flag muscle groups averaging < MEV (from SCIENCE.md volume landmarks) for ≥ 4 consecutive weeks with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization). Tracked muscles with no SCIENCE.md landmark (currently front delt, rear delt, adductors) are skipped by the deterministic check.
 - Evidence: muscle, weekly sets/week for each week, MEV, Active rules.
 - Fix: add volume, or add Active rule explaining.
 

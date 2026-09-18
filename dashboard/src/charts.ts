@@ -15,7 +15,9 @@ export const STARC = '#e6c400';
 export const MC: Record<string, string> = {
   chest: '#ffa726',
   back: '#66bb6a',
-  shoulders: '#e6c400',
+  'front delt': '#e6c400',
+  'side delt': '#9ccc65',
+  'rear delt': '#ffab91',
   biceps: '#42a5f5',
   triceps: '#ef5350',
   quads: '#ab47bc',
@@ -23,11 +25,14 @@ export const MC: Record<string, string> = {
   glutes: '#ec407a',
   abs: '#b0bec5',
   forearms: '#8d6e63',
+  adductors: '#5c6bc0',
 };
 export const GROUPS = [
   'chest',
   'back',
-  'shoulders',
+  'front delt',
+  'side delt',
+  'rear delt',
   'biceps',
   'triceps',
   'quads',
@@ -35,6 +40,7 @@ export const GROUPS = [
   'glutes',
   'abs',
   'forearms',
+  'adductors',
 ];
 
 export interface ChartContext {

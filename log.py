@@ -299,7 +299,9 @@ def parse_mev_from_science():
     name_map = {
         'chest': 'chest',
         'back': 'back',
-        'shoulders (side delt)': 'shoulders',
+        'front delt': 'front delt',
+        'side delt': 'side delt',
+        'rear delt': 'rear delt',
         'biceps': 'biceps',
         'triceps': 'triceps',
         'quads': 'quads',
@@ -307,8 +309,9 @@ def parse_mev_from_science():
         'glutes': 'glutes',
         'abs': 'abs',
         'forearms': 'forearms',
+        'adductors': 'adductors',
     }
-    opinion_fallback = {'forearms': 6}
+    opinion_fallback = {'forearms': 6, 'adductors': 4}
     try:
         with open(SCIENCE_FILE, 'r') as f:
             content = f.read()
@@ -389,8 +392,12 @@ def cmd_audit():
             flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
 
     # Check 4: Implausible progression jumps
+    # Deterministic proxy for AUDIT.md check 4: the per-type SCIENCE.md bounds need
+    # training age, which the db does not track, so flag only jumps exceeding the
+    # loosest plausible rate (novice compound 2% for multi-muscle lifts, isolation
+    # 1.5% for single-muscle lifts). Jumps explained by set/workout notes are skipped.
     sets = c.execute("""
-        SELECT s.id, s.exercise, s.weight, s.reps, w.date,
+        SELECT s.id, s.exercise, s.weight, s.reps, w.date, s.note AS set_note, w.notes AS workout_notes,
                s.weight * (1 + s.reps / 30.0) as e1rm
         FROM sets s JOIN workouts w ON w.id = s.workout_id
         WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
@@ -400,12 +407,17 @@ def cmd_audit():
     for s in sets:
         by_ex.setdefault(s["exercise"], []).append(s)
 
+    explained = ("deload", "return", "program change", "injury", "technique", "sick", "travel")
+
     for ex, ex_sets in by_ex.items():
         by_date = {}
+        notes_by_date = {}
         for s in ex_sets:
             d = s["date"]
             if d not in by_date or s["e1rm"] > by_date[d]:
                 by_date[d] = s["e1rm"]
+            blob = ((s["set_note"] or "") + " " + (s["workout_notes"] or "")).lower()
+            notes_by_date[d] = (notes_by_date.get(d, "") + " " + blob).strip()
         dates = sorted(by_date.keys())
         row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (ex,)).fetchone()
         groups = len((row["muscles"] or "").split(",")) if row and row["muscles"] else 1
@@ -416,6 +428,8 @@ def cmd_audit():
             if prev > 0:
                 pct = (curr - prev) / prev * 100
                 if pct > bound:
+                    if any(k in notes_by_date.get(dates[i-1], "") or k in notes_by_date.get(dates[i], "") for k in explained):
+                        continue
                     flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump, bound {bound}%) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
 
     # Check 1: Exercise name duplicates

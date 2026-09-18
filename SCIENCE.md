@@ -2,23 +2,32 @@
 
 Hypertrophy training reference. Precedence: my logged data in MEMORY.md > SCIENCE.md defaults > agent instinct. Every entry tagged by confidence tier: Settled (near-consensus), Contested (real disagreement), Opinion (mine, thin evidence). Trust hierarchy: 1) meta-analyses/systematic reviews, 2) individual RCTs, 3) practitioner-researcher synthesis (RP/Israetel, Helms, Trexler), 4) anecdotal/forum — tier 4 only as color, never sole basis for a number.
 
-Last reviewed: Sep 17 2026
+Last reviewed: Sep 18 2026
 
 ## Volume landmarks (sets/week)
 
-| Muscle                | MEV | MAV   | MRV | Tier      | Source                             |
-| --------------------- | --- | ----- | --- | --------- | ---------------------------------- |
-| Chest                 | 8   | 14–20 | 25+ | Settled   | Schoenfeld 2017 meta, RP synthesis |
-| Back                  | 10  | 14–22 | 28+ | Settled   | Schoenfeld 2017, Israetel RP       |
-| Shoulders (side delt) | 6   | 12–18 | 22+ | Settled   | Schoenfeld 2017, Helms 2019        |
-| Biceps                | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                |
-| Triceps               | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                |
-| Quads                 | 8   | 12–18 | 24+ | Settled   | Schoenfeld 2017, RP                |
-| Hamstrings            | 6   | 10–16 | 20+ | Contested | Less direct data, extrapolated     |
-| Glutes                | 6   | 12–18 | 24+ | Contested | Few direct studies, RP             |
-| Abs                   | 6   | 12–20 | 25+ | Contested | Limited hypertrophy data           |
+| Muscle     | MEV | MAV   | MRV | Tier      | Source                                              |
+| ---------- | --- | ----- | --- | --------- | --------------------------------------------------- |
+| Chest      | 8   | 14–20 | 25+ | Settled   | Schoenfeld 2017 meta, RP synthesis                  |
+| Back       | 10  | 14–22 | 28+ | Settled   | Schoenfeld 2017, Israetel RP                        |
+| Front delt | 0*  | 4–12  | 12+ | Opinion   | RP front delt guide, no direct RCT dose-response    |
+| Side delt  | 6   | 12–18 | 22+ | Settled   | Schoenfeld 2017, Helms 2019                         |
+| Rear delt  | 6   | 12–20 | 25+ | Opinion   | RP rear delt guide, practitioner synthesis          |
+| Biceps     | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                                 |
+| Triceps    | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                                 |
+| Quads      | 8   | 12–18 | 24+ | Settled   | Schoenfeld 2017, RP                                 |
+| Hamstrings | 6   | 10–16 | 20+ | Contested | Less direct data, extrapolated                      |
+| Glutes     | 6   | 12–18 | 24+ | Contested | Few direct studies, RP                              |
+| Adductors  | 4*  | 4–8   | 12+ | Opinion   | No direct landmarks, extrapolated (see note)        |
+| Abs        | 6   | 12–20 | 25+ | Contested | Limited hypertrophy data                            |
 
 MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
+
+Front delt *: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
+
+Rear delt: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.
+
+Adductors: no trusted direct-volume landmarks, literature too thin for numbers. Adductor magnus grows from squat-pattern work (Plotkin et al. 2023 RCT: adductor mCSA up ~2.5 cm² after 9 weeks of back squat; Kubo et al. 2019, MRI volume gains), with wider stance increasing adductor recruitment (McCaw & Melrose; Hopkins 2024). Current plan uses ~4 direct machine sets/week across 2 exposures on top of leg press and hack squat indirect work (Opinion).
 
 Forearms: no trusted landmarks, literature too thin for numbers. Current plan uses ~6 sets/week across 3 exposures (Opinion). Small, slow-twitch dominant, low systemic cost, same logic as abs guidance.
 
@@ -28,15 +37,18 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 | ---------- | ------------- | --------- | ------------------------------------------------- |
 | Chest      | 2–3           | Settled   | Schoenfeld 2016 meta (2+ beats 1 at equal volume) |
 | Back       | 2–3           | Settled   | Same                                              |
-| Shoulders  | 2–3           | Settled   | Same                                              |
+| Front delt | 2–3           | Contested | Covered by pressing frequency, RP front delt guide|
+| Side delt  | 2–3           | Settled   | Same                                              |
+| Rear delt  | 2–4           | Contested | RP rear delt guide (2 minimum, 3–5 better)        |
 | Biceps     | 2–3           | Settled   | Same                                              |
 | Triceps    | 2–3           | Settled   | Same                                              |
 | Quads      | 2             | Settled   | Damage/recovery profile, RP                       |
 | Hamstrings | 2             | Settled   | Same                                              |
 | Glutes     | 2–3           | Contested | Can tolerate more, individual                     |
+| Adductors  | 2             | Opinion   | Matches current plan, compound pattern            |
 | Abs        | 3–4           | Contested | Low damage, high recoverability                   |
 
-Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range.
+Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 4x and rear delts at 3x are priority deviations, see Personal deviations.
 
 ## Rep range guidance
 
@@ -86,13 +98,17 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | ----------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
 | 1–2 compounds + 1–2 isolations per muscle/session                                                           | Opinion   | RP, Helms template                             |
 | Movement pattern variety across week (vertical/horizontal push/pull)                                        | Settled   | Joint health, motor unit coverage              |
+| Delt heads split: front via pressing, side and rear via direct isolation                                    | Opinion   | RP delt guides                                 |
 | Lengthened-position bias for hypertrophy (stretch under load)                                               | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
 | Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023                    |
 
 ## Personal deviations
 
 - Sep 18 2026: Upper/Lower rotation, rest after Upper B and Lower B, Opinion
+- Sep 18 2026: delts tracked as front/side/rear heads; front MEV 0 via pressing volume, rear MEV 6 direct, Opinion
+- Sep 18 2026: adductors tracked at ~4 direct sets/week across 2 exposures plus leg press/hack squat indirect work, Opinion
 - Sep 18 2026: side delts 4x/week (~12 sets), above the default 2-3x frequency. Priority muscle, low per-session dose, tolerated. Opinion
+- Sep 18 2026: rear delts 3x/week (~6 sets at MEV), priority muscle alongside side delts. Opinion
 - Sep 18 2026: abs 4/wk at 2x, below MEV 6 and below the 3-4x frequency guidance. Candidate fix is crunch x3 on both lower days. Opinion
 - Sep 18 2026: no direct glute work, RDL plus leg press judged sufficient, Opinion
 - Sep 17 2026: Every set taken to failure (my style) → volume managed accordingly, Opinion

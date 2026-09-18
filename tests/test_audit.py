@@ -2,6 +2,7 @@
 """Deterministic audit checks - pytest version of AUDIT.md checklist items that can be automated."""
 
 import json
+import io
 import os
 import sys
 import tempfile
@@ -256,6 +257,50 @@ def test_audit_volume_below_mev(audit_db):
 
     # With only 2 sets/week, all 5 weeks are below MEV
     assert low_weeks == 5
+
+
+def _seed_jump(c, second_notes):
+    """Two done workouts 3 days apart: bench 100x5 then 130x5 (~30% e1RM jump)."""
+    from datetime import date, timedelta
+    base = date.today() - timedelta(days=9)
+    for offset, weight, notes in [(0, 100, ""), (3, 130, second_notes)]:
+        d = (base + timedelta(days=offset)).isoformat()
+        cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', ?)", (d, notes))
+        c.commit()
+        wid = cur.lastrowid
+        cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, weight))
+        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
+        c.commit()
+
+
+def _run_cmd_audit(log):
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+    try:
+        log.cmd_audit()
+        return sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+
+def test_cmd_audit_flags_unexplained_jump(audit_db):
+    """cmd_audit check 4: unexplained ~30% e1RM jump is flagged."""
+    log, c = audit_db
+    _seed_jump(c, "")
+    out = _run_cmd_audit(log)
+    flags = json.loads(out.strip().splitlines()[-1])["flags"]
+    jumps = [f for f in flags if f["check"] == "progression_jump"]
+    assert len(jumps) == 1
+    assert jumps[0]["severity"] == "high"
+
+
+def test_cmd_audit_skips_explained_jump(audit_db):
+    """cmd_audit check 4: jump explained by workout note is skipped."""
+    log, c = audit_db
+    _seed_jump(c, "return after deload week")
+    out = _run_cmd_audit(log)
+    flags = json.loads(out.strip().splitlines()[-1])["flags"]
+    assert [f for f in flags if f["check"] == "progression_jump"] == []
 
 
 if __name__ == "__main__":

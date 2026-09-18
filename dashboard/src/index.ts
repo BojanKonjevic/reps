@@ -237,7 +237,9 @@ function render() {
   const blank = () => ({
     chest: 0,
     back: 0,
-    shoulders: 0,
+    'front delt': 0,
+    'side delt': 0,
+    'rear delt': 0,
     biceps: 0,
     triceps: 0,
     quads: 0,
@@ -245,6 +247,7 @@ function render() {
     glutes: 0,
     abs: 0,
     forearms: 0,
+    adductors: 0,
   });
   const weeks: Record<string, Record<string, number>> = {};
   for (const s of S) {

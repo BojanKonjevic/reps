@@ -12,9 +12,9 @@ const MOCK_SNAPSHOT = {
   sets: [
     { id: 1, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 5, note: '', created: '2026-09-10T18:00:00', muscles: 'chest' },
     { id: 2, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 4, note: '', created: '2026-09-10T18:05:00', muscles: 'chest' },
-    { id: 3, workout_id: 1, exercise: 'overhead press', weight: 42.5, reps: 7, note: '', created: '2026-09-10T18:15:00', muscles: 'shoulders' },
+    { id: 3, workout_id: 1, exercise: 'overhead press', weight: 42.5, reps: 7, note: '', created: '2026-09-10T18:15:00', muscles: 'front delt' },
     { id: 4, workout_id: 2, exercise: 'flat barbell bench press', weight: 92.5, reps: 5, note: '', created: '2026-09-14T18:00:00', muscles: 'chest' },
-    { id: 5, workout_id: 2, exercise: 'lat pulldown', weight: 70, reps: 8, note: '', created: '2026-09-14T18:10:00', muscles: 'back' },
+    { id: 5, workout_id: 2, exercise: 'straight bar pulldown', weight: 70, reps: 8, note: '', created: '2026-09-14T18:10:00', muscles: 'back' },
   ],
   bodyweight: [
     { id: 1, date: '2026-09-13', kg: 84.2, note: 'fasted' },

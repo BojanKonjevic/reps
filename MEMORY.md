@@ -88,7 +88,7 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 ## Tracked muscles
 
-chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, abs, forearms. Never neck, calves, traps. New movements mapping elsewhere get asked about once.
+chest, back, front delt, side delt, rear delt, biceps, triceps, quads, hamstrings, glutes, abs, forearms, adductors. Never neck, calves, traps. New movements mapping elsewhere get asked about once.
 
 ## Goals
 
@@ -102,9 +102,38 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 
 - back squat -> quads, glutes
 - dips -> triceps (my form, elbows tucked, triceps main)
-- flat barbell bench press -> chest, shoulders (front delts work too, triceps excluded by convention)
-- lat pulldown -> back
+- flat barbell bench press -> chest, front delt (triceps excluded by convention)
+- incline barbell bench press -> chest, front delt
 - reverse-grip smith incline press -> chest (upper chest emphasis)
+- hammer strength press -> chest
+- machine shoulder press -> front delt
+- pec deck -> chest
+- hammer strength row -> back
+- straight bar pulldown -> back (attachment matters, logged under this name, not lat pulldown)
+- cable pullover -> back
+- face pull -> rear delt
+- cable rear delt fly -> rear delt
+- cable lat raise -> side delt
+- machine lat raise -> side delt
+- hack squat -> quads
+- leg press -> quads, glutes
+- rdl -> hamstrings, glutes
+- leg extension -> quads
+- seated leg curl -> hamstrings
+- lying leg curl -> hamstrings
+- adductor machine -> adductors
+- crunch machine -> abs
+- bayesian curl -> biceps
+- preacher curl -> biceps
+- ezbar curl -> biceps
+- incline dumbbell curl -> biceps
+- rope hammer curl -> biceps, forearms
+- cable reverse curl -> forearms
+- cable pushdown -> triceps
+- unilateral cable pushdown -> triceps
+- ezbar skullcrusher -> triceps
+- cable wrist curl -> forearms
+- cable wrist extension -> forearms
 
 ## State
 
