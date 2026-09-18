@@ -41,12 +41,11 @@ Slots in training order with working set counts, one per line, interchangeable m
 1. hack squat x2
 2. leg press x2
 3. leg extension x3
-4. seated leg curl x2
-5. lying leg curl x2
-6. adductor machine x2
-7. crunch machine x3
-8. machine lat raise x2
-9. cable wrist curl x2
+4. seated leg curl x3
+5. adductor machine x2
+6. crunch machine x3
+7. machine lat raise x2
+8. cable wrist curl x2
 
 ### Upper B
 
