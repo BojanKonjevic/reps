@@ -683,7 +683,8 @@ function drawMinis() {
     const cv = document.createElement('canvas');
     wrap.appendChild(cv);
     wrap.addEventListener('click', ev => {
-      if ((ev.target as HTMLElement).tagName !== 'A') location.hash = '#/l/' + encodeURIComponent(t);
+      if ((ev.target as HTMLElement).tagName !== 'A')
+        location.hash = '#/l/' + encodeURIComponent(t);
     });
     grid.appendChild(wrap);
     const col = LC[i % LC.length],
@@ -709,7 +710,12 @@ function drawMinis() {
         return;
       }
       mini(cv, TREND.days, vals, col, prs, bi);
-      showTip(TREND.days[bi], [[col, fmtV(vals[bi]!) + (prs[TREND.days[bi]] ? ' PR' : '')]], ev.clientX, ev.clientY);
+      showTip(
+        TREND.days[bi],
+        [[col, fmtV(vals[bi]!) + (prs[TREND.days[bi]] ? ' PR' : '')]],
+        ev.clientX,
+        ev.clientY
+      );
     });
     cv.addEventListener('mouseleave', () => {
       hideTip();
