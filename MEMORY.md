@@ -38,9 +38,9 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 ### Lower A
 
-1. leg extension x3
-2. hack squat x2
-3. leg press x2
+1. hack squat x2
+2. leg press x2
+3. leg extension x3
 4. seated leg curl x2
 5. lying leg curl x2
 6. adductor machine x2
@@ -63,8 +63,8 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 ### Upper C
 
-1. pec deck x3
-2. hammer strength press x2
+1. hammer strength press x2
+2. pec deck x3
 3. cable pullover x2
 4. hammer strength row x2
 5. preacher curl x2
