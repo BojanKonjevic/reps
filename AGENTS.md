@@ -52,7 +52,7 @@ Default to asking. Only skip the question when the movement is extremely clearly
 
 1. Check `MOVEMENTS.md` Lift mapping first. A recorded mapping wins, no re-asking. But a mapping covers exactly the lift named, never its variants: the flat bench mapping does not cover incline smith underhand, even when a convention looks extendable. When tempted to extend, still ask.
 2. If unmapped and not extremely clear, ask which groups it trains, log with `muscles=a,b`.
-3. Write the answer into the movement's subsection in MOVEMENTS.md. If the user corrects an old mapping, fix past sets with `retag <exercise> <muscles>` too.
+3. Write the answer into the movement's subsection in MOVEMENTS.md as `- <movement> -> <muscles>` (for example `- rope hammer curl -> biceps, forearms`), keeping setup notes as further bullets. If the user corrects an old mapping, fix past sets with `retag <exercise> <muscles>` too.
 
 Form and intent matter: dips done upright are chest, done leaning forward with elbows tucked are triceps. When form changes the muscles, ask, don't assume from the name alone.
 

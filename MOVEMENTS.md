@@ -82,144 +82,144 @@ Per-movement facts: muscle mapping (asked once and recorded) plus setup and logg
 
 ### back squat
 
-- muscles: quads, glutes
+- back squat -> quads, glutes
 
 ### dips
 
-- muscles: triceps
+- dips -> triceps
 - my form, elbows tucked, triceps main
 
 ### flat barbell bench press
 
-- muscles: chest, front delt
+- flat barbell bench press -> chest, front delt
 - triceps excluded by convention
 
 ### incline barbell bench press
 
-- muscles: chest, front delt
+- incline barbell bench press -> chest, front delt
 
 ### reverse-grip smith incline press
 
-- muscles: chest
+- reverse-grip smith incline press -> chest
 - upper chest emphasis
 
 ### hammer strength press
 
-- muscles: chest
+- hammer strength press -> chest
 
 ### machine shoulder press
 
-- muscles: front delt
+- machine shoulder press -> front delt
 - neutral grip, slight lean for upper chest
 
 ### pec deck
 
-- muscles: chest
+- pec deck -> chest
 
 ### hammer strength row
 
-- muscles: back
+- hammer strength row -> back
 - logged as total both sides (45 per side = 90)
 
 ### straight bar pulldown
 
-- muscles: back
+- straight bar pulldown -> back
 - attachment matters, logged under this name, not lat pulldown
 
 ### cable pullover
 
-- muscles: back
+- cable pullover -> back
 
 ### face pull
 
-- muscles: rear delt
+- face pull -> rear delt
 - max height
 
 ### cable rear delt fly
 
-- muscles: rear delt
+- cable rear delt fly -> rear delt
 
 ### cable lat raise
 
-- muscles: side delt
+- cable lat raise -> side delt
 
 ### machine lat raise
 
-- muscles: side delt
+- machine lat raise -> side delt
 
 ### hack squat
 
-- muscles: quads
+- hack squat -> quads
 
 ### leg press
 
-- muscles: quads, glutes
+- leg press -> quads, glutes
 
 ### rdl
 
-- muscles: hamstrings, glutes
+- rdl -> hamstrings, glutes
 
 ### leg extension
 
-- muscles: quads
+- leg extension -> quads
 
 ### seated leg curl
 
-- muscles: hamstrings
+- seated leg curl -> hamstrings
 
 ### lying leg curl
 
-- muscles: hamstrings
+- lying leg curl -> hamstrings
 
 ### adductor machine
 
-- muscles: adductors
+- adductor machine -> adductors
 
 ### crunch machine
 
-- muscles: abs
+- crunch machine -> abs
 
 ### bayesian curl
 
-- muscles: biceps
+- bayesian curl -> biceps
 - cable below 8
 
 ### preacher curl
 
-- muscles: biceps
+- preacher curl -> biceps
 
 ### ezbar curl
 
-- muscles: biceps
+- ezbar curl -> biceps
 
 ### incline dumbbell curl
 
-- muscles: biceps
+- incline dumbbell curl -> biceps
 
 ### rope hammer curl
 
-- muscles: biceps, forearms
+- rope hammer curl -> biceps, forearms
 
 ### cable reverse curl
 
-- muscles: forearms
+- cable reverse curl -> forearms
 
 ### cable pushdown
 
-- muscles: triceps
+- cable pushdown -> triceps
 
 ### unilateral cable pushdown
 
-- muscles: triceps
+- unilateral cable pushdown -> triceps
 
 ### ezbar skullcrusher
 
-- muscles: triceps
+- ezbar skullcrusher -> triceps
 
 ### cable wrist curl
 
-- muscles: forearms
+- cable wrist curl -> forearms
 
 ### cable wrist extension
 
-- muscles: forearms
+- cable wrist extension -> forearms
