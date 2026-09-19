@@ -22,10 +22,10 @@ const MOCK_SNAPSHOT = {
   ],
 };
 
-async function gotoDashboard(page: Page) {
+async function gotoDashboard(page: Page, snapshot: unknown = MOCK_SNAPSHOT) {
   await page.clock.install({ time: BASE_TIME });
   await page.route('**/snapshot', r =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_SNAPSHOT) })
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot) })
   );
   await page.goto('/');
   await page.waitForLoadState('networkidle');
@@ -63,6 +63,25 @@ test.describe('Dashboard', () => {
       const cv = document.querySelector('#trendGrid .mini canvas');
       return cv instanceof HTMLCanvasElement && cv.width > 100;
     });
+  });
+
+  test('rest days show distinctly and are not counted as sessions', async ({ page }) => {
+    await gotoDashboard(page, {
+      ...MOCK_SNAPSHOT,
+      workouts: [
+        ...MOCK_SNAPSHOT.workouts,
+        { id: 3, date: '2026-09-12', status: 'rest', notes: 'sore legs' },
+      ],
+    });
+    // Rest is not a session.
+    await expect(page.locator('#sub')).toContainText('2 sessions');
+    await expect(page.locator('.cal a.cd.t')).toHaveCount(2);
+    // ...but it is tracked, clearly different from absence.
+    await expect(page.locator('.cal a.cd.r')).toHaveCount(1);
+    await page.locator('.cal a.cd.r').click();
+    await expect(page.locator('#viewSession')).toBeVisible();
+    await expect(page.locator('#sessNotes')).toContainText('rest day');
+    await expect(page.locator('#sessNotes')).toContainText('sore legs');
   });
 
   test('dashboard visual regression - desktop', async ({ page }, testInfo) => {

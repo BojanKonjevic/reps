@@ -171,15 +171,13 @@ function render() {
   const W: SnapWorkout[] = snap.workouts || [];
   const S: SnapSet[] = snap.sets || [];
   const BW: SnapBodyweight[] = snap.bodyweight || [];
-  document.getElementById('sub')!.textContent = W.length
-    ? W.length +
-      ' sessions, latest ' +
-      fmtD(
-        W.map(w => w.date)
-          .sort()
-          .pop()!
-      )
-    : 'no sync yet, log your first session';
+  const sessions = W.filter(w => w.status !== 'rest');
+  const sdates = sessions.map(w => w.date).sort();
+  document.getElementById('sub')!.textContent = sdates.length
+    ? sessions.length + ' sessions, latest ' + fmtD(sdates[sdates.length - 1])
+    : W.length
+      ? 'no sessions yet, ' + W.length + ' rest days logged'
+      : 'no sync yet, log your first session';
   const wdates = W.map(w => w.date).sort();
   const lastW = wdates.length ? wdates[wdates.length - 1] : null;
   const wdate0: Record<number, string> = {};
@@ -289,7 +287,10 @@ function render() {
   const startView = lastW || new Date().toISOString().slice(0, 10);
   let viewY = parseInt(startView.slice(0, 4), 10);
   let viewM = parseInt(startView.slice(5, 7), 10) - 1;
-  const drawCal = () => renderCal(viewY, viewM, dayDetail);
+  const restDates: Record<string, boolean> = {};
+  for (const w of W)
+    if (w.status === 'rest' && !(byDate[w.date] && byDate[w.date].length)) restDates[w.date] = true;
+  const drawCal = () => renderCal(viewY, viewM, dayDetail, restDates);
   document.getElementById('calPrev')!.onclick = () => {
     viewM -= 1;
     if (viewM < 0) {
@@ -339,7 +340,12 @@ function render() {
   route();
 }
 
-function renderCal(year: number, month: number, dayDetail: Record<string, string[]>) {
+function renderCal(
+  year: number,
+  month: number,
+  dayDetail: Record<string, string[]>,
+  restDates: Record<string, boolean>
+) {
   const names = [
     'January',
     'February',
@@ -386,13 +392,15 @@ function renderCal(year: number, month: number, dayDetail: Record<string, string
   for (let d = 1; d <= days; d += 1) {
     const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     const trained = dayDetail[key] && dayDetail[key].length > 0;
+    const rested = !trained && !!restDates[key];
     const isPR = PR && PR.prDates.has(key);
-    const el = document.createElement(trained ? 'a' : 'div');
-    const link = trained ? (el as HTMLAnchorElement) : null;
+    const el = document.createElement(trained || rested ? 'a' : 'div');
+    const link = trained || rested ? (el as HTMLAnchorElement) : null;
     if (link) link.href = '#/s/' + key;
     el.className =
       'cd' +
       (trained ? ' t' : '') +
+      (rested ? ' r' : '') +
       (key === todayS ? ' today' : '') +
       (key > todayS ? ' fut' : '');
     el.textContent = String(d);
@@ -509,6 +517,13 @@ function showSession(ds: string) {
     day: 'numeric',
   });
   const wnotes = ws.map(w => w.notes).filter(n => n);
+  const allRest = ws.length > 0 && ws.every(w => w.status === 'rest');
+  if (allRest) {
+    const badge = document.createElement('div');
+    badge.className = 'card restday';
+    badge.textContent = 'rest day';
+    notes.appendChild(badge);
+  }
   if (wnotes.length) {
     const d = document.createElement('div');
     d.className = 'card';
@@ -584,7 +599,7 @@ function showSession(ds: string) {
       body.appendChild(wrap);
     });
   });
-  document.title = fmtD(ds) + ' training';
+  document.title = fmtD(ds) + (allRest ? ' rest day' : ' training');
   window.scrollTo(0, 0);
 }
 

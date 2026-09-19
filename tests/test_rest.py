@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""pytest suite for rest days: special sessions without movements."""
+
+import io
+import json
+import sys
+from datetime import date, timedelta
+
+
+def capture_stdout(fn, *args, **kwargs):
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+    try:
+        fn(*args, **kwargs)
+        return sys.stdout.getvalue()
+    finally:
+        sys.stdout = old_stdout
+
+
+def test_rest_creates_rest_row(log_module):
+    """rest creates a rest-status workout with the note."""
+    c = log_module.conn()
+    out = json.loads(capture_stdout(log_module.cmd_rest, date.today().isoformat(), "sore"))
+    assert out["appended"] is False
+    row = c.execute("SELECT * FROM workouts WHERE id = ?", (out["rest_id"],)).fetchone()
+    assert row["status"] == "rest"
+    assert row["notes"] == "sore"
+
+
+def test_rest_second_call_appends_note(log_module):
+    """Marking rest twice appends the note instead of duplicating the row."""
+    c = log_module.conn()
+    today = date.today().isoformat()
+    first = json.loads(capture_stdout(log_module.cmd_rest, today, "sore"))
+    second = json.loads(capture_stdout(log_module.cmd_rest, today, "tired"))
+    assert second["appended"] is True
+    assert second["rest_id"] == first["rest_id"]
+    row = c.execute("SELECT * FROM workouts WHERE id = ?", (first["rest_id"],)).fetchone()
+    assert row["notes"] == "sore tired"
+    assert c.execute("SELECT COUNT(*) n FROM workouts").fetchone()["n"] == 1
+
+
+def test_rest_refused_with_open_workout(log_module):
+    """Cannot mark rest mid-session."""
+    log_module.cmd_start("test")
+    try:
+        log_module.cmd_rest(date.today().isoformat(), "tired")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "open workout" in str(e).lower()
+
+
+def test_rest_refused_when_trained_today(log_module):
+    """A trained day cannot be rewritten as rest."""
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    try:
+        log_module.cmd_rest(date.today().isoformat(), "tired")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "already trained" in str(e).lower()
+
+
+def test_rest_refused_for_future_date(log_module):
+    """Rest is a record, not a plan."""
+    future = (date.today() + timedelta(days=1)).isoformat()
+    try:
+        log_module.cmd_rest(future, "planned")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "future" in str(e).lower()
+
+
+def test_rest_accepts_past_date(log_module):
+    """Backfilling rest days (travel, sick) works."""
+    c = log_module.conn()
+    past = (date.today() - timedelta(days=3)).isoformat()
+    out = json.loads(capture_stdout(log_module.cmd_rest, past, "travel"))
+    assert out["date"] == past
+    row = c.execute("SELECT * FROM workouts WHERE id = ?", (out["rest_id"],)).fetchone()
+    assert row["status"] == "rest"
+
+
+def test_start_still_works_on_rest_day(log_module):
+    """Plans change: training on a marked rest day is allowed."""
+    c = log_module.conn()
+    log_module.cmd_rest(date.today().isoformat(), "was going to rest")
+    out = json.loads(capture_stdout(log_module.cmd_start, "changed mind"))
+    assert out["reused"] is False
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
+
+
+def test_update_workout_to_rest_guards(log_module):
+    """Empty workouts can become rest, workouts with sets cannot."""
+    c = log_module.conn()
+    log_module.cmd_start("empty")
+    log_module.cmd_end("done")
+    wid = c.execute("SELECT id FROM workouts").fetchone()["id"]
+    log_module.cmd_update_workout(str(wid), "status", "rest")
+    assert c.execute("SELECT status FROM workouts WHERE id = ?", (wid,)).fetchone()["status"] == "rest"
+
+    log_module.cmd_start("full")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    wid2 = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
+    try:
+        log_module.cmd_update_workout(str(wid2), "status", "rest")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "has sets" in str(e).lower()
+
+
+def test_stats_and_context_exclude_rest(log_module):
+    """Rest days are not counted as sessions."""
+    log_module.cmd_rest(date.today().isoformat(), "sore")
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    stats = json.loads(capture_stdout(log_module.cmd_stats))
+    assert stats["workouts"] == 1
+    ctx = json.loads(capture_stdout(log_module.cmd_context, "5"))
+    assert ctx["workouts_total"] == 1
+
+
+def test_calendar_marks_rest_days(log_module):
+    """Calendar flags all-rest dates distinctly from absence and sessions."""
+    c = log_module.conn()
+    log_module.cmd_rest(date.today().isoformat(), "sore")
+    out = json.loads(capture_stdout(log_module.cmd_calendar))
+    today_entry = next(d for d in out["dates"] if d["date"] == date.today().isoformat())
+    assert today_entry["rest"] is True
+    assert today_entry["sets"] == 0
+
+
+def test_today_reports_rest_entry(log_module):
+    """today surfaces the rest note so the agent knows the day is spoken for."""
+    log_module.cmd_rest(date.today().isoformat(), "sore legs")
+    out = json.loads(capture_stdout(log_module.cmd_today))
+    assert out["open"] is False
+    assert out["rest"]["notes"] == "sore legs"
+
+
+def test_delete_workout_removes_rest_row(log_module):
+    """Rest rows are removed explicitly like any workout."""
+    c = log_module.conn()
+    out = json.loads(capture_stdout(log_module.cmd_rest, date.today().isoformat(), "sore"))
+    log_module.cmd_delete_workout(str(out["rest_id"]))
+    assert c.execute("SELECT COUNT(*) n FROM workouts").fetchone()["n"] == 0

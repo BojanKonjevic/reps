@@ -107,7 +107,7 @@ def test_update_workout_rejects_bad_status(log_module):
         log_module.cmd_update_workout(str(wid), "status", "invalid")
         assert False, "should have exited"
     except SystemExit as e:
-        assert "status must be open or done" in str(e).lower()
+        assert "status must be open, done or rest" in str(e).lower()
 
 
 def test_update_workout_validates_date_format(log_module):

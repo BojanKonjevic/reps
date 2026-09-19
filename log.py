@@ -218,14 +218,41 @@ def cmd_end(note):
     print(json.dumps({"closed": w["id"]}))
 
 
+def cmd_rest(day, note):
+    c = conn()
+    if date.fromisoformat(day) > date.today():
+        sys.exit("rest date cannot be in the future")
+    if open_workout(c):
+        sys.exit("open workout exists, end or delete it before marking a rest day")
+    rows = c.execute("SELECT * FROM workouts WHERE date = ?", (day,)).fetchall()
+    if any(r["status"] != "rest" for r in rows):
+        sys.exit(f"already trained on {day}, cannot mark it rest")
+    rest_rows = [r for r in rows if r["status"] == "rest"]
+    if rest_rows:
+        rid = rest_rows[0]["id"]
+        if note:
+            old = rest_rows[0]["notes"]
+            combined = (old + " " + note).strip() if old else note
+            c.execute("UPDATE workouts SET notes = ? WHERE id = ?", (combined, rid))
+            c.commit()
+        print(json.dumps({"rest_id": rid, "date": day, "appended": True}))
+        return
+    cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'rest', ?)", (day, note))
+    c.commit()
+    print(json.dumps({"rest_id": cur.lastrowid, "date": day, "appended": False}))
+
+
 def cmd_today():
     c = conn()
     w = open_workout(c)
+    today = date.today().isoformat()
+    rest = c.execute("SELECT * FROM workouts WHERE date = ? AND status = 'rest' ORDER BY id", (today,)).fetchone()
+    rest_json = dict(rest) if rest else None
     if not w:
-        print(json.dumps({"open": False}))
+        print(json.dumps({"open": False, "rest": rest_json}))
         return
     sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-    print(json.dumps({"open": True, "workout": dict(w), "sets": attach_muscles(c, sets)}, indent=2))
+    print(json.dumps({"open": True, "workout": dict(w), "sets": attach_muscles(c, sets), "rest": rest_json}, indent=2))
 
 
 def cmd_exercises():
@@ -246,8 +273,9 @@ def cmd_history(exercise, limit):
 def cmd_stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
-    out = {"workouts": len(workouts), "by_exercise": {}}
+    out = {"workouts": len([w for w in workouts if w["status"] != "rest"]), "by_exercise": {}}
     rows = c.execute("SELECT exercise, COUNT(*) n, MAX(weight * (1 + reps / 30.0)) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
+
     for r in rows:
         out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
     print(json.dumps(out, indent=2))
@@ -640,9 +668,13 @@ def cmd_update_workout(workout_id, field, value):
             date.fromisoformat(value)
         except ValueError:
             sys.exit("date must be YYYY-MM-DD")
-    if field == "status" and value not in ("open", "done"):
-        sys.exit("status must be open or done")
+    if field == "status" and value not in ("open", "done", "rest"):
+        sys.exit("status must be open, done or rest")
     c = conn()
+    if field == "status" and value == "rest":
+        n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
+        if n > 0:
+            sys.exit("workout has sets, cannot mark it rest (move or delete them first)")
     cur = c.execute(f"UPDATE workouts SET {field} = ? WHERE id = ?", (value, int(workout_id)))
     if cur.rowcount == 0:
         sys.exit("no such workout")
@@ -696,6 +728,12 @@ def cmd_calendar():
     for d in by_date.values():
         n = c.execute("SELECT COUNT(*) n FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE w.date = ?", (d["date"],)).fetchone()["n"]
         d["sets"] = n
+    statuses: dict = {}
+    for r in c.execute("SELECT date, status FROM workouts").fetchall():
+        statuses.setdefault(r["date"], []).append(r["status"])
+    for d in by_date.values():
+        sts = statuses.get(d["date"], [])
+        d["rest"] = bool(sts) and all(s == "rest" for s in sts)
     days = sorted(by_date.values(), key=lambda d: d["date"])
     prev = None
     for d in days:
@@ -730,7 +768,7 @@ def cmd_context(n):
                      "max_e1rm": round(top["e1rm"], 1) if top else None,
                      "max_weight": top["weight"] if top else None,
                      "last": dict(last) if last else None})
-    totals = c.execute("SELECT COUNT(*) w FROM workouts").fetchone()
+    totals = c.execute("SELECT COUNT(*) w FROM workouts WHERE status != 'rest'").fetchone()
     bw = [dict(r) for r in c.execute("SELECT date, kg, note FROM bodyweight ORDER BY date DESC, id DESC LIMIT 5").fetchall()]
     print(json.dumps({"recent": recent, "lifts": best, "workouts_total": totals["w"], "bodyweight_last": bw}, indent=2))
 
@@ -741,7 +779,7 @@ def usage():
         "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> [bw] "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
          "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
-         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore | audit"
+         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore | audit | rest [yyyy-mm-dd] [note]"
     )
 
 
@@ -813,6 +851,16 @@ def main():
         cmd_restore()
     elif cmd == "audit":
         cmd_audit()
+    elif cmd == "rest":
+        day = date.today().isoformat()
+        words = rest
+        if words:
+            try:
+                day = date.fromisoformat(words[0]).isoformat()
+                words = words[1:]
+            except ValueError:
+                pass
+        cmd_rest(day, " ".join(words))
     else:
         usage()
 
