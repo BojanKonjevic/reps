@@ -23,6 +23,26 @@ Last reviewed: Sep 18 2026
 
 MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
+Machine-readable MEV bounds for the audit check. Source of truth, update alongside the table above.
+
+```json mev-bounds
+{
+  "chest": 8,
+  "back": 10,
+  "front delt": 0,
+  "side delt": 6,
+  "rear delt": 6,
+  "biceps": 6,
+  "triceps": 6,
+  "quads": 8,
+  "hamstrings": 6,
+  "glutes": 6,
+  "adductors": 4,
+  "abs": 6,
+  "forearms": 6
+}
+```
+
 Front delt \*: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
 
 Rear delt: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.

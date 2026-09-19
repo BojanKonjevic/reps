@@ -182,4 +182,4 @@ sqlite3 workouts.db < workouts.sql
 
 Or run `log.py restore` which does this automatically.
 
-Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. Deterministic checks live in `tests/` (`uv run --with pytest --no-project pytest tests/ -q`; system python has no pytest and no pip, so never `python -m pytest` directly). If a push ever conflicts (two sessions writing at once), pull first, then push.
+Test CLI flows with `REPS_DB` pointed at /tmp, never the real db. Deterministic checks live in `tests/` (`uv run --with pytest --no-project pytest tests/ -q`; system python has no pytest and no pip, so never `python -m pytest` directly). If a push ever conflicts (two sessions writing at once), pull first, then push. `sync` enforces this server side with ETags: it pulls the snapshot ETag first and pushes with If-Match, a stale base gets a 412 and aborts instead of overwriting. Reconcile, then `sync force` to overwrite deliberately.

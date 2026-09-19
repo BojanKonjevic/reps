@@ -303,5 +303,90 @@ def test_cmd_audit_skips_explained_jump(audit_db):
     assert [f for f in flags if f["check"] == "progression_jump"] == []
 
 
+EXPECTED_MEV = {
+    "chest": 8, "back": 10, "front delt": 0, "side delt": 6, "rear delt": 6,
+    "biceps": 6, "triceps": 6, "quads": 8, "hamstrings": 6, "glutes": 6,
+    "adductors": 4, "abs": 6, "forearms": 6,
+}
+
+JSON_BLOCK = """```json mev-bounds
+{
+  "chest": 8,
+  "back": 10,
+  "front delt": 0,
+  "side delt": 6,
+  "rear delt": 6,
+  "biceps": 6,
+  "triceps": 6,
+  "quads": 8,
+  "hamstrings": 6,
+  "glutes": 6,
+  "adductors": 4,
+  "abs": 6,
+  "forearms": 6
+}
+```"""
+
+
+def _write_science(tmp_path, monkeypatch, log, content):
+    p = tmp_path / "SCIENCE.md"
+    p.write_text(content)
+    monkeypatch.setattr(log, "SCIENCE_FILE", str(p))
+    return p
+
+
+def test_parse_mev_reads_json_block(audit_db):
+    """parse_mev_from_science returns the full bounds from the real SCIENCE.md."""
+    log, _ = audit_db
+    assert log.parse_mev_from_science() == EXPECTED_MEV
+
+
+def test_parse_mev_survives_table_reformat(audit_db, tmp_path, monkeypatch):
+    """Reformatted or missing volume table does not change JSON-block results."""
+    log, _ = audit_db
+    content = "# SCIENCE.md\n\nProse changed, table deleted entirely.\n\n" + JSON_BLOCK + "\n"
+    _write_science(tmp_path, monkeypatch, log, content)
+    assert log.parse_mev_from_science() == EXPECTED_MEV
+
+
+def test_parse_mev_falls_back_to_table_without_json(audit_db, tmp_path, monkeypatch, capsys):
+    """Files predating the JSON block still parse the legacy table plus fallbacks."""
+    log, _ = audit_db
+    content = (
+        "# SCIENCE.md\n\n## Volume landmarks (sets/week)\n\n"
+        "| Muscle | MEV | MAV | MRV | Tier | Source |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| Chest | 8 | 14-20 | 25+ | Settled | x |\n"
+        "| Back | 10 | 14-22 | 28+ | Settled | x |\n"
+    )
+    _write_science(tmp_path, monkeypatch, log, content)
+    bounds = log.parse_mev_from_science()
+    assert bounds["chest"] == 8
+    assert bounds["back"] == 10
+    assert bounds["forearms"] == 6
+    assert bounds["adductors"] == 4
+    assert "no mev-bounds JSON block" in capsys.readouterr().out
+
+
+def test_parse_mev_ignores_invalid_json_entries(audit_db, tmp_path, monkeypatch, capsys):
+    """Bad JSON entries are skipped with a warning, gaps filled from the table."""
+    log, _ = audit_db
+    bad_block = JSON_BLOCK.replace('"chest": 8,', '"chest": "eight",').replace('"forearms": 6', '"forearms": 6,\n  "neck": 5,\n  "back": -1')
+    content = (
+        "# SCIENCE.md\n\n## Volume landmarks (sets/week)\n\n"
+        "| Muscle | MEV | MAV | MRV | Tier | Source |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| Chest | 8 | 14-20 | 25+ | Settled | x |\n"
+        "| Back | 10 | 14-22 | 28+ | Settled | x |\n"
+        + "\n" + bad_block + "\n"
+    )
+    _write_science(tmp_path, monkeypatch, log, content)
+    bounds = log.parse_mev_from_science()
+    assert bounds["chest"] == 8
+    assert bounds["back"] == 10
+    assert "neck" not in bounds
+    assert "ignoring invalid mev-bounds entries" in capsys.readouterr().out
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

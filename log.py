@@ -6,6 +6,7 @@ import os
 import re
 import sqlite3
 import sys
+import urllib.error
 import urllib.request
 from datetime import date, datetime
 
@@ -293,9 +294,12 @@ def cmd_restore():
 
 
 def parse_mev_from_science():
-    """Parse MEV (minimum effective volume) bounds from SCIENCE.md."""
-    mev_bounds = {}
-    # Normalize muscle names from SCIENCE.md to match database convention
+    """Parse MEV (minimum effective volume) bounds from SCIENCE.md.
+
+    Primary source is the fenced ````json mev-bounds`` block in SCIENCE.md,
+    which survives prose and table reformatting. The legacy volume-landmarks
+    table parse is kept as a fallback for files predating the JSON block.
+    """
     name_map = {
         'chest': 'chest',
         'back': 'back',
@@ -311,28 +315,62 @@ def parse_mev_from_science():
         'forearms': 'forearms',
         'adductors': 'adductors',
     }
+    expected = set(name_map.values())
     opinion_fallback = {'forearms': 6, 'adductors': 4}
+    mev_bounds: dict = {}
     try:
         with open(SCIENCE_FILE, 'r') as f:
             content = f.read()
-        in_volume_section = False
-        for line in content.split('\n'):
-            if line.strip().startswith('## Volume landmarks'):
-                in_volume_section = True
-                continue
-            if in_volume_section and line.strip().startswith('## '):
+    except OSError:
+        content = ""
+    if not content:
+        print("WARNING: parse_mev_from_science could not read SCIENCE.md, using fallback bounds only")
+    else:
+        block = re.search(r'```json[^\n]*mev[^\n]*\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+        if block:
+            try:
+                raw = json.loads(block.group(1))
+            except ValueError as e:
+                print(f"WARNING: parse_mev_from_science found mev-bounds JSON block but failed to parse it ({e}), falling back to table")
+                raw = None
+            if raw is not None:
+                if not isinstance(raw, dict):
+                    print("WARNING: parse_mev_from_science mev-bounds block is not a JSON object, falling back to table")
+                else:
+                    invalid = {}
+                    for k, v in raw.items():
+                        muscle = k.strip().lower() if isinstance(k, str) else k
+                        if muscle in expected and isinstance(v, int) and not isinstance(v, bool) and v >= 0:
+                            mev_bounds[muscle] = v
+                        else:
+                            invalid[k] = v
+                    if invalid:
+                        print(f"WARNING: parse_mev_from_science ignoring invalid mev-bounds entries: {invalid}")
+                    missing_json = expected - set(mev_bounds.keys())
+                    if missing_json:
+                        print(f"WARNING: parse_mev_from_science mev-bounds block missing: {missing_json}, filling from table/fallback")
+        else:
+            print("WARNING: parse_mev_from_science found no mev-bounds JSON block, falling back to table parse")
+        if len(mev_bounds) < len(expected):
+            try:
                 in_volume_section = False
-                break
-            if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|' + '-' * 3):
-                parts = [p.strip() for p in line.split('|')]
-                if len(parts) >= 4 and parts[1] and parts[2]:
-                    muscle = parts[1].lower()
-                    mev_str = parts[2]
-                    mev_match = re.match(r'(\d+)', mev_str)
-                    if mev_match and muscle in name_map:
-                        mev_bounds[name_map[muscle]] = int(mev_match.group(1))
-    except (OSError, ValueError):
-        pass
+                for line in content.split('\n'):
+                    if line.strip().startswith('## Volume landmarks'):
+                        in_volume_section = True
+                        continue
+                    if in_volume_section and line.strip().startswith('## '):
+                        in_volume_section = False
+                        break
+                    if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|' + '-' * 3):
+                        parts = [p.strip() for p in line.split('|')]
+                        if len(parts) >= 4 and parts[1] and parts[2]:
+                            muscle = parts[1].lower()
+                            mev_str = parts[2]
+                            mev_match = re.match(r'(\d+)', mev_str)
+                            if mev_match and muscle in name_map and name_map[muscle] not in mev_bounds:
+                                mev_bounds[name_map[muscle]] = int(mev_match.group(1))
+            except ValueError:
+                pass
     for muscle, fallback in opinion_fallback.items():
         mev_bounds.setdefault(muscle, fallback)
     if len(mev_bounds) < len(name_map):
@@ -474,7 +512,7 @@ def cmd_audit():
     print(json.dumps({"flags": flags, "skipped": ["goal_trajectory", "split_slots"]}))
 
 
-def cmd_sync():
+def cmd_sync(force=False):
     try:
         cfg = json.load(open(CFG))
         url, secret = cfg["url"], cfg["secret"]
@@ -485,16 +523,42 @@ def cmd_sync():
     integrity = c.execute("PRAGMA integrity_check").fetchone()[0]
     if integrity != "ok":
         sys.exit("database integrity check failed: " + integrity)
+    # Pull-first: fetch the current snapshot ETag so the push below carries
+    # If-Match. A stale base gets a 412 instead of silently overwriting.
+    base_etag = None
+    if not force:
+        get_req = urllib.request.Request(url + "/snapshot",
+                                         headers={"Authorization": "Bearer " + secret,
+                                                  "User-Agent": "reps-sync/1"})
+        try:
+            with urllib.request.urlopen(get_req, timeout=30) as res:
+                base_etag = res.headers.get("ETag")
+        except OSError as e:
+            sys.exit("sync pull-first failed: " + str(e))
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
     sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
     payload = json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}).encode()
-    req = urllib.request.Request(url + "/sync", data=payload, method="PUT",
-                                 headers={"Content-Type": "application/json", "Authorization": "Bearer " + secret,
-                                          "User-Agent": "reps-sync/1"})
+    headers = {"Content-Type": "application/json", "Authorization": "Bearer " + secret,
+               "User-Agent": "reps-sync/1"}
+    if base_etag:
+        headers["If-Match"] = base_etag
+    if force:
+        headers["X-Sync-Force"] = "1"
+    req = urllib.request.Request(url + "/sync", data=payload, method="PUT", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as res:
             print(json.dumps({"synced": True, "bytes": len(payload), "reply": json.loads(res.read().decode())}))
+    except urllib.error.HTTPError as e:
+        if e.code == 412:
+            try:
+                detail = json.loads(e.read().decode())
+            except ValueError:
+                detail = {}
+            server_etag = detail.get("etag") or e.headers.get("ETag")
+            sys.exit(f"sync rejected: snapshot changed since pull (server {server_etag}), another session pushed first. "
+                     "Reconcile, then 'log.py sync force' to overwrite deliberately.")
+        sys.exit("sync failed: " + str(e))
     except OSError as e:
         sys.exit("sync failed: " + str(e))
 
@@ -676,8 +740,8 @@ def usage():
         "usage: log.py start [note] | log <exercise> <weight> <reps> [note] [muscles=a,b] [bw] "
         "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> [bw] "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
-        "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
-        "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync | restore | audit"
+         "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
+         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore | audit"
     )
 
 
@@ -744,7 +808,7 @@ def main():
     elif cmd == "weigh" and len(rest) >= 1:
         cmd_weigh(rest[0], " ".join(rest[1:]))
     elif cmd == "sync":
-        cmd_sync()
+        cmd_sync("force" in rest)
     elif cmd == "restore":
         cmd_restore()
     elif cmd == "audit":

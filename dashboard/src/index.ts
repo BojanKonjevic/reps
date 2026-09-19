@@ -217,9 +217,9 @@ function render() {
   const noted: Record<string, string> = {};
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
   for (const s of S) {
-    if (s.note && s.note.toLowerCase().includes('grindy')) {
+    if (s.note && s.note.trim()) {
       const d = wday(s);
-      noted[d] = (noted[d] ? noted[d] + ' / ' : '') + s.exercise + ': ' + s.note;
+      noted[d] = (noted[d] ? noted[d] + ' / ' : '') + s.exercise + ': ' + s.note.trim();
     }
   }
   const nl = document.getElementById('noteList')!;

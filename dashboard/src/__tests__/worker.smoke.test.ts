@@ -89,7 +89,7 @@ describe('worker entry (no DOM globals)', () => {
           exercise: 'overhead press',
           weight: 42.5,
           reps: 7,
-          note: 'grindy',
+          note: 'hard set',
           created: '2026-09-10T18:15:00',
           muscles: 'shoulders,triceps',
         },
@@ -117,5 +117,70 @@ describe('worker entry (no DOM globals)', () => {
       SNAPSHOTS: memR2(),
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('sync concurrency (ETag)', () => {
+  const payload = (exported: string) => ({
+    exported,
+    workouts: [],
+    sets: [],
+    bodyweight: [],
+  });
+
+  function put(env: TestEnv, body: unknown, extraHeaders: Record<string, string> = {}) {
+    return callFetch(
+      new Request('http://localhost/sync', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+        headers: {
+          Authorization: 'Bearer test-secret',
+          'Content-Type': 'application/json',
+          ...extraHeaders,
+        },
+      }),
+      env
+    );
+  }
+
+  function getSnapshot(env: TestEnv) {
+    return callFetch(new Request('http://localhost/snapshot'), env);
+  }
+
+  it('exposes the snapshot ETag on GET', async () => {
+    const env = authed(memR2());
+    const first = await put(env, payload('2026-09-17T12:00:00'));
+    expect(first.status).toBe(200);
+    const get = await getSnapshot(env);
+    expect(get.headers.get('etag')).toBe('"2026-09-17T12:00:00"');
+  });
+
+  it('rejects a stale push with 412 instead of overwriting', async () => {
+    const env = authed(memR2());
+    await put(env, payload('2026-09-17T12:00:00'));
+    const staleTag = (await getSnapshot(env)).headers.get('etag')!;
+    // Another session pushes first with a fresh base.
+    const fresh = await put(env, payload('2026-09-17T12:05:00'), { 'if-match': staleTag });
+    expect(fresh.status).toBe(200);
+    // The stale base is now rejected.
+    const retry = await put(env, payload('2026-09-17T12:06:00'), { 'if-match': staleTag });
+    expect(retry.status).toBe(412);
+    const body = (await retry.json()) as { etag: string };
+    expect(body.etag).toBe('"2026-09-17T12:05:00"');
+    // Stored snapshot is untouched by the rejected push.
+    const get = await getSnapshot(env);
+    expect(get.headers.get('etag')).toBe('"2026-09-17T12:05:00"');
+  });
+
+  it('rejects a headerless push once a snapshot exists, force overwrites', async () => {
+    const env = authed(memR2());
+    // First push ever needs no base.
+    expect((await put(env, payload('2026-09-17T12:00:00'))).status).toBe(200);
+    // Pull-first is enforced: no If-Match, no force.
+    expect((await put(env, payload('2026-09-17T12:01:00'))).status).toBe(412);
+    // Explicit force overwrites.
+    const forced = await put(env, payload('2026-09-17T12:01:00'), { 'x-sync-force': '1' });
+    expect(forced.status).toBe(200);
+    expect((await getSnapshot(env)).headers.get('etag')).toBe('"2026-09-17T12:01:00"');
   });
 });
