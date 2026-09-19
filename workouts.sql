@@ -97,16 +97,16 @@ INSERT INTO "sets" VALUES(10,1,'machine shoulder press',35.0,12,'','2026-09-19T0
 INSERT INTO "sets" VALUES(11,1,'machine shoulder press',40.0,9,'','2026-09-19T09:13:51');
 INSERT INTO "sets" VALUES(12,1,'cable lat raise',11.25,13,'','2026-09-19T09:20:49');
 INSERT INTO "sets" VALUES(13,1,'cable lat raise',11.25,10,'','2026-09-19T09:23:32');
-INSERT INTO "sets" VALUES(14,1,'bayesian curl',13.75,10,'cable below 8','2026-09-19T09:28:27');
-INSERT INTO "sets" VALUES(15,1,'bayesian curl',13.75,9,'cable below 8','2026-09-19T09:31:17');
+INSERT INTO "sets" VALUES(14,1,'bayesian curl',13.75,10,'','2026-09-19T09:28:27');
+INSERT INTO "sets" VALUES(15,1,'bayesian curl',13.75,9,'','2026-09-19T09:31:17');
 INSERT INTO "sets" VALUES(16,1,'preacher curl',46.0,8,'insane pump after bayesian','2026-09-19T09:34:11');
 INSERT INTO "sets" VALUES(17,1,'preacher curl',46.0,8,'','2026-09-19T09:36:43');
 INSERT INTO "sets" VALUES(18,1,'cable pushdown',31.25,12,'','2026-09-19T09:40:55');
 INSERT INTO "sets" VALUES(19,1,'cable pushdown',31.25,11,'','2026-09-19T09:44:38');
 INSERT INTO "sets" VALUES(20,1,'cable reverse curl',11.25,13,'felt amazing','2026-09-19T09:48:40');
 INSERT INTO "sets" VALUES(21,1,'cable reverse curl',11.25,11,'','2026-09-19T09:51:16');
-INSERT INTO "sets" VALUES(22,1,'face pull',38.75,12,'max height','2026-09-19T09:54:49');
-INSERT INTO "sets" VALUES(23,1,'face pull',38.75,9,'max height','2026-09-19T09:58:04');
+INSERT INTO "sets" VALUES(22,1,'face pull',38.75,12,'','2026-09-19T09:54:49');
+INSERT INTO "sets" VALUES(23,1,'face pull',38.75,9,'','2026-09-19T09:58:04');
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
