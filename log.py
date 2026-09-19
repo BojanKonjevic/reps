@@ -93,6 +93,43 @@ def attach_muscles(c, sets):
     return out
 
 
+def e1rm_of(weight, reps):
+    if reps == 1:
+        return weight
+    return weight * (1 + reps / 30.0)
+
+
+def best_e1rm(c, exercise, exclude_set=None):
+    sql = "SELECT weight, reps FROM sets WHERE exercise = ?"
+    args = [exercise]
+    if exclude_set is not None:
+        sql += " AND id != ?"
+        args.append(exclude_set)
+    best = 0.0
+    for r in c.execute(sql, args).fetchall():
+        v = e1rm_of(r["weight"], r["reps"])
+        if v > best:
+            best = v
+    return best
+
+
+def _levenshtein(a, b):
+    if len(a) < len(b):
+        a, b = b, a
+    if len(b) == 0:
+        return len(a)
+    previous_row = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        current_row = [i + 1]
+        for j, cb in enumerate(b):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (ca != cb)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
 def open_workout(c):
     row = c.execute("SELECT * FROM workouts WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
     return row
@@ -132,7 +169,7 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
         sys.exit("reps must be a positive integer")
     muscles = clean_muscles(muscles)
 
-    mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     if weight == 0:
         if bodyweight:
             pass
@@ -145,9 +182,29 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
         c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
                   (exercise, muscles, 1 if bodyweight else 0))
     elif not muscles:
-        muscles = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()["muscles"]
+        muscles = mapping["muscles"]
     elif bodyweight and mapping["is_bodyweight_only"] != 1:
         c.execute("UPDATE lift_muscle_map SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
+
+    warnings = []
+    if w["date"] != date.today().isoformat():
+        warnings.append(f"open workout is from {w['date']}, not today; confirm this set belongs there")
+    for other in c.execute("SELECT DISTINCT exercise FROM sets").fetchall():
+        if other["exercise"] != exercise and _levenshtein(exercise, other["exercise"]) <= 2:
+            warnings.append(f"'{exercise}' is close to existing exercise '{other['exercise']}'; confirm spelling")
+            break
+    new_e1rm = e1rm_of(weight, reps)
+    if weight > 0:
+        best = best_e1rm(c, exercise)
+        if best > 0 and new_e1rm > best * 1.5:
+            warnings.append(f"e1RM {new_e1rm:.1f} is over 50% above best {best:.1f} for '{exercise}'; confirm weight and reps")
+        prev = c.execute("SELECT weight, reps FROM sets WHERE workout_id = ? AND exercise = ? ORDER BY id DESC LIMIT 1", (w["id"], exercise)).fetchone()
+        if prev:
+            prev_e1rm = e1rm_of(prev["weight"], prev["reps"])
+            if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
+                warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
+    if mapping and muscles and set(muscles.split(",")) != set(mapping["muscles"].split(",")):
+        warnings.append(f"logged muscles {muscles} differ from mapping {mapping['muscles']}; mapping kept, retag to change it everywhere")
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -160,7 +217,10 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     for muscle in muscles.split(","):
         c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     c.commit()
-    print(json.dumps({"set_id": set_id, "workout_id": wid}))
+    out = {"set_id": set_id, "workout_id": wid}
+    if warnings:
+        out["warnings"] = warnings
+    print(json.dumps(out))
 
 
 def cmd_update(set_id, field, value):
@@ -168,6 +228,13 @@ def cmd_update(set_id, field, value):
     if field not in allowed:
         sys.exit("field must be one of weight reps exercise note muscles")
     c = conn()
+    try:
+        set_id = int(set_id)
+    except (TypeError, ValueError):
+        sys.exit("no such set")
+    existing = c.execute("SELECT * FROM sets WHERE id = ?", (set_id,)).fetchone()
+    if not existing:
+        sys.exit("no such set")
     if field == "exercise":
         value = value.strip().lower()
     if field == "muscles":
@@ -182,11 +249,10 @@ def cmd_update(set_id, field, value):
         if value < 0:
             sys.exit("weight cannot be negative")
         # Validate zero-weight against exercise type
-        row = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
-        if row and value == 0:
-            mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (row["exercise"],)).fetchone()
+        if value == 0:
+            mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (existing["exercise"],)).fetchone()
             if not mapping or mapping["is_bodyweight_only"] != 1:
-                sys.exit(f"zero weight not allowed for '{row['exercise']}' (not a bodyweight-only exercise)")
+                sys.exit(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         value = int(value)
         if value <= 0:
@@ -198,10 +264,22 @@ def cmd_update(set_id, field, value):
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
+    warnings = []
+    if field in ("weight", "reps"):
+        new_weight = value if field == "weight" else existing["weight"]
+        new_reps = value if field == "reps" else existing["reps"]
+        if new_weight > 0:
+            new_e1rm = e1rm_of(new_weight, new_reps)
+            best = best_e1rm(c, existing["exercise"], exclude_set=int(set_id))
+            if best > 0 and new_e1rm > best * 1.5:
+                warnings.append(f"e1RM {new_e1rm:.1f} is over 50% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
     if field != "muscles":
         c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
-    print(json.dumps({"updated": int(set_id)}))
+    out = {"updated": int(set_id)}
+    if warnings:
+        out["warnings"] = warnings
+    print(json.dumps(out))
 
 
 def cmd_end(note):
@@ -215,7 +293,8 @@ def cmd_end(note):
         c.execute("UPDATE workouts SET notes = ? WHERE id = ?", (combined, w["id"]))
     c.execute("UPDATE workouts SET status = 'done' WHERE id = ?", (w["id"],))
     c.commit()
-    print(json.dumps({"closed": w["id"]}))
+    n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (w["id"],)).fetchone()["n"]
+    print(json.dumps({"closed": w["id"], "sets": n, "next": "audit this session, then sync, then commit workouts.sql"}))
 
 
 def cmd_rest(day, note):
@@ -301,16 +380,26 @@ def cmd_weigh(kg, note):
     kg = float(kg)
     if kg <= 0:
         sys.exit("bodyweight must be positive")
+    if kg < 20 or kg > 300:
+        sys.exit(f"bodyweight {kg}kg is implausible, confirm the value")
     cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, kg, note))
     c.commit()
     print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": kg}))
 
 
-def cmd_restore():
+def cmd_restore(force=False):
+    if not force:
+        try:
+            rc = sqlite3.connect(DB)
+            row = rc.execute("SELECT id FROM workouts WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
+            rc.close()
+            if row:
+                sys.exit(f"workout {row[0]} is still open; end or delete it before restore, or use restore force")
+        except sqlite3.Error:
+            pass
     sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
     if not os.path.exists(sql_file):
         sys.exit("no workouts.sql found, cannot restore")
-    import sqlite3
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     c.executescript("""
@@ -418,22 +507,6 @@ def cmd_audit():
     c = conn()
     import itertools
 
-    def levenshtein(a, b):
-        if len(a) < len(b):
-            a, b = b, a
-        if len(b) == 0:
-            return len(a)
-        previous_row = list(range(len(b) + 1))
-        for i, ca in enumerate(a):
-            current_row = [i + 1]
-            for j, cb in enumerate(b):
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (ca != cb)
-                current_row.append(min(insertions, deletions, substitutions))
-            previous_row = current_row
-        return previous_row[-1]
-
     flags = []
 
     # Check 2: Missing muscle tags
@@ -513,11 +586,15 @@ def cmd_audit():
                     if any(k in notes_by_date.get(dates[i-1], "") or k in notes_by_date.get(dates[i], "") for k in explained):
                         continue
                     flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump, bound {bound}%) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
+                elif pct < -50:
+                    if any(k in notes_by_date.get(dates[i-1], "") or k in notes_by_date.get(dates[i], "") for k in explained):
+                        continue
+                    flags.append({"check": "progression_drop", "severity": "medium", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% drop) on {dates[i]}", "fix": "verify data entry, or add deload/return note if intentional"})
 
     # Check 1: Exercise name duplicates
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
     for a, b in itertools.combinations(exercises, 2):
-        if levenshtein(a, b) <= 2:
+        if _levenshtein(a, b) <= 2:
             flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= 2)", "fix": "rename <old> <new>"})
 
     # Check 7: Stale open workouts
@@ -703,9 +780,15 @@ def cmd_update_workout(workout_id, field, value):
             date.fromisoformat(value)
         except ValueError:
             sys.exit("date must be YYYY-MM-DD")
+        if date.fromisoformat(value) > date.today():
+            sys.exit("workout date cannot be in the future")
     if field == "status" and value not in ("open", "done", "rest"):
         sys.exit("status must be open, done or rest")
     c = conn()
+    if field == "status" and value == "open":
+        other = c.execute("SELECT id FROM workouts WHERE status = 'open' AND id != ?", (int(workout_id),)).fetchone()
+        if other:
+            sys.exit(f"workout {other['id']} is already open; end or delete it first")
     if field == "status" and value == "rest":
         row = c.execute("SELECT date FROM workouts WHERE id = ?", (int(workout_id),)).fetchone()
         if not row:
@@ -821,7 +904,7 @@ def usage():
         "| update <id> <field> <value> | update-workout <id> <field> <value> | retag <exercise> <muscles> [bw] "
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
          "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
-         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore | audit | rest [yyyy-mm-dd] [note]"
+         "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore [force] | audit | rest [yyyy-mm-dd] [note]"
     )
 
 
@@ -890,7 +973,7 @@ def main():
     elif cmd == "sync":
         cmd_sync("force" in rest)
     elif cmd == "restore":
-        cmd_restore()
+        cmd_restore("force" in rest)
     elif cmd == "audit":
         cmd_audit()
     elif cmd == "rest":
