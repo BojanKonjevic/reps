@@ -220,4 +220,4 @@ Setup and logging notes, only for movements that need them. No subsection when t
 
 ### bayesian curl
 
-- cable below 8
+- cable height below 8
