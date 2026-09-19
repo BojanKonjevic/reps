@@ -98,6 +98,16 @@ Plus, when they trigger, each in one line:
 2. Propose several concrete goals: movement, exact target, deadline. Each one already realism checked, with one line on why it fits (rate of gain, fresh stall broken, lagging lift).
 3. Nothing is written until the user picks. Approval converts straight into the Goals flow with a trajectory.
 
+## Prioritize (prioritize)
+
+`prioritize <muscle> [for <duration>]`, in plain words ("side delts for the next 3 months", "bring up hamstrings"). Everything below happens in the same response, no multi-step thread.
+
+1. Resolve the muscle first: delt heads track separately, so "delts" alone gets asked which head. Untracked groups (neck, calves, traps) are refused, or tracked first per the mapping rule.
+2. Rewrite the active split: the muscle's lifts move to position 1, second at worst, in every slot containing them. If another focus is already active, ask how to order the two before rewriting. Their set counts go up; other accessories in the same slots drop a set or hold (never to zero) so total session volume stays roughly flat. Baseline split is untouched and never planned from. A user-stated rewrite is authorized; a later unusual session still never rewrites anything on its own. If a workout is open, the rewrite takes effect next session unless the user says to apply it now.
+3. Write one Active rule carrying the intent: muscle, positioning floor, volume direction, expiry date, or standing until explicitly revoked when no duration is given. A second note only if something doesn't fit the rule line. Expiry flows into Needs confirm for the renew-or-revert moment.
+4. Check GOALS.md for a goal covering that muscle (any lift training it counts). If one exists, state the pairing and move on. If none exists, auto-run the suggest flow scoped to that muscle: multiple concrete goals, with deadlines inside the focus window when one was given, each already realism-checked. The user picks any, several, or none. A pick converts into a trajectory per the normal Goals flow. Declining is legitimate: the split rewrite and notes stand without a goal.
+5. Downstream needs no new rules: planning reads the rewritten split directly; the focus Active rule exempts that muscle from ledger volume holds while everything else gates normally; reordered sessions are marked in the `end` note with conservative progression verdicts on displaced lifts; revert means restoring baseline lines on request.
+
 ## Memory writeback
 
 Chat history dies with the session, files survive. When user states something durable, write it down:
