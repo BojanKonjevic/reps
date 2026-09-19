@@ -47,6 +47,24 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#prs')).toContainText('92.5 x 5');
   });
 
+  test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
+    await gotoDashboard(page);
+    await page.locator('#trendGrid .mini a').first().click();
+    await expect(page.locator('#viewLift')).toBeVisible();
+    // Resize while the dash is hidden: the debounced render must not bake a
+    // zero-size bitmap into the minis (fit clamps hidden canvases to 50px,
+    // which CSS then stretches into smears).
+    const size = page.viewportSize()!;
+    await page.setViewportSize({ width: size.width - 100, height: size.height });
+    await page.waitForTimeout(500);
+    await page.goBack();
+    await expect(page.locator('#viewDash')).toBeVisible();
+    await page.waitForFunction(() => {
+      const cv = document.querySelector('#trendGrid .mini canvas');
+      return cv instanceof HTMLCanvasElement && cv.width > 100;
+    });
+  });
+
   test('dashboard visual regression - desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop snapshot only on chromium');
     await gotoDashboard(page);

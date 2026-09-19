@@ -463,7 +463,12 @@ function route() {
     document.getElementById('viewSession')!.hidden = true;
     document.getElementById('viewLift')!.hidden = true;
     document.title = 'reps dashboard';
-    if (restore) window.scrollTo(0, DASHY);
+    if (restore) {
+      // Repaint once layout settles: minis painted while the dash was hidden
+      // keep a zero-size bitmap that CSS stretches into smears.
+      requestAnimationFrame(() => drawMinis());
+      window.scrollTo(0, DASHY);
+    }
   }
 }
 
@@ -737,7 +742,10 @@ function drawMinis() {
       mini(cv, TREND.days, vals, col, prs);
     });
   });
-  jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2], j[3]));
+  // Never paint while hidden: display:none reports zero size and fit() would
+  // bake a 50px bitmap that CSS then stretches into smears. Canvases stay
+  // blank until returning to the dash repaints them, see route().
+  if (grid.clientWidth > 0) jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2], j[3]));
 }
 function drawTrendChips() {
   const lt = document.getElementById('legTrend')!;
