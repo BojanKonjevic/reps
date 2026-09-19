@@ -19,7 +19,6 @@ Format: start date, rule, expiry if any.
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.
 
 - Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day).
-- Sep 19 2026: straight bar pulldown stack jumps 10kg (47, 57, 67, 77, 87, 97, 107, 117, 127).
 
 ## Monthly rollups
 

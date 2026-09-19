@@ -76,150 +76,78 @@ Slots in training order with working set counts, one per line, interchangeable m
 
 chest, back, front delt, side delt, rear delt, biceps, triceps, quads, hamstrings, glutes, abs, forearms, adductors. Never neck, calves, traps. New movements mapping elsewhere get asked about once.
 
-## Movements
+## Lift mapping
 
-Per-movement facts: muscle mapping (asked once and recorded) plus setup and logging notes. Form dependent entries note the form.
-
-### back squat
+Complete muscle mapping, asked once and recorded, one line per movement.
 
 - back squat -> quads, glutes
+- dips -> triceps
+- flat barbell bench press -> chest, front delt
+- incline barbell bench press -> chest, front delt
+- reverse-grip smith incline press -> chest
+- hammer strength press -> chest
+- machine shoulder press -> front delt
+- pec deck -> chest
+- hammer strength row -> back
+- straight bar pulldown -> back
+- cable pullover -> back
+- face pull -> rear delt
+- cable rear delt fly -> rear delt
+- cable lat raise -> side delt
+- machine lat raise -> side delt
+- hack squat -> quads
+- leg press -> quads, glutes
+- rdl -> hamstrings, glutes
+- leg extension -> quads
+- seated leg curl -> hamstrings
+- lying leg curl -> hamstrings
+- adductor machine -> adductors
+- crunch machine -> abs
+- bayesian curl -> biceps
+- preacher curl -> biceps
+- ezbar curl -> biceps
+- incline dumbbell curl -> biceps
+- rope hammer curl -> biceps, forearms
+- cable reverse curl -> forearms
+- cable pushdown -> triceps
+- unilateral cable pushdown -> triceps
+- ezbar skullcrusher -> triceps
+- cable wrist curl -> forearms
+- cable wrist extension -> forearms
+
+## Movement notes
+
+Setup and logging notes, only for movements that need them. No subsection when there is nothing to say. Form dependent entries note the form.
 
 ### dips
 
-- dips -> triceps
 - my form, elbows tucked, triceps main
 
 ### flat barbell bench press
 
-- flat barbell bench press -> chest, front delt
 - triceps excluded by convention
-
-### incline barbell bench press
-
-- incline barbell bench press -> chest, front delt
 
 ### reverse-grip smith incline press
 
-- reverse-grip smith incline press -> chest
 - upper chest emphasis
-
-### hammer strength press
-
-- hammer strength press -> chest
 
 ### machine shoulder press
 
-- machine shoulder press -> front delt
 - neutral grip, slight lean for upper chest
-
-### pec deck
-
-- pec deck -> chest
 
 ### hammer strength row
 
-- hammer strength row -> back
 - logged as total both sides (45 per side = 90)
 
 ### straight bar pulldown
 
-- straight bar pulldown -> back
 - attachment matters, logged under this name, not lat pulldown
-
-### cable pullover
-
-- cable pullover -> back
+- stack jumps 10kg: 47, 57, 67, 77, 87, 97, 107, 117, 127
 
 ### face pull
 
-- face pull -> rear delt
 - max height
-
-### cable rear delt fly
-
-- cable rear delt fly -> rear delt
-
-### cable lat raise
-
-- cable lat raise -> side delt
-
-### machine lat raise
-
-- machine lat raise -> side delt
-
-### hack squat
-
-- hack squat -> quads
-
-### leg press
-
-- leg press -> quads, glutes
-
-### rdl
-
-- rdl -> hamstrings, glutes
-
-### leg extension
-
-- leg extension -> quads
-
-### seated leg curl
-
-- seated leg curl -> hamstrings
-
-### lying leg curl
-
-- lying leg curl -> hamstrings
-
-### adductor machine
-
-- adductor machine -> adductors
-
-### crunch machine
-
-- crunch machine -> abs
 
 ### bayesian curl
 
-- bayesian curl -> biceps
 - cable below 8
-
-### preacher curl
-
-- preacher curl -> biceps
-
-### ezbar curl
-
-- ezbar curl -> biceps
-
-### incline dumbbell curl
-
-- incline dumbbell curl -> biceps
-
-### rope hammer curl
-
-- rope hammer curl -> biceps, forearms
-
-### cable reverse curl
-
-- cable reverse curl -> forearms
-
-### cable pushdown
-
-- cable pushdown -> triceps
-
-### unilateral cable pushdown
-
-- unilateral cable pushdown -> triceps
-
-### ezbar skullcrusher
-
-- ezbar skullcrusher -> triceps
-
-### cable wrist curl
-
-- cable wrist curl -> forearms
-
-### cable wrist extension
-
-- cable wrist extension -> forearms
