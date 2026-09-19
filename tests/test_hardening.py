@@ -330,3 +330,41 @@ def test_bad_numeric_inputs_exit_cleanly(log_module):
             assert False, f"should have exited: {fn.__name__}{args}"
         except SystemExit as e:
             assert needle in str(e), f"{fn.__name__}: {e}"
+
+
+def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
+    """A syntactically valid but incomplete dump exits with the live DB intact."""
+    import sqlite3
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    db_path = tmp_db
+    con = sqlite3.connect(db_path)
+    schema = con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='bodyweight'").fetchone()[0]
+    con.close()
+    sql_path = __import__("os").path.join(__import__("os").path.dirname(db_path), "workouts.sql")
+    with open(sql_path, "w") as f:
+        f.write(schema + ";\n")
+    try:
+        log_module.cmd_restore()
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "missing tables" in str(e)
+    c2 = log_module.conn()
+    tables = {r[0] for r in c2.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    assert tables == {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map"}
+    assert c2.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
+
+
+def test_rename_same_muscles_different_order_merges(log_module):
+    """Reordered-but-identical muscle sets are not a conflict."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bp", 50, 8, "", "triceps,chest")
+    log_module.cmd_log("bench", 60, 8, "", "chest,triceps")
+    log_module.cmd_end("done")
+    out = json.loads(capture_stdout(log_module.cmd_rename, "bp", "bench"))
+    assert out["renamed"] == 1
+    assert out["map_moved"] is True
+    assert c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = 'bench'").fetchone()["n"] == 2

@@ -28,7 +28,7 @@ First session Sep 19, all baselines, next holds until trained again.
 - hammer strength row: baseline 90x9 (117.0), next 90x9
 - pec deck: baseline 80x13 (114.7), next 80x13
 - straight bar pulldown: baseline 87x7 (107.3), next 87x7
-- machine shoulder press: baseline 40x9 (52.0, returning), next 40x9
+- machine shoulder press: baseline 40x9 (52.0 top set, returning), next 40x9
 - cable lat raise: baseline 11.25x13 (16.1), next 11.25x13
 - bayesian curl: baseline 13.75x10 (18.3), next 13.75x10
 - preacher curl: baseline 46x8 (58.3), next 46x8

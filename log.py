@@ -436,6 +436,10 @@ def cmd_restore(force=False):
             sys.exit(f"dump failed to load ({e}), live DB untouched")
         if t.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             sys.exit("restored DB failed integrity check, live DB untouched")
+        tables = {r[0] for r in t.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        expected = {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map"}
+        if tables != expected:
+            sys.exit(f"dump is missing tables (has {sorted(tables)}), live DB untouched")
         t.close()
         try:
             live = sqlite3.connect(DB)
@@ -762,7 +766,7 @@ def cmd_rename(old, new):
         sys.exit("old and new exercise names are identical, nothing to rename")
     mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
     target = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (new,)).fetchone()
-    if mapping and target and mapping["muscles"] != target["muscles"]:
+    if mapping and target and set(mapping["muscles"].split(",")) != set(target["muscles"].split(",")):
         sys.exit(f"'{new}' already maps to {target['muscles']}, not {mapping['muscles']}; retag one of them first, then rename")
     cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old))
     renamed = cur.rowcount
