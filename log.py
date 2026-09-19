@@ -219,6 +219,10 @@ def cmd_end(note):
 
 
 def cmd_rest(day, note):
+    try:
+        day = date.fromisoformat(day).isoformat()
+    except ValueError:
+        sys.exit("date must be YYYY-MM-DD")
     c = conn()
     if date.fromisoformat(day) > date.today():
         sys.exit("rest date cannot be in the future")
@@ -230,12 +234,14 @@ def cmd_rest(day, note):
     rest_rows = [r for r in rows if r["status"] == "rest"]
     if rest_rows:
         rid = rest_rows[0]["id"]
+        appended = False
         if note:
             old = rest_rows[0]["notes"]
             combined = (old + " " + note).strip() if old else note
             c.execute("UPDATE workouts SET notes = ? WHERE id = ?", (combined, rid))
             c.commit()
-        print(json.dumps({"rest_id": rid, "date": day, "appended": True}))
+            appended = True
+        print(json.dumps({"rest_id": rid, "date": day, "appended": appended}))
         return
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'rest', ?)", (day, note))
     c.commit()
@@ -672,9 +678,16 @@ def cmd_update_workout(workout_id, field, value):
         sys.exit("status must be open, done or rest")
     c = conn()
     if field == "status" and value == "rest":
+        row = c.execute("SELECT date FROM workouts WHERE id = ?", (int(workout_id),)).fetchone()
+        if not row:
+            sys.exit("no such workout")
         n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
         if n > 0:
             sys.exit("workout has sets, cannot mark it rest (move or delete them first)")
+        dup = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest' AND id != ?",
+                        (row["date"], int(workout_id))).fetchone()
+        if dup:
+            sys.exit(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
     cur = c.execute(f"UPDATE workouts SET {field} = ? WHERE id = ?", (value, int(workout_id)))
     if cur.rowcount == 0:
         sys.exit("no such workout")

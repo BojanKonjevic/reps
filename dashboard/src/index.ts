@@ -289,7 +289,8 @@ function render() {
   let viewM = parseInt(startView.slice(5, 7), 10) - 1;
   const restDates: Record<string, boolean> = {};
   for (const w of W)
-    if (w.status === 'rest' && !(byDate[w.date] && byDate[w.date].length)) restDates[w.date] = true;
+    if (w.status === 'rest' && !(dayDetail[w.date] && dayDetail[w.date].length))
+      restDates[w.date] = true;
   const drawCal = () => renderCal(viewY, viewM, dayDetail, restDates);
   document.getElementById('calPrev')!.onclick = () => {
     viewM -= 1;

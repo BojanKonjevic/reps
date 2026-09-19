@@ -27,6 +27,26 @@ def test_rest_creates_rest_row(log_module):
     assert row["notes"] == "sore"
 
 
+def test_rest_repeat_without_note_reports_noop(log_module):
+    """Repeating rest with no new note changes nothing and says so."""
+    c = log_module.conn()
+    today = date.today().isoformat()
+    log_module.cmd_rest(today, "sore")
+    out = json.loads(capture_stdout(log_module.cmd_rest, today, ""))
+    assert out["appended"] is False
+    row = c.execute("SELECT notes FROM workouts").fetchone()
+    assert row["notes"] == "sore"
+
+
+def test_rest_rejects_bad_date_cleanly(log_module):
+    """Direct calls with garbage dates exit cleanly, no traceback."""
+    try:
+        log_module.cmd_rest("not-a-date", "sore")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "date must be yyyy-mm-dd" in str(e).lower()
+
+
 def test_rest_second_call_appends_note(log_module):
     """Marking rest twice appends the note instead of duplicating the row."""
     c = log_module.conn()
@@ -148,3 +168,18 @@ def test_delete_workout_removes_rest_row(log_module):
     out = json.loads(capture_stdout(log_module.cmd_rest, date.today().isoformat(), "sore"))
     log_module.cmd_delete_workout(str(out["rest_id"]))
     assert c.execute("SELECT COUNT(*) n FROM workouts").fetchone()["n"] == 0
+
+
+def test_update_workout_to_rest_refuses_duplicate_rest_row(log_module):
+    """The update path cannot double up a rest row created via rest."""
+    c = log_module.conn()
+    log_module.cmd_rest(date.today().isoformat(), "sore")
+    log_module.cmd_start("empty")
+    log_module.cmd_end("done")
+    wid = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
+    try:
+        log_module.cmd_update_workout(str(wid), "status", "rest")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "already has a rest row" in str(e).lower()
+    assert c.execute("SELECT COUNT(*) n FROM workouts WHERE status = 'rest'").fetchone()["n"] == 1
