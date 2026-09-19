@@ -10,9 +10,15 @@ Empty. Rules whose date passed move here, never deleted silently. Agent asks onc
 
 ## Active rules
 
+Format: start date, rule, expiry if any.
+
 - Sep 18 2026: straps on anything grip-limited, including wrapping straps around cable attachments instead of handles. Grip is never a limiter.
-  Format: start date, rule, expiry if any.
-  Example: Sep 1 2026 incline barbell bench press is the main press until Nov 1 2026, flat only on request.
+- Sep 19 2026: hammer strength row logged as total both sides (45 per side = 90).
+- Sep 19 2026: unilateral sets capped by first hand when lower, always log weaker side reps with L/R in note when diverged.
+- Sep 19 2026: end notes stay lean, one line, only what numbers cannot explain (returns, new lifts, rep scheme shifts, bad sleep, pain). DB holds weights, MEMORY holds setups. Pain/sleep silent when fine.
+  Example: Baseline Upper A. Shoulder press first time in a year. First session pushing higher reps on isolations. Reverse curl new.
+- Sep 19 2026: height means cable height or seat height setup, ask if unsure, repeat it in every next-exercise reminder.
+- Sep 19 2026: at every session end, audit that session only (all sets have muscles, set counts match the split slot, canonical names). Never a full-DB audit unless asked.
 
 ## Program
 
@@ -104,12 +110,12 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 - incline barbell bench press -> chest, front delt
 - reverse-grip smith incline press -> chest (upper chest emphasis)
 - hammer strength press -> chest
-- machine shoulder press -> front delt
+- machine shoulder press -> front delt (neutral grip, slight lean for upper chest)
 - pec deck -> chest
 - hammer strength row -> back
 - straight bar pulldown -> back (attachment matters, logged under this name, not lat pulldown)
 - cable pullover -> back
-- face pull -> rear delt
+- face pull -> rear delt (max height)
 - cable rear delt fly -> rear delt
 - cable lat raise -> side delt
 - machine lat raise -> side delt
@@ -121,7 +127,7 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 - lying leg curl -> hamstrings
 - adductor machine -> adductors
 - crunch machine -> abs
-- bayesian curl -> biceps
+- bayesian curl -> biceps (cable below 8)
 - preacher curl -> biceps
 - ezbar curl -> biceps
 - incline dumbbell curl -> biceps
@@ -138,6 +144,7 @@ Exercise to muscle groups, asked once and recorded. Form dependent entries note 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.
 
 - Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day).
+- Sep 19 2026: straight bar pulldown stack jumps 10kg (47, 57, 67, 77, 87, 97, 107, 117, 127).
 
 ## Monthly rollups
 
