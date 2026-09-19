@@ -520,22 +520,41 @@ def cmd_audit():
     for s in stale:
         flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
 
-    # Check 8: Volume vs MEV
+    # Check 8: Volume vs MEV, rolling 8-week window (current week + 7 back).
+    # Every week in the window counts: weeks with no logged sets are 0, not
+    # absent. Zero and low volume are separate flags; bad weeks are counted
+    # across the whole window, a good week in between does not reset anything.
     from datetime import date, timedelta
-    base = date.today() - timedelta(weeks=10)
+    today = date.today()
+    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(7, -1, -1)]
+    base = week_starts[0].isoformat()
     mev_bounds = parse_mev_from_science()
     for muscle, mev in mev_bounds.items():
-        weeks = c.execute("""
-            SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
+        rows = c.execute("""
+            SELECT date(w.date) as day, COUNT(*) as sets
             FROM sets s
             JOIN workouts w ON w.id = s.workout_id
             JOIN set_muscles sm ON sm.set_id = s.id
             WHERE sm.muscle = ? AND date(w.date) >= ?
-            GROUP BY week ORDER BY week
-        """, (muscle, base.isoformat())).fetchall()
-        low_weeks = sum(1 for w in weeks if w["sets"] < mev)
+            GROUP BY day
+        """, (muscle, base)).fetchall()
+        per_day = {r["day"]: r["sets"] for r in rows}
+        weekly = []
+        for ws in week_starts:
+            we = ws + timedelta(days=7)
+            total = sum(n for d, n in per_day.items() if ws.isoformat() <= d < we.isoformat())
+            weekly.append(total)
+        counts = "[" + ", ".join(str(n) for n in weekly) + "]"
+        zero_weeks = sum(1 for n in weekly if n == 0)
+        low_weeks = sum(1 for n in weekly if 0 < n < mev)
+        if zero_weeks >= 4:
+            flags.append({"check": "volume_zero", "severity": "high",
+                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last 8 weeks {counts} (MEV {mev})",
+                          "fix": "add volume, or add Active rule explaining"})
         if low_weeks >= 4:
-            flags.append({"check": "volume_below_mev", "severity": "medium", "evidence": f"{muscle}: {low_weeks} of last {len(weeks)} weeks below MEV ({mev})", "fix": "add volume, or add Active rule explaining"})
+            flags.append({"check": "volume_low", "severity": "medium",
+                          "evidence": f"{muscle}: below MEV in {low_weeks} of last 8 weeks {counts} (MEV {mev})",
+                          "fix": "add volume, or add Active rule explaining"})
 
     # Output report
     print(f"Audit complete: {len(flags)} flags (checks 5 and 6 are manual only, see AUDIT.md)")

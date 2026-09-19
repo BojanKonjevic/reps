@@ -54,10 +54,13 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 - Evidence: workout id, date, age_days, last_set_created.
 - Fix: `end` with note, or `delete-workout` if empty.
 
-### 8. Volume vs frequency guidance
+### 8. Volume vs MEV (rolling 8-week window)
 
-- For each tracked muscle in MEMORY.md Tracked muscles: compute weekly sets/week from `range` (last 8 weeks). Compare against SCIENCE.md frequency guidance (2–3 for upper, 2 for legs, 3–4 for abs). Flag muscle groups averaging < MEV (from SCIENCE.md volume landmarks) for ≥ 4 consecutive weeks with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization). Tracked muscles with no SCIENCE.md landmark (currently front delt, rear delt, adductors) are skipped by the deterministic check.
-- Evidence: muscle, weekly sets/week for each week, MEV, Active rules.
+- For each tracked muscle in MEMORY.md Tracked muscles: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
+  - `volume_zero` (high): 0 sets in ≥ 4 of the last 8 weeks.
+  - `volume_low` (medium): 0 < sets < MEV in ≥ 4 of the last 8 weeks.
+- MEV comes from the SCIENCE.md volume landmarks. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped.
+- Evidence: muscle, bad-week count out of 8, per-week set counts, MEV.
 - Fix: add volume, or add Active rule explaining.
 
 ---

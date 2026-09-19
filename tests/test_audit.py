@@ -303,6 +303,75 @@ def test_cmd_audit_skips_explained_jump(audit_db):
     assert [f for f in flags if f["check"] == "progression_jump"] == []
 
 
+def _seed_muscle_weeks(c, muscle, week_sets):
+    """One done workout (Wednesday) per listed week: {weeks_ago: set_count}."""
+    from datetime import date, timedelta
+    monday = date.today() - timedelta(days=date.today().weekday())
+    for ago, nsets in week_sets.items():
+        d = (monday - timedelta(weeks=ago) + timedelta(days=2)).isoformat()
+        cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
+        c.commit()
+        wid = cur.lastrowid
+        for _ in range(nsets):
+            cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
+            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (cur2.lastrowid, muscle))
+        c.commit()
+
+
+def _chest_volume_flags(log, check):
+    out = _run_cmd_audit(log)
+    flags = json.loads(out.strip().splitlines()[-1])["flags"]
+    return [f for f in flags if f["check"] == check and f["evidence"].startswith("chest:")]
+
+
+def test_cmd_audit_volume_zero(audit_db):
+    """check 8: 4 of last 8 weeks at zero sets fires volume_zero, high."""
+    log, c = audit_db
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    zeros = _chest_volume_flags(log, "volume_zero")
+    assert len(zeros) == 1
+    assert zeros[0]["severity"] == "high"
+    assert "0 sets in 4 of last 8 weeks" in zeros[0]["evidence"]
+    assert _chest_volume_flags(log, "volume_low") == []
+
+
+def test_cmd_audit_volume_low(audit_db):
+    """check 8: 4 of last 8 weeks low-but-nonzero fires volume_low, medium."""
+    log, c = audit_db
+    _seed_muscle_weeks(c, "chest", {0: 2, 1: 2, 2: 2, 3: 2, 4: 8, 5: 8, 6: 8, 7: 8})
+    lows = _chest_volume_flags(log, "volume_low")
+    assert len(lows) == 1
+    assert lows[0]["severity"] == "medium"
+    assert "below MEV in 4 of last 8 weeks" in lows[0]["evidence"]
+    assert _chest_volume_flags(log, "volume_zero") == []
+
+
+def test_cmd_audit_volume_scattered_below_threshold(audit_db):
+    """check 8: 3 bad weeks out of 8 fires nothing."""
+    log, c = audit_db
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8, 4: 8})
+    assert _chest_volume_flags(log, "volume_zero") == []
+    assert _chest_volume_flags(log, "volume_low") == []
+
+
+def test_cmd_audit_volume_no_streak_reset(audit_db):
+    """check 8: a good week splitting bad weeks does not reset the count."""
+    log, c = audit_db
+    _seed_muscle_weeks(c, "chest", {2: 8, 5: 8, 6: 8, 7: 8})
+    zeros = _chest_volume_flags(log, "volume_zero")
+    assert len(zeros) == 1
+    assert "0 sets in 4 of last 8 weeks" in zeros[0]["evidence"]
+
+
+def test_cmd_audit_volume_never_trained(audit_db):
+    """check 8: a muscle absent from every week still flags as zero."""
+    log, c = audit_db
+    zeros = _chest_volume_flags(log, "volume_zero")
+    assert len(zeros) == 1
+    assert zeros[0]["severity"] == "high"
+    assert "0 sets in 8 of last 8 weeks" in zeros[0]["evidence"]
+
+
 EXPECTED_MEV = {
     "chest": 8, "back": 10, "front delt": 0, "side delt": 6, "rear delt": 6,
     "biceps": 6, "triceps": 6, "quads": 8, "hamstrings": 6, "glutes": 6,
