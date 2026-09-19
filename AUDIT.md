@@ -44,9 +44,9 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 6. Unreconciled split slots
 
-- Compare exercises logged in `range` (last 3 months) against MOVEMENTS.md Split for their day type. Flag any exercise that appears ≥ 3 times but is not listed in the corresponding Split section (including interchangeable `/` entries).
-- Evidence: exercise, day type, occurrence count, Split section content.
-- Fix: add to Split at next `end`, or `retag` if misclassified.
+- Compare exercises logged in `range` (last 3 months) against MOVEMENTS.md Active split for their day type. Flag any exercise that appears ≥ 3 times but is not listed in the corresponding Active split section (including interchangeable `/` entries).
+- Evidence: exercise, day type, occurrence count, Active split section content.
+- Fix: add to Active split at next `end`, or `retag` if misclassified.
 
 ### 7. Stale open workouts
 
