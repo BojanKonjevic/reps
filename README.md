@@ -14,7 +14,7 @@ The split is deliberate. The database holds facts, the markdown holds the rules,
 
 ## How a session looks
 
-You open t3code and say you're training. The agent figures out which slot is up, tells you what to hit, and you send sets as you go. "Squat 90 5/5/7, last to failure" is enough, it fans out into three logged sets. Ask questions between sets, say done at the end, and you get a short report plus a synced dashboard.
+You open a chat with an agent that has terminal access and say you're training. I run it in t3code, but any environment where the agent can execute `log.py` locally works. The agent figures out which slot is up, tells you what to hit, and you send sets as you go. "Squat 90 5/5/7, last to failure" is enough, it fans out into three logged sets. Ask questions between sets, say done at the end, and you get a short report plus a synced dashboard.
 
 You never touch the CLI yourself. The commands are the agent's vocabulary, not yours. That is the whole idea: zero logging friction, full data underneath.
 
