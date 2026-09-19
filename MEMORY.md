@@ -20,6 +20,18 @@ Bodyweight, injuries, sleep, motivation notes that carry over. One line each, ne
 
 - Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day).
 
+## Progression state
+
+None yet. Cold start applies: no target, no PR flag until a lift is trained.
+
+## Muscle load (7d retention)
+
+None yet.
+
+## Flagged for next session
+
+None yet.
+
 ## Monthly rollups
 
 One short block per month, written on request at month end. Trend plus caveats, not raw sets. Raw sets stay in SQLite.
