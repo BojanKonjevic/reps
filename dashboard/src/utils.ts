@@ -1,4 +1,5 @@
 export function e1rm(w: number, r: number): number {
+  if (r === 1) return w;
   return w * (1 + r / 30);
 }
 

@@ -303,6 +303,56 @@ def test_cmd_audit_skips_explained_jump(audit_db):
     assert [f for f in flags if f["check"] == "progression_jump"] == []
 
 
+def _seed_progression(c, first, second):
+    """Two done workouts 3 days apart with given (weight, reps) bench sets."""
+    from datetime import date, timedelta
+    base = date.today() - timedelta(days=9)
+    for offset, (weight, reps) in [(0, first), (3, second)]:
+        d = (base + timedelta(days=offset)).isoformat()
+        cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
+        c.commit()
+        wid = cur.lastrowid
+        cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, ?, '', datetime('now'))", (wid, weight, reps))
+        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
+        c.commit()
+
+
+def _progression_jumps(log):
+    out = _run_cmd_audit(log)
+    flags = json.loads(out.strip().splitlines()[-1])["flags"]
+    return [f for f in flags if f["check"] == "progression_jump"]
+
+
+def test_cmd_audit_ignores_routine_rep_pr(audit_db):
+    """check 4: +1 rep (+2.9% e1RM) is below the 2-6 band bound, no flag."""
+    log, c = audit_db
+    _seed_progression(c, (100, 5), (100, 6))
+    assert _progression_jumps(log) == []
+
+
+def test_cmd_audit_ignores_high_rep_plus_one(audit_db):
+    """check 4: +1 rep at high reps (+3.3%) is below the 11-15 band bound."""
+    log, c = audit_db
+    _seed_progression(c, (80, 12), (80, 13))
+    assert _progression_jumps(log) == []
+
+
+def test_cmd_audit_skips_above_15_reps(audit_db):
+    """check 4: e1RM above 15 reps never flags, however large the jump."""
+    log, c = audit_db
+    _seed_progression(c, (100, 16), (140, 16))
+    assert _progression_jumps(log) == []
+
+
+def test_cmd_audit_flags_single_to_double(audit_db):
+    """check 4: same-weight single to double (+6.7%) exceeds the low band."""
+    log, c = audit_db
+    _seed_progression(c, (100, 1), (100, 2))
+    jumps = _progression_jumps(log)
+    assert len(jumps) == 1
+    assert jumps[0]["severity"] == "high"
+
+
 def _seed_muscle_weeks(c, muscle, week_sets):
     """One done workout (Wednesday) per listed week: {weeks_ago: set_count}."""
     from datetime import date, timedelta

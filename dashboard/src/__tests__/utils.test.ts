@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { fmtV, fmtD, fmtTick, isDate, niceTicks } from '../utils';
+import { e1rm, fmtV, fmtD, fmtTick, isDate, niceTicks } from '../utils';
 
 describe('utils', () => {
+  describe('e1rm', () => {
+    it('uses Epley for reps above 1', () => {
+      expect(e1rm(100, 5)).toBeCloseTo(116.67, 2);
+    });
+    it('returns the weight itself for a true single', () => {
+      expect(e1rm(100, 1)).toBe(100);
+    });
+  });
   describe('fmtV', () => {
     it('formats >=100 as integer', () => {
       expect(fmtV(100)).toBe('100');

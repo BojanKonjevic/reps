@@ -280,7 +280,7 @@ def cmd_stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
     out = {"workouts": len([w for w in workouts if w["status"] != "rest"]), "by_exercise": {}}
-    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(weight * (1 + reps / 30.0)) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
+    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
 
     for r in rows:
         out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
@@ -464,13 +464,14 @@ def cmd_audit():
             flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
 
     # Check 4: Implausible progression jumps
-    # Deterministic proxy for AUDIT.md check 4: the per-type SCIENCE.md bounds need
-    # training age, which the db does not track, so flag only jumps exceeding the
-    # loosest plausible rate (novice compound 2% for multi-muscle lifts, isolation
-    # 1.5% for single-muscle lifts). Jumps explained by set/workout notes are skipped.
+    # Rep-band thresholds (same scale as the planning confidence bands): a +1
+    # rep gain is always 2.2%+ e1RM, so flat science-rate bounds would flag
+    # every routine rep PR. Band is read off the current session best's reps;
+    # above 15 reps e1RM is informational only and never flags.
+    # Jumps explained by set/workout notes are skipped.
     sets = c.execute("""
         SELECT s.id, s.exercise, s.weight, s.reps, w.date, s.note AS set_note, w.notes AS workout_notes,
-               s.weight * (1 + s.reps / 30.0) as e1rm
+               CASE WHEN s.reps = 1 THEN s.weight ELSE s.weight * (1 + s.reps / 30.0) END as e1rm
         FROM sets s JOIN workouts w ON w.id = s.workout_id
         WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
     """).fetchall()
@@ -481,22 +482,31 @@ def cmd_audit():
 
     explained = ("deload", "return", "program change", "injury", "technique", "sick", "travel")
 
+    def jump_bound(reps):
+        if reps <= 6:
+            return 4.0
+        if reps <= 10:
+            return 5.0
+        if reps <= 15:
+            return 8.0
+        return None
+
     for ex, ex_sets in by_ex.items():
         by_date = {}
         notes_by_date = {}
         for s in ex_sets:
             d = s["date"]
-            if d not in by_date or s["e1rm"] > by_date[d]:
-                by_date[d] = s["e1rm"]
+            if d not in by_date or s["e1rm"] > by_date[d][0]:
+                by_date[d] = (s["e1rm"], s["reps"])
             blob = ((s["set_note"] or "") + " " + (s["workout_notes"] or "")).lower()
             notes_by_date[d] = (notes_by_date.get(d, "") + " " + blob).strip()
         dates = sorted(by_date.keys())
-        row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (ex,)).fetchone()
-        groups = len((row["muscles"] or "").split(",")) if row and row["muscles"] else 1
-        bound = 2.0 if groups > 1 else 1.5
         for i in range(1, len(dates)):
-            prev = by_date[dates[i-1]]
-            curr = by_date[dates[i]]
+            prev, _ = by_date[dates[i-1]]
+            curr, reps = by_date[dates[i]]
+            bound = jump_bound(reps)
+            if bound is None:
+                continue
             if prev > 0:
                 pct = (curr - prev) / prev * 100
                 if pct > bound:
@@ -791,7 +801,7 @@ def cmd_context(n):
     best = []
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         top = c.execute(
-            "SELECT weight, reps, weight * (1 + reps / 30.0) AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
+            "SELECT weight, reps, CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
         last = c.execute(
             "SELECT weight, reps FROM sets WHERE exercise = ? ORDER BY id DESC LIMIT 1", (r["exercise"],)

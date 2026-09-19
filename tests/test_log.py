@@ -440,6 +440,31 @@ def test_rename_moves_muscle_mapping(log_module):
     assert row["muscles"] == "chest"
 
 
+def test_stats_single_e1rm_is_weight(log_module):
+    """A true single reports e1RM equal to its weight, not the formula value."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 1, "", "chest")
+    log_module.cmd_end("done")
+    output = capture_stdout(log_module.cmd_stats)
+    data = json.loads(output)
+    assert data["by_exercise"]["bench"]["max_e1rm"] == 100
+
+
+def test_context_single_beats_lower_formula_e1rm(log_module):
+    """Context top set uses the singles exception when ranking."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 1, "", "chest")
+    log_module.cmd_log("bench", 80, 5, "", "chest")
+    log_module.cmd_end("done")
+    output = capture_stdout(log_module.cmd_context, "3")
+    data = json.loads(output)
+    bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
+    assert bench["max_e1rm"] == 100
+    assert bench["max_weight"] == 100
+
+
 def test_context_reports_max_e1rm(log_module):
     """context lifts report max e1RM, not just max top weight."""
     c = log_module.conn()
