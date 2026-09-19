@@ -22,11 +22,32 @@ Bodyweight, injuries, sleep, motivation notes that carry over. One line each, ne
 
 ## Progression state
 
-None yet. Cold start applies: no target, no PR flag until a lift is trained.
+First session Sep 19, all baselines, next holds until trained again.
+
+- incline barbell bench press: baseline 80x6 (96.0), next 80x6
+- hammer strength row: baseline 90x9 (117.0), next 90x9
+- pec deck: baseline 80x13 (114.7), next 80x13
+- straight bar pulldown: baseline 87x7 (107.3), next 87x7
+- machine shoulder press: baseline 40x9 (52.0, returning), next 40x9
+- cable lat raise: baseline 11.25x13 (16.1), next 11.25x13
+- bayesian curl: baseline 13.75x10 (18.3), next 13.75x10
+- preacher curl: baseline 46x8 (58.3), next 46x8
+- cable pushdown: baseline 31.25x12 (43.8), next 31.25x12
+- cable reverse curl: baseline 11.25x13 (16.1, new), next 11.25x13
+- face pull: baseline 38.75x12 (54.3), next 38.75x12
 
 ## Muscle load (7d retention)
 
-None yet.
+First session Sep 19, all baseline.
+
+- chest: 1 session, 5 sets, last hit Sep 19 (baseline)
+- front delt: 1 session, 5 sets, last hit Sep 19 (baseline)
+- back: 1 session, 4 sets, last hit Sep 19 (baseline)
+- side delt: 1 session, 2 sets, last hit Sep 19 (baseline)
+- rear delt: 1 session, 2 sets, last hit Sep 19 (baseline)
+- biceps: 1 session, 4 sets, last hit Sep 19 (baseline)
+- triceps: 1 session, 2 sets, last hit Sep 19 (baseline)
+- forearms: 1 session, 2 sets, last hit Sep 19 (baseline)
 
 ## Flagged for next session
 

@@ -20,6 +20,7 @@ Last reviewed: Sep 18 2026
 | Glutes     | 6   | 12–18 | 24+ | Contested | Few direct studies, RP                           |
 | Adductors  | 4\* | 4–8   | 12+ | Opinion   | No direct landmarks, extrapolated (see note)     |
 | Abs        | 6   | 12–20 | 25+ | Contested | Limited hypertrophy data                         |
+| Forearms   | 6   | n/a   | n/a | Opinion   | No trusted landmarks, plan uses ~6/week (see note) |
 
 MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
@@ -67,8 +68,9 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 | Glutes     | 2–3           | Contested | Can tolerate more, individual                      |
 | Adductors  | 2             | Opinion   | Matches current plan, compound pattern             |
 | Abs        | 3–4           | Contested | Low damage, high recoverability                    |
+| Forearms   | 3             | Opinion   | Current plan, 3 exposures                          |
 
-Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 4x and rear delts at 3x are priority deviations, see Personal deviations.
+Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 5x are a priority deviation, see Personal deviations. Rear delts at 3x sit inside the table range above, no deviation.
 
 ## Rep range guidance
 
