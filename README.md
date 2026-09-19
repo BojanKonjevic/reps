@@ -1,6 +1,6 @@
 # reps
 
-Chat first training log. Talk in t3code, agent stores via `log.py` into local SQLite.
+Chat first training log. You talk, the agent stores every set in local SQLite via `log.py`.
 
 ## Why this exists
 
@@ -12,4 +12,34 @@ The combination is the point. Facts alone can't tell you what to do next, and ag
 
 The split is deliberate. The database holds facts, the markdown holds the rules, the agent does the thinking, and you just train and talk.
 
-See AGENTS.md for the agent protocol. Dashboard lives in `dashboard/` as a read only Cloudflare Worker at https://reps.bojan-dev.workers.dev/ over snapshots pushed with `log.py sync`. Morning weight goes in with `log.py weigh`.
+## How a session looks
+
+You open t3code and say you're training. The agent figures out which slot is up, tells you what to hit, and you send sets as you go. "Squat 90 5/5/7, last to failure" is enough, it fans out into three logged sets. Ask questions between sets, say done at the end, and you get a short report plus a synced dashboard.
+
+You never touch the CLI yourself. The commands are the agent's vocabulary, not yours. That is the whole idea: zero logging friction, full data underneath.
+
+## How it works
+
+Three layers, each doing one job.
+
+**The database holds facts.** `log.py` is a dumb store: workouts, sets with weight, reps, muscles and notes, bodyweight. No opinions in code, the agent owns meaning. The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
+
+**The markdown holds the rules.** AGENTS.md is the protocol: naming, progression, goals, audits. MEMORY.md, MOVEMENTS.md, and GOALS.md carry your state, program, and targets. SCIENCE.md pins the evidence-based defaults. This is what keeps the agent honest.
+
+**The dashboard shows it back.** `log.py sync` pushes a snapshot to a read-only Cloudflare Worker. Graphs over headline numbers: e1RM trends per lift, volume by muscle, calendar, PRs.
+
+## Repo map
+
+- `log.py`, the CLI and only writer. SQLite at `workouts.db`, tracked dump at `workouts.sql`.
+- `AGENTS.md`, the agent protocol. `MEMORY.md`, `MOVEMENTS.md`, `GOALS.md`, your training state.
+- `SCIENCE.md`, evidence defaults. `AUDIT.md`, the data-quality checklist. `ISSUES.md`, noticed problems waiting for a fix.
+- `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
+- `tests/`, the deterministic pytest suite for everything `log.py` enforces.
+
+## Backup and recovery
+
+Every session ends with a `data: <date>` commit of `workouts.sql`. If the local database ever gets corrupted, `log.py restore` rebuilds it from the dump. The commit history is the undo button.
+
+## Tests
+
+Python: `uv run --with pytest --no-project pytest tests/ -q` (system python has no pytest, never `python -m pytest` directly). Dashboard: `npm run test` for unit, `npx playwright test` for e2e, from `dashboard/`.
