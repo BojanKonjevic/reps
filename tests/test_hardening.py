@@ -182,3 +182,151 @@ def test_audit_flags_steep_drop(log_module):
     drops = [f for f in flags if f["check"] == "progression_drop"]
     assert len(drops) == 1
     assert drops[0]["severity"] == "medium"
+
+
+def _dump_sql_for_db(db_path):
+    import sqlite3
+    c = sqlite3.connect(db_path)
+    sql_path = __import__("os").path.join(__import__("os").path.dirname(db_path), "workouts.sql")
+    with open(sql_path, "w") as f:
+        for line in c.iterdump():
+            f.write(line + "\n")
+    c.close()
+    return sql_path
+
+
+def test_restore_poisoned_dump_leaves_live_db_untouched(log_module, tmp_db):
+    """A malformed dump exits cleanly with all tables and rows intact."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    sql_path = _dump_sql_for_db(tmp_db)
+    with open(sql_path) as f:
+        lines = f.read().split("\n")
+    lines.insert(5, "THIS IS NOT SQL AT ALL;")
+    with open(sql_path, "w") as f:
+        f.write("\n".join(lines))
+    try:
+        log_module.cmd_restore()
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "live DB untouched" in str(e)
+    tables = [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    assert "sets" in tables and "workouts" in tables
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
+
+
+def test_restore_success_path(log_module, tmp_db):
+    """A valid dump restores lost rows."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    sql_path = _dump_sql_for_db(tmp_db)
+    c.execute("DELETE FROM sets")
+    c.execute("DELETE FROM workouts")
+    c.commit()
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 0
+    log_module.cmd_restore()
+    c2 = log_module.conn()
+    assert c2.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
+
+
+def test_rename_refuses_conflicting_mapping(log_module):
+    """Merging into a differently-mapped name refuses instead of overwriting."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bp", 50, 8, "", "chest,triceps")
+    log_module.cmd_log("press", 60, 8, "", "chest,front delt")
+    log_module.cmd_end("done")
+    try:
+        log_module.cmd_rename("bp", "press")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "already maps to" in str(e)
+    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'press'").fetchone()
+    assert row["muscles"] == "chest,front delt"
+    assert c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = 'bp'").fetchone()["n"] == 1
+
+
+def test_rename_refuses_identical_names(log_module):
+    """Renaming onto itself exits instead of deleting the mapping."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    try:
+        log_module.cmd_rename("bench", "bench")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "identical" in str(e).lower()
+    assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 1
+
+
+def test_rename_same_mapping_merges(log_module):
+    """Same muscles on both sides still merges cleanly."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bp", 50, 8, "", "chest")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    out = json.loads(capture_stdout(log_module.cmd_rename, "bp", "bench"))
+    assert out["renamed"] == 1
+    assert out["map_moved"] is True
+
+
+def test_update_rejects_empty_muscles(log_module):
+    """Empty muscles on update exits, junction rows untouched."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    set_id = c.execute("SELECT id FROM sets").fetchone()["id"]
+    try:
+        log_module.cmd_update(set_id, "muscles", "   ")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "cannot be empty" in str(e).lower()
+    assert [r["muscle"] for r in c.execute("SELECT muscle FROM set_muscles").fetchall()] == ["chest"]
+
+
+def test_retag_rejects_empty_muscles(log_module):
+    """Empty muscles on retag exits, mapping untouched."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_end("done")
+    try:
+        log_module.cmd_retag("bench", " , ")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "cannot be empty" in str(e).lower()
+    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()
+    assert row["muscles"] == "chest"
+
+
+def test_bad_numeric_inputs_exit_cleanly(log_module):
+    """Every numeric/date conversion exits with a message, never a traceback."""
+    c = log_module.conn()
+    log_module.cmd_start("test")
+    log_module.cmd_log("bench", 100, 5, "", "chest")
+    set_id = c.execute("SELECT id FROM sets").fetchone()["id"]
+    wid = c.execute("SELECT id FROM workouts").fetchone()["id"]
+    cases = [
+        (log_module.cmd_log, ("bench", "abc", 5, "", "chest"), "must be a number"),
+        (log_module.cmd_weigh, ("abc", ""), "must be a number"),
+        (log_module.cmd_history, ("bench", "abc"), "integer"),
+        (log_module.cmd_session, ("not-a-date",), "YYYY-MM-DD"),
+        (log_module.cmd_range, ("not-a-date", "2026-01-01"), "YYYY-MM-DD"),
+        (log_module.cmd_update, (set_id, "weight", "abc"), "must be a number"),
+        (log_module.cmd_update, (set_id, "reps", "abc"), "integer"),
+        (log_module.cmd_delete_set, ("abc",), "no such set"),
+        (log_module.cmd_delete_workout, ("abc",), "no such workout"),
+        (log_module.cmd_update_workout, ("abc", "notes", "x"), "no such workout"),
+    ]
+    for fn, args, needle in cases:
+        try:
+            fn(*args)
+            assert False, f"should have exited: {fn.__name__}{args}"
+        except SystemExit as e:
+            assert needle in str(e), f"{fn.__name__}: {e}"

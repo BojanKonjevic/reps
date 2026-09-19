@@ -161,8 +161,14 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     if not w:
         sys.exit("no open workout, run start first (workouts are only created explicitly)")
     exercise = exercise.strip().lower()
-    weight = float(weight)
-    reps = int(reps)
+    try:
+        weight = float(weight)
+    except (TypeError, ValueError):
+        sys.exit("weight must be a number")
+    try:
+        reps = int(reps)
+    except (TypeError, ValueError):
+        sys.exit("reps must be an integer")
     if weight < 0:
         sys.exit("weight cannot be negative")
     if reps <= 0:
@@ -239,13 +245,18 @@ def cmd_update(set_id, field, value):
         value = value.strip().lower()
     if field == "muscles":
         value = clean_muscles(value)
+        if not value:
+            sys.exit("muscles cannot be empty, pass at least one group or delete the set")
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in value.split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     if field == "weight":
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
-        value = float(value)
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            sys.exit("weight must be a number")
         if value < 0:
             sys.exit("weight cannot be negative")
         # Validate zero-weight against exercise type
@@ -254,7 +265,10 @@ def cmd_update(set_id, field, value):
             if not mapping or mapping["is_bodyweight_only"] != 1:
                 sys.exit(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
-        value = int(value)
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            sys.exit("reps must be an integer")
         if value <= 0:
             sys.exit("reps must be a positive integer")
     if field == "exercise":
@@ -347,10 +361,14 @@ def cmd_exercises():
 
 
 def cmd_history(exercise, limit):
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        sys.exit("limit must be an integer")
     c = conn()
     rows = c.execute(
         "SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY s.id DESC LIMIT ?",
-        (exercise.strip().lower(), int(limit)),
+        (exercise.strip().lower(), limit),
     ).fetchall()
     print(json.dumps(attach_muscles(c, rows), indent=2))
 
@@ -377,7 +395,10 @@ def cmd_export():
 def cmd_weigh(kg, note):
     c = conn()
     today = date.today().isoformat()
-    kg = float(kg)
+    try:
+        kg = float(kg)
+    except (TypeError, ValueError):
+        sys.exit("bodyweight must be a number")
     if kg <= 0:
         sys.exit("bodyweight must be positive")
     if kg < 20 or kg > 300:
@@ -400,19 +421,42 @@ def cmd_restore(force=False):
     sql_file = os.path.join(os.path.dirname(DB), "workouts.sql")
     if not os.path.exists(sql_file):
         sys.exit("no workouts.sql found, cannot restore")
-    c = sqlite3.connect(DB)
-    c.row_factory = sqlite3.Row
-    c.executescript("""
-        DROP TABLE IF EXISTS set_muscles;
-        DROP TABLE IF EXISTS sets;
-        DROP TABLE IF EXISTS workouts;
-        DROP TABLE IF EXISTS bodyweight;
-        DROP TABLE IF EXISTS lift_muscle_map;
-    """)
-    c.commit()
-    with open(sql_file, 'r') as f:
-        c.executescript(f.read())
-    c.commit()
+    # Build into a temp file first so a malformed dump can never empty the
+    # live DB: the live file is only replaced after the restore verifies.
+    import tempfile
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(DB)), suffix=".restore.db")
+    os.close(fd)
+    try:
+        try:
+            t = sqlite3.connect(tmp)
+            with open(sql_file, 'r') as f:
+                t.executescript(f.read())
+            t.commit()
+        except sqlite3.Error as e:
+            sys.exit(f"dump failed to load ({e}), live DB untouched")
+        if t.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+            sys.exit("restored DB failed integrity check, live DB untouched")
+        t.close()
+        try:
+            live = sqlite3.connect(DB)
+            live.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            live.close()
+        except sqlite3.Error:
+            pass
+        try:
+            os.replace(tmp, DB)
+        except OSError as e:
+            sys.exit(f"restore failed to replace live DB ({e}), live DB untouched")
+        for suffix in ("-wal", "-shm", "-journal"):
+            try:
+                os.remove(DB + suffix)
+            except OSError:
+                pass
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
     print(json.dumps({"restored": True, "from": sql_file}))
 
 
@@ -714,13 +758,19 @@ def cmd_rename(old, new):
     c = conn()
     old = old.strip().lower()
     new = new.strip().lower()
+    if old == new:
+        sys.exit("old and new exercise names are identical, nothing to rename")
+    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
+    target = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (new,)).fetchone()
+    if mapping and target and mapping["muscles"] != target["muscles"]:
+        sys.exit(f"'{new}' already maps to {target['muscles']}, not {mapping['muscles']}; retag one of them first, then rename")
     cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old))
     renamed = cur.rowcount
-    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
     map_moved = False
     if mapping:
+        is_bw = mapping["is_bodyweight_only"] or (target["is_bodyweight_only"] if target else 0)
         c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-                  (new, mapping["muscles"], mapping["is_bodyweight_only"]))
+                  (new, mapping["muscles"], is_bw))
         c.execute("DELETE FROM lift_muscle_map WHERE exercise = ?", (old,))
         map_moved = True
     c.commit()
@@ -731,6 +781,8 @@ def cmd_retag(exercise, muscles, bodyweight=False):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
+    if not muscles:
+        sys.exit("muscles cannot be empty, pass at least one group")
     existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     is_bw = existing["is_bodyweight_only"] if existing else 0
     if bodyweight:
@@ -749,32 +801,44 @@ def cmd_retag(exercise, muscles, bodyweight=False):
 
 
 def cmd_delete_set(set_id):
+    try:
+        set_id = int(set_id)
+    except (TypeError, ValueError):
+        sys.exit("no such set")
     c = conn()
-    row = c.execute("SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.id = ?", (int(set_id),)).fetchone()
+    row = c.execute("SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.id = ?", (set_id,)).fetchone()
     if not row:
         sys.exit("no such set")
-    c.execute("DELETE FROM sets WHERE id = ?", (int(set_id),))
+    c.execute("DELETE FROM sets WHERE id = ?", (set_id,))
     c.commit()
-    print(json.dumps({"deleted": int(set_id), "workout_id": row["workout_id"], "date": row["date"],
+    print(json.dumps({"deleted": set_id, "workout_id": row["workout_id"], "date": row["date"],
                       "was": {"exercise": row["exercise"], "weight": row["weight"], "reps": row["reps"]}}))
 
 
 def cmd_delete_workout(workout_id):
+    try:
+        workout_id = int(workout_id)
+    except (TypeError, ValueError):
+        sys.exit("no such workout")
     c = conn()
-    row = c.execute("SELECT * FROM workouts WHERE id = ?", (int(workout_id),)).fetchone()
+    row = c.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
     if not row:
         sys.exit("no such workout")
-    n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
-    c.execute("DELETE FROM sets WHERE workout_id = ?", (int(workout_id),))
-    c.execute("DELETE FROM workouts WHERE id = ?", (int(workout_id),))
+    n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (workout_id,)).fetchone()["n"]
+    c.execute("DELETE FROM sets WHERE workout_id = ?", (workout_id,))
+    c.execute("DELETE FROM workouts WHERE id = ?", (workout_id,))
     c.commit()
-    print(json.dumps({"deleted_workout": int(workout_id), "date": row["date"], "deleted_sets": n}))
+    print(json.dumps({"deleted_workout": workout_id, "date": row["date"], "deleted_sets": n}))
 
 
 def cmd_update_workout(workout_id, field, value):
     allowed = {"notes", "date", "status"}
     if field not in allowed:
         sys.exit("field must be one of notes date status")
+    try:
+        workout_id = int(workout_id)
+    except (TypeError, ValueError):
+        sys.exit("no such workout")
     if field == "date":
         try:
             date.fromisoformat(value)
@@ -808,7 +872,10 @@ def cmd_update_workout(workout_id, field, value):
 
 
 def cmd_session(datestr):
-    day = date.fromisoformat(datestr).isoformat()
+    try:
+        day = date.fromisoformat(datestr).isoformat()
+    except ValueError:
+        sys.exit("date must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date = ? ORDER BY id", (day,)).fetchall()
     out = []
@@ -819,8 +886,11 @@ def cmd_session(datestr):
 
 
 def cmd_range(fromstr, tostr):
-    d0 = date.fromisoformat(fromstr).isoformat()
-    d1 = date.fromisoformat(tostr).isoformat()
+    try:
+        d0 = date.fromisoformat(fromstr).isoformat()
+        d1 = date.fromisoformat(tostr).isoformat()
+    except ValueError:
+        sys.exit("dates must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date >= ? AND date <= ? ORDER BY date, id", (d0, d1)).fetchall()
     out = []
