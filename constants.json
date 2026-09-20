@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "muscles": {
+    "chest": {
+      "mev": 8,
+      "mav": [14, 20],
+      "mrv": 25,
+      "freq": [2, 3],
+      "tier": "settled",
+      "source": "Schoenfeld 2017 meta, RP synthesis",
+      "color": "#ffa726"
+    },
+    "back": {
+      "mev": 10,
+      "mav": [14, 22],
+      "mrv": 28,
+      "freq": [2, 3],
+      "tier": "settled",
+      "source": "Schoenfeld 2017, Israetel RP",
+      "color": "#66bb6a"
+    },
+    "front delt": {
+      "mev": 0,
+      "mav": [4, 12],
+      "mrv": 12,
+      "freq": [2, 3],
+      "tier": "opinion",
+      "source": "RP front delt guide, no direct RCT dose-response",
+      "color": "#e6c400"
+    },
+    "side delt": {
+      "mev": 6,
+      "mav": [12, 18],
+      "mrv": 22,
+      "freq": [2, 3],
+      "tier": "settled",
+      "source": "Schoenfeld 2017, Helms 2019",
+      "color": "#9ccc65"
+    },
+    "rear delt": {
+      "mev": 6,
+      "mav": [12, 20],
+      "mrv": 25,
+      "freq": [2, 4],
+      "tier": "opinion",
+      "source": "RP rear delt guide, practitioner synthesis",
+      "color": "#ffab91"
+    },
+    "biceps": {
+      "mev": 6,
+      "mav": [10, 16],
+      "mrv": 20,
+      "freq": [2, 3],
+      "tier": "settled",
+      "source": "Schoenfeld 2017, RP",
+      "color": "#42a5f5"
+    },
+    "triceps": {
+      "mev": 6,
+      "mav": [10, 16],
+      "mrv": 20,
+      "freq": [2, 3],
+      "tier": "settled",
+      "source": "Schoenfeld 2017, RP",
+      "color": "#ef5350"
+    },
+    "quads": {
+      "mev": 8,
+      "mav": [12, 18],
+      "mrv": 24,
+      "freq": [2, 2],
+      "tier": "settled",
+      "source": "Schoenfeld 2017, RP",
+      "color": "#ab47bc"
+    },
+    "hamstrings": {
+      "mev": 6,
+      "mav": [10, 16],
+      "mrv": 20,
+      "freq": [2, 2],
+      "tier": "contested",
+      "source": "Less direct data, extrapolated",
+      "color": "#26c6da"
+    },
+    "glutes": {
+      "mev": 6,
+      "mav": [12, 18],
+      "mrv": 24,
+      "freq": [2, 3],
+      "tier": "contested",
+      "source": "Few direct studies, RP",
+      "color": "#ec407a"
+    },
+    "adductors": {
+      "mev": 4,
+      "mav": [4, 8],
+      "mrv": 12,
+      "freq": [2, 2],
+      "tier": "opinion",
+      "source": "No direct landmarks, extrapolated",
+      "color": "#5c6bc0"
+    },
+    "abs": {
+      "mev": 6,
+      "mav": [12, 20],
+      "mrv": 25,
+      "freq": [3, 4],
+      "tier": "contested",
+      "source": "Limited hypertrophy data",
+      "color": "#b0bec5"
+    },
+    "forearms": {
+      "mev": 6,
+      "mav": null,
+      "mrv": null,
+      "freq": [3, 3],
+      "tier": "opinion",
+      "source": "No trusted landmarks, plan uses ~6/week",
+      "color": "#8d6e63"
+    }
+  },
+  "untracked": ["neck", "calves", "traps"],
+  "rep_bands": [
+    {"max_reps": 6, "jump_pct": 4.0},
+    {"max_reps": 10, "jump_pct": 5.0},
+    {"max_reps": 15, "jump_pct": 8.0},
+    {"max_reps": null, "jump_pct": null}
+  ],
+  "thresholds": {
+    "stale_workout_hours": 8,
+    "stale_workout_days": 1,
+    "break_days": 4,
+    "progression_drop_pct": -50,
+    "deload_watch_pct": -5,
+    "deload_volume_reduction": [0.4, 0.6],
+    "volume_window_weeks": 8,
+    "volume_bad_weeks": 4,
+    "ledger_retention_days": 7,
+    "e1rm_warn_ratio": 1.5,
+    "duplicate_name_distance": 2,
+    "goal_divergence_pct": 5
+  },
+  "explained_keywords": ["deload", "return", "program change", "injury", "technique", "sick", "travel"],
+  "rep_scheme_default": [3, 8]
+}

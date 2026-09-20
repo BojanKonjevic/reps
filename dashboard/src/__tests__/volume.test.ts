@@ -1,21 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { GROUPS } from '../charts';
 
 describe('volume aggregation logic', () => {
-  const blank = () => ({
-    chest: 0,
-    back: 0,
-    'front delt': 0,
-    'side delt': 0,
-    'rear delt': 0,
-    biceps: 0,
-    triceps: 0,
-    quads: 0,
-    hamstrings: 0,
-    glutes: 0,
-    abs: 0,
-    forearms: 0,
-    adductors: 0,
-  });
+  const blank = () => Object.fromEntries(GROUPS.map(g => [g, 0]));
 
   it('aggregates stored muscles per set', () => {
     const weeks: Record<string, Record<string, number>> = {};

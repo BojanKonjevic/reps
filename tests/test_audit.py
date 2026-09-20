@@ -454,57 +454,43 @@ def _write_science(tmp_path, monkeypatch, log, content):
     return p
 
 
-def test_parse_mev_reads_json_block(audit_db):
-    """parse_mev_from_science returns the full bounds from the real SCIENCE.md."""
+def test_parse_mev_reads_constants(audit_db):
+    """parse_mev_from_science returns the MEV map from constants.json."""
     log, _ = audit_db
     assert log.parse_mev_from_science() == EXPECTED_MEV
 
 
-def test_parse_mev_survives_table_reformat(audit_db, tmp_path, monkeypatch):
-    """Reformatted or missing volume table does not change JSON-block results."""
+def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
+    """Unparseable constants.json exits instead of falling back silently."""
+    import json as _json
     log, _ = audit_db
-    content = "# SCIENCE.md\n\nProse changed, table deleted entirely.\n\n" + JSON_BLOCK + "\n"
-    _write_science(tmp_path, monkeypatch, log, content)
-    assert log.parse_mev_from_science() == EXPECTED_MEV
+    p = tmp_path / "constants.json"
+    p.write_text("{not json")
+    monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
+    with pytest.raises(SystemExit, match="unreadable"):
+        log.load_constants()
 
 
-def test_parse_mev_falls_back_to_table_without_json(audit_db, tmp_path, monkeypatch, capsys):
-    """Files predating the JSON block still parse the legacy table plus fallbacks."""
+def test_load_constants_fails_on_missing_muscle(audit_db, tmp_path, monkeypatch):
+    """A constants file missing a tracked muscle exits instead of warning."""
+    import json as _json
     log, _ = audit_db
-    content = (
-        "# SCIENCE.md\n\n## Volume landmarks (sets/week)\n\n"
-        "| Muscle | MEV | MAV | MRV | Tier | Source |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| Chest | 8 | 14-20 | 25+ | Settled | x |\n"
-        "| Back | 10 | 14-22 | 28+ | Settled | x |\n"
-    )
-    _write_science(tmp_path, monkeypatch, log, content)
-    bounds = log.parse_mev_from_science()
-    assert bounds["chest"] == 8
-    assert bounds["back"] == 10
-    assert bounds["forearms"] == 6
-    assert bounds["adductors"] == 4
-    assert "no mev-bounds JSON block" in capsys.readouterr().out
+    full = _json.loads(open(log.CONSTANTS_FILE).read())
+    del full["muscles"]["chest"]
+    p = tmp_path / "constants.json"
+    p.write_text(_json.dumps(full))
+    monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
+    with pytest.raises(SystemExit, match="chest"):
+        log.load_constants()
 
 
-def test_parse_mev_ignores_invalid_json_entries(audit_db, tmp_path, monkeypatch, capsys):
-    """Bad JSON entries are skipped with a warning, gaps filled from the table."""
+def test_rep_band_bound_uses_constants(audit_db):
+    """Rep-band thresholds come from constants.json, None above 15 reps."""
     log, _ = audit_db
-    bad_block = JSON_BLOCK.replace('"chest": 8,', '"chest": "eight",').replace('"forearms": 6', '"forearms": 6,\n  "neck": 5,\n  "back": -1')
-    content = (
-        "# SCIENCE.md\n\n## Volume landmarks (sets/week)\n\n"
-        "| Muscle | MEV | MAV | MRV | Tier | Source |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| Chest | 8 | 14-20 | 25+ | Settled | x |\n"
-        "| Back | 10 | 14-22 | 28+ | Settled | x |\n"
-        + "\n" + bad_block + "\n"
-    )
-    _write_science(tmp_path, monkeypatch, log, content)
-    bounds = log.parse_mev_from_science()
-    assert bounds["chest"] == 8
-    assert bounds["back"] == 10
-    assert "neck" not in bounds
-    assert "ignoring invalid mev-bounds entries" in capsys.readouterr().out
+    assert log.rep_band_bound(5) == 4.0
+    assert log.rep_band_bound(8) == 5.0
+    assert log.rep_band_bound(13) == 8.0
+    assert log.rep_band_bound(16) is None
 
 
 PRIORITY_BLOCK = """```json priority

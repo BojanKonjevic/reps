@@ -1,4 +1,5 @@
 import { fmtV, fmtD, fmtTick } from './utils';
+import constants from '../../constants.json';
 
 export const LC: string[] = (() => {
   const arr: string[] = [];
@@ -12,36 +13,12 @@ export const LC: string[] = (() => {
 export const TC = '#cfc9bc';
 export const GC = '#3a3733';
 export const STARC = '#e6c400';
-export const MC: Record<string, string> = {
-  chest: '#ffa726',
-  back: '#66bb6a',
-  'front delt': '#e6c400',
-  'side delt': '#9ccc65',
-  'rear delt': '#ffab91',
-  biceps: '#42a5f5',
-  triceps: '#ef5350',
-  quads: '#ab47bc',
-  hamstrings: '#26c6da',
-  glutes: '#ec407a',
-  abs: '#b0bec5',
-  forearms: '#8d6e63',
-  adductors: '#5c6bc0',
-};
-export const GROUPS = [
-  'chest',
-  'back',
-  'front delt',
-  'side delt',
-  'rear delt',
-  'biceps',
-  'triceps',
-  'quads',
-  'hamstrings',
-  'glutes',
-  'abs',
-  'forearms',
-  'adductors',
-];
+export const MC: Record<string, string> = Object.fromEntries(
+  Object.entries((constants as { muscles: Record<string, { color: string }> }).muscles).map(
+    ([muscle, entry]) => [muscle, entry.color]
+  )
+);
+export const GROUPS = Object.keys((constants as { muscles: Record<string, unknown> }).muscles);
 
 export interface ChartContext {
   g: CanvasRenderingContext2D;

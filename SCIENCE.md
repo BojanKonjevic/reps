@@ -6,45 +6,9 @@ Last reviewed: Sep 18 2026
 
 ## Volume landmarks (sets/week)
 
-| Muscle     | MEV | MAV   | MRV | Tier      | Source                                           |
-| ---------- | --- | ----- | --- | --------- | ------------------------------------------------ |
-| Chest      | 8   | 14–20 | 25+ | Settled   | Schoenfeld 2017 meta, RP synthesis               |
-| Back       | 10  | 14–22 | 28+ | Settled   | Schoenfeld 2017, Israetel RP                     |
-| Front delt | 0\* | 4–12  | 12+ | Opinion   | RP front delt guide, no direct RCT dose-response |
-| Side delt  | 6   | 12–18 | 22+ | Settled   | Schoenfeld 2017, Helms 2019                      |
-| Rear delt  | 6   | 12–20 | 25+ | Opinion   | RP rear delt guide, practitioner synthesis       |
-| Biceps     | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                              |
-| Triceps    | 6   | 10–16 | 20+ | Settled   | Schoenfeld 2017, RP                              |
-| Quads      | 8   | 12–18 | 24+ | Settled   | Schoenfeld 2017, RP                              |
-| Hamstrings | 6   | 10–16 | 20+ | Contested | Less direct data, extrapolated                   |
-| Glutes     | 6   | 12–18 | 24+ | Contested | Few direct studies, RP                           |
-| Adductors  | 4\* | 4–8   | 12+ | Opinion   | No direct landmarks, extrapolated (see note)     |
-| Abs        | 6   | 12–20 | 25+ | Contested | Limited hypertrophy data                         |
-| Forearms   | 6   | n/a   | n/a | Opinion   | No trusted landmarks, plan uses ~6/week (see note) |
+Numbers live in `constants.json` (single source of truth, edited via `log.py constants set` on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
-MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
-
-Machine-readable MEV bounds for the audit check. Source of truth, update alongside the table above.
-
-```json mev-bounds
-{
-  "chest": 8,
-  "back": 10,
-  "front delt": 0,
-  "side delt": 6,
-  "rear delt": 6,
-  "biceps": 6,
-  "triceps": 6,
-  "quads": 8,
-  "hamstrings": 6,
-  "glutes": 6,
-  "adductors": 4,
-  "abs": 6,
-  "forearms": 6
-}
-```
-
-Front delt \*: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
+Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
 
 Rear delt: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.
 
@@ -54,23 +18,9 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 
 ## Frequency guidance
 
-| Muscle     | Sessions/week | Tier      | Source                                             |
-| ---------- | ------------- | --------- | -------------------------------------------------- |
-| Chest      | 2–3           | Settled   | Schoenfeld 2016 meta (2+ beats 1 at equal volume)  |
-| Back       | 2–3           | Settled   | Same                                               |
-| Front delt | 2–3           | Contested | Covered by pressing frequency, RP front delt guide |
-| Side delt  | 2–3           | Settled   | Same                                               |
-| Rear delt  | 2–4           | Contested | RP rear delt guide (2 minimum, 3–5 better)         |
-| Biceps     | 2–3           | Settled   | Same                                               |
-| Triceps    | 2–3           | Settled   | Same                                               |
-| Quads      | 2             | Settled   | Damage/recovery profile, RP                        |
-| Hamstrings | 2             | Settled   | Same                                               |
-| Glutes     | 2–3           | Contested | Can tolerate more, individual                      |
-| Adductors  | 2             | Opinion   | Matches current plan, compound pattern             |
-| Abs        | 3–4           | Contested | Low damage, high recoverability                    |
-| Forearms   | 3             | Opinion   | Current plan, 3 exposures                          |
+Sessions/week per muscle lives in `constants.json` (`freq`, edited via `log.py constants set` on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles.
 
-Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 5x are a priority deviation, see Personal deviations. Rear delts at 3x sit inside the table range above, no deviation.
+Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 5x are a priority deviation, see Personal deviations. Rear delts at 3x sit inside the range above, no deviation.
 
 ## Rep range guidance
 

@@ -14,6 +14,7 @@ DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__fi
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 SCIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SCIENCE.md")
 MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MEMORY.md")
+CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(os.path.dirname(os.path.abspath(__file__)), "constants.json"))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -193,18 +194,21 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     elif bodyweight and mapping["is_bodyweight_only"] != 1:
         c.execute("UPDATE lift_muscle_map SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
+    constants = load_constants()
+    warn_ratio = constants["thresholds"].get("e1rm_warn_ratio", 1.5)
+    dup_dist = constants["thresholds"].get("duplicate_name_distance", 2)
     warnings = []
     if w["date"] != date.today().isoformat():
         warnings.append(f"open workout is from {w['date']}, not today; confirm this set belongs there")
     for other in c.execute("SELECT DISTINCT exercise FROM sets").fetchall():
-        if other["exercise"] != exercise and _levenshtein(exercise, other["exercise"]) <= 2:
+        if other["exercise"] != exercise and _levenshtein(exercise, other["exercise"]) <= dup_dist:
             warnings.append(f"'{exercise}' is close to existing exercise '{other['exercise']}'; confirm spelling")
             break
     new_e1rm = e1rm_of(weight, reps)
     if weight > 0:
         best = best_e1rm(c, exercise)
-        if best > 0 and new_e1rm > best * 1.5:
-            warnings.append(f"e1RM {new_e1rm:.1f} is over 50% above best {best:.1f} for '{exercise}'; confirm weight and reps")
+        if best > 0 and new_e1rm > best * warn_ratio:
+            warnings.append(f"e1RM {new_e1rm:.1f} is over {round((warn_ratio - 1) * 100)}% above best {best:.1f} for '{exercise}'; confirm weight and reps")
         prev = c.execute("SELECT weight, reps FROM sets WHERE workout_id = ? AND exercise = ? ORDER BY id DESC LIMIT 1", (w["id"], exercise)).fetchone()
         if prev:
             prev_e1rm = e1rm_of(prev["weight"], prev["reps"])
@@ -286,8 +290,9 @@ def cmd_update(set_id, field, value):
         if new_weight > 0:
             new_e1rm = e1rm_of(new_weight, new_reps)
             best = best_e1rm(c, existing["exercise"], exclude_set=int(set_id))
-            if best > 0 and new_e1rm > best * 1.5:
-                warnings.append(f"e1RM {new_e1rm:.1f} is over 50% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
+            warn_ratio = load_constants()["thresholds"].get("e1rm_warn_ratio", 1.5)
+            if best > 0 and new_e1rm > best * warn_ratio:
+                warnings.append(f"e1RM {new_e1rm:.1f} is over {round((warn_ratio - 1) * 100)}% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
     if field != "muscles":
         c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
@@ -465,90 +470,113 @@ def cmd_restore(force=False):
     print(json.dumps({"restored": True, "from": sql_file}))
 
 
-def parse_mev_from_science():
-    """Parse MEV (minimum effective volume) bounds from SCIENCE.md.
+CONTRACT_MUSCLES = frozenset([
+    "chest", "back", "front delt", "side delt", "rear delt",
+    "biceps", "triceps", "quads", "hamstrings", "glutes",
+    "adductors", "abs", "forearms",
+])
 
-    Primary source is the fenced ````json mev-bounds`` block in SCIENCE.md,
-    which survives prose and table reformatting. The legacy volume-landmarks
-    table parse is kept as a fallback for files predating the JSON block.
+
+def validate_constants(raw, source):
+    """Validate a parsed constants candidate, exiting loudly on any defect."""
+    if not isinstance(raw, dict) or not isinstance(raw.get("muscles"), dict):
+        sys.exit(f"constants invalid at {source}: missing the muscles map")
+    missing = CONTRACT_MUSCLES - set(raw["muscles"].keys())
+    if missing:
+        sys.exit(f"constants invalid at {source}: missing tracked muscles {sorted(missing)}")
+    for muscle, entry in raw["muscles"].items():
+        if not isinstance(entry, dict):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' is not an object")
+        if not isinstance(entry.get("mev"), int) or isinstance(entry.get("mev"), bool) or entry["mev"] < 0:
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a non-negative mev")
+        for bound in ("mav", "mrv"):
+            val = entry.get(bound)
+            if muscle == "forearms" and val is None:
+                continue
+            if bound == "mav":
+                if (not isinstance(val, list) or len(val) != 2
+                        or not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in val)
+                        or val[0] > val[1]):
+                    sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs {bound} as [lo, hi]")
+            elif not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
+                sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a non-negative {bound}")
+        freq = entry.get("freq")
+        if (not isinstance(freq, list) or len(freq) != 2
+                or not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in freq)
+                or freq[0] > freq[1]):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs freq as [lo, hi]")
+        if entry.get("tier") not in ("settled", "contested", "opinion"):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a tier")
+        if not isinstance(entry.get("source"), str) or not isinstance(entry.get("color"), str):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs source and color strings")
+    thresholds = raw.get("thresholds")
+    if not isinstance(thresholds, dict):
+        sys.exit(f"constants invalid at {source}: missing thresholds map")
+    for key in ("stale_workout_hours", "stale_workout_days", "break_days",
+                "e1rm_warn_ratio", "duplicate_name_distance"):
+        val = thresholds.get(key)
+        if not isinstance(val, (int, float)) or isinstance(val, bool) or val <= 0:
+            sys.exit(f"constants invalid at {source}: thresholds.{key} must be positive")
+    for key in ("volume_window_weeks", "volume_bad_weeks"):
+        val = thresholds.get(key)
+        if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
+            sys.exit(f"constants invalid at {source}: thresholds.{key} must be a positive integer")
+    drop = thresholds.get("progression_drop_pct")
+    if not isinstance(drop, (int, float)) or isinstance(drop, bool) or drop >= 0:
+        sys.exit(f"constants invalid at {source}: thresholds.progression_drop_pct must be negative")
+    bands = raw.get("rep_bands")
+    if not isinstance(bands, list) or not bands:
+        sys.exit(f"constants invalid at {source}: missing rep_bands")
+    prev_max = -1
+    for band in bands:
+        if not isinstance(band, dict):
+            sys.exit(f"constants invalid at {source}: rep_bands entries must be objects")
+        max_reps, jump = band.get("max_reps"), band.get("jump_pct")
+        if max_reps is None and jump is None:
+            continue
+        if (not isinstance(max_reps, int) or isinstance(max_reps, bool) or max_reps <= prev_max
+                or not isinstance(jump, (int, float)) or jump <= 0):
+            sys.exit(f"constants invalid at {source}: rep_bands must order ascending max_reps with positive jump_pct")
+        prev_max = max_reps
+    return raw
+
+
+def load_constants():
+    """Load constants.json, the single source of truth for taxonomy and thresholds.
+
+    Fails loudly on parse error or missing tracked muscle. No silent fallback.
+    CONTRACT_MUSCLES is the completeness gate, not a parallel source: the file
+    owns every number, the gate only names which muscles must be present.
     """
-    name_map = {
-        'chest': 'chest',
-        'back': 'back',
-        'front delt': 'front delt',
-        'side delt': 'side delt',
-        'rear delt': 'rear delt',
-        'biceps': 'biceps',
-        'triceps': 'triceps',
-        'quads': 'quads',
-        'hamstrings': 'hamstrings',
-        'glutes': 'glutes',
-        'abs': 'abs',
-        'forearms': 'forearms',
-        'adductors': 'adductors',
-    }
-    expected = set(name_map.values())
-    opinion_fallback = {'forearms': 6, 'adductors': 4}
-    mev_bounds: dict = {}
     try:
-        with open(SCIENCE_FILE, 'r') as f:
-            content = f.read()
-    except OSError:
-        content = ""
-    if not content:
-        print("WARNING: parse_mev_from_science could not read SCIENCE.md, using fallback bounds only")
-    else:
-        block = re.search(r'```json[^\n]*mev[^\n]*\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
-        if block:
-            try:
-                raw = json.loads(block.group(1))
-            except ValueError as e:
-                print(f"WARNING: parse_mev_from_science found mev-bounds JSON block but failed to parse it ({e}), falling back to table")
-                raw = None
-            if raw is not None:
-                if not isinstance(raw, dict):
-                    print("WARNING: parse_mev_from_science mev-bounds block is not a JSON object, falling back to table")
-                else:
-                    invalid = {}
-                    for k, v in raw.items():
-                        muscle = k.strip().lower() if isinstance(k, str) else k
-                        if muscle in expected and isinstance(v, int) and not isinstance(v, bool) and v >= 0:
-                            mev_bounds[muscle] = v
-                        else:
-                            invalid[k] = v
-                    if invalid:
-                        print(f"WARNING: parse_mev_from_science ignoring invalid mev-bounds entries: {invalid}")
-                    missing_json = expected - set(mev_bounds.keys())
-                    if missing_json:
-                        print(f"WARNING: parse_mev_from_science mev-bounds block missing: {missing_json}, filling from table/fallback")
-        else:
-            print("WARNING: parse_mev_from_science found no mev-bounds JSON block, falling back to table parse")
-        if len(mev_bounds) < len(expected):
-            try:
-                in_volume_section = False
-                for line in content.split('\n'):
-                    if line.strip().startswith('## Volume landmarks'):
-                        in_volume_section = True
-                        continue
-                    if in_volume_section and line.strip().startswith('## '):
-                        in_volume_section = False
-                        break
-                    if in_volume_section and line.strip().startswith('| ') and not line.strip().startswith('|' + '-' * 3):
-                        parts = [p.strip() for p in line.split('|')]
-                        if len(parts) >= 4 and parts[1] and parts[2]:
-                            muscle = parts[1].lower()
-                            mev_str = parts[2]
-                            mev_match = re.match(r'(\d+)', mev_str)
-                            if mev_match and muscle in name_map and name_map[muscle] not in mev_bounds:
-                                mev_bounds[name_map[muscle]] = int(mev_match.group(1))
-            except ValueError:
-                pass
-    for muscle, fallback in opinion_fallback.items():
-        mev_bounds.setdefault(muscle, fallback)
-    if len(mev_bounds) < len(name_map):
-        missing = set(name_map.values()) - set(mev_bounds.keys())
-        print(f"WARNING: parse_mev_from_science parsed {len(mev_bounds)}/{len(name_map)} muscles; missing: {missing}")
-    return mev_bounds
+        with open(CONSTANTS_FILE, 'r') as f:
+            raw = json.load(f)
+    except (OSError, ValueError) as e:
+        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
+    return validate_constants(raw, CONSTANTS_FILE)
+
+
+def parse_mev_from_science():
+    """Backward-compatible MEV map, now derived from constants.json."""
+    constants = load_constants()
+    return {muscle: entry["mev"] for muscle, entry in constants["muscles"].items()}
+
+
+def rep_band_bound(reps):
+    """Jump threshold for given reps, from constants.json rep_bands. None above 15."""
+    constants = load_constants()
+    for band in constants["rep_bands"]:
+        max_reps = band.get("max_reps")
+        if max_reps is None:
+            return None
+        if reps <= max_reps:
+            return band.get("jump_pct")
+    return None
+
+
+def tracked_muscles():
+    """Ordered tracked muscle list from constants.json."""
+    return list(load_constants()["muscles"].keys())
 
 
 def parse_priority_from_memory():
@@ -595,6 +623,62 @@ def parse_priority_from_memory():
     if invalid:
         print(f"WARNING: parse_priority_from_memory ignoring invalid priority entries: {invalid}")
     return priorities
+
+
+def cmd_constants_show(key=None):
+    constants = load_constants()
+    if not key:
+        print(json.dumps(constants, indent=2))
+        return
+    parts = key.split(".")
+    node = constants
+    for part in parts:
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        else:
+            sys.exit(f"constants key '{key}' not found")
+    print(json.dumps(node, indent=2))
+
+
+def cmd_constants_validate():
+    load_constants()
+    print(json.dumps({"valid": True, "file": CONSTANTS_FILE}))
+
+
+def cmd_constants_set(key, value):
+    try:
+        parsed = json.loads(value)
+    except ValueError:
+        parsed = value
+    try:
+        with open(CONSTANTS_FILE, 'r') as f:
+            raw = json.load(f)
+    except (OSError, ValueError) as e:
+        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e})")
+    parts = key.split(".")
+    node = raw
+    for part in parts[:-1]:
+        if not isinstance(node, dict) or part not in node:
+            sys.exit(f"constants key '{key}' not found")
+        node = node[part]
+    if not isinstance(node, dict) or parts[-1] not in node:
+        sys.exit(f"constants key '{key}' not found")
+    node[parts[-1]] = parsed
+    validate_constants(raw, f"candidate for {key}")
+    import tempfile
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(CONSTANTS_FILE)), suffix=".constants")
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(raw, f, indent=2)
+            f.write("\n")
+        os.replace(tmp, CONSTANTS_FILE)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+    load_constants()
+    print(json.dumps({"set": key, "value": parsed}))
 
 
 def cmd_audit():
@@ -648,15 +732,22 @@ def cmd_audit():
     for s in sets:
         by_ex.setdefault(s["exercise"], []).append(s)
 
-    explained = ("deload", "return", "program change", "injury", "technique", "sick", "travel")
+    constants = load_constants()
+    explained = tuple(constants.get("explained_keywords", ["deload", "return", "program change", "injury", "technique", "sick", "travel"]))
+    thresholds = constants.get("thresholds", {})
+    drop_pct = thresholds.get("progression_drop_pct", -50)
+    dup_dist = thresholds.get("duplicate_name_distance", 2)
+    stale_hours = thresholds.get("stale_workout_hours", 8)
+    vol_weeks = thresholds.get("volume_window_weeks", 8)
+    vol_bad = thresholds.get("volume_bad_weeks", 4)
 
     def jump_bound(reps):
-        if reps <= 6:
-            return 4.0
-        if reps <= 10:
-            return 5.0
-        if reps <= 15:
-            return 8.0
+        for band in constants.get("rep_bands", []):
+            max_reps = band.get("max_reps")
+            if max_reps is None:
+                return None
+            if reps <= max_reps:
+                return band.get("jump_pct")
         return None
 
     for ex, ex_sets in by_ex.items():
@@ -681,7 +772,7 @@ def cmd_audit():
                     if any(k in notes_by_date.get(dates[i-1], "") or k in notes_by_date.get(dates[i], "") for k in explained):
                         continue
                     flags.append({"check": "progression_jump", "severity": "high", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% jump, bound {bound}%) on {dates[i]}", "fix": "verify data entry, add explanatory note, or update weight/reps"})
-                elif pct < -50:
+                elif pct < drop_pct:
                     if any(k in notes_by_date.get(dates[i-1], "") or k in notes_by_date.get(dates[i], "") for k in explained):
                         continue
                     flags.append({"check": "progression_drop", "severity": "medium", "evidence": f"{ex}: {prev:.1f} -> {curr:.1f} e1RM ({pct:.1f}% drop) on {dates[i]}", "fix": "verify data entry, or add deload/return note if intentional"})
@@ -689,28 +780,28 @@ def cmd_audit():
     # Check 1: Exercise name duplicates
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
     for a, b in itertools.combinations(exercises, 2):
-        if _levenshtein(a, b) <= 2:
-            flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= 2)", "fix": "rename <old> <new>"})
+        if _levenshtein(a, b) <= dup_dist:
+            flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= {dup_dist})", "fix": "rename <old> <new>"})
 
     # Check 7: Stale open workouts
     stale = c.execute("""
         SELECT w.id, w.date FROM workouts w
         WHERE w.status = 'open'
           AND (date(w.date) < date('now') OR
-               (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', '-8 hours'))
-    """).fetchall()
+               (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', ?))
+    """, (f"-{stale_hours} hours",)).fetchall()
     for s in stale:
         flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
 
-    # Check 8: Volume vs MEV, rolling 8-week window (current week + 7 back).
+    # Check 8: Volume vs MEV, rolling window from constants (current week + back).
     # Every week in the window counts: weeks with no logged sets are 0, not
     # absent. Zero and low volume are separate flags; bad weeks are counted
     # across the whole window, a good week in between does not reset anything.
     from datetime import date, timedelta
     today = date.today()
-    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(7, -1, -1)]
+    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
     base = week_starts[0].isoformat()
-    mev_bounds = parse_mev_from_science()
+    mev_bounds = {m: e["mev"] for m, e in constants["muscles"].items()}
     priorities = parse_priority_from_memory()
     for muscle, mev in mev_bounds.items():
         rows = c.execute("""
@@ -735,13 +826,13 @@ def cmd_audit():
         # severity level and carry the reason, so the audit reads as explained.
         deprioritized = priorities.get(muscle, {}).get("tier") == "deprioritize"
         suffix = " (priority: deprioritize, intentional)" if deprioritized else ""
-        if zero_weeks >= 4:
+        if zero_weeks >= vol_bad:
             flags.append({"check": "volume_zero", "severity": "medium" if deprioritized else "high",
-                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last 8 weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last {vol_weeks} weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
-        if low_weeks >= 4:
+        if low_weeks >= vol_bad:
             flags.append({"check": "volume_low", "severity": "low" if deprioritized else "medium",
-                          "evidence": f"{muscle}: below MEV in {low_weeks} of last 8 weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: below MEV in {low_weeks} of last {vol_weeks} weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
 
     # Output report
@@ -1032,6 +1123,7 @@ def usage():
         "| delete-set <id> | delete-workout <id> | end [note] | today | exercises | history <ex> [limit] "
          "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
          "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore [force] | audit | rest [yyyy-mm-dd] [note]"
+         " | constants show [key] | constants validate | constants set <key> <json-value>"
     )
 
 
@@ -1103,6 +1195,12 @@ def main():
         cmd_restore("force" in rest)
     elif cmd == "audit":
         cmd_audit()
+    elif cmd == "constants" and rest[:1] == ["show"]:
+        cmd_constants_show(rest[1] if len(rest) > 1 else None)
+    elif cmd == "constants" and rest[:1] == ["validate"]:
+        cmd_constants_validate()
+    elif cmd == "constants" and rest[:1] == ["set"] and len(rest) >= 3:
+        cmd_constants_set(rest[1], " ".join(rest[2:]))
     elif cmd == "rest":
         day = date.today().isoformat()
         words = rest
