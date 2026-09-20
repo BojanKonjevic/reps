@@ -507,10 +507,6 @@ def test_parse_mev_ignores_invalid_json_entries(audit_db, tmp_path, monkeypatch,
     assert "ignoring invalid mev-bounds entries" in capsys.readouterr().out
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-
 PRIORITY_BLOCK = """```json priority
 {
   "side delt": {"tier": "priority", "since": "2026-09-18", "until": null}
@@ -589,3 +585,7 @@ def test_cmd_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monke
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"
     assert "priority: deprioritize" not in zeros[0]["evidence"]
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

@@ -72,3 +72,4 @@ Severity guide:
 - High: data loss risk (stale workout counted), goal silently broken, implausible jump with no note.
 - Medium: mapping drift, missing muscles, unreconciled split, volume below MEV.
 - Low: near-duplicate exercise names, minor trajectory miss.
+- A muscle marked `deprioritize` in MEMORY.md's Priority block flags one tier lower than the above implies (`volume_zero` medium, `volume_low` low).
