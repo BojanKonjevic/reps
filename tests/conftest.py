@@ -32,9 +32,10 @@ def log_module(tmp_db):
 
 
 def close_session(log, note="done"):
-    """End the open workout the Phase 2 way: baseline progression for every
-    trained-but-unjudged exercise, then close. Tests use this wherever the
-    writeback itself is not under test."""
+    """End the open workout the way the agent must: baseline progression for
+    every trained-but-unjudged exercise, reconcile new exercises into the
+    active split, then close. Tests use this wherever the writeback itself
+    is not under test."""
     c = log.conn()
     w = log.open_workout(c)
     if w:
@@ -44,4 +45,20 @@ def close_session(log, note="done"):
             "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
         for ex in sorted(trained - judged):
             log.cmd_progression_set(ex, "baseline", "test", "flat")
+        new = sorted(set(trained) - log.split_all_movements("active"))
+        if new:
+            days = log.split_day_order("active")
+            day = log.best_split_day(trained) or (days[0] if days else None)
+            if day is None:
+                for i, ex in enumerate(sorted(trained), 1):
+                    log.cmd_split_set("Test", i, ex, 2)
+            else:
+                log.cmd_split_reconcile(day)
     return log.cmd_end(note)
+
+
+def seed_split(log, day, *movesets):
+    """Seed an active split day: seed_split(log, 'Upper A', ('bench', 3), ('row', 2)).
+    Exercises must already have mappings (log a set or map set first)."""
+    for i, (move, sets) in enumerate(movesets, 1):
+        log.cmd_split_set(day, i, move, sets)

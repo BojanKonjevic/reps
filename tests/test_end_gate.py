@@ -21,9 +21,11 @@ def _run(fn, *args):
 
 
 def _seed_session(log):
+    from conftest import seed_split
     log.cmd_start("test")
     log.cmd_log("bench", 100, 5, "", "chest")
     log.cmd_log("squat", 150, 5, "", "quads,glutes")
+    seed_split(log, "Test", ("bench", 2), ("squat", 2))
     w = log.open_workout(log.conn())
     return w["id"]
 
@@ -130,9 +132,18 @@ def test_plan_consumes_flags(log_module):
 
 
 def test_plan_consumes_only_day_relevant_flags(log_module):
+    import json as _json
     from datetime import timedelta
+    from conftest import seed_split
     log = log_module
     c = log.conn()
+    for ex in ["incline barbell bench press", "hammer strength row", "pec deck", "hack squat"]:
+        c.execute("INSERT OR IGNORE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, 'chest', 0)", (ex,))
+    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
+              (_json.dumps(["Upper A", "Lower A"]),))
+    c.commit()
+    seed_split(log, "Upper A", ("incline barbell bench press", 3), ("hammer strength row", 2), ("pec deck", 2))
+    seed_split(log, "Lower A", ("hack squat", 2))
     d = (_dt.date.today() - timedelta(days=1)).isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
     c.commit()

@@ -155,6 +155,7 @@ def test_end_reports_sets_and_next(log_module):
     """End output nudges the agent toward audit, sync, commit."""
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_split_set("Test", 1, "bench", 2)
     log_module.cmd_progression_set("bench", "baseline", "test", "flat")
     out = json.loads(capture_stdout(log_module.cmd_end, "done"))
     assert out["sets"] == 1
@@ -357,7 +358,8 @@ def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
     c2 = log_module.conn()
     tables = {r[0] for r in c2.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     assert tables == {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map",
-                       "progression", "flags", "priority", "deload_state", "meta"}
+                       "progression", "flags", "priority", "deload_state", "meta",
+                       "splits", "movement_notes", "rules"}
     assert c2.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
 
 

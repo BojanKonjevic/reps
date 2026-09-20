@@ -63,6 +63,22 @@ CREATE TABLE meta (
   value TEXT NOT NULL
 );
 INSERT INTO "meta" VALUES('last_compacted','never');
+INSERT INTO "meta" VALUES('rotation','["Upper A", "Lower A", "Upper B", "rest", "Upper C", "Lower B", "rest"]');
+CREATE TABLE movement_notes (
+  id INTEGER PRIMARY KEY,
+  exercise TEXT NOT NULL,
+  note TEXT NOT NULL,
+  created TEXT NOT NULL
+);
+INSERT INTO "movement_notes" VALUES(1,'dips','my form, elbows tucked, triceps main','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(2,'flat barbell bench press','triceps excluded by convention','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(3,'reverse-grip smith incline press','upper chest emphasis','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(4,'machine shoulder press','neutral grip, slight lean for upper chest','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(5,'hammer strength row','logged as total both sides (45 per side = 90)','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(6,'straight bar pulldown','attachment matters, logged under this name, not lat pulldown','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(7,'straight bar pulldown','stack jumps 10kg: 47, 57, 67, 77, 87, 97, 107, 117, 127','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(8,'face pull','max height','2026-09-20T15:14:08');
+INSERT INTO "movement_notes" VALUES(9,'bayesian curl','cable height below 8','2026-09-20T15:14:08');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL,
@@ -91,6 +107,16 @@ INSERT INTO "progression" VALUES(8,1,'preacher curl','baseline','46x8','flat',''
 INSERT INTO "progression" VALUES(9,1,'cable pushdown','baseline','31.25x12','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(10,1,'cable reverse curl','baseline','11.25x13','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(11,1,'face pull','baseline','38.75x12','flat','','2026-09-20T15:10:13');
+CREATE TABLE rules (
+  id INTEGER PRIMARY KEY,
+  subject TEXT NOT NULL,
+  text TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  expiry TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  created TEXT NOT NULL
+);
+INSERT INTO "rules" VALUES(1,'straps/grip','straps on anything grip-limited, including wrapping straps around cable attachments instead of handles. Grip is never a limiter.','2026-09-18',NULL,'active','2026-09-20T15:14:08');
 CREATE TABLE set_muscles (
   set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
   muscle TEXT NOT NULL,
@@ -154,6 +180,109 @@ INSERT INTO "sets" VALUES(20,1,'cable reverse curl',11.25,13,'felt amazing','202
 INSERT INTO "sets" VALUES(21,1,'cable reverse curl',11.25,11,'','2026-09-19T09:51:16');
 INSERT INTO "sets" VALUES(22,1,'face pull',38.75,12,'','2026-09-19T09:54:49');
 INSERT INTO "sets" VALUES(23,1,'face pull',38.75,9,'','2026-09-19T09:58:04');
+CREATE TABLE splits (
+  id INTEGER PRIMARY KEY,
+  variant TEXT NOT NULL,
+  day TEXT NOT NULL,
+  slot INTEGER NOT NULL,
+  movements TEXT NOT NULL,
+  sets INTEGER NOT NULL,
+  UNIQUE (variant, day, slot)
+);
+INSERT INTO "splits" VALUES(1,'baseline','Upper A',1,'incline barbell bench press',3);
+INSERT INTO "splits" VALUES(2,'baseline','Upper A',2,'hammer strength row',2);
+INSERT INTO "splits" VALUES(3,'baseline','Upper A',3,'pec deck',2);
+INSERT INTO "splits" VALUES(4,'baseline','Upper A',4,'straight bar pulldown',2);
+INSERT INTO "splits" VALUES(5,'baseline','Upper A',5,'machine shoulder press',2);
+INSERT INTO "splits" VALUES(6,'baseline','Upper A',6,'cable lat raise',2);
+INSERT INTO "splits" VALUES(7,'baseline','Upper A',7,'bayesian curl',2);
+INSERT INTO "splits" VALUES(8,'baseline','Upper A',8,'preacher curl',2);
+INSERT INTO "splits" VALUES(9,'baseline','Upper A',9,'cable pushdown',2);
+INSERT INTO "splits" VALUES(10,'baseline','Upper A',10,'cable reverse curl',2);
+INSERT INTO "splits" VALUES(11,'baseline','Upper A',11,'face pull / cable rear delt fly',2);
+INSERT INTO "splits" VALUES(12,'baseline','Lower A',1,'hack squat',2);
+INSERT INTO "splits" VALUES(13,'baseline','Lower A',2,'leg extension',3);
+INSERT INTO "splits" VALUES(14,'baseline','Lower A',3,'leg press',2);
+INSERT INTO "splits" VALUES(15,'baseline','Lower A',4,'seated leg curl',3);
+INSERT INTO "splits" VALUES(16,'baseline','Lower A',5,'adductor machine',2);
+INSERT INTO "splits" VALUES(17,'baseline','Lower A',6,'crunch machine',3);
+INSERT INTO "splits" VALUES(18,'baseline','Lower A',7,'machine lat raise',2);
+INSERT INTO "splits" VALUES(19,'baseline','Lower A',8,'cable wrist curl',2);
+INSERT INTO "splits" VALUES(20,'baseline','Upper B',1,'straight bar pulldown',3);
+INSERT INTO "splits" VALUES(21,'baseline','Upper B',2,'reverse-grip smith incline press',3);
+INSERT INTO "splits" VALUES(22,'baseline','Upper B',3,'hammer strength row',2);
+INSERT INTO "splits" VALUES(23,'baseline','Upper B',4,'machine shoulder press',2);
+INSERT INTO "splits" VALUES(24,'baseline','Upper B',5,'cable lat raise',2);
+INSERT INTO "splits" VALUES(25,'baseline','Upper B',6,'ezbar curl',2);
+INSERT INTO "splits" VALUES(26,'baseline','Upper B',7,'ezbar skullcrusher',2);
+INSERT INTO "splits" VALUES(27,'baseline','Upper B',8,'unilateral cable pushdown',3);
+INSERT INTO "splits" VALUES(28,'baseline','Upper B',9,'face pull / cable rear delt fly',2);
+INSERT INTO "splits" VALUES(29,'baseline','Upper C',1,'hammer strength press',2);
+INSERT INTO "splits" VALUES(30,'baseline','Upper C',2,'hammer strength row',2);
+INSERT INTO "splits" VALUES(31,'baseline','Upper C',3,'pec deck',3);
+INSERT INTO "splits" VALUES(32,'baseline','Upper C',4,'cable pullover',2);
+INSERT INTO "splits" VALUES(33,'baseline','Upper C',5,'bayesian curl',2);
+INSERT INTO "splits" VALUES(34,'baseline','Upper C',6,'preacher curl',2);
+INSERT INTO "splits" VALUES(35,'baseline','Upper C',7,'cable pushdown',2);
+INSERT INTO "splits" VALUES(36,'baseline','Upper C',8,'machine lat raise',2);
+INSERT INTO "splits" VALUES(37,'baseline','Upper C',9,'cable wrist extension',2);
+INSERT INTO "splits" VALUES(38,'baseline','Upper C',10,'face pull',2);
+INSERT INTO "splits" VALUES(39,'baseline','Lower B',1,'rdl',3);
+INSERT INTO "splits" VALUES(40,'baseline','Lower B',2,'leg press',3);
+INSERT INTO "splits" VALUES(41,'baseline','Lower B',3,'hack squat',2);
+INSERT INTO "splits" VALUES(42,'baseline','Lower B',4,'leg extension',2);
+INSERT INTO "splits" VALUES(43,'baseline','Lower B',5,'seated leg curl',2);
+INSERT INTO "splits" VALUES(44,'baseline','Lower B',6,'adductor machine',2);
+INSERT INTO "splits" VALUES(45,'baseline','Lower B',7,'crunch machine',3);
+INSERT INTO "splits" VALUES(46,'baseline','Lower B',8,'cable lat raise',2);
+INSERT INTO "splits" VALUES(47,'baseline','Lower B',9,'cable wrist curl',2);
+INSERT INTO "splits" VALUES(48,'active','Upper A',1,'incline barbell bench press',3);
+INSERT INTO "splits" VALUES(49,'active','Upper A',2,'hammer strength row',2);
+INSERT INTO "splits" VALUES(50,'active','Upper A',3,'pec deck',2);
+INSERT INTO "splits" VALUES(51,'active','Upper A',4,'straight bar pulldown',2);
+INSERT INTO "splits" VALUES(52,'active','Upper A',5,'machine shoulder press',2);
+INSERT INTO "splits" VALUES(53,'active','Upper A',6,'cable lat raise',2);
+INSERT INTO "splits" VALUES(54,'active','Upper A',7,'bayesian curl',2);
+INSERT INTO "splits" VALUES(55,'active','Upper A',8,'preacher curl',2);
+INSERT INTO "splits" VALUES(56,'active','Upper A',9,'cable pushdown',2);
+INSERT INTO "splits" VALUES(57,'active','Upper A',10,'cable reverse curl',2);
+INSERT INTO "splits" VALUES(58,'active','Upper A',11,'face pull / cable rear delt fly',2);
+INSERT INTO "splits" VALUES(59,'active','Lower A',1,'hack squat',2);
+INSERT INTO "splits" VALUES(60,'active','Lower A',2,'leg extension',3);
+INSERT INTO "splits" VALUES(61,'active','Lower A',3,'leg press',2);
+INSERT INTO "splits" VALUES(62,'active','Lower A',4,'seated leg curl',3);
+INSERT INTO "splits" VALUES(63,'active','Lower A',5,'adductor machine',2);
+INSERT INTO "splits" VALUES(64,'active','Lower A',6,'crunch machine',3);
+INSERT INTO "splits" VALUES(65,'active','Lower A',7,'machine lat raise',2);
+INSERT INTO "splits" VALUES(66,'active','Lower A',8,'cable wrist curl',2);
+INSERT INTO "splits" VALUES(67,'active','Upper B',1,'straight bar pulldown',3);
+INSERT INTO "splits" VALUES(68,'active','Upper B',2,'reverse-grip smith incline press',3);
+INSERT INTO "splits" VALUES(69,'active','Upper B',3,'hammer strength row',2);
+INSERT INTO "splits" VALUES(70,'active','Upper B',4,'machine shoulder press',2);
+INSERT INTO "splits" VALUES(71,'active','Upper B',5,'cable lat raise',2);
+INSERT INTO "splits" VALUES(72,'active','Upper B',6,'ezbar curl',2);
+INSERT INTO "splits" VALUES(73,'active','Upper B',7,'ezbar skullcrusher',2);
+INSERT INTO "splits" VALUES(74,'active','Upper B',8,'unilateral cable pushdown',3);
+INSERT INTO "splits" VALUES(75,'active','Upper B',9,'face pull / cable rear delt fly',2);
+INSERT INTO "splits" VALUES(76,'active','Upper C',1,'hammer strength press',2);
+INSERT INTO "splits" VALUES(77,'active','Upper C',2,'hammer strength row',2);
+INSERT INTO "splits" VALUES(78,'active','Upper C',3,'pec deck',3);
+INSERT INTO "splits" VALUES(79,'active','Upper C',4,'cable pullover',2);
+INSERT INTO "splits" VALUES(80,'active','Upper C',5,'bayesian curl',2);
+INSERT INTO "splits" VALUES(81,'active','Upper C',6,'preacher curl',2);
+INSERT INTO "splits" VALUES(82,'active','Upper C',7,'cable pushdown',2);
+INSERT INTO "splits" VALUES(83,'active','Upper C',8,'machine lat raise',2);
+INSERT INTO "splits" VALUES(84,'active','Upper C',9,'cable wrist extension',2);
+INSERT INTO "splits" VALUES(85,'active','Upper C',10,'face pull',2);
+INSERT INTO "splits" VALUES(86,'active','Lower B',1,'rdl',3);
+INSERT INTO "splits" VALUES(87,'active','Lower B',2,'leg press',3);
+INSERT INTO "splits" VALUES(88,'active','Lower B',3,'hack squat',2);
+INSERT INTO "splits" VALUES(89,'active','Lower B',4,'leg extension',2);
+INSERT INTO "splits" VALUES(90,'active','Lower B',5,'seated leg curl',2);
+INSERT INTO "splits" VALUES(91,'active','Lower B',6,'adductor machine',2);
+INSERT INTO "splits" VALUES(92,'active','Lower B',7,'crunch machine',3);
+INSERT INTO "splits" VALUES(93,'active','Lower B',8,'cable lat raise',2);
+INSERT INTO "splits" VALUES(94,'active','Lower B',9,'cable wrist curl',2);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -165,4 +294,5 @@ INSERT INTO "workouts" VALUES(2,'2026-09-20','rest','split transition friction, 
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
+CREATE UNIQUE INDEX idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
 COMMIT;

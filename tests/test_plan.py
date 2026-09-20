@@ -21,7 +21,7 @@ def _plan(log, *args):
 def test_plan_empty_db_shape(log_module):
     log = log_module
     bundle = json.loads(_plan(log))
-    assert set(bundle) == {"today", "slot_guess", "volume", "ledger", "lifts",
+    assert set(bundle) == {"today", "slot_guess", "split", "volume", "ledger", "lifts",
                            "progression", "flags", "priority", "deload", "compaction"}
     assert bundle["today"]["open"] is False
     assert bundle["slot_guess"]["confidence"] == "low"
@@ -96,8 +96,17 @@ def test_plan_break_flag(log_module):
 
 
 def test_plan_slot_guess_follows_rotation(log_module):
+    import json as _json
+    from conftest import seed_split
     log = log_module
     c = log.conn()
+    for ex in ["incline barbell bench press", "hammer strength row", "pec deck", "hack squat"]:
+        c.execute("INSERT OR IGNORE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, 'chest', 0)", (ex,))
+    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
+              (_json.dumps(["Upper A", "Lower A", "Upper B", "rest", "Upper C", "Lower B", "rest"]),))
+    c.commit()
+    seed_split(log, "Upper A", ("incline barbell bench press", 3), ("hammer strength row", 2), ("pec deck", 2))
+    seed_split(log, "Lower A", ("hack squat", 2))
     d = (date.today() - timedelta(days=1)).isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
     c.commit()
@@ -110,6 +119,8 @@ def test_plan_slot_guess_follows_rotation(log_module):
     bundle = json.loads(_plan(log))
     assert bundle["slot_guess"]["day"] == "Lower A"
     assert "Upper A" in bundle["slot_guess"]["basis"]
+    assert bundle["split"]["day"] == "Lower A"
+    assert bundle["split"]["slots"][0]["movements"] == ["hack squat"]
 
 
 def test_plan_explicit_slot_and_verbose(log_module):

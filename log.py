@@ -15,7 +15,6 @@ CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 SCIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SCIENCE.md")
 MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MEMORY.md")
 CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(os.path.dirname(os.path.abspath(__file__)), "constants.json"))
-MOVEMENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MOVEMENTS.md")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -89,6 +88,31 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 -- meta has no CLI: plan reads last_compacted, the compaction flow writes it.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
+CREATE TABLE IF NOT EXISTS splits (
+  id INTEGER PRIMARY KEY,
+  variant TEXT NOT NULL CHECK (variant IN ('active', 'baseline')),
+  day TEXT NOT NULL,
+  slot INTEGER NOT NULL,
+  movements TEXT NOT NULL,
+  sets INTEGER NOT NULL,
+  UNIQUE (variant, day, slot)
+);
+CREATE TABLE IF NOT EXISTS movement_notes (
+  id INTEGER PRIMARY KEY,
+  exercise TEXT NOT NULL,
+  note TEXT NOT NULL,
+  created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS rules (
+  id INTEGER PRIMARY KEY,
+  subject TEXT NOT NULL,
+  text TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  expiry TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  created TEXT NOT NULL
+);
+-- rotation order lives in meta (key rotation, JSON array) since MOVEMENTS.md is gone.
 """
 
 
@@ -696,57 +720,52 @@ def cmd_constants_set(key, value):
     print(json.dumps({"set": key, "value": parsed}))
 
 
-def parse_active_split_days():
-    """Transitional parser for MOVEMENTS.md Active split (Phase 3 moves this to DB).
+def parse_movements(text):
+    """Split a stored movements cell into a list of canonical names."""
+    return [m.strip().lower() for m in text.split("/") if m.strip()]
 
-    Returns {day: [movement, ...]} with interchangeable a/b entries flattened.
-    """
-    try:
-        with open(MOVEMENTS_FILE, 'r') as f:
-            text = f.read()
-    except OSError:
-        return {}
-    m = re.search(r"^## Active split\s*$", text, re.MULTILINE)
-    if not m:
-        return {}
-    rest = text[m.end():]
-    nxt = re.search(r"^## ", rest, re.MULTILINE)
-    section = rest[:nxt.start()] if nxt else rest
+
+def split_day_order(variant="active"):
+    """Day names in rotation order (rest entries excluded)."""
+    c = conn()
+    days = [r["day"] for r in c.execute(
+        "SELECT DISTINCT day FROM splits WHERE variant = ?", (variant,)).fetchall()]
+    rotation = parse_rotation()
+    order = [d for d in rotation if d in days]
+    return order + [d for d in sorted(days) if d not in order]
+
+
+def read_split(variant="active", day=None):
+    """Split rows as [{day, slot, movements, sets}], optionally one day."""
+    c = conn()
+    if day:
+        rows = c.execute("SELECT day, slot, movements, sets FROM splits WHERE variant = ? AND day = ? ORDER BY slot",
+                         (variant, day)).fetchall()
+    else:
+        rows = c.execute("SELECT day, slot, movements, sets FROM splits WHERE variant = ? ORDER BY day, slot",
+                         (variant,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def parse_active_split_days():
+    """Active split as {day: [movement, ...]} with interchangeable entries flattened."""
     days = {}
-    current = None
-    for line in section.split("\n"):
-        head = re.match(r"^###\s+(.+?)\s*$", line)
-        if head:
-            current = head.group(1).strip()
-            days[current] = []
-            continue
-        if current is None:
-            continue
-        slot = re.match(r"^\d+\.\s+(.+?)\s+x\d+\s*$", line.strip())
-        if slot:
-            for move in slot.group(1).split("/"):
-                move = move.strip().lower()
-                if move:
-                    days[current].append(move)
+    for r in read_split("active"):
+        moves = days.setdefault(r["day"], [])
+        for move in r["movements"].split("/"):
+            move = move.strip().lower()
+            if move:
+                moves.append(move)
     return days
 
 
 def parse_rotation():
-    """Transitional parser for the rotation order in MOVEMENTS.md Program section."""
+    """Rotation order from meta (migrated from MOVEMENTS.md Program section)."""
     try:
-        with open(MOVEMENTS_FILE, 'r') as f:
-            text = f.read()
-    except OSError:
+        row = conn().execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
+        return json.loads(row["value"]) if row else []
+    except (sqlite3.Error, ValueError):
         return []
-    m = re.search(r"repeat", text, re.IGNORECASE)
-    if not m:
-        return []
-    line_start = text.rfind("\n", 0, m.start()) + 1
-    line = text[line_start:m.start()]
-    if ":" in line:
-        line = line.split(":", 1)[1]
-    entries = [e.strip().rstrip(".") for e in line.split(",")]
-    return [e for e in entries if e]
 
 
 def weekly_volume(c, muscle, week_starts):
@@ -980,10 +999,30 @@ def cmd_plan(slot=None, verbose=False):
                   [now] + [f["id"] for f in consumable])
         c.commit()
 
+    split_day = slot or slot_guess.get("day")
+    split_section = None
+    if split_day and read_split("active", split_day):
+        slots = []
+        for r in read_split("active", split_day):
+            moves = parse_movements(r["movements"])
+            entry = {"slot": r["slot"], "movements": moves, "sets": r["sets"],
+                     "progression": {m: progression.get(m) for m in moves},
+                     "flags": [f for f in unconsumed if f["subject"] in moves],
+                     "goal": None, "notes": [], "muscles": []}
+            for m in moves:
+                entry["notes"].extend(n["note"] for n in c.execute(
+                    "SELECT note FROM movement_notes WHERE exercise = ? ORDER BY id", (m,)).fetchall())
+                mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (m,)).fetchone()
+                if mapping:
+                    entry["muscles"].extend(mu for mu in mapping["muscles"].split(",") if mu not in entry["muscles"])
+            slots.append(entry)
+        split_section = {"day": split_day, "slots": slots}
+
     bundle = {
         "today": {"open": dict(w) if w else False, "rest": bool(rest_row), "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
         "slot_guess": slot_guess,
+        "split": split_section,
         "volume": volume,
         "ledger": ledger,
         "lifts": lifts,
@@ -1195,9 +1234,18 @@ def end_gate_items(c, w, note):
     for ex in sorted(set(trained) - judged):
         outstanding.append({"item": f"missing progression: {ex}",
                             "fix": f"log.py progression set \"{ex}\" --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down>"})
-    # Precondition 4 (active-split reconciliation) lands in Phase 3 with the
-    # splits table and `split reconcile`; the gate cannot demand a command
-    # that does not exist yet.
+    known = split_all_movements("active")
+    unreconciled = sorted(set(trained) - known)
+    if unreconciled:
+        day = best_split_day(trained) or (split_day_order("active")[:1] or ["Upper A"])[0]
+        performed = [r["exercise"] for r in c.execute(
+            "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
+            (w["id"],)).fetchall()]
+        anchor = next((ex for ex in reversed(performed) if ex in day_movements(day)), None)
+        after = f" --after \"{anchor}\"" if anchor else ""
+        for ex in unreconciled:
+            outstanding.append({"item": f"unreconciled slot: {ex} (not in any active split day)",
+                                "fix": f"log.py split reconcile --day \"{day}\"{after}"})
     deloads = active_deloads(c)
     if deloads:
         day_moves = parse_active_split_days()
@@ -1222,6 +1270,254 @@ def cmd_check(note=""):
             print(f"  {o['item']}\n    {o['fix']}")
         sys.exit(1)
     print(json.dumps({"ready": w["id"]}))
+
+
+def split_all_movements(variant="active"):
+    moves = set()
+    for r in read_split(variant):
+        moves.update(parse_movements(r["movements"]))
+    return moves
+
+
+def day_movements(day, variant="active"):
+    moves = []
+    for r in read_split(variant, day):
+        moves.extend(parse_movements(r["movements"]))
+    return moves
+
+
+def best_split_day(trained):
+    trained = set(trained)
+    best_day, best_score = None, 0
+    for day in split_day_order("active"):
+        score = len(trained & set(day_movements(day)))
+        if score > best_score:
+            best_day, best_score = day, score
+    return best_day
+
+
+def cmd_split_show(day=None, variant="active"):
+    if variant not in ("active", "baseline"):
+        sys.exit("variant must be active or baseline")
+    if day and not read_split(variant, day):
+        sys.exit(f"no {variant} split day '{day}'")
+    lines = []
+    for d in ([day] if day else split_day_order(variant)):
+        lines.append(f"### {d}")
+        for r in read_split(variant, d):
+            lines.append(f"{r['slot']}. {r['movements']} x{r['sets']}")
+    print("\n".join(lines))
+
+
+def cmd_split_set(day, slot, movements, sets):
+    c = conn()
+    try:
+        slot = int(slot)
+        sets = int(sets)
+    except (TypeError, ValueError):
+        sys.exit("slot and sets must be integers")
+    if sets <= 0:
+        sys.exit("sets must be positive")
+    movements = movements.strip().lower()
+    if not movements:
+        sys.exit("movements cannot be empty")
+    for move in parse_movements(movements):
+        if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
+            sys.exit(f"'{move}' has no mapping (run map set first), split unchanged")
+    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?) "
+              "ON CONFLICT (variant, day, slot) DO UPDATE SET movements = excluded.movements, sets = excluded.sets",
+              (day, slot, movements, sets))
+    c.commit()
+    print(json.dumps({"split": "active", "day": day, "slot": slot, "movements": movements, "sets": sets}))
+
+
+def cmd_split_move(day, exercise, to_slot):
+    c = conn()
+    exercise = exercise.strip().lower()
+    try:
+        to_slot = int(to_slot)
+    except (TypeError, ValueError):
+        sys.exit("slot must be an integer")
+    rows = read_split("active", day)
+    if not rows:
+        sys.exit(f"no active split day '{day}'")
+    origin = next((r for r in rows if exercise in parse_movements(r["movements"])), None)
+    if not origin:
+        sys.exit(f"'{exercise}' is not in {day}")
+    carry_sets = origin["sets"]
+    remaining = []
+    for r in rows:
+        kept = [m for m in (m.strip() for m in r["movements"].split("/")) if m.lower() != exercise]
+        if kept:
+            remaining.append({"movements": " / ".join(kept), "sets": r["sets"]})
+    to_slot = max(1, min(to_slot, len(remaining) + 1))
+    remaining.insert(to_slot - 1, {"movements": exercise, "sets": carry_sets})
+    c.execute("DELETE FROM splits WHERE variant = 'active' AND day = ?", (day,))
+    for i, r in enumerate(remaining, 1):
+        c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
+                  (day, i, r["movements"], r["sets"]))
+    c.commit()
+    print(json.dumps({"moved": exercise, "day": day, "to_slot": to_slot}))
+
+
+def cmd_split_reconcile(day, after=None):
+    c = conn()
+    if not read_split("active", day):
+        sys.exit(f"no active split day '{day}'")
+    w = open_workout(c)
+    if not w:
+        w = c.execute("SELECT * FROM workouts WHERE status = 'done' ORDER BY date DESC, id DESC LIMIT 1").fetchone()
+    if not w:
+        sys.exit("no workout to reconcile from")
+    trained = [r["exercise"] for r in c.execute(
+        "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
+        (w["id"],)).fetchall()]
+    known = split_all_movements("active")
+    new = [ex for ex in trained if ex not in known]
+    if not new:
+        print(json.dumps({"reconciled": day, "added": []}))
+        return
+    rows = read_split("active", day)
+    if after:
+        anchor = next((r for r in rows
+                       if after.strip().lower() in [m.strip().lower() for m in r["movements"].split("/")]), None)
+        if not anchor:
+            sys.exit(f"'{after}' is not in {day}")
+        insert_at = anchor["slot"] + 1
+    else:
+        insert_at = len(rows) + 1
+    for i, ex in enumerate(new):
+        c.execute("UPDATE splits SET slot = slot + 1 WHERE variant = 'active' AND day = ? AND slot >= ?",
+                  (day, insert_at + i))
+        c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, 2)",
+                  (day, insert_at + i, ex))
+    c.commit()
+    print(json.dumps({"reconciled": day, "added": new}))
+
+
+def cmd_split_diff():
+    active = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("active")}
+    baseline = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("baseline")}
+    lines = []
+    for key in sorted(set(active) | set(baseline)):
+        a, b = active.get(key), baseline.get(key)
+        if a != b:
+            lines.append(f"{key[0]} #{key[1]}: baseline {b} vs active {a}")
+    print("\n".join(lines) if lines else "active matches baseline")
+
+
+def cmd_split_revert(day=None):
+    c = conn()
+    if day:
+        base = read_split("baseline", day)
+        if not base:
+            sys.exit(f"no baseline split day '{day}'")
+        c.execute("DELETE FROM splits WHERE variant = 'active' AND day = ?", (day,))
+        for r in base:
+            c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
+                      (day, r["slot"], r["movements"], r["sets"]))
+    else:
+        c.execute("DELETE FROM splits WHERE variant = 'active'")
+        for r in read_split("baseline"):
+            c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
+                      (r["day"], r["slot"], r["movements"], r["sets"]))
+    c.commit()
+    print(json.dumps({"reverted": day or "all"}))
+
+
+def cmd_map_show(exercise=None):
+    c = conn()
+    if exercise:
+        exercise = exercise.strip().lower()
+        mapping = c.execute("SELECT * FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+        if not mapping:
+            sys.exit(f"'{exercise}' has no mapping (run map set first)")
+        notes = [r["note"] for r in c.execute(
+            "SELECT note FROM movement_notes WHERE exercise = ? ORDER BY id", (exercise,)).fetchall()]
+        print(json.dumps({"exercise": exercise, "muscles": mapping["muscles"],
+                          "is_bodyweight_only": mapping["is_bodyweight_only"], "notes": notes}, indent=2))
+        return
+    rows = c.execute("SELECT exercise, muscles FROM lift_muscle_map ORDER BY exercise").fetchall()
+    print(json.dumps([dict(r) for r in rows], indent=2))
+
+
+def cmd_map_note(exercise, text):
+    if not text:
+        sys.exit("note text is required")
+    c = conn()
+    created = datetime.now().isoformat(timespec="seconds")
+    cur = c.execute("INSERT INTO movement_notes (exercise, note, created) VALUES (?, ?, ?)",
+                    (exercise.strip().lower(), text, created))
+    c.commit()
+    print(json.dumps({"note_id": cur.lastrowid, "exercise": exercise.strip().lower()}))
+
+
+def cmd_rule_add(text, subject, expires=None):
+    if not text:
+        sys.exit("rule text is required")
+    if not subject:
+        sys.exit("rule subject is required")
+    if expires is not None:
+        try:
+            expires = date.fromisoformat(expires).isoformat()
+        except ValueError:
+            sys.exit("expiry must be YYYY-MM-DD")
+    c = conn()
+    today = date.today().isoformat()
+    created = datetime.now().isoformat(timespec="seconds")
+    cur = c.execute("INSERT INTO rules (subject, text, start_date, expiry, status, created) VALUES (?, ?, ?, ?, 'active', ?)",
+                    (subject.strip().lower(), text, today, expires, created))
+    c.commit()
+    print(json.dumps({"rule_id": cur.lastrowid, "subject": subject.strip().lower(), "expiry": expires}))
+
+
+def rule_status_rows(c):
+    return [dict(r) for r in c.execute("SELECT * FROM rules WHERE status = 'active' ORDER BY id").fetchall()]
+
+
+def cmd_rule_list(expiring_within=None):
+    c = conn()
+    rows = rule_status_rows(c)
+    today = date.today()
+    out = []
+    for r in rows:
+        needs = False
+        if r["expiry"]:
+            days_left = (date.fromisoformat(r["expiry"]) - today).days
+            needs = days_left <= 7
+        entry = dict(r)
+        entry["needs_confirm"] = needs
+        out.append(entry)
+    if expiring_within is not None:
+        try:
+            window = int(expiring_within)
+        except (TypeError, ValueError):
+            sys.exit("expiring-within must be an integer")
+        out = [r for r in out if r["expiry"] and (date.fromisoformat(r["expiry"]) - today).days <= window]
+    print(json.dumps(out, indent=2))
+
+
+def cmd_rule_confirm(rule_id, extend=None, archive=False):
+    c = conn()
+    try:
+        rule_id = int(rule_id)
+    except (TypeError, ValueError):
+        sys.exit("no such rule")
+    row = c.execute("SELECT * FROM rules WHERE id = ?", (rule_id,)).fetchone()
+    if not row:
+        sys.exit("no such rule")
+    if archive:
+        c.execute("UPDATE rules SET status = 'archived' WHERE id = ?", (rule_id,))
+    elif extend:
+        try:
+            expiry = date.fromisoformat(extend).isoformat()
+        except ValueError:
+            sys.exit("extend date must be YYYY-MM-DD")
+        c.execute("UPDATE rules SET expiry = ?, status = 'active' WHERE id = ?", (expiry, rule_id))
+    else:
+        sys.exit("rule confirm needs --extend <date> or --archive")
+    c.commit()
+    print(json.dumps({"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}))
 
 
 def cmd_audit():
@@ -1671,6 +1967,12 @@ def usage():
          " | progression show [exercise] | flag add <subject> <reason> | flag list"
          " | priority set <muscle> <tier> [--until <date>] | priority clear <muscle> | priority list"
          " | deload set --scope <lift|slot> <name> | deload clear"
+         " | split show [day] [--variant active|baseline] | split set <day> <slot#> <movements> <sets>"
+         " | split move <day> <exercise> --to <slot#> | split reconcile --day <day> [--after <exercise>]"
+         " | split diff | split revert [day]"
+         " | map show [exercise] | map set <exercise> <muscles> [bw] | map note <exercise> <text>"
+         " | rule add <text> --subject <x> [--expires <date>] | rule list [--expiring-within <n>]"
+         " | rule confirm <id> --extend <date> | --archive"
     )
 
 
@@ -1810,6 +2112,79 @@ def main():
         cmd_deload_set(scope, subject)
     elif cmd == "deload" and rest[:1] == ["clear"]:
         cmd_deload_clear()
+    elif cmd == "split" and rest[:1] == ["show"]:
+        toks = rest[1:]
+        variant = "active"
+        if "--variant" in toks:
+            j = toks.index("--variant")
+            variant = toks[j + 1] if j + 1 < len(toks) else "active"
+            toks = toks[:j] + toks[j + 2:]
+        cmd_split_show(" ".join(toks) or None, variant)
+    elif cmd == "split" and rest[:1] == ["set"] and len(rest) >= 5:
+        cmd_split_set(rest[1], rest[2], " ".join(rest[3:-1]), rest[-1])
+    elif cmd == "split" and rest[:1] == ["move"] and len(rest) >= 4:
+        toks = rest[1:]
+        to_slot = None
+        if "--to" in toks:
+            j = toks.index("--to")
+            to_slot = toks[j + 1] if j + 1 < len(toks) else None
+            toks = toks[:j] + toks[j + 2:]
+        if len(toks) < 2 or to_slot is None:
+            sys.exit("usage: log.py split move <day> <exercise> --to <slot#>")
+        cmd_split_move(toks[0], " ".join(toks[1:]), to_slot)
+    elif cmd == "split" and rest[:1] == ["reconcile"]:
+        toks = rest[1:]
+        day = after = None
+        if "--day" in toks:
+            j = toks.index("--day")
+            day = toks[j + 1] if j + 1 < len(toks) else None
+            toks = toks[:j] + toks[j + 2:]
+        if "--after" in toks:
+            j = toks.index("--after")
+            after = " ".join(toks[j + 1:]) if j + 1 < len(toks) else None
+        if not day:
+            sys.exit("usage: log.py split reconcile --day <day> [--after <exercise>]")
+        cmd_split_reconcile(day, after)
+    elif cmd == "split" and rest[:1] == ["diff"]:
+        cmd_split_diff()
+    elif cmd == "split" and rest[:1] == ["revert"]:
+        cmd_split_revert(" ".join(rest[1:]) or None)
+    elif cmd == "map" and rest[:1] == ["show"]:
+        cmd_map_show(" ".join(rest[1:]) or None)
+    elif cmd == "map" and rest[:1] == ["set"] and len(rest) >= 3:
+        bodyweight = "bw" in rest or "--bw" in rest
+        toks = [t for t in rest[1:] if t not in ("bw", "--bw")]
+        if len(toks) >= 2:
+            cmd_retag(toks[0], ",".join(toks[1:]), bodyweight)
+        else:
+            sys.exit("usage: log.py map set <exercise> <muscles> [bw] (quote multi-word names)")
+    elif cmd == "map" and rest[:1] == ["note"] and len(rest) >= 3:
+        cmd_map_note(rest[1], " ".join(rest[2:]))
+    elif cmd == "rule" and rest[:1] == ["add"] and len(rest) >= 2:
+        toks = rest[1:]
+        subject = expires = None
+        if "--subject" in toks:
+            j = toks.index("--subject")
+            subject = toks[j + 1] if j + 1 < len(toks) else None
+            toks = toks[:j] + toks[j + 2:]
+        if "--expires" in toks:
+            j = toks.index("--expires")
+            expires = toks[j + 1] if j + 1 < len(toks) else None
+            toks = toks[:j] + toks[j + 2:]
+        cmd_rule_add(" ".join(toks), subject, expires)
+    elif cmd == "rule" and rest[:1] == ["list"]:
+        window = None
+        if "--expiring-within" in rest:
+            j = rest.index("--expiring-within")
+            window = rest[j + 1] if j + 1 < len(rest) else None
+        cmd_rule_list(window)
+    elif cmd == "rule" and rest[:1] == ["confirm"] and len(rest) >= 2:
+        extend = archive = None
+        archive = "--archive" in rest
+        if "--extend" in rest:
+            j = rest.index("--extend")
+            extend = rest[j + 1] if j + 1 < len(rest) else None
+        cmd_rule_confirm(rest[1], extend, archive)
     elif cmd == "plan":
         slot = None
         verbose = "--verbose" in rest

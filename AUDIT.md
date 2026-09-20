@@ -24,10 +24,10 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 3. Muscle mapping drift
 
-- For each exercise in `history` (recent 20 per lift), compare its logged `muscles` against MOVEMENTS.md Lift mapping for that exercise.
+- For each exercise in `history` (recent 20 per lift), compare its logged `muscles` against the mapping table (`map show <exercise>`).
 - Flag mismatches (extra groups not in mapping, missing groups that are in mapping).
-- Evidence: exercise, logged muscles vs MOVEMENTS.md mapping.
-- Fix: `retag` or update Lift mapping.
+- Evidence: exercise, logged muscles vs mapped muscles.
+- Fix: `map set <exercise> <muscles>`.
 
 ### 4. Implausible progression jumps
 
@@ -44,9 +44,9 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 6. Unreconciled split slots
 
-- Compare exercises logged in `range` (last 3 months) against MOVEMENTS.md Active split for their day type. Flag any exercise that appears ≥ 3 times but is not listed in the corresponding Active split section (including interchangeable `/` entries).
-- Evidence: exercise, day type, occurrence count, Active split section content.
-- Fix: add to Active split at next `end`, or `retag` if misclassified.
+- Compare exercises logged in `range` (last 3 months) against the active split (`split show`) for their day type. Flag any exercise that appears ≥ 3 times but is not listed in the corresponding active split day (including interchangeable `/` entries).
+- Evidence: exercise, day type, occurrence count, active split day content.
+- Fix: `split reconcile` at next `end`, or `map set` if misclassified.
 
 ### 7. Stale open workouts
 
@@ -58,7 +58,7 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 Backstop for the live plan-time volume check (AGENTS.md Session start step 7), not the primary mechanism. The live check covers every tracked muscle each session and nudges volume conversationally; this deterministic check runs the same computation on a different code path and catches anything the live check misses (a bug in the live logic, a session logged outside the normal chat flow, manual DB edits). Expected to rarely fire on a well-planned block; when it does, treat it as a signal the live check failed, not just that volume is low.
 
-- For each tracked muscle in MOVEMENTS.md Tracked muscles: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
+- For each tracked muscle in `constants.json`: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
   - `volume_zero` (high): 0 sets in ≥ 4 of the last 8 weeks.
   - `volume_low` (medium): 0 < sets < MEV in ≥ 4 of the last 8 weeks.
 - MEV comes from `constants.json`. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped. A `deload completed` line in State explains a deload week's dip the same way. A muscle marked `deprioritize` in the priority table is still listed but one severity level lower with the reason annotated (the deterministic `audit` command does this automatically; the manual pass must do the same).
