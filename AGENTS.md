@@ -100,7 +100,7 @@ Plus, when they trigger, each in one line:
 
 ## Prioritize (prioritize)
 
-`prioritize <muscle> [for <duration>]`, in plain words ("side delts for the next 3 months", "bring up hamstrings"). Everything below happens in the same response, no multi-step thread.
+`prioritize <muscle> [for <duration>]`, in plain words ("side delts for the next 3 months", "bring up hamstrings"). Fully specified requests execute in the same response. Open requests ("wanna bring up my side delts, what do you suggest?") get a short thread first: state the current picture from data (frequency, volume vs landmarks, trend, recovery notes), ask only what the recommendation depends on (time for extra exposure, recovery state if stale, duration if missing), then propose order plus sets plus frequency verdict with one line of reason each, and execute on confirm.
 
 1. Resolve the muscle first: delt heads track separately, so "delts" alone gets asked which head. Untracked groups (neck, calves, traps) are refused, or tracked first per the mapping rule.
 2. Rewrite the active split: the muscle's lifts move to position 1, second at worst, in every slot containing them. If another focus is already active, ask how to order the two before rewriting. Their set counts go up; other accessories in the same slots drop a set or hold (never to zero) so total session volume stays roughly flat. Baseline split is untouched and never planned from. A user-stated rewrite is authorized; a later unusual session still never rewrites anything on its own. If a workout is open, the rewrite takes effect next session unless the user says to apply it now.
