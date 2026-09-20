@@ -56,6 +56,4 @@ def test_plan_state_covers_latest_done_session():
                if not re.search(r"^[-*]\s*" + re.escape(li) + r"\s*:", prog, re.MULTILINE)]
     assert not missing, \
         f"latest done session ({day}) lifts missing from Progression state: {missing}"
-    ledger = _section(text, "Muscle load (7d retention)")
-    assert ledger is not None and "None yet" not in ledger, \
-        "Muscle load ledger is empty despite closed sessions"
+    # Ledger half deleted in Phase 1: muscle load is derived by `plan`, never stored.

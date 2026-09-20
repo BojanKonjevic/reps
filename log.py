@@ -15,6 +15,7 @@ CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 SCIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SCIENCE.md")
 MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MEMORY.md")
 CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(os.path.dirname(os.path.abspath(__file__)), "constants.json"))
+MOVEMENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MOVEMENTS.md")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -517,7 +518,7 @@ def validate_constants(raw, source):
         val = thresholds.get(key)
         if not isinstance(val, (int, float)) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be positive")
-    for key in ("volume_window_weeks", "volume_bad_weeks"):
+    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days"):
         val = thresholds.get(key)
         if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be a positive integer")
@@ -681,6 +682,281 @@ def cmd_constants_set(key, value):
     print(json.dumps({"set": key, "value": parsed}))
 
 
+def parse_active_split_days():
+    """Transitional parser for MOVEMENTS.md Active split (Phase 3 moves this to DB).
+
+    Returns {day: [movement, ...]} with interchangeable a/b entries flattened.
+    """
+    try:
+        with open(MOVEMENTS_FILE, 'r') as f:
+            text = f.read()
+    except OSError:
+        return {}
+    m = re.search(r"^## Active split\s*$", text, re.MULTILINE)
+    if not m:
+        return {}
+    rest = text[m.end():]
+    nxt = re.search(r"^## ", rest, re.MULTILINE)
+    section = rest[:nxt.start()] if nxt else rest
+    days = {}
+    current = None
+    for line in section.split("\n"):
+        head = re.match(r"^###\s+(.+?)\s*$", line)
+        if head:
+            current = head.group(1).strip()
+            days[current] = []
+            continue
+        if current is None:
+            continue
+        slot = re.match(r"^\d+\.\s+(.+?)\s+x\d+\s*$", line.strip())
+        if slot:
+            for move in slot.group(1).split("/"):
+                move = move.strip().lower()
+                if move:
+                    days[current].append(move)
+    return days
+
+
+def parse_rotation():
+    """Transitional parser for the rotation order in MOVEMENTS.md Program section."""
+    try:
+        with open(MOVEMENTS_FILE, 'r') as f:
+            text = f.read()
+    except OSError:
+        return []
+    m = re.search(r"repeat", text, re.IGNORECASE)
+    if not m:
+        return []
+    line_start = text.rfind("\n", 0, m.start()) + 1
+    line = text[line_start:m.start()]
+    if ":" in line:
+        line = line.split(":", 1)[1]
+    entries = [e.strip().rstrip(".") for e in line.split(",")]
+    return [e for e in entries if e]
+
+
+def weekly_volume(c, muscle, week_starts):
+    from datetime import timedelta
+    base = week_starts[0].isoformat()
+    rows = c.execute("""
+        SELECT date(w.date) as day, COUNT(*) as sets
+        FROM sets s
+        JOIN workouts w ON w.id = s.workout_id
+        JOIN set_muscles sm ON sm.set_id = s.id
+        WHERE sm.muscle = ? AND date(w.date) >= ?
+        GROUP BY day
+    """, (muscle, base)).fetchall()
+    per_day = {r["day"]: r["sets"] for r in rows}
+    out = []
+    for ws in week_starts:
+        we = ws + timedelta(days=7)
+        out.append(sum(n for d, n in per_day.items() if ws.isoformat() <= d < we.isoformat()))
+    return out
+
+
+def count_bad_weeks(weekly, mev):
+    """Zero and low week counts over the whole window (audit check 8 rule)."""
+    return (sum(1 for n in weekly if n == 0),
+            sum(1 for n in weekly if 0 < n < mev))
+
+
+def classify_volume(weekly, mev, mrv, vol_bad):
+    """Shared volume classifier for plan status and audit flags.
+
+    Below-MEV mirrors audit check 8 exactly (zero or low weeks counted over
+    the whole window); above-MRV uses the recent-4-week average.
+    """
+    zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
+    if zero_weeks >= vol_bad or low_weeks >= vol_bad:
+        return "below_mev"
+    recent = weekly[-4:] if len(weekly) >= 4 else weekly
+    avg = sum(recent) / len(recent) if recent else 0
+    if mrv is not None and avg > mrv:
+        return "above_mrv"
+    return "in_range"
+
+
+def compaction_due():
+    try:
+        with open(MEMORY_FILE, 'r') as f:
+            text = f.read()
+    except OSError:
+        text = ""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AGENTS.md")) as f:
+            text += "\n" + f.read()
+    except OSError:
+        pass
+    post = re.search(r"compaction postponed until ([A-Z][a-z]{2} \d{1,2} \d{4})", text)
+    if post:
+        try:
+            if date.today() < datetime.strptime(post.group(1), "%b %d %Y").date():
+                m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
+                last = m.group(1).strip() if m else None
+                return {"due": False, "last": last if last not in (None, "never.") else None}
+        except ValueError:
+            pass
+    m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
+    last = m.group(1).strip() if m else None
+    if last in (None, "", "never."):
+        return {"due": date.today().day != 1, "last": None}
+    try:
+        last_date = datetime.strptime(last, "%b %d %Y").date()
+    except ValueError:
+        return {"due": False, "last": last}
+    first = date.today().replace(day=1)
+    return {"due": date.today() > first and last_date < first, "last": last}
+
+
+def cmd_plan(slot=None, verbose=False):
+    from datetime import timedelta
+    c = conn()
+    constants = load_constants()
+    thresholds = constants["thresholds"]
+    today = date.today()
+    today_iso = today.isoformat()
+
+    w = open_workout(c)
+    rest_row = c.execute("SELECT * FROM workouts WHERE date = ? AND status = 'rest' ORDER BY id", (today_iso,)).fetchone()
+    stale = None
+    if w:
+        try:
+            age_days = (today - date.fromisoformat(w["date"])).days
+        except ValueError:
+            age_days = 0
+        last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1", (w["id"],)).fetchone()
+        last_created = last["created"] if last else None
+        gap_over = False
+        if last_created:
+            try:
+                gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds["stale_workout_hours"] * 3600
+            except ValueError:
+                gap_over = False
+        is_stale = w["date"] != today_iso or age_days >= thresholds["stale_workout_days"] or gap_over
+        stale = {"is_stale": is_stale, "age_days": age_days, "last_set_created": last_created}
+    last_done = c.execute(
+        "SELECT date FROM workouts WHERE status = 'done' "
+        "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = workouts.id) "
+        "ORDER BY date DESC, id DESC LIMIT 1").fetchone()
+    last_session = last_done["date"] if last_done else None
+    gap_days = (today - date.fromisoformat(last_session)).days if last_session else None
+    on_break = gap_days is not None and gap_days >= thresholds["break_days"] + 1
+
+    days = parse_active_split_days()
+    rotation = parse_rotation()
+    slot_guess = {"day": None, "basis": "no history", "confidence": "low"}
+    if slot:
+        slot_guess = {"day": slot, "basis": "explicit --slot", "confidence": "high"}
+    else:
+        last_with_sets = c.execute(
+            "SELECT w.date, w.id FROM workouts w WHERE w.status = 'done' "
+            "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = w.id) "
+            "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
+        if last_with_sets and days:
+            trained = {r["exercise"] for r in c.execute(
+                "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (last_with_sets["id"],)).fetchall()}
+            best_score = 0
+            best_days = []
+            for day, moves in days.items():
+                score = len(trained & set(moves))
+                if score > best_score:
+                    best_score, best_days = score, [day]
+                elif score == best_score and score > 0:
+                    best_days.append(day)
+            if len(best_days) > 1:
+                slot_guess = {"day": None, "basis": f"last session matches {', '.join(best_days)} equally", "confidence": "low"}
+                best_day = None
+            else:
+                best_day = best_days[0] if best_days else None
+            if best_day and rotation:
+                try:
+                    idx = rotation.index(best_day)
+                except ValueError:
+                    idx = None
+                if idx is not None:
+                    skipped = []
+                    j = (idx + 1) % len(rotation)
+                    while rotation[j].lower() == "rest":
+                        skipped.append(rotation[j])
+                        j = (j + 1) % len(rotation)
+                    nxt = rotation[j]
+                    basis = f"last trained {best_day} ({last_with_sets['date']}), rotation {best_day}->{nxt}"
+                    if skipped:
+                        basis += " (rest day sits between)"
+                    slot_guess = {"day": nxt, "basis": basis,
+                                  "confidence": "high" if best_score == len(trained) else "medium"}
+            elif best_day:
+                slot_guess = {"day": None, "basis": f"last trained {best_day}, rotation unparseable", "confidence": "low"}
+
+    vol_weeks = thresholds["volume_window_weeks"]
+    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
+    vol_bad = thresholds["volume_bad_weeks"]
+    volume = {}
+    for muscle, entry in constants["muscles"].items():
+        weekly = weekly_volume(c, muscle, week_starts)
+        volume[muscle] = {"weekly": weekly, "mev": entry["mev"], "mav": entry["mav"],
+                          "mrv": entry["mrv"], "freq": entry["freq"],
+                          "status": classify_volume(weekly, entry["mev"], entry["mrv"], vol_bad)}
+
+    retention = thresholds["ledger_retention_days"]
+    cutoff = (today - timedelta(days=retention - 1)).isoformat()
+    ledger = {}
+    for muscle in constants["muscles"]:
+        rows = c.execute("""
+            SELECT w.date as day, COUNT(*) as sets
+            FROM sets s
+            JOIN workouts w ON w.id = s.workout_id
+            JOIN set_muscles sm ON sm.set_id = s.id
+            WHERE sm.muscle = ? AND date(w.date) >= ?
+            GROUP BY day ORDER BY day
+        """, (muscle, cutoff)).fetchall()
+        ledger[muscle] = {"sessions": len(rows), "sets": sum(r["sets"] for r in rows),
+                          "last_hit": rows[-1]["day"] if rows else None}
+
+    lifts = []
+    for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
+        top = c.execute(
+            "SELECT weight, reps, CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
+            "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)).fetchone()
+        last = c.execute(
+            "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id "
+            "WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)).fetchone()
+        lifts.append({"exercise": r["exercise"], "sets": r["n"],
+                      "best_e1rm": round(top["e1rm"], 1) if top else None,
+                      "last": dict(last) if last else None})
+
+    bundle = {
+        "today": {"open": dict(w) if w else False, "rest": bool(rest_row), "stale": stale,
+                  "last_session": last_session, "gap_days": gap_days, "break": on_break},
+        "slot_guess": slot_guess,
+        "volume": volume,
+        "ledger": ledger,
+        "lifts": lifts,
+        "compaction": compaction_due(),
+    }
+    if verbose:
+        lines = []
+        if w:
+            flag = "STALE" if stale["is_stale"] else "open"
+            lines.append(f"workout {w['id']} {flag} (age {stale['age_days']}d, last set {stale['last_set_created']})")
+        elif rest_row:
+            lines.append("today is marked rest")
+        else:
+            lines.append("no open workout")
+        lines.append(f"last session {last_session} ({gap_days}d ago)" + (" BREAK, no PR attempts" if on_break else ""))
+        lines.append(f"slot guess: {slot_guess['day']} ({slot_guess['basis']}, {slot_guess['confidence']})")
+        below = [m for m, v in volume.items() if v["status"] == "below_mev"]
+        over = [m for m, v in volume.items() if v["status"] == "above_mrv"]
+        lines.append(f"below MEV: {', '.join(below) if below else 'none'}")
+        if over:
+            lines.append(f"above MRV: {', '.join(over)}")
+        if bundle["compaction"]["due"]:
+            lines.append("compaction due")
+        print("\n".join(lines))
+    else:
+        print(json.dumps(bundle, indent=2))
+
+
 def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
@@ -819,8 +1095,7 @@ def cmd_audit():
             total = sum(n for d, n in per_day.items() if ws.isoformat() <= d < we.isoformat())
             weekly.append(total)
         counts = "[" + ", ".join(str(n) for n in weekly) + "]"
-        zero_weeks = sum(1 for n in weekly if n == 0)
-        low_weeks = sum(1 for n in weekly if 0 < n < mev)
+        zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
         # A muscle explicitly marked deprioritize is intentionally held back:
         # its flags still stand (listed, never silently dropped) but drop one
         # severity level and carry the reason, so the audit reads as explained.
@@ -1105,7 +1380,7 @@ def cmd_context(n):
             "SELECT weight, reps, CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
         last = c.execute(
-            "SELECT weight, reps FROM sets WHERE exercise = ? ORDER BY id DESC LIMIT 1", (r["exercise"],)
+            "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
         best.append({"exercise": r["exercise"], "sets": r["n"],
                      "max_e1rm": round(top["e1rm"], 1) if top else None,
@@ -1124,6 +1399,7 @@ def usage():
          "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
          "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore [force] | audit | rest [yyyy-mm-dd] [note]"
          " | constants show [key] | constants validate | constants set <key> <json-value>"
+         " | plan [--slot <day>] [--verbose]"
     )
 
 
@@ -1201,6 +1477,14 @@ def main():
         cmd_constants_validate()
     elif cmd == "constants" and rest[:1] == ["set"] and len(rest) >= 3:
         cmd_constants_set(rest[1], " ".join(rest[2:]))
+    elif cmd == "plan":
+        slot = None
+        verbose = "--verbose" in rest
+        toks = [t for t in rest if t != "--verbose"]
+        if "--slot" in toks:
+            i = toks.index("--slot")
+            slot = " ".join(toks[i + 1:]) if i + 1 < len(toks) else None
+        cmd_plan(slot, verbose)
     elif cmd == "rest":
         day = date.today().isoformat()
         words = rest

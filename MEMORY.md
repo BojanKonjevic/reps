@@ -45,19 +45,6 @@ First session Sep 19, all baselines, next holds until trained again.
 - cable reverse curl: baseline 11.25x13 (16.1, new), next 11.25x13
 - face pull: baseline 38.75x12 (54.3), next 38.75x12
 
-## Muscle load (7d retention)
-
-First session Sep 19, all baseline.
-
-- chest: 1 session, 5 sets, last hit Sep 19 (baseline)
-- front delt: 1 session, 5 sets, last hit Sep 19 (baseline)
-- back: 1 session, 4 sets, last hit Sep 19 (baseline)
-- side delt: 1 session, 2 sets, last hit Sep 19 (baseline)
-- rear delt: 1 session, 2 sets, last hit Sep 19 (baseline)
-- biceps: 1 session, 4 sets, last hit Sep 19 (baseline)
-- triceps: 1 session, 2 sets, last hit Sep 19 (baseline)
-- forearms: 1 session, 2 sets, last hit Sep 19 (baseline)
-
 ## Flagged for next session
 
 None yet.
