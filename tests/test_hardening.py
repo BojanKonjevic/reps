@@ -6,6 +6,8 @@ import json
 import sys
 from datetime import date, timedelta
 
+from conftest import close_session
+
 
 def capture_stdout(fn, *args, **kwargs):
     old_stdout = sys.stdout
@@ -153,6 +155,7 @@ def test_end_reports_sets_and_next(log_module):
     """End output nudges the agent toward audit, sync, commit."""
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_progression_set("bench", "baseline", "test", "flat")
     out = json.loads(capture_stdout(log_module.cmd_end, "done"))
     assert out["sets"] == 1
     assert "sync" in out["next"]
@@ -200,7 +203,7 @@ def test_restore_poisoned_dump_leaves_live_db_untouched(log_module, tmp_db):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     sql_path = _dump_sql_for_db(tmp_db)
     with open(sql_path) as f:
         lines = f.read().split("\n")
@@ -222,7 +225,7 @@ def test_restore_success_path(log_module, tmp_db):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     sql_path = _dump_sql_for_db(tmp_db)
     c.execute("DELETE FROM sets")
     c.execute("DELETE FROM workouts")
@@ -239,7 +242,7 @@ def test_rename_refuses_conflicting_mapping(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bp", 50, 8, "", "chest,triceps")
     log_module.cmd_log("press", 60, 8, "", "chest,front delt")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     try:
         log_module.cmd_rename("bp", "press")
         assert False, "should have exited"
@@ -255,7 +258,7 @@ def test_rename_refuses_identical_names(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     try:
         log_module.cmd_rename("bench", "bench")
         assert False, "should have exited"
@@ -270,7 +273,7 @@ def test_rename_same_mapping_merges(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bp", 50, 8, "", "chest")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     out = json.loads(capture_stdout(log_module.cmd_rename, "bp", "bench"))
     assert out["renamed"] == 1
     assert out["map_moved"] is True
@@ -295,7 +298,7 @@ def test_retag_rejects_empty_muscles(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     try:
         log_module.cmd_retag("bench", " , ")
         assert False, "should have exited"
@@ -338,7 +341,7 @@ def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     db_path = tmp_db
     con = sqlite3.connect(db_path)
     schema = con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='bodyweight'").fetchone()[0]
@@ -353,7 +356,8 @@ def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
         assert "missing tables" in str(e)
     c2 = log_module.conn()
     tables = {r[0] for r in c2.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-    assert tables == {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map"}
+    assert tables == {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map",
+                       "progression", "flags", "priority", "deload_state", "meta"}
     assert c2.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
 
 
@@ -363,7 +367,7 @@ def test_rename_same_muscles_different_order_merges(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bp", 50, 8, "", "triceps,chest")
     log_module.cmd_log("bench", 60, 8, "", "chest,triceps")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     out = json.loads(capture_stdout(log_module.cmd_rename, "bp", "bench"))
     assert out["renamed"] == 1
     assert out["map_moved"] is True

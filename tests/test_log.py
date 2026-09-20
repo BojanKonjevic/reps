@@ -6,6 +6,8 @@ import sys
 import io
 from datetime import date, timedelta
 
+from conftest import close_session
+
 
 def capture_stdout(fn, *args, **kwargs):
     """Capture stdout from a function call."""
@@ -129,7 +131,7 @@ def test_context_returns_correct_scope(log_module):
     for i in range(5):
         log_module.cmd_start(f"workout {i}")
         log_module.cmd_log("bench", 100 + i * 5, 5, "", "chest")
-        log_module.cmd_end("done")
+        close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_context, "3")
     data = json.loads(output)
     assert len(data["recent"]) == 3
@@ -145,7 +147,7 @@ def test_session_returns_correct_workout_ids(log_module):
     c = log_module.conn()
     log_module.cmd_start("push day")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     today = date.today().isoformat()
     output = capture_stdout(log_module.cmd_session, today)
     data = json.loads(output)
@@ -213,10 +215,10 @@ def test_rename_updates_all_matching_exercises(log_module):
     c = log_module.conn()
     log_module.cmd_start("day 1")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     log_module.cmd_start("day 2")
     log_module.cmd_log("bench", 105, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_rename, "bench", "flat bench")
     data = json.loads(output)
     assert data["renamed"] == 2
@@ -229,10 +231,10 @@ def test_retag_updates_all_matching_exercises(log_module):
     c = log_module.conn()
     log_module.cmd_start("day 1")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     log_module.cmd_start("day 2")
     log_module.cmd_log("bench", 105, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_retag, "bench", "chest,triceps")
     data = json.loads(output)
     assert data["updated"] == 2
@@ -267,7 +269,7 @@ def test_stats_returns_correct_shape(log_module):
     log_module.cmd_log("bench", 100, 5, "", "chest")
     log_module.cmd_log("bench", 105, 5, "", "chest")
     log_module.cmd_log("squat", 150, 5, "", "quads,glutes")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_stats)
     data = json.loads(output)
     assert data["workouts"] == 1
@@ -283,7 +285,7 @@ def test_history_returns_correct_exercise_sets(log_module):
     for i in range(10):
         log_module.cmd_start(f"w{i}")
         log_module.cmd_log("bench", 100 + i, 5, "", "chest")
-        log_module.cmd_end("done")
+        close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_history, "bench", "3")
     data = json.loads(output)
     assert len(data) == 3
@@ -296,6 +298,7 @@ def test_end_closes_workout(log_module):
     c = log_module.conn()
     log_module.cmd_start("initial note")
     log_module.cmd_log("bench", 100, 5, "", "chest")
+    log_module.cmd_progression_set("bench", "baseline", "test", "flat")
     output = capture_stdout(log_module.cmd_end, "final note")
     data = json.loads(output)
     assert "closed" in data
@@ -328,10 +331,10 @@ def test_notes_returns_only_nonempty(log_module):
     c = log_module.conn()
     log_module.cmd_start("has note")
     log_module.cmd_log("bench", 100, 5, "set note", "chest")
-    log_module.cmd_end("end note")
+    close_session(log_module, "end note")
     log_module.cmd_start("")
     log_module.cmd_log("squat", 150, 5, "", "quads")
-    log_module.cmd_end("")
+    close_session(log_module, "")
     output = capture_stdout(log_module.cmd_notes, "10")
     data = json.loads(output)
     assert len(data["workout_notes"]) == 1
@@ -345,7 +348,7 @@ def test_export_shape(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     log_module.cmd_weigh("84.0", "")
     output = capture_stdout(log_module.cmd_export)
     data = json.loads(output)
@@ -430,7 +433,7 @@ def test_rename_moves_muscle_mapping(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_rename, "bench", "flat bench")
     data = json.loads(output)
     assert data["renamed"] == 1
@@ -445,7 +448,7 @@ def test_stats_single_e1rm_is_weight(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 1, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_stats)
     data = json.loads(output)
     assert data["by_exercise"]["bench"]["max_e1rm"] == 100
@@ -457,7 +460,7 @@ def test_context_single_beats_lower_formula_e1rm(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 1, "", "chest")
     log_module.cmd_log("bench", 80, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_context, "3")
     data = json.loads(output)
     bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
@@ -471,7 +474,7 @@ def test_context_reports_max_e1rm(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 10, "", "chest")
     log_module.cmd_log("bench", 105, 1, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     output = capture_stdout(log_module.cmd_context, "3")
     data = json.loads(output)
     bench = next(x for x in data["lifts"] if x["exercise"] == "bench")

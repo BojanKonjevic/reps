@@ -61,7 +61,7 @@ Backstop for the live plan-time volume check (AGENTS.md Session start step 7), n
 - For each tracked muscle in MOVEMENTS.md Tracked muscles: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
   - `volume_zero` (high): 0 sets in ≥ 4 of the last 8 weeks.
   - `volume_low` (medium): 0 < sets < MEV in ≥ 4 of the last 8 weeks.
-- MEV comes from the SCIENCE.md volume landmarks. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped. A `deload completed` line in State explains a deload week's dip the same way. A muscle marked `deprioritize` in MEMORY.md's Priority block is still listed but one severity level lower with the reason annotated (the deterministic `audit` command does this automatically; the manual pass must do the same).
+- MEV comes from `constants.json`. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped. A `deload completed` line in State explains a deload week's dip the same way. A muscle marked `deprioritize` in the priority table is still listed but one severity level lower with the reason annotated (the deterministic `audit` command does this automatically; the manual pass must do the same).
 - Evidence: muscle, bad-week count out of 8, per-week set counts, MEV.
 - Fix: add volume, or add Active rule explaining.
 
@@ -72,4 +72,4 @@ Severity guide:
 - High: data loss risk (stale workout counted), goal silently broken, implausible jump with no note.
 - Medium: mapping drift, missing muscles, unreconciled split, volume below MEV.
 - Low: near-duplicate exercise names, minor trajectory miss.
-- A muscle marked `deprioritize` in MEMORY.md's Priority block flags one tier lower than the above implies (`volume_zero` medium, `volume_low` low).
+- A muscle marked `deprioritize` in the priority table flags one tier lower than the above implies (`volume_zero` medium, `volume_low` low).

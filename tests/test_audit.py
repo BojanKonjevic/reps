@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
+from conftest import close_session
+
 
 @pytest.fixture
 def audit_db():
@@ -75,7 +77,7 @@ def test_audit_muscle_mapping_drift(audit_db):
     log.cmd_start("test")
     log.cmd_log("bench", 100, 5, "", "chest")  # creates mapping chest
     log.cmd_log("squat", 150, 5, "", "quads,glutes")  # creates mapping quads,glutes
-    log.cmd_end("done")
+    close_session(log, "done")
 
     # Manually corrupt one set's muscles via the junction table
     bench_id = c.execute("SELECT id FROM sets WHERE exercise = 'bench'").fetchone()["id"]
@@ -156,7 +158,7 @@ def test_audit_duplicate_exercise_names(audit_db):
     # Add some exercises with near-duplicate names (Levenshtein <= 2)
     for ex in ["bench", "benches", "squat", "sqaut", "deadlift"]:
         log.cmd_log(ex, 100, 5, "", "chest")
-    log.cmd_end("done")
+    close_session(log, "done")
 
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
 
@@ -493,68 +495,32 @@ def test_rep_band_bound_uses_constants(audit_db):
     assert log.rep_band_bound(16) is None
 
 
-PRIORITY_BLOCK = """```json priority
-{
-  "side delt": {"tier": "priority", "since": "2026-09-18", "until": null}
-}
-```"""
-
-
-def _write_memory(tmp_path, monkeypatch, log, content):
-    p = tmp_path / "MEMORY.md"
-    p.write_text(content)
-    monkeypatch.setattr(log, "MEMORY_FILE", str(p))
-    return p
-
-
-def test_parse_priority_reads_json_block(audit_db, tmp_path, monkeypatch):
-    """parse_priority_from_memory returns entries from the real-shaped block."""
+def test_priority_set_and_list(audit_db):
+    """priority set writes the table, list reads it back."""
     log, _ = audit_db
-    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n" + PRIORITY_BLOCK + "\n")
-    assert log.parse_priority_from_memory() == {
-        "side delt": {"tier": "priority", "since": "2026-09-18", "until": None}
+    log.cmd_priority_set("side delt", "priority", None)
+    assert log.read_priorities(log.conn()) == {
+        "side delt": {"tier": "priority", "since": log.date.today().isoformat(), "until": None}
     }
 
 
-def test_parse_priority_empty_block_means_all_maintain(audit_db, tmp_path, monkeypatch):
-    """An empty priority block parses to no overrides."""
+def test_priority_rejects_untracked_muscle(audit_db):
+    """Tier A: writing a priority tier for an untracked muscle fails."""
     log, _ = audit_db
-    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n```json priority\n{\n}\n```\n")
-    assert log.parse_priority_from_memory() == {}
+    with pytest.raises(SystemExit, match="not a tracked muscle"):
+        log.cmd_priority_set("neck", "priority", None)
 
 
-def test_parse_priority_missing_block_warns(audit_db, tmp_path, monkeypatch, capsys):
-    """Files predating the block parse to empty with a warning."""
+def test_priority_rejects_bad_tier(audit_db):
     log, _ = audit_db
-    _write_memory(tmp_path, monkeypatch, log, "# memory\n\nNo priority block here.\n")
-    assert log.parse_priority_from_memory() == {}
-    assert "no json priority block" in capsys.readouterr().out
-
-
-def test_parse_priority_ignores_invalid_entries(audit_db, tmp_path, monkeypatch, capsys):
-    """Bad tiers and shapes are skipped with a warning, good entries survive."""
-    log, _ = audit_db
-    bad_block = PRIORITY_BLOCK.replace(
-        '"side delt": {"tier": "priority", "since": "2026-09-18", "until": null}',
-        '"side delt": {"tier": "priority", "since": "2026-09-18", "until": null},\n'
-        '  "chest": {"tier": "urgent", "since": "2026-09-18", "until": null},\n'
-        '  "back": "priority"',
-    )
-    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n" + bad_block + "\n")
-    assert log.parse_priority_from_memory() == {
-        "side delt": {"tier": "priority", "since": "2026-09-18", "until": None}
-    }
-    assert "ignoring invalid priority entries" in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="tier must be"):
+        log.cmd_priority_set("chest", "urgent", None)
 
 
 def test_cmd_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
     """check 8: a deprioritize muscle still flags, one severity lower, annotated."""
     log, c = audit_db
-    _write_memory(
-        tmp_path, monkeypatch, log,
-        "# memory\n\n```json priority\n"
-        '{\n  "chest": {"tier": "deprioritize", "since": "2026-09-18", "until": null}\n}\n```\n',
-    )
+    log.cmd_priority_set("chest", "deprioritize", None)
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
@@ -565,7 +531,6 @@ def test_cmd_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypat
 def test_cmd_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monkeypatch):
     """check 8: without a priority entry the same data flags at full severity."""
     log, c = audit_db
-    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n```json priority\n{\n}\n```\n")
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1

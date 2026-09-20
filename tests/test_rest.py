@@ -6,6 +6,8 @@ import json
 import sys
 from datetime import date, timedelta
 
+from conftest import close_session
+
 
 def capture_stdout(fn, *args, **kwargs):
     old_stdout = sys.stdout
@@ -74,7 +76,7 @@ def test_rest_refused_when_trained_today(log_module):
     """A trained day cannot be rewritten as rest."""
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     try:
         log_module.cmd_rest(date.today().isoformat(), "tired")
         assert False, "should have exited"
@@ -116,14 +118,14 @@ def test_update_workout_to_rest_guards(log_module):
     """Empty workouts can become rest, workouts with sets cannot."""
     c = log_module.conn()
     log_module.cmd_start("empty")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     wid = c.execute("SELECT id FROM workouts").fetchone()["id"]
     log_module.cmd_update_workout(str(wid), "status", "rest")
     assert c.execute("SELECT status FROM workouts WHERE id = ?", (wid,)).fetchone()["status"] == "rest"
 
     log_module.cmd_start("full")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     wid2 = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
     try:
         log_module.cmd_update_workout(str(wid2), "status", "rest")
@@ -137,7 +139,7 @@ def test_stats_and_context_exclude_rest(log_module):
     log_module.cmd_rest(date.today().isoformat(), "sore")
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     stats = json.loads(capture_stdout(log_module.cmd_stats))
     assert stats["workouts"] == 1
     ctx = json.loads(capture_stdout(log_module.cmd_context, "5"))
@@ -175,7 +177,7 @@ def test_update_workout_to_rest_refuses_duplicate_rest_row(log_module):
     c = log_module.conn()
     log_module.cmd_rest(date.today().isoformat(), "sore")
     log_module.cmd_start("empty")
-    log_module.cmd_end("done")
+    close_session(log_module, "done")
     wid = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
     try:
         log_module.cmd_update_workout(str(wid), "status", "rest")

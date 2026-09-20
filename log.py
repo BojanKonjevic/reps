@@ -52,6 +52,43 @@ CREATE TABLE IF NOT EXISTS set_muscles (
   muscle TEXT NOT NULL,
   PRIMARY KEY (set_id, muscle)
 );
+CREATE TABLE IF NOT EXISTS progression (
+  id INTEGER PRIMARY KEY,
+  workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+  exercise TEXT NOT NULL,
+  verdict TEXT NOT NULL,
+  next_target TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created TEXT NOT NULL,
+  UNIQUE (workout_id, exercise)
+);
+CREATE TABLE IF NOT EXISTS flags (
+  id INTEGER PRIMARY KEY,
+  subject TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created TEXT NOT NULL,
+  consumed_at TEXT
+);
+CREATE TABLE IF NOT EXISTS priority (
+  muscle TEXT PRIMARY KEY,
+  tier TEXT NOT NULL,
+  since TEXT NOT NULL,
+  until TEXT
+);
+CREATE TABLE IF NOT EXISTS deload_state (
+  id INTEGER PRIMARY KEY,
+  scope TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  set_on TEXT NOT NULL,
+  cleared_on TEXT
+);
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+-- meta has no CLI: plan reads last_compacted, the compaction flow writes it.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
 """
 
 
@@ -62,6 +99,10 @@ def conn():
     c.execute("PRAGMA foreign_keys=ON")
     c.executescript(SCHEMA)
     return c
+
+
+def placeholders(n):
+    return ",".join("?" * max(1, n))
 
 
 def clean_muscles(value):
@@ -303,11 +344,21 @@ def cmd_update(set_id, field, value):
     print(json.dumps(out))
 
 
-def cmd_end(note):
+def cmd_end(note, force=None):
     c = conn()
     w = open_workout(c)
     if not w:
         sys.exit("no open workout")
+    if force:
+        note = (note + f" (forced: {force})").strip() if note else f"(forced: {force})"
+    else:
+        outstanding = end_gate_items(c, w, note)
+        if outstanding:
+            print(f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:\n")
+            for o in outstanding:
+                print(f"  {o['item']}\n    {o['fix']}")
+            print(f"\nor: log.py end --force \"<reason>\"   (reason is written into the workout note)")
+            sys.exit(1)
     if note:
         old = w["notes"]
         combined = (old + " " + note).strip() if old else note
@@ -315,7 +366,10 @@ def cmd_end(note):
     c.execute("UPDATE workouts SET status = 'done' WHERE id = ?", (w["id"],))
     c.commit()
     n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (w["id"],)).fetchone()["n"]
-    print(json.dumps({"closed": w["id"], "sets": n, "next": "audit this session, then sync, then commit workouts.sql"}))
+    out = {"closed": w["id"], "sets": n, "next": "audit this session, then sync, then commit workouts.sql"}
+    if force:
+        out["forced"] = force
+    print(json.dumps(out))
 
 
 def cmd_rest(day, note):
@@ -444,9 +498,9 @@ def cmd_restore(force=False):
         if t.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             sys.exit("restored DB failed integrity check, live DB untouched")
         tables = {r[0] for r in t.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-        expected = {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map"}
+        expected = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", SCHEMA))
         if tables != expected:
-            sys.exit(f"dump is missing tables (has {sorted(tables)}), live DB untouched")
+            sys.exit(f"dump is missing tables (has {sorted(tables)}, expected {sorted(expected)}), live DB untouched")
         t.close()
         try:
             live = sqlite3.connect(DB)
@@ -580,50 +634,10 @@ def tracked_muscles():
     return list(load_constants()["muscles"].keys())
 
 
-def parse_priority_from_memory():
-    """Parse the Priority (machine-readable) block from MEMORY.md.
-
-    Mirrors parse_mev_from_science in structure: primary source is the
-    fenced ````json priority`` block, absent muscles default to `maintain`.
-    Returns {muscle: {"tier": ..., "since": ..., "until": ...}} with only
-    well-formed entries; invalid ones are warned about and skipped.
-    """
-    valid_tiers = {"priority", "maintain", "deprioritize"}
-    priorities: dict = {}
-    try:
-        with open(MEMORY_FILE, 'r') as f:
-            content = f.read()
-    except OSError:
-        content = ""
-    if not content:
-        print("WARNING: parse_priority_from_memory could not read MEMORY.md, assuming all maintain")
-        return priorities
-    block = re.search(r'```json[^\n]*priority[^\n]*\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
-    if not block:
-        print("WARNING: parse_priority_from_memory found no json priority block, assuming all maintain")
-        return priorities
-    try:
-        raw = json.loads(block.group(1))
-    except ValueError as e:
-        print(f"WARNING: parse_priority_from_memory found priority JSON block but failed to parse it ({e}), assuming all maintain")
-        return priorities
-    if not isinstance(raw, dict):
-        print("WARNING: parse_priority_from_memory priority block is not a JSON object, assuming all maintain")
-        return priorities
-    invalid = {}
-    for k, v in raw.items():
-        muscle = k.strip().lower() if isinstance(k, str) else k
-        if (isinstance(muscle, str) and muscle
-                and isinstance(v, dict)
-                and v.get("tier") in valid_tiers
-                and ("since" not in v or v["since"] is None or isinstance(v["since"], str))
-                and ("until" not in v or v["until"] is None or isinstance(v["until"], str))):
-            priorities[muscle] = {"tier": v["tier"], "since": v.get("since"), "until": v.get("until")}
-        else:
-            invalid[k] = v
-    if invalid:
-        print(f"WARNING: parse_priority_from_memory ignoring invalid priority entries: {invalid}")
-    return priorities
+def read_priorities(c):
+    """Priority tiers from the priority table. Absence means maintain."""
+    return {r["muscle"]: {"tier": r["tier"], "since": r["since"], "until": r["until"]}
+            for r in c.execute("SELECT * FROM priority").fetchall()}
 
 
 def cmd_constants_show(key=None):
@@ -796,9 +810,22 @@ def compaction_due():
                 return {"due": False, "last": last if last not in (None, "never.") else None}
         except ValueError:
             pass
-    m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
-    last = m.group(1).strip() if m else None
-    if last in (None, "", "never."):
+    last = None
+    try:
+        mc = conn()
+        try:
+            meta_row = mc.execute("SELECT value FROM meta WHERE key = 'last_compacted'").fetchone()
+            if meta_row and meta_row["value"] not in ("", "never"):
+                last = meta_row["value"]
+        finally:
+            mc.close()
+    except sqlite3.Error:
+        last = None
+    if last is None:
+        m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
+        stamp = m.group(1).strip() if m else None
+        last = stamp if stamp not in (None, "", "never.") else None
+    if last is None:
         return {"due": date.today().day != 1, "last": None}
     try:
         last_date = datetime.strptime(last, "%b %d %Y").date()
@@ -925,6 +952,34 @@ def cmd_plan(slot=None, verbose=False):
                       "best_e1rm": round(top["e1rm"], 1) if top else None,
                       "last": dict(last) if last else None})
 
+    progression = {r["exercise"]: {"verdict": r["verdict"], "next": r["next_target"],
+                                                "direction": r["direction"], "workout_id": r["workout_id"]}
+                   for r in c.execute(
+                       "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
+                       "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
+    priorities = read_priorities(c)
+    deload = [dict(r) for r in active_deloads(c)]
+    unconsumed = [dict(r) for r in c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()]
+    day = slot_guess.get("day")
+    day_moves = parse_active_split_days()
+    if day and day in day_moves:
+        moves = set(day_moves[day])
+        day_muscles = set()
+        if moves:
+            for m in c.execute(
+                    "SELECT DISTINCT muscles FROM lift_muscle_map WHERE exercise IN (%s)" % placeholders(len(moves)),
+                    list(moves)).fetchall():
+                day_muscles.update(m["muscles"].split(","))
+        # All unconsumed flags stay visible; only day-relevant ones are consumed.
+        consumable = [f for f in unconsumed if f["subject"] in moves or f["subject"] in day_muscles]
+    else:
+        consumable = list(unconsumed)
+    if consumable:
+        now = datetime.now().isoformat(timespec="seconds")
+        c.execute("UPDATE flags SET consumed_at = ? WHERE id IN (%s)" % placeholders(len(consumable)),
+                  [now] + [f["id"] for f in consumable])
+        c.commit()
+
     bundle = {
         "today": {"open": dict(w) if w else False, "rest": bool(rest_row), "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
@@ -932,6 +987,10 @@ def cmd_plan(slot=None, verbose=False):
         "volume": volume,
         "ledger": ledger,
         "lifts": lifts,
+        "progression": progression,
+        "flags": unconsumed,
+        "priority": priorities,
+        "deload": deload if deload else None,
         "compaction": compaction_due(),
     }
     if verbose:
@@ -955,6 +1014,214 @@ def cmd_plan(slot=None, verbose=False):
         print("\n".join(lines))
     else:
         print(json.dumps(bundle, indent=2))
+
+
+def append_memory_state(line):
+    try:
+        with open(MEMORY_FILE, 'r') as f:
+            text = f.read()
+    except OSError:
+        sys.exit(f"cannot append State line, {MEMORY_FILE} unreadable")
+    m = re.search(r"^## State\s*$", text, re.MULTILINE)
+    if not m:
+        sys.exit("MEMORY.md has no ## State section")
+    rest = text[m.end():]
+    nxt = re.search(r"^## ", rest, re.MULTILINE)
+    insert_at = m.end() + (nxt.start() if nxt else len(rest))
+    block = text[m.end():insert_at]
+    if not block.endswith("\n"):
+        line = "\n" + line
+    text = text[:insert_at] + ("" if block.endswith("\n") else "\n") + line + "\n" + text[insert_at:]
+    with open(MEMORY_FILE, 'w') as f:
+        f.write(text)
+
+
+def cmd_progression_set(exercise, verdict, next_target, direction, note="", workout_id=None):
+    if verdict not in ("hit", "miss", "hold", "baseline"):
+        sys.exit("verdict must be one of hit miss hold baseline")
+    if direction not in ("up", "flat", "down"):
+        sys.exit("direction must be one of up flat down")
+    if not next_target:
+        sys.exit("next target is required (e.g. 82.5x5)")
+    c = conn()
+    exercise = exercise.strip().lower()
+    if workout_id is None:
+        w = open_workout(c)
+        if not w:
+            sys.exit("no open workout (pass --workout <id> to backfill a closed one)")
+        workout_id = w["id"]
+    else:
+        try:
+            workout_id = int(workout_id)
+        except (TypeError, ValueError):
+            sys.exit("no such workout")
+        if not c.execute("SELECT id FROM workouts WHERE id = ?", (workout_id,)).fetchone():
+            sys.exit("no such workout")
+    trained = {r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (workout_id,)).fetchall()}
+    if exercise not in trained:
+        sys.exit(f"'{exercise}' has no sets in workout {workout_id}, nothing to judge")
+    created = datetime.now().isoformat(timespec="seconds")
+    c.execute(
+        "INSERT INTO progression (workout_id, exercise, verdict, next_target, direction, note, created) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT (workout_id, exercise) DO UPDATE SET verdict = excluded.verdict, next_target = excluded.next_target, "
+        "direction = excluded.direction, note = excluded.note, created = excluded.created",
+        (workout_id, exercise, verdict, next_target, direction, note, created))
+    c.commit()
+    print(json.dumps({"progression": exercise, "workout_id": workout_id, "verdict": verdict,
+                      "next": next_target, "direction": direction}))
+
+
+def cmd_progression_show(exercise=None):
+    c = conn()
+    if exercise:
+        rows = c.execute("SELECT * FROM progression WHERE exercise = ? ORDER BY workout_id DESC", (exercise.strip().lower(),)).fetchall()
+    else:
+        rows = c.execute(
+            "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression GROUP BY exercise) "
+            "l ON l.exercise = p.exercise AND l.m = p.workout_id ORDER BY p.exercise").fetchall()
+    print(json.dumps([dict(r) for r in rows], indent=2))
+
+
+def cmd_flag_add(subject, reason):
+    if not reason:
+        sys.exit("flag reason is required")
+    c = conn()
+    created = datetime.now().isoformat(timespec="seconds")
+    cur = c.execute("INSERT INTO flags (subject, reason, created, consumed_at) VALUES (?, ?, ?, NULL)",
+                    (subject.strip().lower(), reason, created))
+    c.commit()
+    print(json.dumps({"flag_id": cur.lastrowid, "subject": subject.strip().lower()}))
+
+
+def cmd_flag_list():
+    c = conn()
+    rows = c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()
+    print(json.dumps([dict(r) for r in rows], indent=2))
+
+
+def cmd_priority_set(muscle, tier, until=None):
+    muscle = muscle.strip().lower()
+    if tier not in ("priority", "maintain", "deprioritize"):
+        sys.exit("tier must be one of priority maintain deprioritize")
+    constants = load_constants()
+    if muscle not in constants["muscles"]:
+        sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.get('untracked', []))})")
+    if until is not None:
+        try:
+            until = date.fromisoformat(until).isoformat()
+        except ValueError:
+            sys.exit("until must be YYYY-MM-DD")
+    c = conn()
+    c.execute("INSERT INTO priority (muscle, tier, since, until) VALUES (?, ?, ?, ?) "
+              "ON CONFLICT (muscle) DO UPDATE SET tier = excluded.tier, since = excluded.since, until = excluded.until",
+              (muscle, tier, date.today().isoformat(), until))
+    c.commit()
+    print(json.dumps({"priority": muscle, "tier": tier, "until": until}))
+
+
+def cmd_priority_clear(muscle):
+    c = conn()
+    cur = c.execute("DELETE FROM priority WHERE muscle = ?", (muscle.strip().lower(),))
+    c.commit()
+    print(json.dumps({"cleared": muscle.strip().lower(), "rows": cur.rowcount}))
+
+
+def cmd_priority_list():
+    c = conn()
+    rows = c.execute("SELECT * FROM priority ORDER BY muscle").fetchall()
+    print(json.dumps([dict(r) for r in rows], indent=2))
+
+
+def cmd_deload_set(scope, subject):
+    if scope not in ("lift", "slot"):
+        sys.exit("scope must be lift or slot")
+    if not subject:
+        sys.exit("deload subject is required")
+    c = conn()
+    today = date.today().isoformat()
+    subject = subject.strip().lower()
+    existing = c.execute("SELECT id FROM deload_state WHERE scope = ? AND subject = ? AND cleared_on IS NULL",
+                         (scope, subject)).fetchone()
+    if existing:
+        print(json.dumps({"deload_id": existing["id"], "scope": scope, "subject": subject, "reused": True}))
+        return
+    cur = c.execute("INSERT INTO deload_state (scope, subject, set_on, cleared_on) VALUES (?, ?, ?, NULL)",
+                    (scope, subject, today))
+    c.commit()
+    print(json.dumps({"deload_id": cur.lastrowid, "scope": scope, "subject": subject}))
+
+
+def cmd_deload_clear():
+    c = conn()
+    rows = c.execute("SELECT scope, subject FROM deload_state WHERE cleared_on IS NULL ORDER BY id").fetchall()
+    today = date.today().isoformat()
+    c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
+    c.commit()
+    for r in rows:
+        append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
+    print(json.dumps({"cleared": len(rows)}))
+
+
+def active_deloads(c):
+    return c.execute("SELECT * FROM deload_state WHERE cleared_on IS NULL ORDER BY id").fetchall()
+
+
+def deload_covers(deloads, exercise, day_moves):
+    """True if an active deload row covers this exercise (lift scope: exact name)."""
+    for d in deloads:
+        if d["scope"] == "lift" and d["subject"] == exercise:
+            return True
+        if d["scope"] == "slot" and exercise in day_moves.get(d["subject"], []):
+            return True
+    return False
+
+
+def end_gate_items(c, w, note):
+    """Preconditions for closing a workout. Returns list of {item, fix}."""
+    outstanding = []
+    missing = c.execute("""
+        SELECT s.id, s.exercise FROM sets s
+        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        WHERE s.workout_id = ? AND sm.muscle IS NULL
+    """, (w["id"],)).fetchall()
+    for m in missing:
+        outstanding.append({"item": f"set {m['id']} ({m['exercise']}) has no muscles",
+                            "fix": f"log.py update {m['id']} muscles <a,b>"})
+    trained = [r["exercise"] for r in c.execute(
+        "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (w["id"],)).fetchall()]
+    judged = {r["exercise"] for r in c.execute(
+        "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
+    for ex in sorted(set(trained) - judged):
+        outstanding.append({"item": f"missing progression: {ex}",
+                            "fix": f"log.py progression set \"{ex}\" --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down>"})
+    # Precondition 4 (active-split reconciliation) lands in Phase 3 with the
+    # splits table and `split reconcile`; the gate cannot demand a command
+    # that does not exist yet.
+    deloads = active_deloads(c)
+    if deloads:
+        day_moves = parse_active_split_days()
+        covered = [ex for ex in trained if deload_covers(deloads, ex, day_moves)]
+        if covered:
+            combined = ((w["notes"] + " " + note) if w["notes"] else note).lower()
+            if "deload" not in combined:
+                outstanding.append({"item": f"deload session covers {', '.join(sorted(set(covered)))} but the note has no 'deload'",
+                                    "fix": "log.py end \"<note> deload\""})
+    return outstanding
+
+
+def cmd_check(note=""):
+    c = conn()
+    w = open_workout(c)
+    if not w:
+        sys.exit("no open workout")
+    outstanding = end_gate_items(c, w, note)
+    if outstanding:
+        print(f"workout {w['id']} not ready to close, {len(outstanding)} items outstanding:")
+        for o in outstanding:
+            print(f"  {o['item']}\n    {o['fix']}")
+        sys.exit(1)
+    print(json.dumps({"ready": w["id"]}))
 
 
 def cmd_audit():
@@ -1078,7 +1345,7 @@ def cmd_audit():
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
     base = week_starts[0].isoformat()
     mev_bounds = {m: e["mev"] for m, e in constants["muscles"].items()}
-    priorities = parse_priority_from_memory()
+    priorities = read_priorities(c)
     for muscle, mev in mev_bounds.items():
         rows = c.execute("""
             SELECT date(w.date) as day, COUNT(*) as sets
@@ -1399,7 +1666,11 @@ def usage():
          "| session <yyyy-mm-dd> | range <from> <to> | notes [limit] | calendar "
          "| stats | export | rename <old> <new> | context [n] | weigh <kg> [note] | sync [force] | restore [force] | audit | rest [yyyy-mm-dd] [note]"
          " | constants show [key] | constants validate | constants set <key> <json-value>"
-         " | plan [--slot <day>] [--verbose]"
+         " | plan [--slot <day>] [--verbose] | check [note]"
+         " | progression set <exercise> --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down> [--note <t>] [--workout <id>]"
+         " | progression show [exercise] | flag add <subject> <reason> | flag list"
+         " | priority set <muscle> <tier> [--until <date>] | priority clear <muscle> | priority list"
+         " | deload set --scope <lift|slot> <name> | deload clear"
     )
 
 
@@ -1427,7 +1698,15 @@ def main():
     elif cmd == "update" and len(rest) >= 3:
         cmd_update(rest[0], rest[1], " ".join(rest[2:]))
     elif cmd == "end":
-        cmd_end(" ".join(rest))
+        force = None
+        toks = list(rest)
+        if "--force" in toks:
+            i = toks.index("--force")
+            force = " ".join(toks[i + 1:]).strip() or None
+            toks = toks[:i]
+            if not force:
+                sys.exit("end --force needs a reason, it is written into the workout note")
+        cmd_end(" ".join(toks), force)
     elif cmd == "today":
         cmd_today()
     elif cmd == "exercises":
@@ -1477,6 +1756,60 @@ def main():
         cmd_constants_validate()
     elif cmd == "constants" and rest[:1] == ["set"] and len(rest) >= 3:
         cmd_constants_set(rest[1], " ".join(rest[2:]))
+    elif cmd == "check":
+        cmd_check(" ".join(rest))
+    elif cmd == "progression" and rest[:1] == ["set"] and len(rest) >= 2:
+        exercise = rest[1]
+        verdict = next_target = direction = note = workout_id = None
+        toks = rest[2:]
+        i = 0
+        while i < len(toks):
+            if toks[i] == "--verdict" and i + 1 < len(toks):
+                verdict = toks[i + 1]
+                i += 2
+            elif toks[i] == "--next" and i + 1 < len(toks):
+                next_target = toks[i + 1]
+                i += 2
+            elif toks[i] == "--direction" and i + 1 < len(toks):
+                direction = toks[i + 1]
+                i += 2
+            elif toks[i] == "--note" and i + 1 < len(toks):
+                note = toks[i + 1]
+                i += 2
+            elif toks[i] == "--workout" and i + 1 < len(toks):
+                workout_id = toks[i + 1]
+                i += 2
+            else:
+                i += 1
+        cmd_progression_set(exercise, verdict, next_target, direction, note or "", workout_id)
+    elif cmd == "progression" and rest[:1] == ["show"]:
+        cmd_progression_show(" ".join(rest[1:]) or None)
+    elif cmd == "flag" and rest[:1] == ["add"] and len(rest) >= 3:
+        cmd_flag_add(rest[1], " ".join(rest[2:]))
+    elif cmd == "flag" and rest[:1] == ["list"]:
+        cmd_flag_list()
+    elif cmd == "priority" and rest[:1] == ["set"] and len(rest) >= 3:
+        until = None
+        toks = rest[3:]
+        if "--until" in toks:
+            j = toks.index("--until")
+            until = " ".join(toks[j + 1:]) if j + 1 < len(toks) else None
+        cmd_priority_set(rest[1], rest[2], until)
+    elif cmd == "priority" and rest[:1] == ["clear"] and len(rest) >= 2:
+        cmd_priority_clear(" ".join(rest[1:]))
+    elif cmd == "priority" and rest[:1] == ["list"]:
+        cmd_priority_list()
+    elif cmd == "deload" and rest[:1] == ["set"]:
+        scope = subject = None
+        toks = rest[1:]
+        if "--scope" in toks:
+            j = toks.index("--scope")
+            scope = toks[j + 1] if j + 1 < len(toks) else None
+            toks = toks[:j] + toks[j + 2:]
+        subject = " ".join(toks) or None
+        cmd_deload_set(scope, subject)
+    elif cmd == "deload" and rest[:1] == ["clear"]:
+        cmd_deload_clear()
     elif cmd == "plan":
         slot = None
         verbose = "--verbose" in rest

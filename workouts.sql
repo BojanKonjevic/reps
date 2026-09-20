@@ -5,6 +5,20 @@ CREATE TABLE bodyweight (
   kg REAL NOT NULL,
   note TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE deload_state (
+  id INTEGER PRIMARY KEY,
+  scope TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  set_on TEXT NOT NULL,
+  cleared_on TEXT
+);
+CREATE TABLE flags (
+  id INTEGER PRIMARY KEY,
+  subject TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created TEXT NOT NULL,
+  consumed_at TEXT
+);
 CREATE TABLE lift_muscle_map (
   exercise TEXT PRIMARY KEY,
   muscles TEXT NOT NULL,
@@ -44,6 +58,39 @@ INSERT INTO "lift_muscle_map" VALUES('ezbar skullcrusher','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist curl','forearms',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist extension','forearms',0);
 INSERT INTO "lift_muscle_map" VALUES('machine shoulder press','front delt',0);
+CREATE TABLE meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+INSERT INTO "meta" VALUES('last_compacted','never');
+CREATE TABLE priority (
+  muscle TEXT PRIMARY KEY,
+  tier TEXT NOT NULL,
+  since TEXT NOT NULL,
+  until TEXT
+);
+CREATE TABLE progression (
+  id INTEGER PRIMARY KEY,
+  workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+  exercise TEXT NOT NULL,
+  verdict TEXT NOT NULL,
+  next_target TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created TEXT NOT NULL,
+  UNIQUE (workout_id, exercise)
+);
+INSERT INTO "progression" VALUES(1,1,'incline barbell bench press','baseline','80x6','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(2,1,'hammer strength row','baseline','90x9','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(3,1,'pec deck','baseline','80x13','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(4,1,'straight bar pulldown','baseline','87x7','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(5,1,'machine shoulder press','baseline','40x9','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(6,1,'cable lat raise','baseline','11.25x13','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(7,1,'bayesian curl','baseline','13.75x10','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(8,1,'preacher curl','baseline','46x8','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(9,1,'cable pushdown','baseline','31.25x12','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(10,1,'cable reverse curl','baseline','11.25x13','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(11,1,'face pull','baseline','38.75x12','flat','','2026-09-20T15:10:13');
 CREATE TABLE set_muscles (
   set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
   muscle TEXT NOT NULL,
@@ -114,6 +161,7 @@ CREATE TABLE workouts (
   notes TEXT NOT NULL DEFAULT ''
 );
 INSERT INTO "workouts" VALUES(1,'2026-09-19','done','Upper A Baseline Upper A. Shoulder press first time in a year. First session pushing higher reps on isolations. Reverse curl new.');
+INSERT INTO "workouts" VALUES(2,'2026-09-20','rest','split transition friction, fewer rest days since last leg day than usual');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
