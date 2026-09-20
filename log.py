@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS rules (
   status TEXT NOT NULL DEFAULT 'active',
   created TEXT NOT NULL
 );
--- rotation order lives in meta (key rotation, JSON array) since MOVEMENTS.md is gone.
+-- rotation order lives in meta (key rotation, JSON array).
 CREATE TABLE IF NOT EXISTS goals (
   id INTEGER PRIMARY KEY,
   exercise TEXT NOT NULL,
@@ -813,7 +813,7 @@ def parse_active_split_days(c=None):
 
 
 def parse_rotation(c=None):
-    """Rotation order from meta (migrated from MOVEMENTS.md Program section)."""
+    """Rotation order from meta."""
     c = c or conn()
     try:
         row = c.execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
