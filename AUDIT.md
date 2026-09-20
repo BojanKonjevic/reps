@@ -33,7 +33,7 @@ The mapping table is authoritative: per-set overrides are refused at log time an
 
 ### 5. Goal trajectory divergence
 
-- Deterministic since Phase 4: `audit` computes this from the goals tables (same code as `goal show`). Manual pass only double-checks the numbers. For each active goal: logged top-set e1RM per session (last pre-goal date anchors session 1) against trajectory checkpoints. Flags `goal_divergence` if ≥ 2 consecutive sessions miss by > 5% e1RM with no slippage/extend/compress note, `goal_slippage` if remaining sessions no longer fit before the deadline at split frequency. Sessions whose set or workout notes contain "deload" are excluded from the miss count (a deload session deliberately deviates; its trajectory resumes after, never compressed).
+- Deterministic since Phase 4: `audit` computes this from the goals tables (same code as `goal show`). Manual pass only double-checks the numbers. For each active goal: logged top-set e1RM per session (last pre-goal date anchors session 1) against trajectory checkpoints. Flags `goal_divergence` if ≥ 2 consecutive sessions fall short by > 5% e1RM (one-sided, overperformance never misses) with no slippage/extend/compress note, `goal_slippage` if remaining sessions no longer fit before the deadline at split frequency. Sessions whose set or workout notes contain "deload" are excluded from the miss count (a deload session deliberately deviates; its trajectory resumes after, never compressed).
 - Evidence: goal target, trajectory sessions vs logged sessions, divergence %.
 - Fix: `goal rewrite <id>`, or add slippage decision.
 
@@ -63,6 +63,6 @@ Backstop for the live plan-time volume check (AGENTS.md Session start step 7), n
 Severity guide:
 
 - High: data loss risk (stale workout counted), goal silently broken, implausible jump with no note.
-- Medium: mapping drift, missing muscles, unreconciled split, volume below MEV.
+- Medium: volume below MEV.
 - Low: near-duplicate exercise names, minor trajectory miss.
 - A muscle marked `deprioritize` in the priority table flags one tier lower than the above implies (`volume_zero` medium, `volume_low` low).

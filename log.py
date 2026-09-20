@@ -146,6 +146,20 @@ def placeholders(n):
     return ",".join("?" * max(1, n))
 
 
+def _join_muscles(words, vocab):
+    """Reassemble muscle words into canonical names (multi-word heads re-joined)."""
+    out, i = [], 0
+    while i < len(words):
+        pair = " ".join(words[i:i + 2]).lower()
+        if i + 1 < len(words) and pair in vocab:
+            out.append(pair)
+            i += 2
+        else:
+            out.append(words[i].lower())
+            i += 1
+    return out
+
+
 def clean_muscles(value):
     seen = set()
     out = []
@@ -386,24 +400,32 @@ def cmd_end(note, force=None):
     w = open_workout(c)
     if not w:
         sys.exit("no open workout")
+    outstanding = end_gate_items(c, w, note if not force else (note + f" {force}" if note else force))
+    hard = [o for o in outstanding if o.get("hard")]
+    if hard:
+        print(f"cannot close workout {w['id']}, {len(hard)} hard items outstanding (--force cannot skip these):\n")
+        for o in hard:
+            print(f"  {o['item']}\n    {o['fix']}")
+        sys.exit(1)
+    if outstanding and not force:
+        print(f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:\n")
+        for o in outstanding:
+            print(f"  {o['item']}\n    {o['fix']}")
+        print(f"\nor: log.py end --force \"<reason>\"   (reason is written into the workout note; "
+              f"writeback items only, missing muscles always block)")
+        sys.exit(1)
     if force:
         note = (note + f" (forced: {force})").strip() if note else f"(forced: {force})"
-    else:
-        outstanding = end_gate_items(c, w, note)
-        if outstanding:
-            print(f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:\n")
-            for o in outstanding:
-                print(f"  {o['item']}\n    {o['fix']}")
-            print(f"\nor: log.py end --force \"<reason>\"   (reason is written into the workout note)")
-            sys.exit(1)
     if note:
         old = w["notes"]
         combined = (old + " " + note).strip() if old else note
         c.execute("UPDATE workouts SET notes = ? WHERE id = ?", (combined, w["id"]))
     c.execute("UPDATE workouts SET status = 'done' WHERE id = ?", (w["id"],))
+    consumed = consume_session_flags(c, w["id"])
     c.commit()
     n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (w["id"],)).fetchone()["n"]
-    out = {"closed": w["id"], "sets": n, "next": "audit this session, then sync, then commit workouts.sql"}
+    out = {"closed": w["id"], "sets": n, "flags_consumed": consumed,
+           "next": "audit this session, then sync, then commit workouts.sql"}
     if force:
         out["forced"] = force
     print(json.dumps(out))
@@ -562,20 +584,10 @@ def cmd_restore(force=False):
     print(json.dumps({"restored": True, "from": sql_file}))
 
 
-CONTRACT_MUSCLES = frozenset([
-    "chest", "back", "front delt", "side delt", "rear delt",
-    "biceps", "triceps", "quads", "hamstrings", "glutes",
-    "adductors", "abs", "forearms",
-])
-
-
 def validate_constants(raw, source):
     """Validate a parsed constants candidate, exiting loudly on any defect."""
-    if not isinstance(raw, dict) or not isinstance(raw.get("muscles"), dict):
-        sys.exit(f"constants invalid at {source}: missing the muscles map")
-    missing = CONTRACT_MUSCLES - set(raw["muscles"].keys())
-    if missing:
-        sys.exit(f"constants invalid at {source}: missing tracked muscles {sorted(missing)}")
+    if not isinstance(raw, dict) or not isinstance(raw.get("muscles"), dict) or not raw["muscles"]:
+        sys.exit(f"constants invalid at {source}: missing or empty the muscles map")
     for muscle, entry in raw["muscles"].items():
         if not isinstance(entry, dict):
             sys.exit(f"constants invalid at {source}: muscle '{muscle}' is not an object")
@@ -583,7 +595,7 @@ def validate_constants(raw, source):
             sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a non-negative mev")
         for bound in ("mav", "mrv"):
             val = entry.get(bound)
-            if muscle == "forearms" and val is None:
+            if val is None:
                 continue
             if bound == "mav":
                 if (not isinstance(val, list) or len(val) != 2
@@ -611,7 +623,7 @@ def validate_constants(raw, source):
         val = thresholds.get(key)
         if not isinstance(val, (int, float)) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be positive")
-    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days"):
+    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days", "default_new_slot_sets"):
         val = thresholds.get(key)
         if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be a positive integer")
@@ -674,9 +686,23 @@ def tracked_muscles():
 
 
 def read_priorities(c):
-    """Priority tiers from the priority table. Absence means maintain."""
+    """Effective priority tiers. Absence means maintain; expired rows no longer apply."""
+    today = date.today().isoformat()
     return {r["muscle"]: {"tier": r["tier"], "since": r["since"], "until": r["until"]}
-            for r in c.execute("SELECT * FROM priority").fetchall()}
+            for r in c.execute("SELECT * FROM priority").fetchall()
+            if r["until"] is None or r["until"] >= today}
+
+
+def priority_needs_confirm(c):
+    """Expired or soon-expiring tiers, for the renew-or-revert moment."""
+    today = date.today()
+    out = []
+    for r in c.execute("SELECT * FROM priority").fetchall():
+        if r["until"] and (date.fromisoformat(r["until"]) - today).days <= 7:
+            out.append({"type": "priority", "muscle": r["muscle"], "tier": r["tier"],
+                        "until": r["until"],
+                        "expired": date.fromisoformat(r["until"]) < today})
+    return out
 
 
 def cmd_constants_show(key=None):
@@ -740,19 +766,19 @@ def parse_movements(text):
     return [m.strip().lower() for m in text.split("/") if m.strip()]
 
 
-def split_day_order(variant="active"):
+def split_day_order(variant="active", c=None):
     """Day names in rotation order (rest entries excluded)."""
-    c = conn()
+    c = c or conn()
     days = [r["day"] for r in c.execute(
         "SELECT DISTINCT day FROM splits WHERE variant = ?", (variant,)).fetchall()]
-    rotation = parse_rotation()
+    rotation = parse_rotation(c)
     order = [d for d in rotation if d in days]
     return order + [d for d in sorted(days) if d not in order]
 
 
-def read_split(variant="active", day=None):
+def read_split(variant="active", day=None, c=None):
     """Split rows as [{day, slot, movements, sets}], optionally one day."""
-    c = conn()
+    c = c or conn()
     if day:
         rows = c.execute("SELECT day, slot, movements, sets FROM splits WHERE variant = ? AND day = ? ORDER BY slot",
                          (variant, day)).fetchall()
@@ -762,10 +788,10 @@ def read_split(variant="active", day=None):
     return [dict(r) for r in rows]
 
 
-def parse_active_split_days():
+def parse_active_split_days(c=None):
     """Active split as {day: [movement, ...]} with interchangeable entries flattened."""
     days = {}
-    for r in read_split("active"):
+    for r in read_split("active", c=c):
         moves = days.setdefault(r["day"], [])
         for move in r["movements"].split("/"):
             move = move.strip().lower()
@@ -774,10 +800,11 @@ def parse_active_split_days():
     return days
 
 
-def parse_rotation():
+def parse_rotation(c=None):
     """Rotation order from meta (migrated from MOVEMENTS.md Program section)."""
+    c = c or conn()
     try:
-        row = conn().execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
+        row = c.execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
         return json.loads(row["value"]) if row else []
     except (sqlite3.Error, ValueError):
         return []
@@ -824,41 +851,24 @@ def classify_volume(weekly, mev, mrv, vol_bad):
     return "in_range"
 
 
+def meta_get(c, key):
+    row = c.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
 def compaction_due():
-    try:
-        with open(MEMORY_FILE, 'r') as f:
-            text = f.read()
-    except OSError:
-        text = ""
-    try:
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AGENTS.md")) as f:
-            text += "\n" + f.read()
-    except OSError:
-        pass
-    post = re.search(r"compaction postponed until ([A-Z][a-z]{2} \d{1,2} \d{4})", text)
-    if post:
+    # Meta only. Nothing in log.py parses prose for this fact.
+    c = conn()
+    last = meta_get(c, "last_compacted")
+    if last in (None, "", "never"):
+        last = None
+    postponed = meta_get(c, "compaction_postponed_until")
+    if postponed:
         try:
-            if date.today() < datetime.strptime(post.group(1), "%b %d %Y").date():
-                m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
-                last = m.group(1).strip() if m else None
-                return {"due": False, "last": last if last not in (None, "never.") else None}
+            if date.today() < date.fromisoformat(postponed):
+                return {"due": False, "last": last}
         except ValueError:
             pass
-    last = None
-    try:
-        mc = conn()
-        try:
-            meta_row = mc.execute("SELECT value FROM meta WHERE key = 'last_compacted'").fetchone()
-            if meta_row and meta_row["value"] not in ("", "never"):
-                last = meta_row["value"]
-        finally:
-            mc.close()
-    except sqlite3.Error:
-        last = None
-    if last is None:
-        m = re.search(r"^Last compacted:\s*(.+?)\s*$", text, re.MULTILINE)
-        stamp = m.group(1).strip() if m else None
-        last = stamp if stamp not in (None, "", "never.") else None
     if last is None:
         return {"due": date.today().day != 1, "last": None}
     try:
@@ -867,6 +877,42 @@ def compaction_due():
         return {"due": False, "last": last}
     first = date.today().replace(day=1)
     return {"due": date.today() > first and last_date < first, "last": last}
+
+
+def cmd_meta_show(key=None):
+    c = conn()
+    if key:
+        print(json.dumps({key: meta_get(c, key)}))
+        return
+    print(json.dumps({r["key"]: r["value"] for r in c.execute("SELECT key, value FROM meta ORDER BY key")}, indent=2))
+
+
+def cmd_meta_set(key, value):
+    if key not in ("last_compacted", "compaction_postponed_until", "rotation"):
+        sys.exit("meta key must be one of last_compacted compaction_postponed_until rotation")
+    if key == "last_compacted" and value not in ("never", ""):
+        try:
+            datetime.strptime(value, "%b %d %Y")
+        except ValueError:
+            sys.exit('last_compacted must be "never" or "Mon D YYYY" (e.g. Oct 1 2026)')
+    if key == "compaction_postponed_until":
+        try:
+            value = date.fromisoformat(value).isoformat()
+        except ValueError:
+            sys.exit("compaction_postponed_until must be YYYY-MM-DD")
+    if key == "rotation":
+        try:
+            parsed = json.loads(value)
+        except ValueError:
+            sys.exit("rotation must be a JSON array")
+        if not isinstance(parsed, list) or not parsed:
+            sys.exit("rotation must be a non-empty JSON array")
+        value = json.dumps(parsed)
+    c = conn()
+    c.execute("INSERT INTO meta (key, value) VALUES (?, ?) "
+              "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, value))
+    c.commit()
+    print(json.dumps({"meta": key, "value": value}))
 
 
 def cmd_plan(slot=None, verbose=False):
@@ -903,8 +949,8 @@ def cmd_plan(slot=None, verbose=False):
     gap_days = (today - date.fromisoformat(last_session)).days if last_session else None
     on_break = gap_days is not None and gap_days >= thresholds["break_days"] + 1
 
-    days = parse_active_split_days()
-    rotation = parse_rotation()
+    days = parse_active_split_days(c)
+    rotation = parse_rotation(c)
     slot_guess = {"day": None, "basis": "no history", "confidence": "low"}
     if slot:
         slot_guess = {"day": slot, "basis": "explicit --slot", "confidence": "high"}
@@ -993,32 +1039,15 @@ def cmd_plan(slot=None, verbose=False):
                        "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
     priorities = read_priorities(c)
     deload = [dict(r) for r in active_deloads(c)]
+    # Reading never consumes: consumption happens at `end` (flags touching the
+    # closed session) or via explicit `flag consume`. Re-running plan is free.
     unconsumed = [dict(r) for r in c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()]
-    day = slot_guess.get("day")
-    day_moves = parse_active_split_days()
-    if day and day in day_moves:
-        moves = set(day_moves[day])
-        day_muscles = set()
-        if moves:
-            for m in c.execute(
-                    "SELECT DISTINCT muscles FROM lift_muscle_map WHERE exercise IN (%s)" % placeholders(len(moves)),
-                    list(moves)).fetchall():
-                day_muscles.update(m["muscles"].split(","))
-        # All unconsumed flags stay visible; only day-relevant ones are consumed.
-        consumable = [f for f in unconsumed if f["subject"] in moves or f["subject"] in day_muscles]
-    else:
-        consumable = list(unconsumed)
-    if consumable:
-        now = datetime.now().isoformat(timespec="seconds")
-        c.execute("UPDATE flags SET consumed_at = ? WHERE id IN (%s)" % placeholders(len(consumable)),
-                  [now] + [f["id"] for f in consumable])
-        c.commit()
 
     split_day = slot or slot_guess.get("day")
     split_section = None
-    if split_day and read_split("active", split_day):
+    if split_day and read_split("active", split_day, c=c):
         slots = []
-        for r in read_split("active", split_day):
+        for r in read_split("active", split_day, c=c):
             moves = parse_movements(r["movements"])
             entry = {"slot": r["slot"], "movements": moves, "sets": r["sets"],
                      "progression": {m: progression.get(m) for m in moves},
@@ -1049,12 +1078,19 @@ def cmd_plan(slot=None, verbose=False):
                     slot_entry["goal"] = by_exercise[m]
                     break
 
+    rules = rules_with_confirm(c)
+    needs_confirm = ([{"type": "rule", "id": r["id"], "subject": r["subject"], "expiry": r["expiry"]}
+                      for r in rules if r["needs_confirm"]]
+                     + priority_needs_confirm(c))
+
     bundle = {
-        "today": {"open": dict(w) if w else False, "rest": bool(rest_row), "stale": stale,
+        "today": {"open": w is not None, "workout": dict(w) if w else None,
+                  "rest": bool(rest_row), "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
         "slot_guess": slot_guess,
         "split": split_section,
         "goals": goals,
+        "rules": {"active": rules, "needs_confirm": needs_confirm},
         "volume": volume,
         "ledger": ledger,
         "lifts": lifts,
@@ -1100,6 +1136,8 @@ def append_memory_state(line):
     nxt = re.search(r"^## ", rest, re.MULTILINE)
     insert_at = m.end() + (nxt.start() if nxt else len(rest))
     block = text[m.end():insert_at]
+    if line in block:
+        return
     if not block.endswith("\n"):
         line = "\n" + line
     text = text[:insert_at] + ("" if block.endswith("\n") else "\n") + line + "\n" + text[insert_at:]
@@ -1109,9 +1147,9 @@ def append_memory_state(line):
 
 def cmd_progression_set(exercise, verdict, next_target, direction, note="", workout_id=None):
     if verdict not in ("hit", "miss", "hold", "baseline"):
-        sys.exit("verdict must be one of hit miss hold baseline")
+        sys.exit("verdict must be one of hit miss hold baseline (quoting never needed; flags delimit values)")
     if direction not in ("up", "flat", "down"):
-        sys.exit("direction must be one of up flat down")
+        sys.exit("direction must be one of up flat down (quoting never needed; flags delimit values)")
     if not next_target:
         sys.exit("next target is required (e.g. 82.5x5)")
     c = conn()
@@ -1171,10 +1209,40 @@ def cmd_flag_list():
     print(json.dumps([dict(r) for r in rows], indent=2))
 
 
+def cmd_flag_consume(flag_id):
+    c = conn()
+    try:
+        flag_id = int(flag_id)
+    except (TypeError, ValueError):
+        sys.exit("no such flag")
+    cur = c.execute("UPDATE flags SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL",
+                    (datetime.now().isoformat(timespec="seconds"), flag_id))
+    if cur.rowcount == 0:
+        sys.exit("no such unconsumed flag (see flag list)")
+    c.commit()
+    print(json.dumps({"consumed": flag_id}))
+
+
+def consume_session_flags(c, workout_id):
+    trained = {r["exercise"] for r in c.execute(
+        "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (workout_id,)).fetchall()}
+    muscles = set()
+    for ex in trained:
+        mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (ex,)).fetchone()
+        if mapping:
+            muscles.update(mapping["muscles"].split(","))
+    subjects = trained | muscles
+    if not subjects:
+        return 0
+    cur = c.execute("UPDATE flags SET consumed_at = ? WHERE consumed_at IS NULL AND subject IN (%s)" % placeholders(len(subjects)),
+                    [datetime.now().isoformat(timespec="seconds")] + sorted(subjects))
+    return cur.rowcount
+
+
 def cmd_priority_set(muscle, tier, until=None):
     muscle = muscle.strip().lower()
     if tier not in ("priority", "maintain", "deprioritize"):
-        sys.exit("tier must be one of priority maintain deprioritize")
+        sys.exit("tier must be one of priority maintain deprioritize (quoting never needed; tier is the last word)")
     constants = load_constants()
     if muscle not in constants["muscles"]:
         sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.get('untracked', []))})")
@@ -1206,12 +1274,20 @@ def cmd_priority_list():
 
 def cmd_deload_set(scope, subject):
     if scope not in ("lift", "slot"):
-        sys.exit("scope must be lift or slot")
+        sys.exit("scope must be lift or slot (quote multi-word names)")
     if not subject:
         sys.exit("deload subject is required")
     c = conn()
     today = date.today().isoformat()
-    subject = subject.strip().lower()
+    if scope == "lift":
+        subject = subject.strip().lower()
+        if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (subject,)).fetchone():
+            sys.exit(f"'{subject}' has no mapping (run map set first)")
+    else:
+        match = next((d for d in split_day_order("active", c=c) if d.lower() == subject.strip().lower()), None)
+        if not match:
+            sys.exit(f"no active split day '{subject.strip()}' (see split show)")
+        subject = match
     existing = c.execute("SELECT id FROM deload_state WHERE scope = ? AND subject = ? AND cleared_on IS NULL",
                          (scope, subject)).fetchone()
     if existing:
@@ -1224,13 +1300,15 @@ def cmd_deload_set(scope, subject):
 
 
 def cmd_deload_clear():
+    # Prose first: if the State write fails, the DB is untouched and a retry
+    # is safe. A markdown edit must never break a DB command halfway.
     c = conn()
     rows = c.execute("SELECT scope, subject FROM deload_state WHERE cleared_on IS NULL ORDER BY id").fetchall()
     today = date.today().isoformat()
-    c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
-    c.commit()
     for r in rows:
         append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
+    c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
+    c.commit()
     print(json.dumps({"cleared": len(rows)}))
 
 
@@ -1240,10 +1318,11 @@ def active_deloads(c):
 
 def deload_covers(deloads, exercise, day_moves):
     """True if an active deload row covers this exercise (lift scope: exact name)."""
+    lowered = {k.lower(): v for k, v in day_moves.items()}
     for d in deloads:
         if d["scope"] == "lift" and d["subject"] == exercise:
             return True
-        if d["scope"] == "slot" and exercise in day_moves.get(d["subject"], []):
+        if d["scope"] == "slot" and exercise in lowered.get(d["subject"].lower(), []):
             return True
     return False
 
@@ -1258,7 +1337,7 @@ def end_gate_items(c, w, note):
     """, (w["id"],)).fetchall()
     for m in missing:
         outstanding.append({"item": f"set {m['id']} ({m['exercise']}) has no muscles",
-                            "fix": f"log.py update {m['id']} muscles <a,b>"})
+                            "fix": f"log.py map set \"{m['exercise']}\" <a,b>", "hard": True})
     trained = [r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (w["id"],)).fetchall()]
     judged = {r["exercise"] for r in c.execute(
@@ -1266,21 +1345,21 @@ def end_gate_items(c, w, note):
     for ex in sorted(set(trained) - judged):
         outstanding.append({"item": f"missing progression: {ex}",
                             "fix": f"log.py progression set \"{ex}\" --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down>"})
-    known = split_all_movements("active")
+    known = split_all_movements("active", c=c)
     unreconciled = sorted(set(trained) - known)
     if unreconciled:
-        day = best_split_day(trained) or (split_day_order("active")[:1] or ["Upper A"])[0]
+        day = best_split_day(trained, c=c) or (split_day_order("active", c=c)[:1] or ["Upper A"])[0]
         performed = [r["exercise"] for r in c.execute(
             "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
             (w["id"],)).fetchall()]
-        anchor = next((ex for ex in reversed(performed) if ex in day_movements(day)), None)
+        anchor = next((ex for ex in reversed(performed) if ex in day_movements(day, c=c)), None)
         after = f" --after \"{anchor}\"" if anchor else ""
         for ex in unreconciled:
             outstanding.append({"item": f"unreconciled slot: {ex} (not in any active split day)",
                                 "fix": f"log.py split reconcile --day \"{day}\"{after}"})
     deloads = active_deloads(c)
     if deloads:
-        day_moves = parse_active_split_days()
+        day_moves = parse_active_split_days(c)
         covered = [ex for ex in trained if deload_covers(deloads, ex, day_moves)]
         if covered:
             combined = ((w["notes"] + " " + note) if w["notes"] else note).lower()
@@ -1304,45 +1383,63 @@ def cmd_check(note=""):
     print(json.dumps({"ready": w["id"]}))
 
 
-def split_all_movements(variant="active"):
+def split_all_movements(variant="active", c=None):
     moves = set()
-    for r in read_split(variant):
+    for r in read_split(variant, c=c):
         moves.update(parse_movements(r["movements"]))
     return moves
 
 
-def day_movements(day, variant="active"):
+def split_day_prefix(toks, c=None):
+    """Split leading tokens into (day, rest) using the longest known day name.
+
+    Lets multi-word days go unquoted; unknown days fall back to first token
+    so the command itself reports the problem.
+    """
+    days = split_day_order("active", c=c) + split_day_order("baseline", c=c)
+    for n in range(min(3, len(toks)), 0, -1):
+        candidate = " ".join(toks[:n])
+        match = next((d for d in days if d.lower() == candidate.lower()), None)
+        if match:
+            return match, " ".join(toks[n:])
+    return (toks[0], " ".join(toks[1:])) if toks else (None, None)
+
+
+def day_movements(day, variant="active", c=None):
     moves = []
-    for r in read_split(variant, day):
+    for r in read_split(variant, day, c=c):
         moves.extend(parse_movements(r["movements"]))
     return moves
 
 
-def best_split_day(trained):
+def best_split_day(trained, c=None):
     trained = set(trained)
     best_day, best_score = None, 0
-    for day in split_day_order("active"):
-        score = len(trained & set(day_movements(day)))
+    for day in split_day_order("active", c=c):
+        score = len(trained & set(day_movements(day, c=c)))
         if score > best_score:
             best_day, best_score = day, score
     return best_day
 
 
 def cmd_split_show(day=None, variant="active"):
+    c = conn()
     if variant not in ("active", "baseline"):
         sys.exit("variant must be active or baseline")
-    if day and not read_split(variant, day):
+    if day and not read_split(variant, day, c=c):
         sys.exit(f"no {variant} split day '{day}'")
     lines = []
-    for d in ([day] if day else split_day_order(variant)):
+    for d in ([day] if day else split_day_order(variant, c=c)):
         lines.append(f"### {d}")
-        for r in read_split(variant, d):
+        for r in read_split(variant, d, c=c):
             lines.append(f"{r['slot']}. {r['movements']} x{r['sets']}")
     print("\n".join(lines))
 
 
-def cmd_split_set(day, slot, movements, sets):
+def cmd_split_set(day, slot, movements, sets, variant="active"):
     c = conn()
+    if variant not in ("active", "baseline"):
+        sys.exit("variant must be active or baseline (quote multi-word day names)")
     try:
         slot = int(slot)
         sets = int(sets)
@@ -1356,11 +1453,11 @@ def cmd_split_set(day, slot, movements, sets):
     for move in parse_movements(movements):
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
             sys.exit(f"'{move}' has no mapping (run map set first), split unchanged")
-    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?) "
+    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES (?, ?, ?, ?, ?) "
               "ON CONFLICT (variant, day, slot) DO UPDATE SET movements = excluded.movements, sets = excluded.sets",
-              (day, slot, movements, sets))
+              (variant, day, slot, movements, sets))
     c.commit()
-    print(json.dumps({"split": "active", "day": day, "slot": slot, "movements": movements, "sets": sets}))
+    print(json.dumps({"split": variant, "day": day, "slot": slot, "movements": movements, "sets": sets}))
 
 
 def cmd_split_move(day, exercise, to_slot):
@@ -1370,12 +1467,15 @@ def cmd_split_move(day, exercise, to_slot):
         to_slot = int(to_slot)
     except (TypeError, ValueError):
         sys.exit("slot must be an integer")
-    rows = read_split("active", day)
+    rows = read_split("active", day, c=c)
     if not rows:
         sys.exit(f"no active split day '{day}'")
     origin = next((r for r in rows if exercise in parse_movements(r["movements"])), None)
     if not origin:
         sys.exit(f"'{exercise}' is not in {day}")
+    if len(parse_movements(origin["movements"])) > 1:
+        sys.exit(f"'{exercise}' shares slot {origin['slot']} ({origin['movements']}); "
+                 f"use split set to rearrange interchangeable pairs explicitly")
     carry_sets = origin["sets"]
     remaining = []
     for r in rows:
@@ -1394,7 +1494,7 @@ def cmd_split_move(day, exercise, to_slot):
 
 def cmd_split_reconcile(day, after=None):
     c = conn()
-    if not read_split("active", day):
+    if not read_split("active", day, c=c):
         sys.exit(f"no active split day '{day}'")
     w = open_workout(c)
     if not w:
@@ -1404,32 +1504,33 @@ def cmd_split_reconcile(day, after=None):
     trained = [r["exercise"] for r in c.execute(
         "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
         (w["id"],)).fetchall()]
-    known = split_all_movements("active")
+    known = split_all_movements("active", c=c)
     new = [ex for ex in trained if ex not in known]
     if not new:
         print(json.dumps({"reconciled": day, "added": []}))
         return
-    rows = read_split("active", day)
+    rows = read_split("active", day, c=c)
     if after:
-        anchor = next((r for r in rows
-                       if after.strip().lower() in [m.strip().lower() for m in r["movements"].split("/")]), None)
+        anchor = next((r for r in rows if after.strip().lower() in parse_movements(r["movements"])), None)
         if not anchor:
             sys.exit(f"'{after}' is not in {day}")
         insert_at = anchor["slot"] + 1
     else:
         insert_at = len(rows) + 1
+    new_slot_sets = load_constants()["thresholds"].get("default_new_slot_sets", 2)
     for i, ex in enumerate(new):
         c.execute("UPDATE splits SET slot = slot + 1 WHERE variant = 'active' AND day = ? AND slot >= ?",
                   (day, insert_at + i))
-        c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, 2)",
-                  (day, insert_at + i, ex))
+        c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
+                  (day, insert_at + i, ex, new_slot_sets))
     c.commit()
     print(json.dumps({"reconciled": day, "added": new}))
 
 
 def cmd_split_diff():
-    active = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("active")}
-    baseline = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("baseline")}
+    c = conn()
+    active = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("active", c=c)}
+    baseline = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("baseline", c=c)}
     lines = []
     for key in sorted(set(active) | set(baseline)):
         a, b = active.get(key), baseline.get(key)
@@ -1441,7 +1542,7 @@ def cmd_split_diff():
 def cmd_split_revert(day=None):
     c = conn()
     if day:
-        base = read_split("baseline", day)
+        base = read_split("baseline", day, c=c)
         if not base:
             sys.exit(f"no baseline split day '{day}'")
         c.execute("DELETE FROM splits WHERE variant = 'active' AND day = ?", (day,))
@@ -1450,7 +1551,7 @@ def cmd_split_revert(day=None):
                       (day, r["slot"], r["movements"], r["sets"]))
     else:
         c.execute("DELETE FROM splits WHERE variant = 'active'")
-        for r in read_split("baseline"):
+        for r in read_split("baseline", c=c):
             c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
                       (r["day"], r["slot"], r["movements"], r["sets"]))
     c.commit()
@@ -1507,19 +1608,21 @@ def rule_status_rows(c):
     return [dict(r) for r in c.execute("SELECT * FROM rules WHERE status = 'active' ORDER BY id").fetchall()]
 
 
-def cmd_rule_list(expiring_within=None):
-    c = conn()
-    rows = rule_status_rows(c)
+def rules_with_confirm(c):
     today = date.today()
     out = []
-    for r in rows:
-        needs = False
-        if r["expiry"]:
-            days_left = (date.fromisoformat(r["expiry"]) - today).days
-            needs = days_left <= 7
+    for r in rule_status_rows(c):
+        needs = bool(r["expiry"] and (date.fromisoformat(r["expiry"]) - today).days <= 7)
         entry = dict(r)
         entry["needs_confirm"] = needs
         out.append(entry)
+    return out
+
+
+def cmd_rule_list(expiring_within=None):
+    c = conn()
+    out = rules_with_confirm(c)
+    today = date.today()
     if expiring_within is not None:
         try:
             window = int(expiring_within)
@@ -1553,15 +1656,19 @@ def cmd_rule_confirm(rule_id, extend=None, archive=False):
 
 
 def goal_exercise_days(c, exercise):
-    return [day for day in split_day_order("active") if exercise in day_movements(day)]
+    return [day for day in split_day_order("active", c=c) if exercise in day_movements(day, c=c)]
 
 
 def sessions_possible_before(c, exercise, deadline):
     days_left = (date.fromisoformat(deadline) - date.today()).days
     if days_left < 0:
         return 0
-    per_week = len(goal_exercise_days(c, exercise))
-    return int(days_left / 7 * per_week + 0.5)
+    # One rotation slot counts as one calendar day (rest entries included),
+    # so cycle length already prices in rest days.
+    rotation = parse_rotation(c)
+    cycle_days = len(rotation) if rotation else 7
+    per_cycle = len(goal_exercise_days(c, exercise))
+    return int(days_left / cycle_days * per_cycle + 0.5)
 
 
 def build_checkpoints(start, target, n):
@@ -1726,6 +1833,15 @@ def cmd_goal_drop(goal_id):
     print(json.dumps({"dropped": goal_id}))
 
 
+def cmd_dump():
+    c = conn()
+    sql_file = os.path.join(os.path.dirname(os.path.abspath(DB)), "workouts.sql")
+    with open(sql_file, 'w') as f:
+        for line in c.iterdump():
+            f.write(f"{line}\n")
+    print(json.dumps({"dumped": sql_file}))
+
+
 def cmd_doctor():
     """Structural check: constants, DB, and dashboard agree. Non-correlated."""
     problems = []
@@ -1748,7 +1864,7 @@ def cmd_doctor():
     for check, exercises in (
             ("sets_mapping", [r["exercise"] for r in c.execute(
                 "SELECT DISTINCT exercise FROM sets WHERE exercise NOT IN (SELECT exercise FROM lift_muscle_map)").fetchall()]),
-            ("split_mapping", sorted({m for d in split_day_order("active") for m in day_movements(d)
+            ("split_mapping", sorted({m for d in split_day_order("active", c=c) for m in day_movements(d, c=c)
                                       if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?",
                                                        (m,)).fetchone()}))):
         for ex in exercises:
@@ -1780,7 +1896,7 @@ def cmd_doctor():
         if dump_tables != expected:
             problems.append({"check": "dump_drift",
                              "fix": f"workouts.sql tables {sorted(dump_tables)} differ from SCHEMA "
-                                    f"{sorted(expected)}; re-dump after sync"})
+                                    f"{sorted(expected)}; run log.py dump"})
     if problems:
         print(json.dumps({"ok": False, "problems": problems}, indent=2))
         sys.exit(1)
@@ -1880,11 +1996,12 @@ def cmd_audit():
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
         prog = goal_progress(c, dict(g))
         if prog["consecutive_misses"] >= 2:
-            explained = c.execute(
+            slippage_notes = c.execute(
                 "SELECT DISTINCT w.id FROM workouts w JOIN sets s ON s.workout_id = w.id "
-                "WHERE s.exercise = ? AND (w.notes LIKE '%slippage%' OR w.notes LIKE '%extend%' "
-                "OR w.notes LIKE '%compress%' OR s.note LIKE '%slippage%')", (g["exercise"],)).fetchall()
-            if not explained:
+                "WHERE s.exercise = ? AND date(w.date) >= date(?) AND (w.notes LIKE '%slippage%' "
+                "OR w.notes LIKE '%extend%' OR w.notes LIKE '%compress%' OR s.note LIKE '%slippage%')",
+                (g["exercise"], g["created"][:10])).fetchall()
+            if not slippage_notes:
                 flags.append({"check": "goal_divergence", "severity": "high",
                               "evidence": f"goal {g['id']} ({g['exercise']} -> {g['target_e1rm']} by {g['deadline']}): "
                                           f"{prog['consecutive_misses']} consecutive sessions off trajectory",
@@ -2227,10 +2344,10 @@ def usage():
          " | constants show [key] | constants validate | constants set <key> <json-value>"
          " | plan [--slot <day>] [--verbose] | check [note]"
          " | progression set <exercise> --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down> [--note <t>] [--workout <id>]"
-         " | progression show [exercise] | flag add <subject> <reason> | flag list"
+         " | progression show [exercise] | flag add <subject> <reason> | flag list | flag consume <id>"
          " | priority set <muscle> <tier> [--until <date>] | priority clear <muscle> | priority list"
          " | deload set --scope <lift|slot> <name> | deload clear"
-         " | split show [day] [--variant active|baseline] | split set <day> <slot#> <movements> <sets>"
+         " | split show [day] [--variant active|baseline] | split set <day> <slot#> <movements> <sets> [--variant baseline]"
          " | split move <day> <exercise> --to <slot#> | split reconcile --day <day> [--after <exercise>]"
          " | split diff | split revert [day]"
          " | map show [exercise] | map set <exercise> <muscles> [bw] | map note <exercise> <text>"
@@ -2249,11 +2366,17 @@ def main():
     if cmd == "start":
         cmd_start(" ".join(rest))
     elif cmd == "log" and len(rest) >= 3:
-        exercise, weight, reps = rest[0], rest[1], rest[2]
+        # Exercise is everything up to the first two numeric tokens (weight, reps).
+        nums = [i for i, t in enumerate(rest) if re.fullmatch(r"\d+(\.\d+)?", t)]
+        if len(nums) < 2:
+            sys.exit("usage: log <exercise> <weight> <reps> [note] [muscles=a,b] [bw] (quoting never needed)")
+        exercise, weight, reps = " ".join(rest[:nums[0]]), rest[nums[0]], rest[nums[1]]
+        if not exercise:
+            sys.exit("usage: log <exercise> <weight> <reps> [note] [muscles=a,b] [bw] (quoting never needed)")
         note_parts = []
         muscles = ""
         bodyweight = False
-        for tok in rest[3:]:
+        for tok in rest[nums[1] + 1:]:
             if tok.startswith("muscles="):
                 muscles = tok[len("muscles="):]
                 continue
@@ -2327,10 +2450,18 @@ def main():
         cmd_check(" ".join(rest))
     elif cmd == "doctor":
         cmd_doctor()
+    elif cmd == "dump":
+        cmd_dump()
+    elif cmd == "meta" and rest[:1] == ["show"]:
+        cmd_meta_show(rest[1] if len(rest) > 1 else None)
+    elif cmd == "meta" and rest[:1] == ["set"] and len(rest) >= 3:
+        cmd_meta_set(rest[1], " ".join(rest[2:]))
     elif cmd == "progression" and rest[:1] == ["set"] and len(rest) >= 2:
-        exercise = rest[1]
+        toks = rest[1:]
+        first_flag = next((i for i, t in enumerate(toks) if t.startswith("--")), len(toks))
+        exercise = " ".join(toks[:first_flag])
         verdict = next_target = direction = note = workout_id = None
-        toks = rest[2:]
+        toks = toks[first_flag:]
         i = 0
         while i < len(toks):
             if toks[i] == "--verdict" and i + 1 < len(toks):
@@ -2354,16 +2485,28 @@ def main():
     elif cmd == "progression" and rest[:1] == ["show"]:
         cmd_progression_show(" ".join(rest[1:]) or None)
     elif cmd == "flag" and rest[:1] == ["add"] and len(rest) >= 3:
-        cmd_flag_add(rest[1], " ".join(rest[2:]))
+        # Subject is an exercise or muscle: longest known match wins, so both
+        # sides can go unquoted; unknown subjects fall back to first token.
+        toks = rest[1:]
+        known_subjects = ({r["exercise"] for r in conn().execute("SELECT exercise FROM lift_muscle_map").fetchall()}
+                          | set(load_constants()["muscles"]))
+        n = next((i for i in range(min(len(toks) - 1, 4), 0, -1)
+                  if " ".join(toks[:i]).lower() in known_subjects), 1)
+        cmd_flag_add(" ".join(toks[:n]), " ".join(toks[n:]))
     elif cmd == "flag" and rest[:1] == ["list"]:
         cmd_flag_list()
+    elif cmd == "flag" and rest[:1] == ["consume"] and len(rest) >= 2:
+        cmd_flag_consume(rest[1])
     elif cmd == "priority" and rest[:1] == ["set"] and len(rest) >= 3:
+        toks = rest[1:]
         until = None
-        toks = rest[3:]
         if "--until" in toks:
             j = toks.index("--until")
             until = " ".join(toks[j + 1:]) if j + 1 < len(toks) else None
-        cmd_priority_set(rest[1], rest[2], until)
+            toks = toks[:j]
+        if len(toks) < 2:
+            sys.exit("usage: log.py priority set <muscle> <tier> [--until <date>] (quoting never needed)")
+        cmd_priority_set(" ".join(toks[:-1]), toks[-1], until)
     elif cmd == "priority" and rest[:1] == ["clear"] and len(rest) >= 2:
         cmd_priority_clear(" ".join(rest[1:]))
     elif cmd == "priority" and rest[:1] == ["list"]:
@@ -2388,7 +2531,17 @@ def main():
             toks = toks[:j] + toks[j + 2:]
         cmd_split_show(" ".join(toks) or None, variant)
     elif cmd == "split" and rest[:1] == ["set"] and len(rest) >= 5:
-        cmd_split_set(rest[1], rest[2], " ".join(rest[3:-1]), rest[-1])
+        toks = rest[1:]
+        variant = "active"
+        if "--variant" in toks:
+            j = toks.index("--variant")
+            variant = toks[j + 1] if j + 1 < len(toks) else "active"
+            toks = toks[:j] + toks[j + 2:]
+        # Day is everything up to the first integer (the slot); sets is last.
+        slot_at = next((i for i, t in enumerate(toks) if re.fullmatch(r"\d+", t)), None)
+        if slot_at is None or slot_at < 1 or slot_at >= len(toks):
+            sys.exit("usage: log.py split set <day> <slot#> <movements> <sets> (quote the day if this fails)")
+        cmd_split_set(" ".join(toks[:slot_at]), toks[slot_at], " ".join(toks[slot_at + 1:-1]), toks[-1], variant)
     elif cmd == "split" and rest[:1] == ["move"] and len(rest) >= 4:
         toks = rest[1:]
         to_slot = None
@@ -2396,16 +2549,18 @@ def main():
             j = toks.index("--to")
             to_slot = toks[j + 1] if j + 1 < len(toks) else None
             toks = toks[:j] + toks[j + 2:]
-        if len(toks) < 2 or to_slot is None:
-            sys.exit("usage: log.py split move <day> <exercise> --to <slot#>")
-        cmd_split_move(toks[0], " ".join(toks[1:]), to_slot)
+        day, exercise = split_day_prefix(toks)
+        if not day or not exercise or to_slot is None:
+            sys.exit("usage: log.py split move <day> <exercise> --to <slot#> (quote multi-word names if this fails)")
+        cmd_split_move(day, exercise, to_slot)
     elif cmd == "split" and rest[:1] == ["reconcile"]:
         toks = rest[1:]
         day = after = None
         if "--day" in toks:
             j = toks.index("--day")
-            day = toks[j + 1] if j + 1 < len(toks) else None
-            toks = toks[:j] + toks[j + 2:]
+            k = next((i for i in range(j + 1, len(toks)) if toks[i].startswith("--")), len(toks))
+            day, _ = split_day_prefix(toks[j + 1:k])
+            toks = toks[:j] + toks[k:]
         if "--after" in toks:
             j = toks.index("--after")
             after = " ".join(toks[j + 1:]) if j + 1 < len(toks) else None
@@ -2421,19 +2576,36 @@ def main():
     elif cmd == "map" and rest[:1] == ["set"] and len(rest) >= 3:
         bodyweight = "bw" in rest or "--bw" in rest
         toks = [t for t in rest[1:] if t not in ("bw", "--bw")]
-        if len(toks) >= 2:
-            cmd_retag(toks[0], ",".join(toks[1:]), bodyweight)
-        else:
-            sys.exit("usage: log.py map set <exercise> <muscles> [bw] (quote multi-word names)")
+        # Muscles are matched word-by-word from the right against the known
+        # vocabulary (commas ignored); everything before is the exercise name.
+        vocab = set(load_constants()["muscles"]) | set(load_constants().get("untracked", []))
+        words = " ".join(toks).replace(",", " ").split()
+        takes = 0
+        while takes < len(words):
+            if takes + 2 <= len(words) and " ".join(words[-(takes + 2):-takes] if takes else words[-2:]).lower() in vocab:
+                takes += 2
+            elif words[-(takes + 1)].lower() in vocab:
+                takes += 1
+            else:
+                break
+        if takes == 0 or takes >= len(words):
+            sys.exit("usage: log.py map set <exercise> <muscles> [bw] (quoting never needed)")
+        cmd_retag(" ".join(words[:len(words) - takes]),
+                  ",".join(_join_muscles(words[len(words) - takes:], vocab)), bodyweight)
     elif cmd == "map" and rest[:1] == ["note"] and len(rest) >= 3:
-        cmd_map_note(rest[1], " ".join(rest[2:]))
+        toks = rest[1:]
+        known = {r["exercise"] for r in conn().execute("SELECT exercise FROM lift_muscle_map").fetchall()}
+        n = next((i for i in range(min(len(toks) - 1, 5), 0, -1)
+                  if " ".join(toks[:i]).lower() in known), 1)
+        cmd_map_note(" ".join(toks[:n]), " ".join(toks[n:]))
     elif cmd == "rule" and rest[:1] == ["add"] and len(rest) >= 2:
         toks = rest[1:]
         subject = expires = None
         if "--subject" in toks:
             j = toks.index("--subject")
-            subject = toks[j + 1] if j + 1 < len(toks) else None
-            toks = toks[:j] + toks[j + 2:]
+            k = next((i for i in range(j + 1, len(toks)) if toks[i].startswith("--")), len(toks))
+            subject = " ".join(toks[j + 1:k]) or None
+            toks = toks[:j] + toks[k:]
         if "--expires" in toks:
             j = toks.index("--expires")
             expires = toks[j + 1] if j + 1 < len(toks) else None

@@ -26,7 +26,7 @@ def test_doctor_healthy(log_module):
     seed_split(log, "Test", ("bench", 2))
     out, code = _run(log.cmd_doctor)
     assert code == 0
-    assert json.loads(out) == {"ok": True, "muscles": 13}
+    assert json.loads(out) == {"ok": True, "muscles": len(log.load_constants()["muscles"])}
 
 
 def test_doctor_fails_on_bad_constants(log_module, tmp_path, monkeypatch):

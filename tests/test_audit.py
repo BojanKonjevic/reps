@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
 
+from contextlib import redirect_stdout
+
 from conftest import close_session
 
 
@@ -440,17 +442,46 @@ def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
         log.load_constants()
 
 
-def test_load_constants_fails_on_missing_muscle(audit_db, tmp_path, monkeypatch):
-    """A constants file missing a tracked muscle exits instead of warning."""
+def test_load_constants_fails_on_empty_muscles(audit_db, tmp_path, monkeypatch):
+    """A constants file with an empty muscles map exits instead of warning."""
     import json as _json
     log, _ = audit_db
     full = _json.loads(open(log.CONSTANTS_FILE).read())
-    del full["muscles"]["chest"]
+    full["muscles"] = {}
     p = tmp_path / "constants.json"
     p.write_text(_json.dumps(full))
     monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
-    with pytest.raises(SystemExit, match="chest"):
+    with pytest.raises(SystemExit, match="empty"):
         log.load_constants()
+
+
+def test_doctor_flags_deleted_tracked_muscle(audit_db):
+    """Deleting a tracked muscle still referenced by sets fails doctor, not load."""
+    log, c = audit_db
+    log.cmd_start("test")
+    log.cmd_log("bench", 100, 5, "", "chest")
+    c.execute("DELETE FROM lift_muscle_map WHERE exercise = 'bench'")
+    import json as _json
+    full = _json.loads(open(log.CONSTANTS_FILE).read())
+    del full["muscles"]["chest"]
+    import tempfile, os
+    fd, path = tempfile.mkstemp(suffix=".json")
+    os.write(fd, _json.dumps(full).encode())
+    os.close(fd)
+    old = log.CONSTANTS_FILE
+    log.CONSTANTS_FILE = path
+    try:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            try:
+                log.cmd_doctor()
+                assert False, "should have exited"
+            except SystemExit as e:
+                assert e.code == 1
+        assert "chest" in buf.getvalue()
+    finally:
+        log.CONSTANTS_FILE = old
+        os.unlink(path)
 
 
 def test_rep_band_bound_uses_constants(audit_db):

@@ -75,6 +75,19 @@ def test_end_blocked_on_muscleless_set(log_module):
     assert "has no muscles" in out
 
 
+def test_end_force_cannot_skip_muscles(log_module):
+    log = log_module
+    log.cmd_start("test")
+    c = log.conn()
+    wid = log.open_workout(c)["id"]
+    c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
+    c.commit()
+    out, code = _run(log.cmd_end, "", "force it")
+    assert code == 1
+    assert "hard items" in out
+    assert "map set" in out
+
+
 def test_end_force_records_reason(log_module):
     log = log_module
     _seed_session(log)
@@ -98,6 +111,28 @@ def test_end_requires_deload_note(log_module):
     assert code == 0
 
 
+def test_end_requires_deload_note_for_slot_scope(log_module):
+    from conftest import seed_split
+    log = log_module
+    log.cmd_start("test")
+    log.cmd_log("bench", 100, 5, "", "chest")
+    seed_split(log, "Upper A", ("bench", 2))
+    log.cmd_progression_set("bench", "hold", "100x5", "flat")
+    log.cmd_deload_set("slot", "upper a")
+    assert log.active_deloads(log.conn())[0]["subject"] == "Upper A"
+    out, code = _run(log.cmd_end, "easy day")
+    assert code == 1
+    assert "deload" in out
+    out, code = _run(log.cmd_end, "easy deload day")
+    assert code == 0
+
+
+def test_deload_set_rejects_unknown_day(log_module):
+    log = log_module
+    with pytest.raises(SystemExit, match="no active split day"):
+        log.cmd_deload_set("slot", "Nope C")
+
+
 def test_progression_rejects_unknown_exercise(log_module):
     log = log_module
     _seed_session(log)
@@ -110,6 +145,7 @@ def test_deload_clear_appends_state_line(log_module, tmp_path, monkeypatch):
     p = tmp_path / "MEMORY.md"
     p.write_text("# memory\n\n## State\n\n- old line\n\n## Other\n")
     monkeypatch.setattr(log, "MEMORY_FILE", str(p))
+    log.cmd_retag("bench", "chest")
     log.cmd_deload_set("lift", "bench")
     log.cmd_deload_clear()
     text = p.read_text()
@@ -117,18 +153,36 @@ def test_deload_clear_appends_state_line(log_module, tmp_path, monkeypatch):
     assert "- old line" in text
 
 
-def test_plan_consumes_flags(log_module):
+def test_plan_read_never_consumes(log_module):
     log = log_module
     log.cmd_flag_add("bench", "watch this")
+    for _ in range(2):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            log.cmd_plan()
+        assert [f["subject"] for f in json.loads(buf.getvalue())["flags"]] == ["bench"]
+
+
+def test_end_consumes_session_flags(log_module):
+    log = log_module
+    _seed_session(log)
+    log.cmd_flag_add("bench", "watch this")
+    log.cmd_flag_add("squat", "watch that")
+    log.cmd_flag_add("deadlift", "unrelated")
+    log.cmd_progression_set("bench", "hold", "100x5", "flat")
+    log.cmd_progression_set("squat", "hold", "150x5", "flat")
     buf = io.StringIO()
     with redirect_stdout(buf):
-        log.cmd_plan()
-    bundle = json.loads(buf.getvalue())
-    assert [f["subject"] for f in bundle["flags"]] == ["bench"]
+        log.cmd_end("done")
+    assert json.loads(buf.getvalue())["flags_consumed"] == 2
     buf = io.StringIO()
     with redirect_stdout(buf):
-        log.cmd_plan()
-    assert json.loads(buf.getvalue())["flags"] == []
+        log.cmd_flag_list()
+    assert [f["subject"] for f in json.loads(buf.getvalue())] == ["deadlift"]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        log.cmd_flag_consume(3)
+    assert json.loads(buf.getvalue()) == {"consumed": 3}
 
 
 def test_plan_consumes_only_day_relevant_flags(log_module):
@@ -155,16 +209,13 @@ def test_plan_consumes_only_day_relevant_flags(log_module):
     c.commit()
     log.cmd_flag_add("hack squat", "watch depth")
     log.cmd_flag_add("incline barbell bench press", "old news")
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.cmd_plan()
-    bundle = json.loads(buf.getvalue())
-    assert bundle["slot_guess"]["day"] == "Lower A"
-    assert {f["subject"] for f in bundle["flags"]} == {"hack squat", "incline barbell bench press"}
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.cmd_plan()
-    assert [f["subject"] for f in json.loads(buf.getvalue())["flags"]] == ["incline barbell bench press"]
+    for _ in range(2):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            log.cmd_plan()
+        bundle = json.loads(buf.getvalue())
+        assert bundle["slot_guess"]["day"] == "Lower A"
+        assert {f["subject"] for f in bundle["flags"]} == {"hack squat", "incline barbell bench press"}
 
 
 def test_read_commands_roundtrip(log_module):
@@ -198,6 +249,7 @@ def test_read_commands_roundtrip(log_module):
 
 def test_deload_set_idempotent(log_module):
     log = log_module
+    log.cmd_retag("bench", "chest")
     buf = io.StringIO()
     with redirect_stdout(buf):
         log.cmd_deload_set("lift", "bench")
@@ -224,8 +276,23 @@ def test_check_accepts_prospective_note(log_module):
     assert json.loads(out)["ready"]
 
 
-def test_plan_surfaces_priority_and_deload(log_module):
+def test_expired_priority_stops_applying(log_module):
+    import datetime as _dt2
     log = log_module
+    log.cmd_priority_set("chest", "deprioritize", (_dt.date.today() - _dt.timedelta(days=1)).isoformat())
+    assert log.read_priorities(log.conn()) == {}
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        log.cmd_plan()
+    needs = json.loads(buf.getvalue())["rules"]["needs_confirm"]
+    assert [n for n in needs if n.get("muscle") == "chest" and n.get("expired")]
+
+
+def test_plan_surfaces_priority_and_deload(log_module):
+    from conftest import seed_split
+    log = log_module
+    log.cmd_retag("bench", "chest")
+    seed_split(log, "Upper A", ("bench", 2))
     log.cmd_priority_set("chest", "priority", None)
     log.cmd_deload_set("slot", "Upper A")
     buf = io.StringIO()
@@ -233,7 +300,7 @@ def test_plan_surfaces_priority_and_deload(log_module):
         log.cmd_plan()
     bundle = json.loads(buf.getvalue())
     assert bundle["priority"]["chest"]["tier"] == "priority"
-    assert bundle["deload"][0] == {"id": 1, "scope": "slot", "subject": "upper a",
+    assert bundle["deload"][0] == {"id": 1, "scope": "slot", "subject": "Upper A",
                                   "set_on": _dt.date.today().isoformat(), "cleared_on": None}
 
 

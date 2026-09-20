@@ -2,8 +2,6 @@
 
 Durable training memory: injuries, sleep, life context, monthly rollups. Program config and goals live in SQLite (read via `plan`, `split show`, `map show`, `goal show`). Keep it short, current state only.
 
-Last compacted: never.
-
 ## State
 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.

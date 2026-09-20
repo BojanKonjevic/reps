@@ -358,9 +358,8 @@ def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
         assert "missing tables" in str(e)
     c2 = log_module.conn()
     tables = {r[0] for r in c2.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-    assert tables == {"workouts", "sets", "set_muscles", "bodyweight", "lift_muscle_map",
-                       "progression", "flags", "priority", "deload_state", "meta",
-                       "splits", "movement_notes", "rules", "goals", "goal_checkpoints"}
+    import re as _re
+    assert tables == set(_re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", log_module.SCHEMA))
     assert c2.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1
 
 

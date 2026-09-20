@@ -50,7 +50,7 @@ repos:
         pass_filenames: false
       - id: doctor
         name: reps doctor
-        entry: python3 log.py doctor
-        language: system
+        entry: scripts/doctor.sh
+        language: script
         always_run: true
         pass_filenames: false

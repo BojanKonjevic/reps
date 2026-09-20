@@ -21,9 +21,10 @@ def _plan(log, *args):
 def test_plan_empty_db_shape(log_module):
     log = log_module
     bundle = json.loads(_plan(log))
-    assert set(bundle) == {"today", "slot_guess", "split", "goals", "volume", "ledger", "lifts",
+    assert set(bundle) == {"today", "slot_guess", "split", "goals", "rules", "volume", "ledger", "lifts",
                            "progression", "flags", "priority", "deload", "compaction"}
-    assert bundle["today"]["open"] is False
+    assert bundle["today"] == {"open": False, "workout": None, "rest": False, "stale": None,
+                                 "last_session": None, "gap_days": None, "break": False}
     assert bundle["slot_guess"]["confidence"] == "low"
     assert len(bundle["volume"]) == 13
     assert bundle["volume"]["chest"]["mev"] == 8
@@ -43,7 +44,8 @@ def test_plan_ledger_and_lifts(log_module):
     assert bundle["ledger"]["back"]["sets"] == 0
     assert bundle["lifts"][0]["exercise"] == "bench"
     assert bundle["lifts"][0]["best_e1rm"] == round(100 * (1 + 6 / 30.0), 1)
-    assert bundle["today"]["open"] is not False
+    assert bundle["today"]["open"] is True
+    assert bundle["today"]["workout"]["status"] == "open"
 
 
 def test_plan_volume_weekly_counts(log_module):
@@ -124,7 +126,9 @@ def test_plan_slot_guess_follows_rotation(log_module):
 
 
 def test_plan_explicit_slot_and_verbose(log_module):
+    import datetime as _dt
     log = log_module
+    log.cmd_meta_set("compaction_postponed_until", (_dt.date.today() + _dt.timedelta(days=30)).isoformat())
     out = _plan(log, "Upper B", True)
     assert "slot guess: Upper B" in out
     assert "compaction due" not in out

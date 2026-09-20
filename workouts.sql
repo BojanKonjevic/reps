@@ -79,6 +79,7 @@ CREATE TABLE meta (
 );
 INSERT INTO "meta" VALUES('last_compacted','never');
 INSERT INTO "meta" VALUES('rotation','["Upper A", "Lower A", "Upper B", "rest", "Upper C", "Lower B", "rest"]');
+INSERT INTO "meta" VALUES('compaction_postponed_until','2026-10-01');
 CREATE TABLE movement_notes (
   id INTEGER PRIMARY KEY,
   exercise TEXT NOT NULL,
@@ -115,12 +116,12 @@ INSERT INTO "progression" VALUES(1,1,'incline barbell bench press','baseline','8
 INSERT INTO "progression" VALUES(2,1,'hammer strength row','baseline','90x9','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(3,1,'pec deck','baseline','80x13','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(4,1,'straight bar pulldown','baseline','87x7','flat','','2026-09-20T15:10:13');
-INSERT INTO "progression" VALUES(5,1,'machine shoulder press','baseline','40x9','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(5,1,'machine shoulder press','baseline','40x9','flat','returning','2026-09-20T15:58:07');
 INSERT INTO "progression" VALUES(6,1,'cable lat raise','baseline','11.25x13','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(7,1,'bayesian curl','baseline','13.75x10','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(8,1,'preacher curl','baseline','46x8','flat','','2026-09-20T15:10:13');
 INSERT INTO "progression" VALUES(9,1,'cable pushdown','baseline','31.25x12','flat','','2026-09-20T15:10:13');
-INSERT INTO "progression" VALUES(10,1,'cable reverse curl','baseline','11.25x13','flat','','2026-09-20T15:10:13');
+INSERT INTO "progression" VALUES(10,1,'cable reverse curl','baseline','11.25x13','flat','new','2026-09-20T15:58:08');
 INSERT INTO "progression" VALUES(11,1,'face pull','baseline','38.75x12','flat','','2026-09-20T15:10:13');
 CREATE TABLE rules (
   id INTEGER PRIMARY KEY,
