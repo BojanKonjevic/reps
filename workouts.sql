@@ -72,7 +72,6 @@ INSERT INTO "lift_muscle_map" VALUES('unilateral cable pushdown','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('ezbar skullcrusher','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist curl','forearms',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist extension','forearms',0);
-INSERT INTO "lift_muscle_map" VALUES('machine shoulder press','front delt',0);
 INSERT INTO "lift_muscle_map" VALUES('dumbbell lat raise','side delt',0);
 INSERT INTO "lift_muscle_map" VALUES('smith jm press','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('overhead cable extension','triceps',0);
@@ -94,7 +93,6 @@ CREATE TABLE movement_notes (
 INSERT INTO "movement_notes" VALUES(1,'dips','my form, elbows tucked, triceps main','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(2,'flat barbell bench press','triceps excluded by convention','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(3,'reverse-grip smith incline press','upper chest emphasis','2026-09-20T15:14:08');
-INSERT INTO "movement_notes" VALUES(4,'machine shoulder press','neutral grip, slight lean for upper chest','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(5,'hammer strength row','logged as total both sides (45 per side = 90)','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(6,'straight bar pulldown','attachment matters, logged under this name, not lat pulldown','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(7,'straight bar pulldown','stack jumps 10kg: 47, 57, 67, 77, 87, 97, 107, 117, 127','2026-09-20T15:14:08');

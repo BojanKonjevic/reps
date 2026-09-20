@@ -20,7 +20,7 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 
 Sessions/week per muscle lives in `constants.json` (`freq`, edited via `log.py constants set` on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles.
 
-Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at 3x and legs at 2x (current Upper/Lower rotation) fall inside the settled range. Side delts at 5x are a priority deviation, see Personal deviations. Rear delts at 3x sit inside the range above, no deviation.
+Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at ~3.5x and legs at ~1.75x (current 8-day rotation) fall inside the settled range. Side delts at ~3.5x sit inside the range above, no deviation. Rear delts at ~3.5x sit inside the range above, no deviation.
 
 ## Rep range guidance
 
@@ -61,7 +61,7 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | ------------------------------------------------------------------------------------------------------ | --------- | ----------------------------------------- |
 | Deload every 4–8 weeks (reduce volume 40–60%, intensity same)                                          | Contested | Practitioner consensus, little direct RCT |
 | Reactive deload: when performance drops 5%+ across 2 sessions                                          | Opinion   | RP, Helms autoregulation                  |
-| Passive rest after Upper B and after Lower B (2 per 7-session rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
+| Passive rest after U2 and after U4 (2 per 8-day rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
 | No evidence for "deload week" vs "deload session" superiority                                          | Opinion   | Unstudied                                 |
 
 ## Exercise selection principles
