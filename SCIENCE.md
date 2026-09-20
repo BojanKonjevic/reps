@@ -76,9 +76,9 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 
 ## Personal deviations
 
-- Sep 18 2026: Upper/Lower rotation, rest after Upper B and Lower B, Opinion
+- Sep 20 2026: 8-day rotation U1, L1, U2, rest, U3, L2, U4, rest (uppers every 2 days, lowers every 4), Opinion
 - Sep 18 2026: delts tracked as front/side/rear heads; front MEV 0 via pressing volume, rear MEV 6 direct, Opinion
 - Sep 18 2026: adductors tracked at ~4 direct sets/week across 2 exposures plus leg press/hack squat indirect work, Opinion
-- Sep 18 2026: side delts 5x/week (10 sets), above the default 2-3x frequency. Priority muscle, low per-session dose, tolerated. Opinion
+- Sep 20 2026: side delts 4x per 8 days (~3.5x/week), 16 sets per 8 days (14 weekly) across cable/machine/dumbbell pool, inside MAV 12-18, Opinion
 - Sep 18 2026: no direct glute work, RDL plus leg press judged sufficient, Opinion
 - Sep 17 2026: Every set taken to failure (my style right now) → volume managed accordingly, Opinion
