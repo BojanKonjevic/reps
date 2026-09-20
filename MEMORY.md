@@ -1,6 +1,6 @@
 # memory
 
-Durable training memory: injuries, sleep, life context, monthly rollups. Program config lives in SQLite (read via `plan`, `split show`, `map show`), goals in GOALS.md. Keep it short, current state only.
+Durable training memory: injuries, sleep, life context, monthly rollups. Program config and goals live in SQLite (read via `plan`, `split show`, `map show`, `goal show`). Keep it short, current state only.
 
 Last compacted: never.
 

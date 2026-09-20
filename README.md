@@ -24,14 +24,14 @@ Three layers, each doing one job.
 
 **The database holds facts.** `log.py` is a dumb store: workouts, sets with weight, reps, muscles and notes, bodyweight. No opinions in code, the agent owns meaning. The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
 
-**The markdown holds the rules.** AGENTS.md is the protocol: naming, progression, goals, audits. MEMORY.md and GOALS.md carry your state and targets, the program lives in SQLite behind `split`/`map`/`rule` commands. SCIENCE.md pins the evidence-based defaults. This is what keeps the agent honest.
+**The markdown holds the rules.** AGENTS.md is the protocol: naming, progression, goals, audits. MEMORY.md carries your state, the program and goals live in SQLite behind `split`/`map`/`rule`/`goal` commands. SCIENCE.md pins the evidence-based defaults. This is what keeps the agent honest.
 
 **The dashboard shows it back.** `log.py sync` pushes a snapshot to a read-only Cloudflare Worker. Graphs over headline numbers: e1RM trends per lift, volume by muscle, calendar, PRs.
 
 ## Repo map
 
 - `log.py`, the CLI and only writer. SQLite at `workouts.db`, tracked dump at `workouts.sql`.
-- `AGENTS.md`, the agent protocol. `MEMORY.md`, `GOALS.md`, your training state.
+- `AGENTS.md`, the agent protocol. `MEMORY.md`, your training state.
 - `SCIENCE.md`, evidence defaults. `AUDIT.md`, the data-quality checklist. `ISSUES.md`, noticed problems waiting for a fix.
 - `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
 - `tests/`, the deterministic pytest suite for everything `log.py` enforces.

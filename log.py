@@ -113,6 +113,23 @@ CREATE TABLE IF NOT EXISTS rules (
   created TEXT NOT NULL
 );
 -- rotation order lives in meta (key rotation, JSON array) since MOVEMENTS.md is gone.
+CREATE TABLE IF NOT EXISTS goals (
+  id INTEGER PRIMARY KEY,
+  exercise TEXT NOT NULL,
+  target_e1rm REAL NOT NULL,
+  target_desc TEXT NOT NULL,
+  deadline TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS goal_checkpoints (
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+  session_no INTEGER NOT NULL,
+  target_e1rm REAL NOT NULL,
+  PRIMARY KEY (goal_id, session_no)
+);
+-- trajectories target e1RM with linear per-session interpolation; target
+-- choice and realism stay prose (see Goals). Sessions are numbered, dates float.
 """
 
 
@@ -1018,11 +1035,28 @@ def cmd_plan(slot=None, verbose=False):
             slots.append(entry)
         split_section = {"day": split_day, "slots": slots}
 
+    goals = []
+    by_exercise = {}
+    for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall():
+        prog = goal_progress(c, dict(g))
+        by_exercise[g["exercise"]] = {"id": g["id"], "next_checkpoint": prog["next_checkpoint"]}
+        goals.append({"id": g["id"], "exercise": g["exercise"], "target_e1rm": g["target_e1rm"],
+                      "deadline": g["deadline"], "next_checkpoint": prog["next_checkpoint"],
+                      "on_track": prog["on_track"], "slippage": prog["slippage"],
+                      "completed": prog["completed"]})
+    if split_section:
+        for slot_entry in split_section["slots"]:
+            for m in slot_entry["movements"]:
+                if m in by_exercise:
+                    slot_entry["goal"] = by_exercise[m]
+                    break
+
     bundle = {
         "today": {"open": dict(w) if w else False, "rest": bool(rest_row), "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
         "slot_guess": slot_guess,
         "split": split_section,
+        "goals": goals,
         "volume": volume,
         "ledger": ledger,
         "lifts": lifts,
@@ -1520,6 +1554,180 @@ def cmd_rule_confirm(rule_id, extend=None, archive=False):
     print(json.dumps({"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}))
 
 
+def goal_exercise_days(c, exercise):
+    return [day for day in split_day_order("active") if exercise in day_movements(day)]
+
+
+def sessions_possible_before(c, exercise, deadline):
+    days_left = (date.fromisoformat(deadline) - date.today()).days
+    if days_left < 0:
+        return 0
+    per_week = len(goal_exercise_days(c, exercise))
+    return int(days_left / 7 * per_week + 0.5)
+
+
+def build_checkpoints(start, target, n):
+    # Session 1 is the already-logged baseline, so it checkpoints at start.
+    if n <= 1:
+        return [round(target, 1)]
+    return [round(start + (target - start) * i / (n - 1), 1) for i in range(n)]
+
+
+def top_e1rm_by_date(c, exercise):
+    sql = ("SELECT w.date as day, MAX(CASE WHEN s.reps = 1 THEN s.weight ELSE s.weight * (1 + s.reps / 30.0) END) as e1rm, "
+           "GROUP_CONCAT(DISTINCT w.notes) as notes, GROUP_CONCAT(DISTINCT s.note) as set_notes, "
+           "MAX(s.created) as max_created FROM sets s JOIN workouts w ON w.id = s.workout_id "
+           "WHERE s.exercise = ? AND w.status = 'done' GROUP BY day ORDER BY day")
+    return [(r["day"], r["e1rm"], " ".join(n for n in (r["notes"], r["set_notes"]) if n),
+             r["max_created"]) for r in c.execute(sql, (exercise,)).fetchall()]
+
+
+def goal_sessions(c, goal):
+    """Post-goal training dates with the last pre-goal date as session-1 anchor.
+
+    Same-day rows count as post-goal only if their sets were logged after the
+    goal was created (set created timestamps vs goal created timestamp).
+    """
+    all_sessions = top_e1rm_by_date(c, goal["exercise"])
+    created_day = goal["created"][:10]
+    prior = [s for s in all_sessions if s[0] < created_day
+             or (s[0] == created_day and (s[3] or "") < goal["created"])]
+    current = [s for s in all_sessions if s not in prior and s[0] >= created_day]
+    return (prior[-1:] + current) if prior or current else []
+
+
+def goal_progress(c, goal):
+    checkpoints = [r["target_e1rm"] for r in c.execute(
+        "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
+    sessions = goal_sessions(c, goal)
+    completed = min(len(sessions), len(checkpoints))
+    divergence = load_constants()["thresholds"].get("goal_divergence_pct", 5)
+    consecutive_misses = 0
+    for i in range(completed):
+        _, actual, notes, _ = sessions[i]
+        if "deload" in (notes or "").lower():
+            consecutive_misses = 0
+            continue
+        # One-sided: only shortfall misses. Overperformance is signal, not failure.
+        if (checkpoints[i] - actual) / checkpoints[i] * 100 > divergence:
+            consecutive_misses += 1
+        else:
+            consecutive_misses = 0
+    remaining = len(checkpoints) - completed
+    slippage = remaining > sessions_possible_before(c, goal["exercise"], goal["deadline"])
+    return {"checkpoints": checkpoints, "completed": completed,
+            "actuals": [{"date": d, "e1rm": round(e, 1)} for d, e, _, _ in sessions[:completed]],
+            "consecutive_misses": consecutive_misses, "on_track": consecutive_misses < 2,
+            "remaining": remaining, "slippage": slippage,
+            "next_checkpoint": checkpoints[completed] if completed < len(checkpoints) else None}
+
+
+def cmd_goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
+    c = conn()
+    exercise = (exercise or "").strip().lower()
+    if not exercise:
+        sys.exit("goal exercise is required")
+    if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone():
+        sys.exit(f"'{exercise}' has no mapping (run map set first)")
+    try:
+        target_e1rm = float(target_e1rm)
+    except (TypeError, ValueError):
+        sys.exit("target e1RM must be a number")
+    if target_e1rm <= 0:
+        sys.exit("target e1RM must be positive")
+    try:
+        deadline = date.fromisoformat(deadline).isoformat()
+    except ValueError:
+        sys.exit("deadline must be YYYY-MM-DD")
+    if date.fromisoformat(deadline) <= date.today():
+        sys.exit("deadline must be in the future")
+    if start_e1rm is None:
+        top = c.execute(
+            "SELECT CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
+            "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (exercise,)).fetchone()
+        if not top:
+            sys.exit(f"no logged sets for '{exercise}', pass --from <e1rm> to seed the trajectory")
+        start_e1rm = top["e1rm"]
+    else:
+        try:
+            start_e1rm = float(start_e1rm)
+        except (TypeError, ValueError):
+            sys.exit("start e1RM must be a number")
+    existing = c.execute("SELECT id FROM goals WHERE exercise = ? AND status = 'active'",
+                         (exercise,)).fetchone()
+    if existing:
+        sys.exit(f"goal {existing['id']} already covers '{exercise}' (rewrite or drop it first)")
+    n = sessions_possible_before(c, exercise, deadline)
+    if n < 1:
+        sys.exit(f"no '{exercise}' sessions fit before {deadline} at the current split frequency")
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = c.execute("INSERT INTO goals (exercise, target_e1rm, target_desc, deadline, status, created) "
+                    "VALUES (?, ?, ?, ?, 'active', ?)",
+                    (exercise, target_e1rm, target_desc, deadline, now))
+    gid = cur.lastrowid
+    for i, cp in enumerate(build_checkpoints(start_e1rm, target_e1rm, n), 1):
+        c.execute("INSERT INTO goal_checkpoints (goal_id, session_no, target_e1rm) VALUES (?, ?, ?)", (gid, i, cp))
+    c.commit()
+    print(json.dumps({"goal_id": gid, "exercise": exercise, "sessions": n,
+                      "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline}))
+
+
+def cmd_goal_show(goal_id=None):
+    c = conn()
+    if goal_id is not None:
+        try:
+            goal_id = int(goal_id)
+        except (TypeError, ValueError):
+            sys.exit("no such goal")
+        goals = [dict(r) for r in c.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchall()]
+        if not goals:
+            sys.exit("no such goal")
+    else:
+        goals = [dict(r) for r in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall()]
+    out = []
+    for g in goals:
+        entry = dict(g)
+        entry.update(goal_progress(c, g))
+        out.append(entry)
+    print(json.dumps(out, indent=2))
+
+
+def cmd_goal_rewrite(goal_id):
+    c = conn()
+    try:
+        goal_id = int(goal_id)
+    except (TypeError, ValueError):
+        sys.exit("no such goal")
+    goal = c.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchone()
+    if not goal:
+        sys.exit("no such goal")
+    goal = dict(goal)
+    prog = goal_progress(c, goal)
+    if prog["remaining"] <= 0:
+        sys.exit("goal trajectory is complete, nothing to rewrite")
+    sessions = goal_sessions(c, goal)
+    anchor = sessions[prog["completed"] - 1][1] if prog["completed"] > 0 else prog["checkpoints"][0]
+    fresh = build_checkpoints(anchor, goal["target_e1rm"], prog["remaining"])
+    for i, cp in enumerate(fresh, prog["completed"] + 1):
+        c.execute("UPDATE goal_checkpoints SET target_e1rm = ? WHERE goal_id = ? AND session_no = ?",
+                  (cp, goal_id, i))
+    c.commit()
+    print(json.dumps({"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh}))
+
+
+def cmd_goal_drop(goal_id):
+    c = conn()
+    try:
+        goal_id = int(goal_id)
+    except (TypeError, ValueError):
+        sys.exit("no such goal")
+    cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ?", (goal_id,))
+    if cur.rowcount == 0:
+        sys.exit("no such goal")
+    c.commit()
+    print(json.dumps({"dropped": goal_id}))
+
+
 def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
@@ -1632,6 +1840,25 @@ def cmd_audit():
     for s in stale:
         flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
 
+    # Check 5: Goal trajectory divergence (deterministic).
+    for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
+        prog = goal_progress(c, dict(g))
+        if prog["consecutive_misses"] >= 2:
+            explained = c.execute(
+                "SELECT DISTINCT w.id FROM workouts w JOIN sets s ON s.workout_id = w.id "
+                "WHERE s.exercise = ? AND (w.notes LIKE '%slippage%' OR w.notes LIKE '%extend%' "
+                "OR w.notes LIKE '%compress%' OR s.note LIKE '%slippage%')", (g["exercise"],)).fetchall()
+            if not explained:
+                flags.append({"check": "goal_divergence", "severity": "high",
+                              "evidence": f"goal {g['id']} ({g['exercise']} -> {g['target_e1rm']} by {g['deadline']}): "
+                                          f"{prog['consecutive_misses']} consecutive sessions off trajectory",
+                              "fix": f"goal rewrite {g['id']}, or extend the deadline conversation"})
+        if prog["slippage"]:
+            flags.append({"check": "goal_slippage", "severity": "medium",
+                          "evidence": f"goal {g['id']} ({g['exercise']}): {prog['remaining']} sessions left "
+                                      f"but split frequency fits fewer before {g['deadline']}",
+                          "fix": f"extend the deadline or compress jumps, never silently"})
+
     # Check 8: Volume vs MEV, rolling window from constants (current week + back).
     # Every week in the window counts: weeks with no logged sets are 0, not
     # absent. Zero and low volume are separate flags; bad weeks are counted
@@ -1674,12 +1901,12 @@ def cmd_audit():
                           "fix": "add volume, or add Active rule explaining"})
 
     # Output report
-    print(f"Audit complete: {len(flags)} flags (checks 5 and 6 are manual only, see AUDIT.md)")
+    print(f"Audit complete: {len(flags)} flags (check 6 is manual only, see AUDIT.md)")
     for i, f in enumerate(flags, 1):
         print(f"{i}. [{f['check']}] - {f['severity'].upper()}")
         print(f"   Evidence: {f['evidence']}")
         print(f"   Fix: {f['fix']}")
-    print(json.dumps({"flags": flags, "skipped": ["goal_trajectory", "split_slots"]}))
+    print(json.dumps({"flags": flags, "skipped": ["split_slots"]}))
 
 
 def cmd_sync(force=False):
@@ -1973,6 +2200,8 @@ def usage():
          " | map show [exercise] | map set <exercise> <muscles> [bw] | map note <exercise> <text>"
          " | rule add <text> --subject <x> [--expires <date>] | rule list [--expiring-within <n>]"
          " | rule confirm <id> --extend <date> | --archive"
+         " | goal add <exercise> --target <e1rm> --deadline <date> [--desc <t>] [--from <e1rm>]"
+         " | goal show [id] | goal rewrite <id> | goal drop <id>"
     )
 
 
@@ -2178,6 +2407,33 @@ def main():
             j = rest.index("--expiring-within")
             window = rest[j + 1] if j + 1 < len(rest) else None
         cmd_rule_list(window)
+    elif cmd == "goal" and rest[:1] == ["add"] and len(rest) >= 2:
+        exercise = rest[1]
+        toks = rest[2:]
+        target = deadline = desc = start = None
+        i = 0
+        while i < len(toks):
+            if toks[i] == "--target" and i + 1 < len(toks):
+                target = toks[i + 1]
+                i += 2
+            elif toks[i] == "--deadline" and i + 1 < len(toks):
+                deadline = toks[i + 1]
+                i += 2
+            elif toks[i] == "--desc":
+                desc = " ".join(toks[i + 1:]) if i + 1 < len(toks) else ""
+                break
+            elif toks[i] == "--from" and i + 1 < len(toks):
+                start = toks[i + 1]
+                i += 2
+            else:
+                i += 1
+        cmd_goal_add(exercise, target, deadline, desc or "", start)
+    elif cmd == "goal" and rest[:1] == ["show"]:
+        cmd_goal_show(" ".join(rest[1:]) or None)
+    elif cmd == "goal" and rest[:1] == ["rewrite"] and len(rest) >= 2:
+        cmd_goal_rewrite(rest[1])
+    elif cmd == "goal" and rest[:1] == ["drop"] and len(rest) >= 2:
+        cmd_goal_drop(rest[1])
     elif cmd == "rule" and rest[:1] == ["confirm"] and len(rest) >= 2:
         extend = archive = None
         archive = "--archive" in rest

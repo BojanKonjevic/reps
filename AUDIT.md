@@ -38,9 +38,9 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 5. Goal trajectory divergence
 
-- For each active goal in GOALS.md: pull `history` for that exercise since goal start. Compare logged top-set e1RM per session against trajectory session numbers. Flag if ≥ 2 consecutive sessions miss trajectory by > 5% e1RM and no slippage conversation triggered (search notes for "slippage", "extend", "compress"). Sessions whose set or workout notes contain "deload" are excluded from the miss count (a deload session deliberately deviates; its trajectory resumes after, never compressed).
+- Deterministic since Phase 4: `audit` computes this from the goals tables (same code as `goal show`). Manual pass only double-checks the numbers. For each active goal: logged top-set e1RM per session (last pre-goal date anchors session 1) against trajectory checkpoints. Flags `goal_divergence` if ≥ 2 consecutive sessions miss by > 5% e1RM with no slippage/extend/compress note, `goal_slippage` if remaining sessions no longer fit before the deadline at split frequency. Sessions whose set or workout notes contain "deload" are excluded from the miss count (a deload session deliberately deviates; its trajectory resumes after, never compressed).
 - Evidence: goal target, trajectory sessions vs logged sessions, divergence %.
-- Fix: `goal` to rewrite trajectory, or add slippage decision.
+- Fix: `goal rewrite <id>`, or add slippage decision.
 
 ### 6. Unreconciled split slots
 

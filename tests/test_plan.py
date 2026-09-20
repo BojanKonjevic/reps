@@ -21,7 +21,7 @@ def _plan(log, *args):
 def test_plan_empty_db_shape(log_module):
     log = log_module
     bundle = json.loads(_plan(log))
-    assert set(bundle) == {"today", "slot_guess", "split", "volume", "ledger", "lifts",
+    assert set(bundle) == {"today", "slot_guess", "split", "goals", "volume", "ledger", "lifts",
                            "progression", "flags", "priority", "deload", "compaction"}
     assert bundle["today"]["open"] is False
     assert bundle["slot_guess"]["confidence"] == "low"
