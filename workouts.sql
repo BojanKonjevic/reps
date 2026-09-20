@@ -96,8 +96,6 @@ INSERT INTO "movement_notes" VALUES(3,'reverse-grip smith incline press','upper 
 INSERT INTO "movement_notes" VALUES(5,'hammer strength row','logged as total both sides (45 per side = 90)','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(6,'straight bar pulldown','attachment matters, logged under this name, not lat pulldown','2026-09-20T15:14:08');
 INSERT INTO "movement_notes" VALUES(7,'straight bar pulldown','stack jumps 10kg: 47, 57, 67, 77, 87, 97, 107, 117, 127','2026-09-20T15:14:08');
-INSERT INTO "movement_notes" VALUES(8,'face pull','max height','2026-09-20T15:14:08');
-INSERT INTO "movement_notes" VALUES(9,'bayesian curl','cable height below 8','2026-09-20T15:14:08');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL,
