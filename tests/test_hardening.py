@@ -59,14 +59,15 @@ def test_log_warns_on_stale_open_workout(log_module):
     assert any(yesterday in w for w in out["warnings"])
 
 
-def test_log_warns_on_muscle_drift(log_module):
-    """Muscles differing from the mapping warn, mapping kept for the set."""
-    c = log_module.conn()
+def test_log_refuses_muscle_override(log_module):
+    """Muscles differing from the mapping are refused, the mapping is authoritative."""
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
-    out = json.loads(capture_stdout(log_module.cmd_log, "bench", 100, 5, "", "back"))
-    assert "warnings" in out
-    assert any("mapping kept" in w for w in out["warnings"])
+    try:
+        log_module.cmd_log("bench", 100, 5, "", "back")
+        assert False, "should have exited"
+    except SystemExit as e:
+        assert "authoritative" in str(e).lower()
 
 
 def test_log_clean_sets_have_no_warnings_key(log_module):
@@ -280,17 +281,17 @@ def test_rename_same_mapping_merges(log_module):
     assert out["map_moved"] is True
 
 
-def test_update_rejects_empty_muscles(log_module):
-    """Empty muscles on update exits, junction rows untouched."""
+def test_update_rejects_muscles_field(log_module):
+    """Per-set muscle edits are gone, the mapping is authoritative."""
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
     set_id = c.execute("SELECT id FROM sets").fetchone()["id"]
     try:
-        log_module.cmd_update(set_id, "muscles", "   ")
+        log_module.cmd_update(set_id, "muscles", "back")
         assert False, "should have exited"
     except SystemExit as e:
-        assert "cannot be empty" in str(e).lower()
+        assert "map set" in str(e).lower()
     assert [r["muscle"] for r in c.execute("SELECT muscle FROM set_muscles").fetchall()] == ["chest"]
 
 

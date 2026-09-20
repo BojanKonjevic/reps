@@ -16,18 +16,13 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 - Evidence: the two names and their set counts.
 - Fix: `rename <old> <new>`.
 
-### 2. Missing muscle tags
+### 2. Missing muscle tags — impossible
 
-- Pull `range` (last 6 months) or `export`. Find sets where `muscles` is empty or `""`.
-- Evidence: set ids, exercise, date.
-- Fix: `retag <exercise> <muscles>` or per-set `update <id> muscles <...>`.
+Enforced at log time (new exercises require `muscles=`, known ones inherit the mapping) and at `end` (gate precondition 2). No manual pass.
 
-### 3. Muscle mapping drift
+### 3. Muscle mapping drift — impossible
 
-- For each exercise in `history` (recent 20 per lift), compare its logged `muscles` against the mapping table (`map show <exercise>`).
-- Flag mismatches (extra groups not in mapping, missing groups that are in mapping).
-- Evidence: exercise, logged muscles vs mapped muscles.
-- Fix: `map set <exercise> <muscles>`.
+The mapping table is authoritative: per-set overrides are refused at log time and `update <id> muscles` no longer exists. No manual pass.
 
 ### 4. Implausible progression jumps
 
@@ -42,11 +37,9 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 - Evidence: goal target, trajectory sessions vs logged sessions, divergence %.
 - Fix: `goal rewrite <id>`, or add slippage decision.
 
-### 6. Unreconciled split slots
+### 6. Unreconciled split slots — impossible
 
-- Compare exercises logged in `range` (last 3 months) against the active split (`split show`) for their day type. Flag any exercise that appears ≥ 3 times but is not listed in the corresponding active split day (including interchangeable `/` entries).
-- Evidence: exercise, day type, occurrence count, active split day content.
-- Fix: `split reconcile` at next `end`, or `map set` if misclassified.
+Enforced by the `end` gate (precondition 4): a session with an exercise missing from every active split day cannot close without `split reconcile`. No manual pass.
 
 ### 7. Stale open workouts
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""reps: dumb store for workout logs. No domain logic, agent owns meaning."""
+"""reps: workout log. Code owns what is derivable or enforceable, the agent owns what is judgment."""
 
 import json
 import os
@@ -298,7 +298,9 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
             if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
                 warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
     if mapping and muscles and set(muscles.split(",")) != set(mapping["muscles"].split(",")):
-        warnings.append(f"logged muscles {muscles} differ from mapping {mapping['muscles']}; mapping kept, retag to change it everywhere")
+        sys.exit(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping['muscles']}); "
+                 f"the mapping is authoritative, log a genuine variation under its own exercise name "
+                 f"or change it everywhere with map set")
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -318,9 +320,11 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
 
 
 def cmd_update(set_id, field, value):
-    allowed = {"weight", "reps", "exercise", "note", "muscles"}
+    allowed = {"weight", "reps", "exercise", "note"}
+    if field == "muscles":
+        sys.exit("per-set muscles are gone, the mapping is authoritative; run map set <exercise> <muscles>")
     if field not in allowed:
-        sys.exit("field must be one of weight reps exercise note muscles")
+        sys.exit("field must be one of weight reps exercise note")
     c = conn()
     try:
         set_id = int(set_id)
@@ -331,13 +335,6 @@ def cmd_update(set_id, field, value):
         sys.exit("no such set")
     if field == "exercise":
         value = value.strip().lower()
-    if field == "muscles":
-        value = clean_muscles(value)
-        if not value:
-            sys.exit("muscles cannot be empty, pass at least one group or delete the set")
-        c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
-        for muscle in value.split(","):
-            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     if field == "weight":
         if value == "":
             sys.exit("weight cannot be empty, pass a number or delete the set")
@@ -362,7 +359,7 @@ def cmd_update(set_id, field, value):
     if field == "exercise":
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
-            sys.exit(f"exercise '{value}' has no mapping in lift_muscle_map (run retag first)")
+            sys.exit(f"exercise '{value}' has no mapping (run map set first)")
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -376,8 +373,7 @@ def cmd_update(set_id, field, value):
             warn_ratio = load_constants()["thresholds"].get("e1rm_warn_ratio", 1.5)
             if best > 0 and new_e1rm > best * warn_ratio:
                 warnings.append(f"e1RM {new_e1rm:.1f} is over {round((warn_ratio - 1) * 100)}% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
-    if field != "muscles":
-        c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
+    c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
     c.commit()
     out = {"updated": int(set_id)}
     if warnings:
@@ -603,8 +599,10 @@ def validate_constants(raw, source):
             sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs freq as [lo, hi]")
         if entry.get("tier") not in ("settled", "contested", "opinion"):
             sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a tier")
-        if not isinstance(entry.get("source"), str) or not isinstance(entry.get("color"), str):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs source and color strings")
+        if not isinstance(entry.get("source"), str):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a source string")
+        if not isinstance(entry.get("color"), str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", entry["color"]):
+            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a #rrggbb color string")
     thresholds = raw.get("thresholds")
     if not isinstance(thresholds, dict):
         sys.exit(f"constants invalid at {source}: missing thresholds map")
@@ -1728,6 +1726,67 @@ def cmd_goal_drop(goal_id):
     print(json.dumps({"dropped": goal_id}))
 
 
+def cmd_doctor():
+    """Structural check: constants, DB, and dashboard agree. Non-correlated."""
+    problems = []
+    try:
+        constants = load_constants()
+    except SystemExit as e:
+        print(json.dumps({"ok": False, "problems": [{"check": "constants_parse", "fix": str(e)}]}))
+        sys.exit(1)
+    root = os.path.dirname(os.path.abspath(__file__))
+    charts = os.path.join(root, "dashboard", "src", "charts.ts")
+    try:
+        with open(charts) as f:
+            charts_text = f.read()
+        if "constants.json" not in charts_text:
+            problems.append({"check": "dashboard_palette",
+                             "fix": "dashboard/src/charts.ts must derive MC/GROUPS from ../../constants.json"})
+    except OSError:
+        problems.append({"check": "dashboard_palette", "fix": f"{charts} unreadable"})
+    c = conn()
+    for check, exercises in (
+            ("sets_mapping", [r["exercise"] for r in c.execute(
+                "SELECT DISTINCT exercise FROM sets WHERE exercise NOT IN (SELECT exercise FROM lift_muscle_map)").fetchall()]),
+            ("split_mapping", sorted({m for d in split_day_order("active") for m in day_movements(d)
+                                      if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?",
+                                                       (m,)).fetchone()}))):
+        for ex in exercises:
+            problems.append({"check": check, "fix": f"map set \"{ex}\" <muscles>"})
+    known_muscles = set(constants["muscles"]) | set(constants.get("untracked", []))
+    stray = [r["muscle"] for r in c.execute("SELECT DISTINCT muscle FROM set_muscles").fetchall()
+             if r["muscle"] not in known_muscles]
+    for muscle in stray:
+        problems.append({"check": "muscle_coverage",
+                         "fix": f"logged muscle '{muscle}' is neither tracked nor untracked in constants.json"})
+    orphan_prog = c.execute(
+        "SELECT workout_id, exercise FROM progression WHERE workout_id NOT IN (SELECT id FROM workouts)").fetchall()
+    for r in orphan_prog:
+        problems.append({"check": "progression_workout",
+                         "fix": f"progression for '{r['exercise']}' points at missing workout {r['workout_id']}"})
+    expected = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", SCHEMA))
+    live = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if live != expected:
+        problems.append({"check": "schema_drift",
+                         "fix": f"live tables {sorted(live)} differ from SCHEMA {sorted(expected)}"})
+    dump_file = os.path.join(os.path.dirname(os.path.abspath(DB)), "workouts.sql")
+    try:
+        with open(dump_file) as f:
+            dump_text = f.read()
+    except OSError:
+        dump_text = None
+    if dump_text is not None:
+        dump_tables = set(re.findall(r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", dump_text))
+        if dump_tables != expected:
+            problems.append({"check": "dump_drift",
+                             "fix": f"workouts.sql tables {sorted(dump_tables)} differ from SCHEMA "
+                                    f"{sorted(expected)}; re-dump after sync"})
+    if problems:
+        print(json.dumps({"ok": False, "problems": problems}, indent=2))
+        sys.exit(1)
+    print(json.dumps({"ok": True, "muscles": len(constants["muscles"])}))
+
+
 def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
@@ -1735,32 +1794,9 @@ def cmd_audit():
 
     flags = []
 
-    # Check 2: Missing muscle tags
-    missing = c.execute("""
-        SELECT s.id, s.exercise, w.date
-        FROM sets s
-        JOIN workouts w ON w.id = s.workout_id
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id
-        WHERE sm.muscle IS NULL
-    """).fetchall()
-    for m in missing:
-        flags.append({"check": "missing_muscles", "severity": "high", "evidence": f"set {m['id']} ({m['exercise']} on {m['date']}) has no muscles", "fix": "retag <exercise> <muscles>"})
-
-    # Check 3: Muscle mapping drift
-    drift = c.execute("""
-        SELECT s.id, s.exercise,
-               group_concat(sm.muscle, ',') as logged,
-               m.muscles as mapped
-        FROM sets s
-        JOIN lift_muscle_map m ON m.exercise = s.exercise
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id
-        GROUP BY s.id
-    """).fetchall()
-    for d in drift:
-        logged_set = set(d['logged'].split(',')) if d['logged'] else set()
-        mapped_set = set(d['mapped'].split(',')) if d['mapped'] else set()
-        if logged_set != mapped_set:
-            flags.append({"check": "muscle_drift", "severity": "medium", "evidence": f"set {d['id']} ({d['exercise']}): logged {d['logged']} vs mapped {d['mapped']}", "fix": "retag <exercise> <muscles> or update Lift mapping"})
+    # Checks 2 (missing muscle tags) and 3 (mapping drift) are structurally
+    # impossible: the mapping is authoritative at log time, per-set overrides
+    # are refused, and the end gate requires every set to carry muscles.
 
     # Check 4: Implausible progression jumps
     # Rep-band thresholds (same scale as the planning confidence bands): a +1
@@ -1901,12 +1937,12 @@ def cmd_audit():
                           "fix": "add volume, or add Active rule explaining"})
 
     # Output report
-    print(f"Audit complete: {len(flags)} flags (check 6 is manual only, see AUDIT.md)")
+    print(f"Audit complete: {len(flags)} flags (checks 2, 3, 6 are structurally impossible, see AUDIT.md)")
     for i, f in enumerate(flags, 1):
         print(f"{i}. [{f['check']}] - {f['severity'].upper()}")
         print(f"   Evidence: {f['evidence']}")
         print(f"   Fix: {f['fix']}")
-    print(json.dumps({"flags": flags, "skipped": ["split_slots"]}))
+    print(json.dumps({"flags": flags, "skipped": []}))
 
 
 def cmd_sync(force=False):
@@ -2289,6 +2325,8 @@ def main():
         cmd_constants_set(rest[1], " ".join(rest[2:]))
     elif cmd == "check":
         cmd_check(" ".join(rest))
+    elif cmd == "doctor":
+        cmd_doctor()
     elif cmd == "progression" and rest[:1] == ["set"] and len(rest) >= 2:
         exercise = rest[1]
         verdict = next_target = direction = note = workout_id = None

@@ -19,6 +19,21 @@ CREATE TABLE flags (
   created TEXT NOT NULL,
   consumed_at TEXT
 );
+CREATE TABLE goal_checkpoints (
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+  session_no INTEGER NOT NULL,
+  target_e1rm REAL NOT NULL,
+  PRIMARY KEY (goal_id, session_no)
+);
+CREATE TABLE goals (
+  id INTEGER PRIMARY KEY,
+  exercise TEXT NOT NULL,
+  target_e1rm REAL NOT NULL,
+  target_desc TEXT NOT NULL,
+  deadline TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created TEXT NOT NULL
+);
 CREATE TABLE lift_muscle_map (
   exercise TEXT PRIMARY KEY,
   muscles TEXT NOT NULL,

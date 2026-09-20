@@ -182,14 +182,14 @@ def test_range_returns_correct_date_bounds(log_module):
     assert "old" not in notes
 
 
-def test_update_muscles_uses_cleaning(log_module):
-    """update with muscles field uses clean_muscles normalization."""
+def test_map_set_retags_everywhere(log_module):
+    """map set changes the mapping and all of the exercise's sets."""
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
-    log_module.cmd_update(set_id, "muscles", " chest , back , CHEST ")
+    log_module.cmd_retag("bench", " chest , back , CHEST ")
     updated = c.execute("SELECT muscle FROM set_muscles WHERE set_id = ? ORDER BY muscle", (set_id,)).fetchall()
     assert [r["muscle"] for r in updated] == ["back", "chest"]
 

@@ -68,40 +68,7 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
     c.commit()
 
     # This should work - pullup is bodyweight
-    log.cmd_log("pullup", 0, 5, "", "back")
-
-
-def test_audit_muscle_mapping_drift(audit_db):
-    """Check 3: Compare logged muscles against lift_muscle_map."""
-    log, c = audit_db
-    log.cmd_start("test")
-    log.cmd_log("bench", 100, 5, "", "chest")  # creates mapping chest
-    log.cmd_log("squat", 150, 5, "", "quads,glutes")  # creates mapping quads,glutes
-    close_session(log, "done")
-
-    # Manually corrupt one set's muscles via the junction table
-    bench_id = c.execute("SELECT id FROM sets WHERE exercise = 'bench'").fetchone()["id"]
-    c.execute("DELETE FROM set_muscles WHERE set_id = ?", (bench_id,))
-    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'back')", (bench_id,))
-    c.commit()
-
-    # Check for drift (compare as sets, order-insensitive)
-    drift = c.execute("""
-        SELECT s.id, s.exercise,
-               group_concat(sm.muscle, ',') as logged,
-               m.muscles as mapped
-        FROM sets s
-        JOIN lift_muscle_map m ON m.exercise = s.exercise
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id
-        GROUP BY s.id
-    """).fetchall()
-    drift = [d for d in drift
-             if set((d["logged"] or "").split(",")) != set(d["mapped"].split(","))]
-
-    assert len(drift) == 1
-    assert drift[0]["exercise"] == "bench"
-    assert drift[0]["logged"] == "back"
-    assert drift[0]["mapped"] == "chest"
+    log.cmd_log("pullup", 0, 5, "", "back,biceps")
 
 
 def test_audit_stale_open_workout(audit_db):

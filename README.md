@@ -8,9 +8,9 @@ Most training logs make you pick. Either a rigid tracker that stores every set p
 
 reps does both at once. You talk the way you'd text a training partner. "Squat 90 5/5/7, last to failure" between sets, questions when you have them, done at the end. Underneath, every set lands in SQLite with exact weight, reps, muscles, and notes, and the same agent that logs also coaches: rep targets from your history, progression that adjusts when you miss, goals with session-by-session trajectories.
 
-The combination is the point. Facts alone can't tell you what to do next, and agent reasoning left to itself drifts, misremembers, and invents. So the reasoning here runs on rails. The markdown pins down naming, progression, and protocol, and every claim has to ground out in stored sets. You get the judgment without the failure mode that usually comes with it.
+The combination is the point. Facts alone can't tell you what to do next, and agent reasoning left to itself drifts, misremembers, and invents. So the reasoning here runs on rails. Code owns what is derivable or enforceable (volume landmarks, thresholds, the close gate), the database owns judgment state (program, progression, goals, rules), the markdown holds protocol and reasons, and every claim has to ground out in stored sets. You get the judgment without the failure mode that usually comes with it.
 
-The split is deliberate. The database holds facts, the markdown holds the rules, the agent does the thinking, and you just train and talk.
+The split is deliberate. The database holds facts and state, `constants.json` holds the numbers, the markdown holds the protocol, the agent does the thinking, and you just train and talk.
 
 ## How a session looks
 
@@ -22,7 +22,7 @@ You never touch the CLI yourself. The commands are the agent's vocabulary, not y
 
 Three layers, each doing one job.
 
-**The database holds facts.** `log.py` is a dumb store: workouts, sets with weight, reps, muscles and notes, bodyweight. No opinions in code, the agent owns meaning. The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
+**The database holds facts.** `log.py` stores workouts, sets with weight, reps, muscles and notes, bodyweight, plus program state: splits, mappings, progression, flags, priorities, deloads, rules, goals. Derivable numbers (ledger, volume, e1RM, slot guess) are computed on read by `plan`, never stored. Non-negotiable rules fail loudly at the point of violation (the `end` gate, mapping authority, loud `constants.json`). The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
 
 **The markdown holds the rules.** AGENTS.md is the protocol: naming, progression, goals, audits. MEMORY.md carries your state, the program and goals live in SQLite behind `split`/`map`/`rule`/`goal` commands. SCIENCE.md pins the evidence-based defaults. This is what keeps the agent honest.
 
