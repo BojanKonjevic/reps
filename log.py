@@ -13,6 +13,7 @@ from datetime import date, datetime
 DB = os.environ.get("REPS_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 SCIENCE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SCIENCE.md")
+MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MEMORY.md")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workouts (
@@ -550,6 +551,52 @@ def parse_mev_from_science():
     return mev_bounds
 
 
+def parse_priority_from_memory():
+    """Parse the Priority (machine-readable) block from MEMORY.md.
+
+    Mirrors parse_mev_from_science in structure: primary source is the
+    fenced ````json priority`` block, absent muscles default to `maintain`.
+    Returns {muscle: {"tier": ..., "since": ..., "until": ...}} with only
+    well-formed entries; invalid ones are warned about and skipped.
+    """
+    valid_tiers = {"priority", "maintain", "deprioritize"}
+    priorities: dict = {}
+    try:
+        with open(MEMORY_FILE, 'r') as f:
+            content = f.read()
+    except OSError:
+        content = ""
+    if not content:
+        print("WARNING: parse_priority_from_memory could not read MEMORY.md, assuming all maintain")
+        return priorities
+    block = re.search(r'```json[^\n]*priority[^\n]*\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+    if not block:
+        print("WARNING: parse_priority_from_memory found no json priority block, assuming all maintain")
+        return priorities
+    try:
+        raw = json.loads(block.group(1))
+    except ValueError as e:
+        print(f"WARNING: parse_priority_from_memory found priority JSON block but failed to parse it ({e}), assuming all maintain")
+        return priorities
+    if not isinstance(raw, dict):
+        print("WARNING: parse_priority_from_memory priority block is not a JSON object, assuming all maintain")
+        return priorities
+    invalid = {}
+    for k, v in raw.items():
+        muscle = k.strip().lower() if isinstance(k, str) else k
+        if (isinstance(muscle, str) and muscle
+                and isinstance(v, dict)
+                and v.get("tier") in valid_tiers
+                and ("since" not in v or v["since"] is None or isinstance(v["since"], str))
+                and ("until" not in v or v["until"] is None or isinstance(v["until"], str))):
+            priorities[muscle] = {"tier": v["tier"], "since": v.get("since"), "until": v.get("until")}
+        else:
+            invalid[k] = v
+    if invalid:
+        print(f"WARNING: parse_priority_from_memory ignoring invalid priority entries: {invalid}")
+    return priorities
+
+
 def cmd_audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
@@ -664,6 +711,7 @@ def cmd_audit():
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(7, -1, -1)]
     base = week_starts[0].isoformat()
     mev_bounds = parse_mev_from_science()
+    priorities = parse_priority_from_memory()
     for muscle, mev in mev_bounds.items():
         rows = c.execute("""
             SELECT date(w.date) as day, COUNT(*) as sets
@@ -682,13 +730,18 @@ def cmd_audit():
         counts = "[" + ", ".join(str(n) for n in weekly) + "]"
         zero_weeks = sum(1 for n in weekly if n == 0)
         low_weeks = sum(1 for n in weekly if 0 < n < mev)
+        # A muscle explicitly marked deprioritize is intentionally held back:
+        # its flags still stand (listed, never silently dropped) but drop one
+        # severity level and carry the reason, so the audit reads as explained.
+        deprioritized = priorities.get(muscle, {}).get("tier") == "deprioritize"
+        suffix = " (priority: deprioritize, intentional)" if deprioritized else ""
         if zero_weeks >= 4:
-            flags.append({"check": "volume_zero", "severity": "high",
-                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last 8 weeks {counts} (MEV {mev})",
+            flags.append({"check": "volume_zero", "severity": "medium" if deprioritized else "high",
+                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last 8 weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
         if low_weeks >= 4:
-            flags.append({"check": "volume_low", "severity": "medium",
-                          "evidence": f"{muscle}: below MEV in {low_weeks} of last 8 weeks {counts} (MEV {mev})",
+            flags.append({"check": "volume_low", "severity": "low" if deprioritized else "medium",
+                          "evidence": f"{muscle}: below MEV in {low_weeks} of last 8 weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
 
     # Output report

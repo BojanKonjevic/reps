@@ -509,3 +509,83 @@ def test_parse_mev_ignores_invalid_json_entries(audit_db, tmp_path, monkeypatch,
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+PRIORITY_BLOCK = """```json priority
+{
+  "side delt": {"tier": "priority", "since": "2026-09-18", "until": null}
+}
+```"""
+
+
+def _write_memory(tmp_path, monkeypatch, log, content):
+    p = tmp_path / "MEMORY.md"
+    p.write_text(content)
+    monkeypatch.setattr(log, "MEMORY_FILE", str(p))
+    return p
+
+
+def test_parse_priority_reads_json_block(audit_db, tmp_path, monkeypatch):
+    """parse_priority_from_memory returns entries from the real-shaped block."""
+    log, _ = audit_db
+    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n" + PRIORITY_BLOCK + "\n")
+    assert log.parse_priority_from_memory() == {
+        "side delt": {"tier": "priority", "since": "2026-09-18", "until": None}
+    }
+
+
+def test_parse_priority_empty_block_means_all_maintain(audit_db, tmp_path, monkeypatch):
+    """An empty priority block parses to no overrides."""
+    log, _ = audit_db
+    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n```json priority\n{\n}\n```\n")
+    assert log.parse_priority_from_memory() == {}
+
+
+def test_parse_priority_missing_block_warns(audit_db, tmp_path, monkeypatch, capsys):
+    """Files predating the block parse to empty with a warning."""
+    log, _ = audit_db
+    _write_memory(tmp_path, monkeypatch, log, "# memory\n\nNo priority block here.\n")
+    assert log.parse_priority_from_memory() == {}
+    assert "no json priority block" in capsys.readouterr().out
+
+
+def test_parse_priority_ignores_invalid_entries(audit_db, tmp_path, monkeypatch, capsys):
+    """Bad tiers and shapes are skipped with a warning, good entries survive."""
+    log, _ = audit_db
+    bad_block = PRIORITY_BLOCK.replace(
+        '"side delt": {"tier": "priority", "since": "2026-09-18", "until": null}',
+        '"side delt": {"tier": "priority", "since": "2026-09-18", "until": null},\n'
+        '  "chest": {"tier": "urgent", "since": "2026-09-18", "until": null},\n'
+        '  "back": "priority"',
+    )
+    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n" + bad_block + "\n")
+    assert log.parse_priority_from_memory() == {
+        "side delt": {"tier": "priority", "since": "2026-09-18", "until": None}
+    }
+    assert "ignoring invalid priority entries" in capsys.readouterr().out
+
+
+def test_cmd_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
+    """check 8: a deprioritize muscle still flags, one severity lower, annotated."""
+    log, c = audit_db
+    _write_memory(
+        tmp_path, monkeypatch, log,
+        "# memory\n\n```json priority\n"
+        '{\n  "chest": {"tier": "deprioritize", "since": "2026-09-18", "until": null}\n}\n```\n',
+    )
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    zeros = _chest_volume_flags(log, "volume_zero")
+    assert len(zeros) == 1
+    assert zeros[0]["severity"] == "medium"
+    assert "priority: deprioritize" in zeros[0]["evidence"]
+
+
+def test_cmd_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monkeypatch):
+    """check 8: without a priority entry the same data flags at full severity."""
+    log, c = audit_db
+    _write_memory(tmp_path, monkeypatch, log, "# memory\n\n```json priority\n{\n}\n```\n")
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    zeros = _chest_volume_flags(log, "volume_zero")
+    assert len(zeros) == 1
+    assert zeros[0]["severity"] == "high"
+    assert "priority: deprioritize" not in zeros[0]["evidence"]

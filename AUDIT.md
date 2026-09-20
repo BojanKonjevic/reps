@@ -38,7 +38,7 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 5. Goal trajectory divergence
 
-- For each active goal in GOALS.md: pull `history` for that exercise since goal start. Compare logged top-set e1RM per session against trajectory session numbers. Flag if ≥ 2 consecutive sessions miss trajectory by > 5% e1RM and no slippage conversation triggered (search notes for "slippage", "extend", "compress").
+- For each active goal in GOALS.md: pull `history` for that exercise since goal start. Compare logged top-set e1RM per session against trajectory session numbers. Flag if ≥ 2 consecutive sessions miss trajectory by > 5% e1RM and no slippage conversation triggered (search notes for "slippage", "extend", "compress"). Sessions whose set or workout notes contain "deload" are excluded from the miss count (a deload session deliberately deviates; its trajectory resumes after, never compressed).
 - Evidence: goal target, trajectory sessions vs logged sessions, divergence %.
 - Fix: `goal` to rewrite trajectory, or add slippage decision.
 
@@ -56,10 +56,12 @@ After run: log one line in MEMORY.md under State: `YYYY-MM-DD: audit ran, N flag
 
 ### 8. Volume vs MEV (rolling 8-week window)
 
+Backstop for the live plan-time volume check (AGENTS.md Session start step 7), not the primary mechanism. The live check covers every tracked muscle each session and nudges volume conversationally; this deterministic check runs the same computation on a different code path and catches anything the live check misses (a bug in the live logic, a session logged outside the normal chat flow, manual DB edits). Expected to rarely fire on a well-planned block; when it does, treat it as a signal the live check failed, not just that volume is low.
+
 - For each tracked muscle in MOVEMENTS.md Tracked muscles: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
   - `volume_zero` (high): 0 sets in ≥ 4 of the last 8 weeks.
   - `volume_low` (medium): 0 < sets < MEV in ≥ 4 of the last 8 weeks.
-- MEV comes from the SCIENCE.md volume landmarks. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped.
+- MEV comes from the SCIENCE.md volume landmarks. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped. A `deload completed` line in State explains a deload week's dip the same way. A muscle marked `deprioritize` in MEMORY.md's Priority block is still listed but one severity level lower with the reason annotated (the deterministic `audit` command does this automatically; the manual pass must do the same).
 - Evidence: muscle, bad-week count out of 8, per-week set counts, MEV.
 - Fix: add volume, or add Active rule explaining.
 

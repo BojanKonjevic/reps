@@ -14,6 +14,15 @@ Format: start date, rule, expiry if any.
 
 - Sep 18 2026: straps on anything grip-limited, including wrapping straps around cable attachments instead of handles. Grip is never a limiter.
 
+## Priority (machine-readable)
+
+Which muscles get extra volume when a session has slack inside its MAV/MRV band, and which are intentionally held back. Prose Active rules carry the same intent for humans; this block carries it for plan-time decisions. Both are always updated in the same edit. Absence means `maintain`, only non-default tiers need an entry.
+
+```json priority
+{
+}
+```
+
 ## State
 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.
@@ -52,6 +61,10 @@ First session Sep 19, all baseline.
 ## Flagged for next session
 
 None yet.
+
+## Deload state
+
+None active. Set when Deload watch fires for the same lift/slot with no recovery since its prior mention; cleared after the deload session completes.
 
 ## Monthly rollups
 
