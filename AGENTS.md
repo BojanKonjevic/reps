@@ -116,7 +116,7 @@ Chat history dies with the session, files survive. When user states something du
 3. At month end on request, append a short rollup to `MEMORY.md` under Monthly rollups: trend plus caveats in a few lines. Raw sets stay in SQLite, never paste them into memory files.
 4. Compaction runs once a month. When the Session start check triggers it: archive expired rules older than 60 days, fold superseded State lines into one current line each, write last month's rollup. Rollups are never deleted. Run `meta set last_compacted "<Mon D YYYY>"` when done. If the user says later, skip silently until next session.
 5. Every compaction publishes last month's rollup as a postplan doc (PRs, stalls, adherence with miss versus rest verdicts, next block suggestion) using the postplan workflow, links it in chat, and stores the link with the rollup in MEMORY.md.
-6. At every session `end`, update the plan state for the session just trained: Progression state for every trained lift via `progression set`, and new Flagged entries via `flag add` for clear over/underperformance versus ledger headroom (flags touching the session are consumed by `end` itself). The Muscle load ledger is derived by `plan` and needs no writeback. Mid-session reasoning stays ephemeral, never in session or set notes.
+6. At every session `end`, update the plan state for the session just trained: Progression state for every trained lift via `progression set`, and new Flagged entries via `flag add` for clear over/underperformance versus ledger headroom (flags touching the session are consumed by `end` itself, or `flag consume <id>` for anything left over). The Muscle load ledger is derived by `plan` and needs no writeback. Mid-session reasoning stays ephemeral, never in session or set notes.
 7. Deload sessions: the `end` note for a session trained under Deload state must include the word `deload` (the gate enforces this). After `end` completes, run `deload clear` (it appends the dated State line itself).
 
 Keep `MEMORY.md` short. Current state only, dated lines, no essays.
@@ -177,7 +177,7 @@ Conventions: keep charts honest (e1RM is weight times 1 plus reps over 30, excep
 
 ## Dashboard sync
 
-`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. The `workouts.db` binary is gitignored; instead `sync` dumps a text SQL dump (`workouts.sql`) which is committed to git. This gives clean diffs and readable history.
+`sync` pushes the full export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. The `workouts.db` binary is gitignored; instead `sync` dumps a text SQL dump (`workouts.sql`) which is committed to git. This gives clean diffs and readable history. `log.py dump` re-writes `workouts.sql` from the live DB without syncing, used by `doctor`'s dump_drift fix.
 
 Recovery: if `workouts.db` is corrupted or poisoned, do not `git checkout workouts.db` (it is ignored). Instead:
 

@@ -24,6 +24,9 @@ def test_doctor_healthy(log_module):
     log.cmd_start("test")
     log.cmd_log("bench", 100, 5, "", "chest")
     seed_split(log, "Test", ("bench", 2))
+    c = log.conn()
+    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)", (json.dumps(["Test"]),))
+    c.commit()
     out, code = _run(log.cmd_doctor)
     assert code == 0
     assert json.loads(out) == {"ok": True, "muscles": len(log.load_constants()["muscles"])}
@@ -61,6 +64,36 @@ def test_doctor_flags_stray_muscle(log_module):
     out, code = _run(log.cmd_doctor)
     assert code == 1
     assert [p for p in json.loads(out)["problems"] if p["check"] == "muscle_coverage"]
+
+
+def test_doctor_flags_bad_rotation(log_module):
+    log = log_module
+    c = log.conn()
+    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
+              (json.dumps(["Upper A", "Nope C"]),))
+    c.commit()
+    out, code = _run(log.cmd_doctor)
+    assert code == 1
+    assert [p for p in json.loads(out)["problems"] if p["check"] == "rotation"]
+
+
+def test_doctor_rotation_edge_cases(log_module):
+    log = log_module
+    log.cmd_retag("bench", "chest")
+    seed_split(log, "Upper A", ("bench", 2))
+    c = log.conn()
+    # rest entries exempt, case-insensitive day match
+    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
+              (json.dumps(["upper a", "rest"]),))
+    c.commit()
+    out, code = _run(log.cmd_doctor)
+    assert code == 0
+    for bad in ("[]", "{bad json", json.dumps(["Upper A", 3])):
+        c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)", (bad,))
+        c.commit()
+        out, code = _run(log.cmd_doctor)
+        assert code == 1
+        assert [p for p in json.loads(out)["problems"] if p["check"] == "rotation"]
 
 
 def test_doctor_flags_dump_drift(log_module, tmp_path, monkeypatch):

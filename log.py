@@ -146,6 +146,18 @@ def placeholders(n):
     return ",".join("?" * max(1, n))
 
 
+def resolve_known_prefix(toks, known, max_words, what):
+    """Split tokens into (known name, rest) via longest known-prefix match.
+
+    Exits instead of guessing when nothing matches.
+    """
+    match = next((i for i in range(min(len(toks) - 1, max_words), 0, -1)
+                  if " ".join(toks[:i]).lower() in known), None)
+    if match is None:
+        sys.exit(f"could not identify the {what}; quote a known name (see map show)")
+    return " ".join(toks[:match]), " ".join(toks[match:])
+
+
 def _join_muscles(words, vocab):
     """Reassemble muscle words into canonical names (multi-word heads re-joined)."""
     out, i = [], 0
@@ -1084,7 +1096,8 @@ def cmd_plan(slot=None, verbose=False):
                      + priority_needs_confirm(c))
 
     bundle = {
-        "today": {"open": w is not None, "workout": dict(w) if w else None,
+        "today": {"open": w is not None,
+                  "workout": {"id": w["id"], "date": w["date"], "status": w["status"]} if w else None,
                   "rest": bool(rest_row), "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
         "slot_guess": slot_guess,
@@ -1875,6 +1888,20 @@ def cmd_doctor():
     for muscle in stray:
         problems.append({"check": "muscle_coverage",
                          "fix": f"logged muscle '{muscle}' is neither tracked nor untracked in constants.json"})
+    rotation_row = c.execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
+    try:
+        rotation = json.loads(rotation_row["value"]) if rotation_row else None
+    except ValueError:
+        rotation = None
+    if not isinstance(rotation, list) or not rotation or not all(isinstance(d, str) for d in rotation):
+        problems.append({"check": "rotation",
+                         "fix": "meta.rotation must be a non-empty JSON array of day names (see meta show)"})
+    else:
+        split_days = {r["day"].lower() for r in c.execute("SELECT DISTINCT day FROM splits").fetchall()}
+        for day in rotation:
+            if day.lower() != "rest" and day.lower() not in split_days:
+                problems.append({"check": "rotation",
+                                 "fix": f"rotation day '{day}' matches no splits.day value (see split show)"})
     orphan_prog = c.execute(
         "SELECT workout_id, exercise FROM progression WHERE workout_id NOT IN (SELECT id FROM workouts)").fetchall()
     for r in orphan_prog:
@@ -2490,9 +2517,8 @@ def main():
         toks = rest[1:]
         known_subjects = ({r["exercise"] for r in conn().execute("SELECT exercise FROM lift_muscle_map").fetchall()}
                           | set(load_constants()["muscles"]))
-        n = next((i for i in range(min(len(toks) - 1, 4), 0, -1)
-                  if " ".join(toks[:i]).lower() in known_subjects), 1)
-        cmd_flag_add(" ".join(toks[:n]), " ".join(toks[n:]))
+        subject, reason = resolve_known_prefix(toks, known_subjects, 4, "subject (exercise or muscle)")
+        cmd_flag_add(subject, reason)
     elif cmd == "flag" and rest[:1] == ["list"]:
         cmd_flag_list()
     elif cmd == "flag" and rest[:1] == ["consume"] and len(rest) >= 2:
@@ -2595,9 +2621,8 @@ def main():
     elif cmd == "map" and rest[:1] == ["note"] and len(rest) >= 3:
         toks = rest[1:]
         known = {r["exercise"] for r in conn().execute("SELECT exercise FROM lift_muscle_map").fetchall()}
-        n = next((i for i in range(min(len(toks) - 1, 5), 0, -1)
-                  if " ".join(toks[:i]).lower() in known), 1)
-        cmd_map_note(" ".join(toks[:n]), " ".join(toks[n:]))
+        exercise, note = resolve_known_prefix(toks, known, 5, "exercise")
+        cmd_map_note(exercise, note)
     elif cmd == "rule" and rest[:1] == ["add"] and len(rest) >= 2:
         toks = rest[1:]
         subject = expires = None

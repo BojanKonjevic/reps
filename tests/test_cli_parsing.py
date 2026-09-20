@@ -67,3 +67,15 @@ def test_flag_add_unquoted_subject(log_module):
     assert json.loads(out)["subject"] == "bench"
     out = _main(log, "flag", "list")
     assert json.loads(out)[0]["reason"] == "watch the arch"
+
+
+def test_flag_add_unknown_subject_exits(log_module):
+    log = log_module
+    with pytest.raises(SystemExit, match="could not identify the subject"):
+        _main(log, "flag", "add", "mystery", "press", "watch", "depth")
+
+
+def test_map_note_unknown_exercise_exits(log_module):
+    log = log_module
+    with pytest.raises(SystemExit, match="could not identify the exercise"):
+        _main(log, "map", "note", "mystery", "press", "some", "note")
