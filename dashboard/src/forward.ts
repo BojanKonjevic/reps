@@ -110,28 +110,38 @@ export interface StallPoint {
   slot?: string | null;
 }
 
-export function stallSessions(pts: StallPoint[]): number {
-  // Backend rule: no PR in 3 same-slot sessions. PR means strictly beating
-  // the prior best (the first session is the baseline, never a PR). Only
-  // sessions in the latest session's slot count, so a lift alternating two
-  // slots does not flag on the other slot's progress.
-  if (pts.length < 2) return 0;
-  const cur = pts[pts.length - 1].slot ?? null;
+export function isStalling(pts: StallPoint[]): boolean {
+  // A lift is stalling when its last 3 sessions hold no strict PR (first
+  // session is the baseline, ties are not PRs) and either it sits more than
+  // 1% under its best or that best is 6+ sessions old (never improved counts).
+  // Holding at the top for a few sessions is maintenance, not a stall;
+  // declining off it or flatlining for weeks is.
+  // Deliberately slot-blind: a PR in any slot is progress the chart can see,
+  // so the badge never contradicts the line.
+  if (pts.length < 4) return false;
   let best = -Infinity;
-  let seen = false;
-  const isPR = pts.map(p => {
-    const pr = seen && p.ev > best;
-    if (p.ev > best) best = p.ev;
-    seen = true;
-    return pr;
+  let bestIdx = 0;
+  const isPR: boolean[] = [];
+  pts.forEach((p, i) => {
+    if (i === 0) {
+      best = p.ev;
+      bestIdx = 0;
+      isPR.push(false);
+      return;
+    }
+    if (p.ev > best) {
+      best = p.ev;
+      bestIdx = i;
+      isPR.push(true);
+    } else {
+      isPR.push(false);
+    }
   });
-  let n = 0;
-  for (let i = pts.length - 1; i >= 0; i -= 1) {
-    if ((pts[i].slot ?? null) !== cur) continue;
-    if (isPR[i]) break;
-    n += 1;
-  }
-  return n;
+  if (isPR.slice(-3).some(v => v)) return false;
+  const last = pts[pts.length - 1].ev;
+  if (last < best * 0.99) return true;
+  if (pts.length - 1 - bestIdx >= 6) return true;
+  return false;
 }
 
 export function deloadWatch(pts: Array<{ ev: number }>, pct = 5): boolean {

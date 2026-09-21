@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   labelSession,
   nextSlot,
-  stallSessions,
+  isStalling,
   deloadWatch,
   parseNextTarget,
   musclePageData,
@@ -29,35 +29,21 @@ describe('slot labeling and rotation', () => {
 });
 
 describe('stall and deload signals', () => {
-  it('counts sessions since the best e1rm', () => {
-    expect(stallSessions([{ ev: 100 }, { ev: 102 }, { ev: 101 }, { ev: 100 }])).toBe(2);
+  it('flags a run sitting below best with no recent PR', () => {
+    expect(isStalling([{ ev: 100 }, { ev: 102 }, { ev: 101 }, { ev: 100 }, { ev: 99 }])).toBe(true);
   });
-  it('ignores progress in other slots', () => {
-    const pts = [
-      { ev: 100, slot: 'U1' },
-      { ev: 100, slot: 'U2' },
-      { ev: 105, slot: 'U1' },
-      { ev: 100, slot: 'U2' },
-      { ev: 99, slot: 'U2' },
-    ];
-    expect(stallSessions(pts)).toBe(3);
+  it('does not flag ties held at the top', () => {
+    expect(isStalling([{ ev: 100 }, { ev: 102 }, { ev: 102 }, { ev: 102 }])).toBe(false);
   });
-  it('resets on a same-slot PR', () => {
-    const pts = [
-      { ev: 100, slot: 'U1' },
-      { ev: 90, slot: 'U1' },
-      { ev: 95, slot: 'U1' },
-      { ev: 101, slot: 'U1' },
-    ];
-    expect(stallSessions(pts)).toBe(0);
+  it('flags a flatline that never improved', () => {
+    const flat = [100, 100, 100, 100, 100, 100, 100].map(ev => ({ ev }));
+    expect(isStalling(flat)).toBe(true);
   });
-  it('counts short runs that stay under the flag threshold', () => {
-    expect(
-      stallSessions([
-        { ev: 100, slot: 'U1' },
-        { ev: 99, slot: 'U1' },
-      ])
-    ).toBe(2);
+  it('does not flag a recent PR', () => {
+    expect(isStalling([{ ev: 100 }, { ev: 90 }, { ev: 95 }, { ev: 101 }])).toBe(false);
+  });
+  it('needs history before judging', () => {
+    expect(isStalling([{ ev: 100 }, { ev: 99 }, { ev: 98 }])).toBe(false);
   });
   it('flags two consecutive 5pct drops', () => {
     expect(deloadWatch([{ ev: 100 }, { ev: 94 }, { ev: 88 }])).toBe(true);

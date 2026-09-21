@@ -13,7 +13,7 @@ import { pieChart, pieHit, piePalette, PieSlice } from './pieChart';
 import {
   splitDayExercises,
   labelSession,
-  stallSessions,
+  isStalling,
   deloadWatch,
   parseNextTarget,
   musclePageData,
@@ -1033,8 +1033,8 @@ function showLift(ex: string) {
   v.hidden = false;
   const title = document.getElementById('liftTitle')!;
   const sub = document.getElementById('liftSub')!;
-  const tbl = document.getElementById('liftPRs') as HTMLTableElement;
-  while (tbl.rows.length > 1) tbl.deleteRow(1);
+  const tl = document.getElementById('liftPRs')!;
+  tl.innerHTML = '';
   title.textContent = ex;
   document.title = ex;
   const musBox = document.getElementById('liftMuscles')!;
@@ -1165,33 +1165,32 @@ function showLift(ex: string) {
       return;
     }
     if (ev > top2.ev) {
+      const jump = ev - top2.ev;
       top2.ev = ev;
-      const tr = document.createElement('tr');
-      const a = document.createElement('td');
-      const al = document.createElement('a');
-      al.href = '#/s/' + wdate[s.workout_id];
-      al.textContent = fmtD(wdate[s.workout_id]);
-      a.appendChild(al);
-      const b2 = document.createElement('td');
-      b2.textContent = s.weight + ' x ' + s.reps;
-      const c2 = document.createElement('td');
-      c2.textContent = ev.toFixed(1);
-      tr.appendChild(a);
-      tr.appendChild(b2);
-      tr.appendChild(c2);
-      tbl.appendChild(tr);
+      const item = document.createElement('a');
+      item.className = 'tl-item';
+      item.href = '#/s/' + wdate[s.workout_id];
+      const date = document.createElement('div');
+      date.className = 'tl-date';
+      date.textContent = fmtD(wdate[s.workout_id]);
+      item.appendChild(date);
+      const rail = document.createElement('div');
+      rail.className = 'tl-rail';
+      item.appendChild(rail);
+      const what = document.createElement('div');
+      what.className = 'tl-what';
+      const b = document.createElement('b');
+      b.textContent = s.weight + ' x ' + s.reps + ' (e1RM ' + ev.toFixed(1) + ')';
+      what.appendChild(b);
+      const delta = document.createElement('span');
+      delta.className = 'tl-delta';
+      delta.textContent = '+' + jump.toFixed(1);
+      what.appendChild(delta);
+      item.appendChild(what);
+      tl.appendChild(item);
     }
   });
   window.scrollTo(0, 0);
-}
-
-function trendStallPts(i: number): Array<{ ev: number; slot: string | null }> {
-  const out: Array<{ ev: number; slot: string | null }> = [];
-  TREND.series[i].forEach((v, k) => {
-    if (v === null) return;
-    out.push({ ev: v, slot: SLOT_OF_DATE[TREND.days[k]] || null });
-  });
-  return out;
 }
 
 function refreshTrend() {
@@ -1203,8 +1202,8 @@ function refreshTrend() {
 function liftMatches(t: string, i: number, facet: string): boolean {
   if (facet === 'goal') return goalByExercise(SNAP, t) !== null;
   if (facet === 'stall') {
-    const pts = trendStallPts(i);
-    return stallSessions(pts) >= 3 || deloadWatch(pts);
+    const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+    return isStalling(pts) || deloadWatch(pts);
   }
   if (facet === 'focus') {
     const prio = prioMuscles(SNAP);
@@ -1305,9 +1304,9 @@ function drawMinis() {
     al.href = '#/l/' + encodeURIComponent(t);
     al.textContent = t;
     h.appendChild(al);
-    const pts = trendStallPts(i);
+    const pts = (vals.filter(v => v !== null) as number[]).map(ev => ({ ev }));
     const marks: Array<[string, string]> = [];
-    if (stallSessions(pts) >= 3) marks.push(['stalling', 'bad']);
+    if (isStalling(pts)) marks.push(['stalling', 'bad']);
     else if (deloadWatch(pts)) marks.push(['slipping', 'bad']);
     if (goalByExercise(SNAP, t)) marks.push(['goal', 'plan']);
     if (marks.length) {

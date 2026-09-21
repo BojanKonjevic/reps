@@ -83,6 +83,7 @@ test.describe('maximal mock', () => {
     await page.locator('#trendGrid .mini a').first().click();
     await expect(page.locator('#viewLift')).toBeVisible();
     await expect(page.locator('#liftMuscles a').first()).toBeVisible();
+    await expect(page.locator('#liftPRs .tl-item').first()).toBeVisible();
     await page.waitForTimeout(400);
     await page.screenshot({ path: '/tmp/max-lift.png', fullPage: false });
   });

@@ -523,6 +523,67 @@
         display: inline-block;
         flex: none;
       }
+      .tl-item {
+        display: grid;
+        grid-template-columns: 64px 20px 1fr;
+        gap: 0 8px;
+        align-items: start;
+        text-decoration: none;
+      }
+      .tl-item:hover .tl-what {
+        text-decoration: underline;
+      }
+      .tl-date {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.82rem;
+        color: #8a8478;
+        padding-top: 10px;
+        text-align: right;
+      }
+      .tl-rail {
+        position: relative;
+        align-self: stretch;
+      }
+      .tl-rail::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #2b2926;
+      }
+      .tl-item:first-child .tl-rail::before {
+        top: 16px;
+      }
+      .tl-item:last-child .tl-rail::before {
+        bottom: auto;
+        height: 18px;
+      }
+      .tl-rail::after {
+        content: '';
+        position: absolute;
+        left: 4px;
+        top: 11px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #e6c400;
+      }
+      .tl-what {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.95rem;
+        padding: 8px 0 14px;
+        color: #f0ede6;
+      }
+      .tl-what b {
+        font-weight: 600;
+      }
+      .tl-delta {
+        color: #7fd67f;
+        font-size: 0.82rem;
+        margin-left: 8px;
+      }
       @media (max-width: 900px) {
         .cal .cd {
           min-height: 34px;
@@ -876,17 +937,7 @@
         <div class="notes" id="liftSetup"></div>
       </div>
       <h2>PR history</h2>
-      <div class="card">
-        <table id="liftPRs">
-          <thead>
-            <tr>
-              <th>date</th>
-              <th>set</th>
-              <th>e1RM</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
+      <div id="liftPRs"></div>
     </div>
     <div class="wrap" id="viewProgram" hidden>
       <div class="sesstop">
