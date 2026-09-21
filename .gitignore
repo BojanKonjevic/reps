@@ -8,3 +8,6 @@ __pycache__/
 .dashboard.dev.vars
 .wrangler/
 .DS_Store
+
+test-results/
+playwright-report/
