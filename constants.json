@@ -19,16 +19,16 @@
       "source": "Schoenfeld 2017, Israetel RP",
       "color": "#66bb6a"
     },
-    "front delt": {
+    "front delts": {
       "mev": 0,
       "mav": [4, 12],
       "mrv": 12,
       "freq": [2, 3],
       "tier": "opinion",
-      "source": "RP front delt guide, no direct RCT dose-response",
+      "source": "RP front delts guide, no direct RCT dose-response",
       "color": "#e6c400"
     },
-    "side delt": {
+    "side delts": {
       "mev": 6,
       "mav": [12, 18],
       "mrv": 22,
@@ -37,13 +37,13 @@
       "source": "Schoenfeld 2017, Helms 2019",
       "color": "#9ccc65"
     },
-    "rear delt": {
+    "rear delts": {
       "mev": 6,
       "mav": [12, 20],
       "mrv": 25,
       "freq": [2, 4],
       "tier": "opinion",
-      "source": "RP rear delt guide, practitioner synthesis",
+      "source": "RP rear delts guide, practitioner synthesis",
       "color": "#ffab91"
     },
     "biceps": {

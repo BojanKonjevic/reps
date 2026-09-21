@@ -4,16 +4,12 @@ import {
   LC,
   TC,
   GC,
-  STARC,
-  trophy,
   drawYAxis,
   drawXAxisLabels,
-  drawValueLabels,
   drawHoverLine,
   drawPoint,
   drawHoverPoint,
   drawLine,
-  ChartContext,
 } from './charts';
 import { fmtV, fmtD } from './utils';
 import { niceTicks } from './utils';
@@ -28,7 +24,13 @@ export interface LiftPoint {
 
 let LIFTPTS: Array<{ x: number; y: number; date: string }> = [];
 
-export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, hover?: number) {
+export function liftChart(
+  cv: HTMLCanvasElement,
+  pts: LiftPoint[],
+  ex: string,
+  hover?: number,
+  futureEv?: number | null
+) {
   const { g, W, H } = fit(cv);
   const P = 46;
   g.clearRect(0, 0, W, H);
@@ -49,9 +51,13 @@ export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, h
   let mn = Infinity,
     mx = 0;
   pts.forEach(p => {
-    if (p.w < mn) mn = p.w;
-    if (p.w > mx) mx = p.w;
+    if (p.ev < mn) mn = p.ev;
+    if (p.ev > mx) mx = p.ev;
   });
+  if (futureEv !== undefined && futureEv !== null) {
+    if (futureEv < mn) mn = futureEv;
+    if (futureEv > mx) mx = futureEv;
+  }
   const pad = (mx - mn) * 0.25 || Math.max(1, mx * 0.05);
   mn = Math.max(0, mn - pad);
   mx += pad;
@@ -61,21 +67,60 @@ export function liftChart(cv: HTMLCanvasElement, pts: LiftPoint[], ex: string, h
   const py = (v: number) => H - P - (H - P - 18) * ((v - mn) / (mx - mn));
   drawYAxis(g, W, H, P, t);
   drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
-  drawValueLabels(g, W, P, py, pts[0].w, pts[pts.length - 1].w, pts[pts.length - 1].pr);
+  const showFuture = futureEv !== undefined && futureEv !== null && pts.length > 0;
+  g.fillStyle = TC;
+  putText(g, W, fmtV(pts[0].ev) + ' start', P + 4, py(pts[0].ev) - 12, 'left');
+  if (!showFuture)
+    putText(
+      g,
+      W,
+      fmtV(pts[pts.length - 1].ev) + ' now',
+      W - 8,
+      py(pts[pts.length - 1].ev) - 12,
+      'right'
+    );
   const col = LC[0];
-  const linePts = pts.map(p => ({ x: px(p.date), y: py(p.w) }));
+  const linePts = pts.map(p => ({ x: px(p.date), y: py(p.ev) }));
   drawLine(g, linePts, col);
   pts.forEach(p => {
     const x = px(p.date),
-      y = py(p.w);
+      y = py(p.ev);
     LIFTPTS.push({ x, y, date: p.date });
-    drawPoint(g, x, y, 4, col, p.pr);
+    drawPoint(g, x, y, 4, col, false);
   });
+  if (futureEv !== undefined && futureEv !== null && pts.length) {
+    const fx = Math.min(px(pts[pts.length - 1].date) + 26, W - 14);
+    const fy = py(futureEv);
+    g.save();
+    g.strokeStyle = col;
+    g.globalAlpha = 0.85;
+    g.setLineDash([4, 3]);
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(linePts[linePts.length - 1].x, linePts[linePts.length - 1].y);
+    g.lineTo(fx, fy);
+    g.stroke();
+    g.restore();
+    g.save();
+    g.strokeStyle = col;
+    g.lineWidth = 2;
+    const s = 6;
+    g.beginPath();
+    g.moveTo(fx, fy - s);
+    g.lineTo(fx + s, fy);
+    g.lineTo(fx, fy + s);
+    g.lineTo(fx - s, fy);
+    g.closePath();
+    g.stroke();
+    g.restore();
+    g.fillStyle = TC;
+    putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
+  }
   if (hover !== undefined && hover >= 0 && hover < pts.length) {
     const p = pts[hover];
     const x = px(p.date);
     drawHoverLine(g, H, P, x);
-    drawHoverPoint(g, x, py(p.w), p.pr ? 10 : 6, col, p.pr);
+    drawHoverPoint(g, x, py(p.ev), 6, col, false);
   }
 }
 

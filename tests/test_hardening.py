@@ -243,7 +243,7 @@ def test_rename_refuses_conflicting_mapping(log_module):
     c = log_module.conn()
     log_module.cmd_start("test")
     log_module.cmd_log("bp", 50, 8, "", "chest,triceps")
-    log_module.cmd_log("press", 60, 8, "", "chest,front delt")
+    log_module.cmd_log("press", 60, 8, "", "chest,front delts")
     close_session(log_module, "done")
     try:
         log_module.cmd_rename("bp", "press")
@@ -251,7 +251,7 @@ def test_rename_refuses_conflicting_mapping(log_module):
     except SystemExit as e:
         assert "already maps to" in str(e)
     row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'press'").fetchone()
-    assert row["muscles"] == "chest,front delt"
+    assert row["muscles"] == "chest,front delts"
     assert c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = 'bp'").fetchone()["n"] == 1
 
 

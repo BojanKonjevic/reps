@@ -80,9 +80,9 @@ def test_split_diff_and_revert(log_module):
 
 def test_map_show_set_note(log_module):
     log = log_module
-    log.cmd_retag("bench", "chest,front delt")
+    log.cmd_retag("bench", "chest,front delts")
     shown = json.loads(_out(log.cmd_map_show, "bench"))
-    assert shown["muscles"] == "chest,front delt"
+    assert shown["muscles"] == "chest,front delts"
     log.cmd_map_note("bench", "paused reps")
     assert json.loads(_out(log.cmd_map_show, "bench"))["notes"] == ["paused reps"]
     log.cmd_retag("dip", "triceps", True)

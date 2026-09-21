@@ -3,10 +3,21 @@ import { LC, MC, GROUPS } from './charts';
 import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
 import { bwline } from './bwChart';
-import { stacked } from './stackedChart';
+import { stacked, stackedHit } from './stackedChart';
 import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
 import { showTip, hideTip } from './tip';
+import { goalChart, goalHit } from './goalChart';
+import { muscleChart, muscleHit } from './muscleChart';
+import { pieChart, pieHit, piePalette, PieSlice } from './pieChart';
+import {
+  splitDayExercises,
+  labelSession,
+  stallSessions,
+  deloadWatch,
+  parseNextTarget,
+  musclePageData,
+} from './forward';
 
 interface SnapWorkout {
   id: number;
@@ -37,7 +48,10 @@ let TREND = {
   days: [] as string[],
   series: [] as Array<Array<number | null>>,
   top: [] as string[],
+  meta: [] as Array<Array<{ w: number; r: number } | null>>,
 };
+let SLOT_OF_DATE: Record<string, string> = {};
+let DAY_MOVES: Record<string, string[]> = {};
 let D: { W: any[]; S: any[]; BW: any[] } | null = null;
 let PR: PRData | null = null;
 let DASHY = 0;
@@ -54,7 +68,15 @@ try {
 } catch {
   // storage unavailable, start fresh
 }
-let LIFTDATA: { pts: LiftPoint[]; ex: string } | null = null;
+let LIFTDATA: { pts: LiftPoint[]; ex: string; fut: number | null } | null = null;
+let MUSDATA: { labels: string[]; weeks: Array<Record<string, number>> } | null = null;
+let MUSPAGE: { mus: string } | null = null;
+let MUSPIE: { slices: PieSlice[]; sets: number[] } | null = null;
+let LIFTGOAL: {
+  actuals: Array<{ date: string; ev: number }>;
+  checkpoints: number[];
+  tops: Record<string, { w: number; r: number }>;
+} | null = null;
 let BWDATA: { date: string; kg: number }[] = [];
 
 function saveHidden() {
@@ -86,7 +108,28 @@ async function main() {
   let rt: ReturnType<typeof setTimeout> | null = null;
   window.addEventListener('resize', () => {
     if (rt) clearTimeout(rt);
-    rt = setTimeout(render, 250);
+    rt = setTimeout(() => {
+      if (VIEW === 'lift' && LIFTDATA) {
+        liftChart(
+          document.getElementById('chLift') as HTMLCanvasElement,
+          LIFTDATA.pts,
+          LIFTDATA.ex,
+          -1,
+          LIFTDATA.fut
+        );
+        if (LIFTGOAL)
+          goalChart(
+            document.getElementById('chGoal') as HTMLCanvasElement,
+            LIFTGOAL.actuals,
+            LIFTGOAL.checkpoints,
+            LC[0]
+          );
+      } else if (VIEW === 'mus' && MUSPAGE) {
+        paintMuscle(MUSPAGE.mus);
+      } else if (VIEW === 'dash') {
+        render();
+      }
+    }, 250);
   });
   const ch = document.getElementById('chLift') as HTMLCanvasElement;
   const near = (ev: MouseEvent) => {
@@ -111,9 +154,55 @@ async function main() {
   ch.addEventListener('mousemove', ev => {
     ch.style.cursor = near(ev) ? 'pointer' : 'default';
   });
+  const musCv = document.getElementById('chMus') as HTMLCanvasElement;
+  musCv.addEventListener('mousemove', ev => {
+    if (!MUSDATA || !vis(musCv)) {
+      hideTip();
+      return;
+    }
+    const r = musCv.getBoundingClientRect();
+    const hit = stackedHit(
+      musCv,
+      MUSDATA.labels,
+      MUSDATA.weeks,
+      ev.clientX - r.left,
+      ev.clientY - r.top
+    );
+    if (!hit) {
+      hideTip();
+      stacked(musCv, MUSDATA.labels, MUSDATA.weeks);
+      return;
+    }
+    stacked(musCv, MUSDATA.labels, MUSDATA.weeks, hit);
+    showTip(
+      MUSDATA.labels[hit.wi],
+      [[MC[hit.g], hit.g + ' ' + MUSDATA.weeks[hit.wi][hit.g] + ' sets']],
+      ev.clientX,
+      ev.clientY
+    );
+  });
+  musCv.addEventListener('click', ev => {
+    if (!MUSDATA) return;
+    const r = musCv.getBoundingClientRect();
+    const hit = stackedHit(
+      musCv,
+      MUSDATA.labels,
+      MUSDATA.weeks,
+      ev.clientX - r.left,
+      ev.clientY - r.top
+    );
+    if (hit) location.hash = '#/m/' + encodeURIComponent(hit.g);
+  });
+  musCv.addEventListener('mouseleave', () => {
+    hideTip();
+    if (MUSDATA && vis(musCv)) stacked(musCv, MUSDATA.labels, MUSDATA.weeks);
+  });
   const bwCv = document.getElementById('chBw') as HTMLCanvasElement;
   bwCv.addEventListener('mousemove', ev => {
-    if (!BWDATA.length) return;
+    if (!BWDATA.length || !vis(bwCv)) {
+      hideTip();
+      return;
+    }
     const r = bwCv.getBoundingClientRect();
     const idx = sliceIdx(ev.clientX - r.left, r.width, BWDATA.length);
     bwline(bwCv, BWDATA, idx);
@@ -121,11 +210,14 @@ async function main() {
   });
   bwCv.addEventListener('mouseleave', () => {
     hideTip();
-    bwline(bwCv, BWDATA, -1);
+    if (vis(bwCv)) bwline(bwCv, BWDATA, -1);
   });
   const liftCv = document.getElementById('chLift') as HTMLCanvasElement;
   liftCv.addEventListener('mousemove', ev => {
-    if (!LIFTDATA) return;
+    if (!LIFTDATA || !vis(liftCv)) {
+      hideTip();
+      return;
+    }
     const r = liftCv.getBoundingClientRect();
     const x = ev.clientX - r.left;
     let bi = -1,
@@ -139,11 +231,11 @@ async function main() {
     });
     if (bi < 0 || bd > 40) {
       hideTip();
-      liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1);
+      liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1, LIFTDATA.fut);
       liftCv.style.cursor = 'default';
       return;
     }
-    liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, bi);
+    liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, bi, LIFTDATA.fut);
     const p = LIFTDATA.pts[bi];
     showTip(
       p.date,
@@ -155,8 +247,129 @@ async function main() {
   });
   liftCv.addEventListener('mouseleave', () => {
     hideTip();
-    if (LIFTDATA) liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1);
+    if (LIFTDATA && vis(liftCv)) liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1, LIFTDATA.fut);
     liftCv.style.cursor = 'default';
+  });
+  const goalCv = document.getElementById('chGoal') as HTMLCanvasElement;
+  goalCv.addEventListener('mousemove', ev => {
+    if (!LIFTGOAL || !vis(goalCv)) {
+      hideTip();
+      return;
+    }
+    const r = goalCv.getBoundingClientRect();
+    const bi = goalHit(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, ev.clientX - r.left);
+    if (bi < 0) {
+      hideTip();
+      goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0]);
+      return;
+    }
+    goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0], bi);
+    if (bi < LIFTGOAL.actuals.length) {
+      const a = LIFTGOAL.actuals[bi];
+      const top = LIFTGOAL.tops[a.date];
+      const logged = top
+        ? 'logged ' + top.w + ' x ' + top.r + ' (e1RM ' + fmtV(a.ev) + ')'
+        : 'e1RM ' + fmtV(a.ev);
+      showTip(
+        fmtD(a.date),
+        [
+          [LC[0], logged],
+          [null, 'plan ' + fmtV(LIFTGOAL.checkpoints[bi])],
+        ],
+        ev.clientX,
+        ev.clientY
+      );
+    } else {
+      showTip(
+        'session ' + (bi + 1) + ' (plan)',
+        [[LC[0], 'target e1RM ' + fmtV(LIFTGOAL.checkpoints[bi])]],
+        ev.clientX,
+        ev.clientY
+      );
+    }
+  });
+  goalCv.addEventListener('mouseleave', () => {
+    hideTip();
+    if (LIFTGOAL && vis(goalCv)) goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0]);
+  });
+  const musVolCv = document.getElementById('chMusVol') as HTMLCanvasElement;
+  const musVolData = () => {
+    if (!MUSPAGE || !D) return null;
+    const data = musclePageData(D.W, D.S, MUSPAGE.mus);
+    const constants = (SNAP.constants || {}) as any;
+    const entry = (constants.muscles || {})[MUSPAGE.mus] || {};
+    return {
+      data,
+      bands: {
+        mev: entry.mev !== undefined ? entry.mev : 0,
+        mav: entry.mav || null,
+        mrv: entry.mrv !== undefined ? entry.mrv : null,
+      },
+      color: entry.color || '#888',
+    };
+  };
+  musVolCv.addEventListener('mousemove', ev => {
+    const m = musVolData();
+    if (!m || !vis(musVolCv)) {
+      hideTip();
+      return;
+    }
+    const r = musVolCv.getBoundingClientRect();
+    const bi = muscleHit(musVolCv, m.data.counts.length, ev.clientX - r.left);
+    if (bi < 0) {
+      hideTip();
+      muscleChart(musVolCv, m.data.labels, m.data.counts, m.bands, m.color);
+      return;
+    }
+    muscleChart(musVolCv, m.data.labels, m.data.counts, m.bands, m.color, bi);
+    showTip(
+      m.data.labels[bi],
+      [[m.color, m.data.counts[bi] + ' sets (MEV ' + m.bands.mev + ')']],
+      ev.clientX,
+      ev.clientY
+    );
+  });
+  musVolCv.addEventListener('mouseleave', () => {
+    hideTip();
+    const m = musVolData();
+    if (m && vis(musVolCv)) muscleChart(musVolCv, m.data.labels, m.data.counts, m.bands, m.color);
+  });
+  const musPieCv = document.getElementById('chMusPie') as HTMLCanvasElement;
+  musPieCv.addEventListener('mousemove', ev => {
+    if (!MUSPIE || !vis(musPieCv)) {
+      hideTip();
+      return;
+    }
+    const r = musPieCv.getBoundingClientRect();
+    const bi = pieHit(musPieCv, MUSPIE.slices, ev.clientX - r.left, ev.clientY - r.top);
+    if (bi < 0) {
+      hideTip();
+      pieChart(musPieCv, MUSPIE.slices);
+      return;
+    }
+    pieChart(musPieCv, MUSPIE.slices, bi);
+    showTip(
+      MUSPIE.slices[bi].label,
+      [
+        [
+          piePalette(bi),
+          MUSPIE.sets[bi] + ' sets · ' + Math.round(MUSPIE.slices[bi].frac * 100) + '%',
+        ],
+      ],
+      ev.clientX,
+      ev.clientY
+    );
+  });
+  musPieCv.addEventListener('click', ev => {
+    if (!MUSPIE) return;
+    const r = musPieCv.getBoundingClientRect();
+    const bi = pieHit(musPieCv, MUSPIE.slices, ev.clientX - r.left, ev.clientY - r.top);
+    const link = bi >= 0 ? MUSPIE.slices[bi].link : null;
+    if (link) location.hash = link;
+  });
+  musPieCv.addEventListener('mouseleave', () => {
+    hideTip();
+    if (MUSPIE && vis(musPieCv)) pieChart(musPieCv, MUSPIE.slices);
   });
 }
 
@@ -164,6 +377,10 @@ function sliceIdx(x: number, cw: number, n: number): number {
   if (n <= 1) return 0;
   const i = Math.round((x - 46) / ((cw - 46 - 8) / (n - 1)));
   return Math.min(n - 1, Math.max(0, i));
+}
+
+function vis(cv: HTMLCanvasElement): boolean {
+  return cv.clientWidth > 0 && cv.clientHeight > 0;
 }
 
 function render() {
@@ -174,7 +391,7 @@ function render() {
   const sessions = W.filter(w => w.status !== 'rest');
   const sdates = sessions.map(w => w.date).sort();
   document.getElementById('sub')!.textContent = sdates.length
-    ? sessions.length + ' sessions, latest ' + fmtD(sdates[sdates.length - 1])
+    ? sessions.length + ' sessions'
     : W.length
       ? 'no sessions yet, ' + W.length + ' rest days logged'
       : 'no sync yet, log your first session';
@@ -192,8 +409,15 @@ function render() {
   const e1 = (s: any) => e1rm(s.weight, s.reps);
   const counts: Record<string, number> = {};
   for (const s of T) counts[s.exercise] = (counts[s.exercise] || 0) + 1;
+  const goalEx = new Set((snap.goals || []).map((g: any) => (g.exercise || '').toLowerCase()));
+  const prio = prioMuscles(snap);
+  const rank = (ex: string) => {
+    if (goalEx.has(ex.toLowerCase())) return 0;
+    if (musclesOf(snap, ex).some(m => prio.has(m.toLowerCase()))) return 1;
+    return 2;
+  };
   const top = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || b[1] - a[1])
     .map(e => e[0]);
   Array.from(HIDDEN).forEach(n => {
     if (top.indexOf(n) < 0) HIDDEN.delete(n);
@@ -208,9 +432,31 @@ function render() {
       return Math.max(...sets.map(e1));
     })
   );
-  TREND = { days, series, top };
+  const meta = top.map(t =>
+    days.map(d => {
+      const sets = byDate[d].filter((s: any) => s.exercise === t);
+      if (!sets.length) return null;
+      const best = sets.slice().sort((a: any, b: any) => e1(b) - e1(a))[0];
+      return { w: best.weight, r: best.reps };
+    })
+  );
+  TREND = { days, series, top, meta };
   PR = computePRs(W, S);
+  DAY_MOVES = splitDayExercises(snap.split_active || []);
+  const sessEx: Record<string, string[]> = {};
+  for (const s of S) {
+    const d = wday(s);
+    (sessEx[d] = sessEx[d] || []).push(s.exercise);
+  }
+  SLOT_OF_DATE = {};
+  for (const d of Object.keys(sessEx)) {
+    const lab = labelSession(sessEx[d], DAY_MOVES);
+    if (lab) SLOT_OF_DATE[d] = lab;
+  }
   refreshTrend();
+  renderNow(snap, W, S);
+  renderProgramSummary(snap);
+  renderForward(snap, W, S);
   D = { W, S, BW };
   const noted: Record<string, string> = {};
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
@@ -227,26 +473,23 @@ function render() {
     .slice(-6)
     .forEach(d => {
       const li = document.createElement('li');
-      li.textContent = fmtD(d) + ': ' + noted[d];
+      const al = document.createElement('a');
+      al.href = '#/s/' + d;
+      al.textContent = fmtD(d) + ': ' + noted[d];
+      li.appendChild(al);
+      const low = noted[d].toLowerCase();
+      if (
+        low.indexOf('pain') >= 0 ||
+        low.indexOf('sleep') >= 0 ||
+        low.indexOf('sore') >= 0 ||
+        low.indexOf('injury') >= 0
+      )
+        li.style.color = '#f0d060';
       nl.appendChild(li);
     });
   bwline(document.getElementById('chBw') as HTMLCanvasElement, BW);
   BWDATA = BW;
-  const blank = () => ({
-    chest: 0,
-    back: 0,
-    'front delt': 0,
-    'side delt': 0,
-    'rear delt': 0,
-    biceps: 0,
-    triceps: 0,
-    quads: 0,
-    hamstrings: 0,
-    glutes: 0,
-    abs: 0,
-    forearms: 0,
-    adductors: 0,
-  });
+  const blank = () => Object.fromEntries(GROUPS.map(g => [g, 0]));
   const weeks: Record<string, Record<string, number>> = {};
   for (const s of S) {
     const k = weekKey(wday(s));
@@ -266,11 +509,19 @@ function render() {
       .sort()
       .map(k => weeks[k])
   );
+  MUSDATA = {
+    labels: Object.keys(weeks).sort(),
+    weeks: Object.keys(weeks)
+      .sort()
+      .map(k => weeks[k]),
+  };
   const lm = document.getElementById('legMus')!;
   lm.innerHTML = '';
+  const focus = prioMuscles(snap);
   GROUPS.forEach(g => {
-    const sp = document.createElement('span');
-    sp.className = 'chip';
+    const sp = document.createElement('a');
+    sp.className = 'chip' + (focus.has(g.toLowerCase()) ? ' focus' : '');
+    sp.href = '#/m/' + encodeURIComponent(g);
     const sw = document.createElement('span');
     sw.className = 'sw';
     sw.style.background = MC[g];
@@ -390,6 +641,17 @@ function renderCal(
       const d = wid2date[s.workout_id] || (s.created || '').slice(0, 10);
       (sByDate[d] = sByDate[d] || []).push(s);
     }
+  const trainedDates = Object.keys(sByDate).sort();
+  const breakDates: Record<string, boolean> = {};
+  for (let i = 1; i < trainedDates.length; i += 1) {
+    const gap = Math.round(
+      (new Date(trainedDates[i] + 'T12:00:00').getTime() -
+        new Date(trainedDates[i - 1] + 'T12:00:00').getTime()) /
+        86400000
+    );
+    // Matches plan's break rule: gap of break_days + 1 (4 + 1) or more.
+    if (gap >= 5) breakDates[trainedDates[i]] = true;
+  }
   for (let d = 1; d <= days; d += 1) {
     const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     const trained = dayDetail[key] && dayDetail[key].length > 0;
@@ -403,7 +665,8 @@ function renderCal(
       (trained ? ' t' : '') +
       (rested ? ' r' : '') +
       (key === todayS ? ' today' : '') +
-      (key > todayS ? ' fut' : '');
+      (key > todayS ? ' fut' : '') +
+      (breakDates[key] ? ' brk' : '');
     el.textContent = String(d);
     if (isPR) {
       const tr = document.createElement('span');
@@ -444,7 +707,9 @@ function renderCal(
             weekday: 'short',
             month: 'short',
             day: 'numeric',
-          }) + (isPR ? '  PR' : '');
+          }) +
+          (SLOT_OF_DATE[key] ? ' ' + SLOT_OF_DATE[key] : '') +
+          (isPR ? '  PR' : '');
         showTip(title, rows.length ? rows : [[null, 'tap to open']], ev.clientX, ev.clientY);
       });
       link.addEventListener('mouseleave', hideTip);
@@ -457,6 +722,8 @@ function route() {
   const h = location.hash || '';
   const ds = h.slice(0, 4) === '#/s/' ? h.slice(4, 14) : '';
   const lift = h.slice(0, 4) === '#/l/' ? decodeURIComponent(h.slice(4)) : '';
+  const mus = h.slice(0, 4) === '#/m/' ? decodeURIComponent(h.slice(4)) : '';
+  const prog = h === '#/program';
   if (ds && isDate(ds) && D) {
     if (VIEW === 'dash') DASHY = window.scrollY;
     VIEW = 'sess';
@@ -465,25 +732,157 @@ function route() {
     if (VIEW === 'dash') DASHY = window.scrollY;
     VIEW = 'lift';
     showLift(lift);
+  } else if (mus && D) {
+    if (VIEW === 'dash') DASHY = window.scrollY;
+    VIEW = 'mus';
+    showMuscle(mus);
+  } else if (prog && D) {
+    if (VIEW === 'dash') DASHY = window.scrollY;
+    VIEW = 'prog';
+    showProgram();
   } else {
     const restore = VIEW !== 'dash';
     VIEW = 'dash';
     document.getElementById('viewDash')!.hidden = false;
     document.getElementById('viewSession')!.hidden = true;
     document.getElementById('viewLift')!.hidden = true;
+    document.getElementById('viewProgram')!.hidden = true;
+    document.getElementById('viewMuscle')!.hidden = true;
     document.title = 'reps dashboard';
     if (restore) {
-      // Repaint once layout settles: minis painted while the dash was hidden
-      // keep a zero-size bitmap that CSS stretches into smears.
-      requestAnimationFrame(() => drawMinis());
+      // Full repaint once layout settles: any canvas painted while the dash
+      // was hidden keeps a zero-size bitmap that CSS stretches into smears.
+      requestAnimationFrame(() => render());
       window.scrollTo(0, DASHY);
     }
+  }
+}
+
+function showProgram() {
+  document.getElementById('viewDash')!.hidden = true;
+  document.getElementById('viewSession')!.hidden = true;
+  document.getElementById('viewLift')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
+  const v = document.getElementById('viewProgram')!;
+  v.hidden = false;
+  document.title = 'program';
+  renderProgramPage(SNAP);
+  window.scrollTo(0, 0);
+}
+
+function showMuscle(mus: string) {
+  const match = GROUPS.filter(g => g.toLowerCase() === mus.toLowerCase())[0];
+  if (!match || !D) {
+    location.hash = '#/';
+    return;
+  }
+  document.getElementById('viewDash')!.hidden = true;
+  document.getElementById('viewSession')!.hidden = true;
+  document.getElementById('viewLift')!.hidden = true;
+  document.getElementById('viewProgram')!.hidden = true;
+  const v = document.getElementById('viewMuscle')!;
+  v.hidden = false;
+  document.title = match;
+  MUSPAGE = { mus: match };
+  paintMuscle(match);
+  window.scrollTo(0, 0);
+}
+
+function paintMuscle(mus: string) {
+  if (!D) return;
+  const data = musclePageData(D.W, D.S, mus);
+  const constants = (SNAP.constants || {}) as any;
+  const entry = (constants.muscles || {})[mus] || {};
+  const title = document.getElementById('musTitle')!;
+  title.textContent = mus;
+  const sub = document.getElementById('musSub')!;
+  const mav = entry.mav ? entry.mav[0] + '-' + entry.mav[1] : 'no range';
+  const mrv = entry.mrv !== undefined && entry.mrv !== null ? entry.mrv : 'no cap';
+  const recent = data.counts.slice(-4);
+  const avg = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0;
+  const last8 = data.counts.slice(-8);
+  const trained = last8.filter(c => c > 0).length;
+  const isFocus = prioMuscles(SNAP).has(mus.toLowerCase());
+  sub.textContent =
+    'MEV ' +
+    (entry.mev !== undefined ? entry.mev : '?') +
+    ' · MAV ' +
+    mav +
+    ' · MRV ' +
+    mrv +
+    ' · last 4 weeks avg ' +
+    fmtV(Math.round(avg * 10) / 10) +
+    '/wk · trained ' +
+    trained +
+    ' of last ' +
+    last8.length +
+    ' weeks' +
+    (isFocus ? ' · focus' : '');
+  muscleChart(
+    document.getElementById('chMusVol') as HTMLCanvasElement,
+    data.labels,
+    data.counts,
+    {
+      mev: entry.mev !== undefined ? entry.mev : 0,
+      mav: entry.mav || null,
+      mrv: entry.mrv !== undefined ? entry.mrv : null,
+    },
+    entry.color || '#888'
+  );
+  const tbl = document.getElementById('musLegend')!;
+  tbl.innerHTML = '';
+  const ranked = data.lifts;
+  const big = ranked.filter(l => l.share >= 0.04);
+  const small = ranked.filter(l => l.share < 0.04);
+  const smallSets = small.reduce((a, l) => a + l.sets, 0);
+  const slices: PieSlice[] = big.map(l => ({
+    label: l.ex,
+    frac: l.share,
+    link: '#/l/' + encodeURIComponent(l.ex),
+  }));
+  if (smallSets > 0) {
+    const frac = smallSets / (data.total || 1);
+    slices.push({ label: small.length + ' smaller lifts', frac, link: null });
+  }
+  MUSPIE = { slices, sets: slices.map((s, i) => (i < big.length ? big[i].sets : smallSets)) };
+  pieChart(document.getElementById('chMusPie') as HTMLCanvasElement, slices);
+  slices.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = piePalette(i);
+    row.appendChild(sw);
+    if (s.link) {
+      const al = document.createElement('a');
+      al.href = s.link;
+      al.textContent = s.label;
+      row.appendChild(al);
+    } else {
+      row.appendChild(document.createTextNode(s.label));
+    }
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const share = Math.round(s.frac * 100);
+    const sets = i < big.length ? big[i].sets : smallSets;
+    meta.textContent = sets + ' sets · ' + share + '%';
+    row.appendChild(meta);
+    tbl.appendChild(row);
+  });
+  if (!slices.length) {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.textContent = 'nothing logged for this muscle yet';
+    tbl.appendChild(d);
   }
 }
 
 function showSession(ds: string) {
   document.getElementById('viewDash')!.hidden = true;
   document.getElementById('viewLift')!.hidden = true;
+  document.getElementById('viewProgram')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
   const v = document.getElementById('viewSession')!;
   v.hidden = false;
   const title = document.getElementById('sessTitle')!;
@@ -512,11 +911,12 @@ function showSession(ds: string) {
     window.scrollTo(0, 0);
     return;
   }
-  title.textContent = new Date(ds + 'T12:00:00').toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+  title.textContent =
+    new Date(ds + 'T12:00:00').toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }) + (SLOT_OF_DATE[ds] ? ', ' + SLOT_OF_DATE[ds] : '');
   const wnotes = ws.map(w => w.notes).filter(n => n);
   const allRest = ws.length > 0 && ws.every(w => w.status === 'rest');
   if (allRest) {
@@ -547,6 +947,25 @@ function showSession(ds: string) {
       hl.href = '#/l/' + encodeURIComponent(ex);
       hl.textContent = ex;
       h.appendChild(hl);
+      const prog = (SNAP.progression || {})[ex.toLowerCase()];
+      const subs: string[] = [];
+      if (prog) subs.push(prog.verdict + ', next ' + prog.next);
+      const deload = SNAP.deload || [];
+      if (
+        deload.some(
+          (d: any) =>
+            (d.scope === 'lift' && (d.subject || '').toLowerCase() === ex.toLowerCase()) ||
+            (d.scope === 'slot' && d.subject === SLOT_OF_DATE[ds])
+        )
+      ) {
+        subs.push('deload');
+      }
+      if (subs.length) {
+        const sub = document.createElement('span');
+        sub.className = 'exsub';
+        sub.textContent = subs.join(' · ');
+        h.appendChild(sub);
+      }
       wrap.appendChild(h);
       const tbl = document.createElement('table');
       tbl.className = 'sess';
@@ -562,7 +981,7 @@ function showSession(ds: string) {
       tbl.appendChild(thead);
       const tbody = document.createElement('tbody');
       tbl.appendChild(tbody);
-      const sn: Array<[number, string]> = [];
+      const sn: Array<[string, number, string]> = [];
       byEx[ex].forEach((s, i) => {
         const tr = document.createElement('tr');
         const ev = e1rm(s.weight, s.reps);
@@ -580,24 +999,24 @@ function showSession(ds: string) {
             '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
           tr.children[1].appendChild(b);
         }
-        if (s.note) sn.push([i + 1, s.note]);
+        if (s.note) sn.push([ex, i + 1, s.note]);
         tbody.appendChild(tr);
       });
       wrap.appendChild(tbl);
+      body.appendChild(wrap);
       if (sn.length) {
         const nd = document.createElement('div');
         nd.className = 'setnotes';
-        sn.forEach(pair => {
+        sn.forEach(trip => {
           const ln = document.createElement('div');
           const b = document.createElement('b');
-          b.textContent = String(pair[0]);
+          b.textContent = trip[0] + ' ' + trip[1];
           ln.appendChild(b);
-          ln.appendChild(document.createTextNode(pair[1]));
+          ln.appendChild(document.createTextNode(trip[2]));
           nd.appendChild(ln);
         });
-        wrap.appendChild(nd);
+        notes.appendChild(nd);
       }
-      body.appendChild(wrap);
     });
   });
   document.title = fmtD(ds) + (allRest ? ' rest day' : ' training');
@@ -607,6 +1026,8 @@ function showSession(ds: string) {
 function showLift(ex: string) {
   document.getElementById('viewDash')!.hidden = true;
   document.getElementById('viewSession')!.hidden = true;
+  document.getElementById('viewProgram')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
   const v = document.getElementById('viewLift')!;
   v.hidden = false;
   const title = document.getElementById('liftTitle')!;
@@ -615,10 +1036,29 @@ function showLift(ex: string) {
   while (tbl.rows.length > 1) tbl.deleteRow(1);
   title.textContent = ex;
   document.title = ex;
+  const musBox = document.getElementById('liftMuscles')!;
+  musBox.innerHTML = '';
+  const trained = musclesOf(SNAP, ex);
+  if (trained.length) {
+    musBox.hidden = false;
+    trained.forEach((m, i) => {
+      if (i > 0) musBox.appendChild(document.createTextNode(', '));
+      const al = document.createElement('a');
+      al.href = '#/m/' + encodeURIComponent(m);
+      const b = document.createElement('b');
+      b.textContent = m;
+      al.appendChild(b);
+      musBox.appendChild(al);
+    });
+  } else {
+    musBox.hidden = true;
+  }
   const sets = D!.S.filter(s => s.exercise === ex);
   if (!sets.length) {
     sub.textContent = 'never logged';
+    musBox.hidden = true;
     LIFTDATA = null;
+    LIFTGOAL = null;
     liftChart(document.getElementById('chLift') as HTMLCanvasElement, [], ex, -1);
     window.scrollTo(0, 0);
     return;
@@ -643,10 +1083,73 @@ function showLift(ex: string) {
       };
     });
   const best = pts.slice().sort((a, b) => b.ev - a.ev)[0];
+  const prog = (SNAP.progression || {})[ex.toLowerCase()];
+  const progNext = prog ? parseNextTarget(prog.next) : null;
   sub.textContent =
-    'best ' + best.w + ' x ' + best.r + ' (e1RM ' + best.ev.toFixed(1) + ') on ' + fmtD(best.date);
-  LIFTDATA = { pts, ex };
-  liftChart(document.getElementById('chLift') as HTMLCanvasElement, pts, ex);
+    'best ' +
+    best.w +
+    ' x ' +
+    best.r +
+    ' (e1RM ' +
+    best.ev.toFixed(1) +
+    ') on ' +
+    fmtD(best.date) +
+    (prog ? ' | progression ' + prog.verdict + ', next ' + prog.next + ' ' + prog.direction : '');
+  LIFTDATA = { pts, ex, fut: progNext ? progNext.ev : null };
+  liftChart(
+    document.getElementById('chLift') as HTMLCanvasElement,
+    pts,
+    ex,
+    -1,
+    progNext ? progNext.ev : null
+  );
+  const goal = goalByExercise(SNAP, ex);
+  const goalCard = document.getElementById('liftGoalCard')!;
+  if (goal && goal.checkpoints && goal.checkpoints.length) {
+    goalCard.hidden = false;
+    const acts = (goal.actuals || []).map((a: any) => ({ date: a.date, ev: a.e1rm }));
+    const tops: Record<string, { w: number; r: number }> = {};
+    acts.forEach((a: { date: string }) => {
+      const top = topSetOn(D!.S, wdate, ex, a.date);
+      if (top) tops[a.date] = top;
+    });
+    LIFTGOAL = { actuals: acts, checkpoints: goal.checkpoints || [], tops };
+    goalChart(
+      document.getElementById('chGoal') as HTMLCanvasElement,
+      acts,
+      goal.checkpoints || [],
+      LC[0]
+    );
+    const cap = document.getElementById('liftGoalCap')!;
+    cap.textContent =
+      'Target e1RM ' +
+      fmtV(goal.target_e1rm) +
+      ' by ' +
+      fmtD(goal.deadline) +
+      (goal.next_checkpoint !== null && goal.next_checkpoint !== undefined
+        ? ', next checkpoint ' + fmtV(goal.next_checkpoint)
+        : ', trajectory complete') +
+      (goal.on_track === false ? ', OFF TRACK' : '') +
+      (goal.slippage ? ', slippage: deadline needs room' : '') +
+      '. Dashed line is the plan, hollow points are future.';
+  } else {
+    goalCard.hidden = true;
+    LIFTGOAL = null;
+  }
+  const setup = notesOf(SNAP, ex);
+  const setupCard = document.getElementById('liftSetupCard')!;
+  if (setup.length) {
+    setupCard.hidden = false;
+    const box = document.getElementById('liftSetup')!;
+    box.innerHTML = '';
+    setup.forEach(n => {
+      const d = document.createElement('div');
+      d.textContent = n;
+      box.appendChild(d);
+    });
+  } else {
+    setupCard.hidden = true;
+  }
   const order = D!.S.slice().sort((a, b) =>
     a.created < b.created ? -1 : a.created > b.created ? 1 : a.id - b.id
   );
@@ -703,7 +1206,7 @@ function drawMinis() {
     if (PR && PR.prIds.has(s.id))
       (prDate[s.exercise] = prDate[s.exercise] || {})[wd[s.workout_id] || ''] = true;
   }
-  const jobs: Array<[HTMLCanvasElement, (number | null)[], string, Record<string, boolean>]> = [];
+  const jobs: Array<[HTMLCanvasElement, (number | null)[], string]> = [];
   shown.forEach(i => {
     const t = TREND.top[i];
     const vals = TREND.series[i];
@@ -715,6 +1218,23 @@ function drawMinis() {
     al.href = '#/l/' + encodeURIComponent(t);
     al.textContent = t;
     h.appendChild(al);
+    const evs = vals.filter(v => v !== null) as number[];
+    const pts = evs.map(ev => ({ ev }));
+    const marks: Array<[string, string]> = [];
+    if (stallSessions(pts) >= 3) marks.push(['stalling', 'bad']);
+    else if (deloadWatch(pts)) marks.push(['slipping', 'bad']);
+    if (goalByExercise(SNAP, t)) marks.push(['goal', 'plan']);
+    if (marks.length) {
+      const wrap2 = document.createElement('span');
+      wrap2.className = 'ministat';
+      marks.forEach(m => {
+        const s = document.createElement('span');
+        s.className = 'minisub ' + m[1];
+        s.textContent = m[0];
+        wrap2.appendChild(s);
+      });
+      h.appendChild(wrap2);
+    }
     wrap.appendChild(h);
     const cv = document.createElement('canvas');
     wrap.appendChild(cv);
@@ -725,8 +1245,12 @@ function drawMinis() {
     grid.appendChild(wrap);
     const col = LC[i % LC.length],
       prs = prDate[t] || {};
-    jobs.push([cv, vals, col, prs]);
+    jobs.push([cv, vals, col]);
     cv.addEventListener('mousemove', ev => {
+      if (!vis(cv)) {
+        hideTip();
+        return;
+      }
       const r = cv.getBoundingClientRect();
       const n = vals.length;
       const pxi = (k: number) => 30 + (r.width - 30 - 6) * (n <= 1 ? 1 : k / (n - 1));
@@ -742,26 +1266,28 @@ function drawMinis() {
       }
       if (bi < 0 || bd > 30) {
         hideTip();
-        mini(cv, TREND.days, vals, col, prs);
+        mini(cv, TREND.days, vals, col);
         return;
       }
-      mini(cv, TREND.days, vals, col, prs, bi);
+      mini(cv, TREND.days, vals, col, bi);
+      const m = TREND.meta[i] && TREND.meta[i][bi];
+      const detail = m ? ' (' + m.w + ' x ' + m.r + ')' : '';
       showTip(
         TREND.days[bi],
-        [[col, fmtV(vals[bi]!) + (prs[TREND.days[bi]] ? ' PR' : '')]],
+        [[col, fmtV(vals[bi]!) + detail + (prs[TREND.days[bi]] ? ' PR' : '')]],
         ev.clientX,
         ev.clientY
       );
     });
     cv.addEventListener('mouseleave', () => {
       hideTip();
-      mini(cv, TREND.days, vals, col, prs);
+      if (vis(cv)) mini(cv, TREND.days, vals, col);
     });
   });
   // Never paint while hidden: display:none reports zero size and fit() would
   // bake a 50px bitmap that CSS then stretches into smears. Canvases stay
   // blank until returning to the dash repaints them, see route().
-  if (grid.clientWidth > 0) jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2], j[3]));
+  if (grid.clientWidth > 0) jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2]));
 }
 function drawTrendChips() {
   const lt = document.getElementById('legTrend')!;
@@ -782,6 +1308,29 @@ function drawTrendChips() {
   };
   mkBtn('All', false);
   mkBtn('None', true);
+  const mkFilter = (label: string, keep: (t: string, i: number) => boolean) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      HADHIDDEN = true;
+      HIDDEN.clear();
+      TREND.top.forEach(t => {
+        if (!keep(t, TREND.top.indexOf(t))) HIDDEN.add(t);
+      });
+      saveHidden();
+      refreshTrend();
+    });
+    lt.appendChild(b);
+  };
+  const trendPts = (i: number) =>
+    (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+  mkFilter('Goals', t => goalByExercise(SNAP, t) !== null);
+  mkFilter('Stalling', (t, i) => {
+    const pts = trendPts(i);
+    return stallSessions(pts) >= 3 || deloadWatch(pts);
+  });
   TREND.top.forEach((t, i) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -801,6 +1350,373 @@ function drawTrendChips() {
     });
     lt.appendChild(b);
   });
+}
+
+function renderNow(snap: any, W: any[], S: any[]) {
+  const lines = document.getElementById('nowLines')!;
+  lines.innerHTML = '';
+  const esc = (s: string) =>
+    (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const line = (html: string) => {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    lines.appendChild(d);
+  };
+  const todayS = new Date().toISOString().slice(0, 10);
+  const todayRows = W.filter(w => w.date === todayS);
+  if (todayRows.some(w => w.status === 'open')) line('<b>Workout open today.</b>');
+  else if (todayRows.some(w => w.status === 'rest')) line('Rest day today.');
+  const doneDates = W.filter(w => w.status === 'done' && S.some(s => s.workout_id === w.id))
+    .map(w => w.date)
+    .sort();
+  if (doneDates.length) {
+    const gap = Math.round(
+      (new Date(todayS + 'T12:00:00').getTime() -
+        new Date(doneDates[doneDates.length - 1] + 'T12:00:00').getTime()) /
+        86400000
+    );
+    if (gap >= 5) line('<b>Break:</b> ' + gap + 'd since last session, no PR attempts.');
+  }
+  const deload = snap.deload || [];
+  deload.forEach((d: any) => line('<b>Deloading</b> ' + esc(d.subject) + '.'));
+  const prio = snap.priority || {};
+  Object.keys(prio).forEach(m => {
+    const t = prio[m];
+    const tier = typeof t === 'string' ? t : t.tier;
+    if (tier && tier !== 'maintain') line('<b>Focus:</b> ' + esc(m) + '.');
+  });
+  const flags = snap.flags || [];
+  flags
+    .slice(0, 3)
+    .forEach((f: any) => line('<b>Watch:</b> ' + esc(f.subject) + ', ' + esc(f.reason || '')));
+  if (flags.length > 3) line('+' + (flags.length - 3) + ' more flags in chat.');
+}
+
+function musclesOf(snap: any, exercise: string): string[] {
+  const rows = snap.mapping || [];
+  const hit = rows.filter((r: any) => (r.exercise || '').toLowerCase() === exercise.toLowerCase());
+  if (!hit.length) return [];
+  return (hit[0].muscles || '')
+    .split(',')
+    .map((x: string) => x.trim())
+    .filter((x: string) => x);
+}
+
+function notesOf(snap: any, exercise: string): string[] {
+  const rows = snap.movement_notes || [];
+  return rows
+    .filter((r: any) => (r.exercise || '').toLowerCase() === exercise.toLowerCase())
+    .map((r: any) => r.note)
+    .filter((n: string) => n);
+}
+
+function prioMuscles(snap: any): Set<string> {
+  const prio = snap.priority || {};
+  return new Set(
+    Object.keys(prio)
+      .filter(m => {
+        const t = prio[m];
+        const tier = typeof t === 'string' ? t : t.tier;
+        return tier === 'priority';
+      })
+      .map(m => m.toLowerCase())
+  );
+}
+
+function goalByExercise(snap: any, exercise: string): any {
+  const goals = snap.goals || [];
+  const hit = goals.filter((g: any) => (g.exercise || '').toLowerCase() === exercise.toLowerCase());
+  return hit.length ? hit[0] : null;
+}
+
+function orderedSplitDays(snap: any): {
+  rows: Array<{ day: string; slot: number; movements: string; sets: number }>;
+  ordered: string[];
+  rot: string[];
+} {
+  const rows: Array<{ day: string; slot: number; movements: string; sets: number }> =
+    snap.split_active || [];
+  const rot: string[] = snap.rotation || [];
+  const byDay: Record<string, typeof rows> = {};
+  rows.forEach(r => {
+    (byDay[r.day] = byDay[r.day] || []).push(r);
+  });
+  const ordered = Object.keys(byDay).sort((a, b) => {
+    const ia = rot.indexOf(a);
+    const ib = rot.indexOf(b);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    return a < b ? -1 : 1;
+  });
+  return { rows, ordered, rot };
+}
+
+function renderProgramSummary(snap: any) {
+  const { rows, ordered, rot } = orderedSplitDays(snap);
+  const rotLine = document.getElementById('rotLine')!;
+  rotLine.textContent = '';
+  if (!rows.length) {
+    rotLine.textContent = 'No program synced yet, split show in chat is the source.';
+    return;
+  }
+  const seq = rot.length ? rot : ordered;
+  rotLine.appendChild(document.createTextNode('Rotating ' + seq.join(' / ') + '. '));
+  const link = document.createElement('a');
+  link.href = '#/program';
+  link.id = 'progLink';
+  link.textContent = 'Full split';
+  rotLine.appendChild(link);
+  rotLine.appendChild(document.createTextNode('.'));
+}
+
+function renderProgramPage(snap: any) {
+  const sub = document.getElementById('progSub')!;
+  const grid = document.getElementById('progGrid')!;
+  grid.innerHTML = '';
+  const { rows, ordered, rot } = orderedSplitDays(snap);
+  sub.textContent = rot.length ? 'Active split, rotation: ' + rot.join(' / ') : 'Active split.';
+  if (!rows.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'no program synced yet, split show in chat is the source';
+    grid.appendChild(e);
+    return;
+  }
+  const byDay: Record<string, typeof rows> = {};
+  rows.forEach(r => {
+    (byDay[r.day] = byDay[r.day] || []).push(r);
+  });
+  const panels = document.createElement('div');
+  panels.className = 'daypanels';
+  ordered.forEach(day => {
+    const panel = document.createElement('div');
+    panel.className = 'daypanel';
+    const h = document.createElement('h2');
+    h.textContent = day;
+    panel.appendChild(h);
+    const slots = byDay[day].slice().sort((a, b) => a.slot - b.slot);
+    const seen: string[] = [];
+    slots.forEach(r => {
+      (r.movements || '')
+        .split('/')
+        .map((m: string) => m.trim())
+        .forEach((m: string) => {
+          musclesOf(snap, m).forEach(mu => {
+            if (seen.indexOf(mu) < 0) seen.push(mu);
+          });
+        });
+    });
+    const mus = document.createElement('div');
+    mus.className = 'daymuscles';
+    mus.textContent = seen.join(' · ');
+    panel.appendChild(mus);
+    const tbl = document.createElement('table');
+    const thead = document.createElement('thead');
+    const head = document.createElement('tr');
+    ['', 'movement', 'sets', 'muscles'].forEach(t => {
+      const th = document.createElement('th');
+      th.setAttribute('scope', 'col');
+      th.textContent = t;
+      head.appendChild(th);
+    });
+    thead.appendChild(head);
+    tbl.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    tbl.appendChild(tbody);
+    slots.forEach(r => {
+      const tr = document.createElement('tr');
+      const num = document.createElement('td');
+      num.textContent = String(r.slot);
+      tr.appendChild(num);
+      const mv = document.createElement('td');
+      const moves = (r.movements || '').split('/').map((m: string) => m.trim());
+      moves.forEach((m: string, mi: number) => {
+        if (mi > 0) mv.appendChild(document.createTextNode(' / '));
+        const al = document.createElement('a');
+        al.href = '#/l/' + encodeURIComponent(m);
+        al.textContent = m;
+        mv.appendChild(al);
+      });
+      tr.appendChild(mv);
+      const st = document.createElement('td');
+      st.textContent = String(r.sets);
+      tr.appendChild(st);
+      const mu = document.createElement('td');
+      const uniq = Array.from(new Set(moves.flatMap((m: string) => musclesOf(snap, m))));
+      const focus = prioMuscles(snap);
+      uniq.forEach((m, mi) => {
+        if (mi > 0) mu.appendChild(document.createTextNode(', '));
+        if (focus.has(m.toLowerCase())) {
+          const b = document.createElement('b');
+          b.textContent = m;
+          mu.appendChild(b);
+        } else {
+          mu.appendChild(document.createTextNode(m));
+        }
+      });
+      tr.appendChild(mu);
+      tbody.appendChild(tr);
+    });
+    panel.appendChild(tbl);
+    panels.appendChild(panel);
+  });
+  grid.appendChild(panels);
+}
+
+function topSetOn(
+  S: any[],
+  wdate: Record<number, string>,
+  ex: string,
+  date: string
+): { w: number; r: number } | null {
+  const day = S.filter(
+    s => s.exercise === ex && (wdate[s.workout_id] || (s.created || '').slice(0, 10)) === date
+  );
+  if (!day.length) return null;
+  const best = day.slice().sort((a, b) => e1rm(b.weight, b.reps) - e1rm(a.weight, a.reps))[0];
+  return { w: best.weight, r: best.reps };
+}
+
+function attachGoalHover(
+  cv: HTMLCanvasElement,
+  acts: Array<{ date: string; ev: number }>,
+  cps: number[],
+  col: string,
+  tops: Record<string, { w: number; r: number }>
+) {
+  cv.addEventListener('mousemove', ev => {
+    if (!vis(cv)) {
+      hideTip();
+      return;
+    }
+    const r = cv.getBoundingClientRect();
+    const bi = goalHit(cv, acts, cps, ev.clientX - r.left);
+    if (bi < 0) {
+      hideTip();
+      goalChart(cv, acts, cps, col);
+      return;
+    }
+    goalChart(cv, acts, cps, col, bi);
+    if (bi < acts.length) {
+      const a = acts[bi];
+      const top = tops[a.date];
+      const logged = top
+        ? 'logged ' + top.w + ' x ' + top.r + ' (e1RM ' + fmtV(a.ev) + ')'
+        : 'e1RM ' + fmtV(a.ev);
+      showTip(
+        fmtD(a.date),
+        [
+          [col, logged],
+          [null, 'plan ' + fmtV(cps[bi])],
+        ],
+        ev.clientX,
+        ev.clientY
+      );
+    } else {
+      showTip(
+        'session ' + (bi + 1) + ' (plan)',
+        [[col, 'target e1RM ' + fmtV(cps[bi])]],
+        ev.clientX,
+        ev.clientY
+      );
+    }
+  });
+  cv.addEventListener('mouseleave', () => {
+    hideTip();
+    if (vis(cv)) goalChart(cv, acts, cps, col);
+  });
+}
+
+function renderForward(snap: any, W: any[], S: any[]) {
+  const grid = document.getElementById('goalGrid')!;
+  grid.innerHTML = '';
+  const goals: any[] = snap.goals || [];
+  const empty = document.getElementById('goalEmpty')!;
+  empty.hidden = goals.length > 0;
+  // Paint after every card is appended: a canvas painted while its grid
+  // column is still settling keeps a stretched bitmap (ovals, not circles).
+  const jobs: Array<() => void> = [];
+  const wdate: Record<number, string> = {};
+  for (const w of W) wdate[w.id] = w.date;
+  goals.forEach((g, i) => {
+    const card = document.createElement('div');
+    card.className = 'goalcard card future';
+    card.style.margin = '0';
+    const h = document.createElement('h3');
+    const al = document.createElement('a');
+    al.href = '#/l/' + encodeURIComponent(g.exercise);
+    al.textContent = g.exercise;
+    h.appendChild(al);
+    card.appendChild(h);
+    const cv = document.createElement('canvas');
+    card.appendChild(cv);
+    const meta = document.createElement('div');
+    meta.className = 'goalmeta';
+    const bits = [
+      'target e1RM ' + fmtV(g.target_e1rm) + ' by ' + fmtD(g.deadline),
+      g.next_checkpoint !== null && g.next_checkpoint !== undefined
+        ? 'next checkpoint ' + fmtV(g.next_checkpoint)
+        : 'trajectory complete',
+    ];
+    if (g.on_track === false) bits.push('OFF TRACK');
+    if (g.slippage) bits.push('slippage: deadline needs room');
+    meta.textContent = bits.join(' | ');
+    card.appendChild(meta);
+    grid.appendChild(card);
+    const acts = (g.actuals || []).map((a: any) => ({ date: a.date, ev: a.e1rm }));
+    const cps = g.checkpoints || [];
+    const col = LC[i % LC.length];
+    jobs.push(() => goalChart(cv, acts, cps, col));
+    const tops: Record<string, { w: number; r: number }> = {};
+    acts.forEach((a: { date: string }) => {
+      const top = topSetOn(S, wdate, g.exercise, a.date);
+      if (top) tops[a.date] = top;
+    });
+    attachGoalHover(cv, acts, cps, col, tops);
+  });
+  jobs.forEach(run => run());
+  const tbl = document.getElementById('progTable') as HTMLTableElement;
+  while (tbl.rows.length > 1) tbl.deleteRow(1);
+  const prog = snap.progression || {};
+  Object.keys(prog)
+    .sort()
+    .forEach(ex => {
+      const p = prog[ex];
+      const tr = document.createElement('tr');
+      const a = document.createElement('td');
+      const al = document.createElement('a');
+      al.href = '#/l/' + encodeURIComponent(ex);
+      al.textContent = ex;
+      a.appendChild(al);
+      const b2 = document.createElement('td');
+      b2.textContent = p.verdict;
+      b2.style.color =
+        p.verdict === 'hit' ? '#7fd67f' : p.verdict === 'miss' ? '#f09090' : '#b0aca2';
+      b2.style.fontWeight = '600';
+      const c2 = document.createElement('td');
+      c2.textContent = p.next;
+      const d2 = document.createElement('td');
+      const arrow = p.direction === 'up' ? '↗' : p.direction === 'down' ? '↘' : '→';
+      d2.textContent = arrow;
+      d2.title = p.direction;
+      d2.style.color =
+        p.direction === 'up' ? '#7fd67f' : p.direction === 'down' ? '#f09090' : '#8a8478';
+      d2.style.fontWeight = '600';
+      tr.appendChild(a);
+      tr.appendChild(b2);
+      tr.appendChild(c2);
+      tr.appendChild(d2);
+      tbl.appendChild(tr);
+    });
+  if (!Object.keys(prog).length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.setAttribute('colspan', '4');
+    td.textContent = 'no progression written yet, set at session end in chat';
+    tr.appendChild(td);
+    tbl.appendChild(tr);
+  }
 }
 
 window.addEventListener('hashchange', route);

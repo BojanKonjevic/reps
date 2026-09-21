@@ -1,5 +1,5 @@
-import { fit, putText, TC, GC, trophy, drawYAxis } from './charts';
-import { fmtV, fmtD, fmtTick } from './utils';
+import { fit, putText, TC, GC, drawYAxis } from './charts';
+import { fmtV, fmtD } from './utils';
 import { niceTicks } from './utils';
 
 export function mini(
@@ -7,7 +7,6 @@ export function mini(
   days: string[],
   vals: (number | null)[],
   col: string,
-  prs: Record<string, boolean>,
   hover?: number
 ) {
   const { g, W, H } = fit(cv);
@@ -54,9 +53,6 @@ export function mini(
     g.arc(px(pi), py(vals[pi]!), 2.5, 0, 7);
     g.fill();
   });
-  pts.forEach(pi => {
-    if (prs[days[pi]]) trophy(g, px(pi), py(vals[pi]!) - 9, 5, '#e6c400');
-  });
   const li = pts[pts.length - 1];
   g.fillStyle = col;
   if (li > n / 2) putText(g, W, fmtV(vals[li]!), px(li) - 8, py(vals[li]!) - 10, 'right');
@@ -78,7 +74,7 @@ export function mini(
   }
   g.fillStyle = TC;
   if (days.length > 1) {
-    putText(g, W, fmtD(days[0]), P, H - 1, 'left');
-    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 1, 'right');
+    putText(g, W, fmtD(days[0]), P, H - 5, 'left');
+    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 5, 'right');
   }
 }

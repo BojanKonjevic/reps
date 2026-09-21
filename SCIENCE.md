@@ -10,7 +10,7 @@ Numbers live in `constants.json` (single source of truth, edited via `log.py con
 
 Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
 
-Rear delt: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.
+Rear delts: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.
 
 Adductors: no trusted direct-volume landmarks, literature too thin for numbers. Adductor magnus grows from squat-pattern work (Plotkin et al. 2023 RCT: adductor mCSA up ~2.5 cm² after 9 weeks of back squat; Kubo et al. 2019, MRI volume gains), with wider stance increasing adductor recruitment (McCaw & Melrose; Hopkins 2024). Current plan uses ~4 direct machine sets/week across 2 exposures on top of leg press and hack squat indirect work (Opinion).
 

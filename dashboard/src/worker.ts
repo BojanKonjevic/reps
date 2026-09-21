@@ -10,6 +10,17 @@ const BLANK = {
   workouts: [],
   sets: [],
   bodyweight: [],
+  split_active: [],
+  rotation: [],
+  constants: null,
+  progression: {},
+  goals: [],
+  priority: {},
+  deload: [],
+  rules: [],
+  flags: [],
+  mapping: [],
+  movement_notes: [],
 };
 
 // Optimistic concurrency: the snapshot ETag is the quoted `exported`

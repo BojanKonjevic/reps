@@ -5,14 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>reps dashboard</title>
     <style>
-@font-face{font-family:'IBM Plex Serif';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/plex-serif-500.woff2') format('woff2');}
-@font-face{font-family:'IBM Plex Serif';font-style:normal;font-weight:600;font-display:swap;src:url('/fonts/plex-serif-600.woff2') format('woff2');}
-@font-face{font-family:'IBM Plex Serif';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/plex-serif-700.woff2') format('woff2');}
-@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/plex-sans-400.woff2') format('woff2');}
-@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/plex-sans-400.woff2') format('woff2');}
-@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:600;font-display:swap;src:url('/fonts/plex-sans-400.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/jetbrains-mono-400.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/jetbrains-mono-400.woff2') format('woff2');}
+      @font-face {
+        font-family: 'IBM Plex Serif';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/plex-serif-500.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Serif';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/plex-serif-600.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Serif';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/plex-serif-700.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/plex-sans-400.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Sans';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/plex-sans-400.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'IBM Plex Sans';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/plex-sans-400.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/jetbrains-mono-400.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/jetbrains-mono-400.woff2') format('woff2');
+      }
     </style>
     <style>
       * {
@@ -41,15 +89,6 @@
           grid-template-columns: 1fr;
         }
       }
-      .kick {
-        font-family: 'IBM Plex Sans', sans-serif;
-        font-size: 0.8rem;
-        font-weight: 600;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: #75603a;
-        margin-bottom: 8px;
-      }
       h1 {
         font-size: 2.6rem;
         letter-spacing: -0.02em;
@@ -59,6 +98,15 @@
         font-family: 'IBM Plex Sans', sans-serif;
         color: #b0aca2;
         margin-bottom: 26px;
+      }
+      .muscles {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: -18px 0 26px;
+      }
+      .muscles a {
+        color: inherit;
       }
       h2 {
         font-size: 1.35rem;
@@ -84,6 +132,12 @@
         margin-top: 10px;
         font-family: 'IBM Plex Sans', sans-serif;
         font-size: 0.85rem;
+      }
+      #legMus a {
+        color: inherit;
+      }
+      #legMus a.focus {
+        font-weight: 700;
       }
       #legTrend {
         max-height: 132px;
@@ -167,6 +221,9 @@
       .notes li {
         margin-bottom: 4px;
         margin-left: 20px;
+      }
+      .notes li a {
+        color: inherit;
       }
       .calcard {
         min-width: 0;
@@ -300,6 +357,9 @@
         border-radius: 10px;
         color: #f0ede6;
       }
+      .iconbtn:visited {
+        color: #f0ede6;
+      }
       .iconbtn:hover {
         background: rgba(127, 122, 110, 0.16);
         text-decoration: none;
@@ -431,13 +491,169 @@
         display: inline-block;
         flex: none;
       }
+      .toprow {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      .toprow .nowlines {
+        text-align: right;
+        padding-top: 52px;
+        flex: none;
+      }
+      @media (max-width: 900px) {
+        .toprow {
+          flex-direction: column;
+          gap: 4px;
+        }
+        .toprow .nowlines {
+          text-align: left;
+          padding-top: 0;
+        }
+      }
+      .nowlines {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.88rem;
+        color: #b0aca2;
+        margin-top: 4px;
+      }
+      .nowlines div {
+        margin-top: 2px;
+      }
+      .nowlines b {
+        color: #f0ede6;
+        font-weight: 600;
+      }
+      .future {
+        border-style: dashed !important;
+      }
+      .futurebg {
+        background-image: repeating-linear-gradient(
+          -45deg,
+          rgba(230, 196, 0, 0.05) 0 8px,
+          transparent 8px 16px
+        );
+      }
+      .exsub,
+      .minisub {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 400;
+        color: #8a8478;
+        margin-left: 8px;
+      }
+      .ministat {
+        margin-left: auto;
+        display: inline-flex;
+        gap: 8px;
+        flex: none;
+      }
+      .minisub {
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+      .minisub.bad {
+        color: #f09090;
+      }
+      .minisub.plan {
+        color: #e6c400;
+      }
+      #viewProgram a {
+        color: inherit;
+      }
+      .daypanels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 4px 40px;
+      }
+      .daypanel h2 {
+        margin: 22px 0 2px;
+      }
+      .daypanel .daymuscles {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.82rem;
+        color: #8a8478;
+        margin-bottom: 6px;
+      }
+      .daypanel table {
+        font-size: 0.88rem;
+      }
+      .daypanel td:first-child,
+      .daypanel th:first-child {
+        color: #8a8478;
+        width: 2.2em;
+      }
+      .daypanel td:nth-child(3),
+      .daypanel th:nth-child(3) {
+        text-align: right;
+        width: 3em;
+      }
+      .daypanel td:nth-child(4),
+      .daypanel th:nth-child(4) {
+        color: #8a8478;
+        text-align: right;
+      }
+      .goalgrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .goalcard canvas {
+        height: 150px;
+      }
+      .goalmeta {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.85rem;
+        color: #b0aca2;
+        margin-top: 6px;
+      }
+      .piewrap {
+        display: flex;
+        gap: 28px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      #chMusPie {
+        width: 240px;
+        height: 240px;
+        flex: none;
+      }
+      .pielegend {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.88rem;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 200px;
+        flex: 1;
+      }
+      .pielegend .row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .pielegend .meta {
+        color: #8a8478;
+        font-size: 0.8rem;
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      .cal .cd.brk {
+        box-shadow: inset 0 0 0 2px #8a2c2c;
+      }
     </style>
   </head>
   <body>
     <div class="wrap" id="viewDash">
-      <div class="kick">reps</div>
-      <h1>Training dashboard</h1>
-      <div class="sub" id="sub">loading</div>
+      <div class="toprow">
+        <div>
+          <h1>Training dashboard</h1>
+          <div class="sub" id="sub">loading</div>
+        </div>
+        <div class="nowlines" id="nowLines"></div>
+      </div>
       <div>
         <h2>Estimated 1RM trend</h2>
         <div class="card">
@@ -459,7 +675,9 @@
           <h2>Bodyweight</h2>
           <div class="card">
             <canvas id="chBw" width="860" height="250"></canvas>
-            <div class="cap">Gym scale weigh ins, as logged in chat.</div>
+            <div class="cap">
+              Gym scale weigh ins, as logged in chat. Dashed spans are gaps, not measurements.
+            </div>
           </div>
         </div>
         <div>
@@ -498,6 +716,30 @@
           </div>
         </div>
       </div>
+      <h2>Program</h2>
+      <div class="cap" id="rotLine">Active split.</div>
+      <h2>Forward</h2>
+      <div class="card future futurebg">
+        <div class="goalgrid" id="goalGrid"></div>
+        <div class="empty" id="goalEmpty" hidden>
+          no active goals, trajectories appear here once set in chat
+        </div>
+        <h2>Progression</h2>
+        <table id="progTable">
+          <thead>
+            <tr>
+              <th>lift</th>
+              <th>verdict</th>
+              <th>next target</th>
+              <th>dir</th>
+            </tr>
+          </thead>
+        </table>
+        <div class="cap">
+          Dashed cards are future: checkpoints, next targets, hollow points. Solid lines are logged
+          sets.
+        </div>
+      </div>
       <h2>Best sets</h2>
       <div class="card">
         <table id="prs">
@@ -513,10 +755,10 @@
     </div>
     <div class="wrap" id="viewSession" hidden>
       <div class="sesstop">
-        <a class="iconbtn" href="#/" aria-label="back to dashboard"
+        <a class="iconbtn" href="#/" aria-label="dashboard"
           ><svg viewBox="0 0 16 16" width="22" height="22">
             <path
-              d="M14 8H3M7 4L3 8l4 4"
+              d="M2.5 8 8 2.5 13.5 8M4.5 6.5v7h7v-7M7 13.5v-3h2v3"
               fill="none"
               stroke="currentColor"
               stroke-width="1.8"
@@ -552,10 +794,10 @@
     </div>
     <div class="wrap" id="viewLift" hidden>
       <div class="sesstop">
-        <a class="iconbtn" href="#/" aria-label="back to dashboard"
+        <a class="iconbtn" href="#/" aria-label="dashboard"
           ><svg viewBox="0 0 16 16" width="22" height="22">
             <path
-              d="M14 8H3M7 4L3 8l4 4"
+              d="M2.5 8 8 2.5 13.5 8M4.5 6.5v7h7v-7M7 13.5v-3h2v3"
               fill="none"
               stroke="currentColor"
               stroke-width="1.8"
@@ -566,12 +808,24 @@
       </div>
       <h1 id="liftTitle">Lift</h1>
       <div class="sub" id="liftSub"></div>
+      <div class="muscles" id="liftMuscles" hidden></div>
       <div class="card">
         <canvas id="chLift" width="860" height="260"></canvas>
         <div class="cap">
-          Top set weight per session. Trophies mark sessions with an e1RM PR. Tap a point to open
-          the session.
+          Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow
+          diamond marks the progression next target.
         </div>
+      </div>
+      <div class="card future futurebg" id="liftGoalCard" hidden>
+        <h2>Trajectory</h2>
+        <canvas id="chGoal" width="860" height="200"></canvas>
+        <div class="cap" id="liftGoalCap">
+          Dashed line is the planned trajectory, hollow points are future checkpoints.
+        </div>
+      </div>
+      <div class="card" id="liftSetupCard" hidden>
+        <div class="cap">Setup</div>
+        <div class="notes" id="liftSetup"></div>
       </div>
       <h2>PR history</h2>
       <div class="card">
@@ -584,6 +838,54 @@
             </tr>
           </thead>
         </table>
+      </div>
+    </div>
+    <div class="wrap" id="viewProgram" hidden>
+      <div class="sesstop">
+        <a class="iconbtn" href="#/" aria-label="dashboard"
+          ><svg viewBox="0 0 16 16" width="22" height="22">
+            <path
+              d="M2.5 8 8 2.5 13.5 8M4.5 6.5v7h7v-7M7 13.5v-3h2v3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            /></svg
+        ></a>
+      </div>
+      <h1>Program</h1>
+      <div class="sub" id="progSub">Active split.</div>
+      <div id="progGrid"></div>
+    </div>
+    <div class="wrap" id="viewMuscle" hidden>
+      <div class="sesstop">
+        <a class="iconbtn" href="#/" aria-label="dashboard"
+          ><svg viewBox="0 0 16 16" width="22" height="22">
+            <path
+              d="M2.5 8 8 2.5 13.5 8M4.5 6.5v7h7v-7M7 13.5v-3h2v3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            /></svg
+        ></a>
+      </div>
+      <h1 id="musTitle">Muscle</h1>
+      <div class="sub" id="musSub"></div>
+      <div class="card">
+        <canvas id="chMusVol" width="860" height="250"></canvas>
+        <div class="cap" id="musCap">
+          Weekly sets. Gold line is MEV, shaded zone is MAV, red line is MRV.
+        </div>
+      </div>
+      <h2>Where the volume comes from</h2>
+      <div class="card">
+        <div class="piewrap">
+          <canvas id="chMusPie" width="240" height="240"></canvas>
+          <div class="pielegend" id="musLegend"></div>
+        </div>
       </div>
     </div>
     <script type="module" src="./src/index.ts"></script>

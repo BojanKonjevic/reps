@@ -33,12 +33,30 @@ export function bwline(
   g.strokeStyle = LC[0];
   g.lineWidth = 3;
   g.lineJoin = 'round';
+  const gapDays = (a: string, b: string) =>
+    Math.round(
+      (new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000
+    );
+  const isGap = (i: number) => i > 0 && gapDays(rows[i - 1].date, rows[i].date) > 14;
   g.beginPath();
   rows.forEach((r, i) => {
-    if (i === 0) g.moveTo(px(i), py(r.kg));
+    if (i === 0 || isGap(i)) g.moveTo(px(i), py(r.kg));
     else g.lineTo(px(i), py(r.kg));
   });
   g.stroke();
+  g.save();
+  g.setLineDash([6, 5]);
+  g.globalAlpha = 0.7;
+  g.beginPath();
+  rows.forEach((r, i) => {
+    if (i === 0) return;
+    if (isGap(i)) {
+      g.moveTo(px(i - 1), py(rows[i - 1].kg));
+      g.lineTo(px(i), py(r.kg));
+    }
+  });
+  g.stroke();
+  g.restore();
   g.fillStyle = LC[0];
   g.textAlign = 'center';
   rows.forEach((r, i) => {

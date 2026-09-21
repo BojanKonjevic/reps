@@ -41,17 +41,17 @@ CREATE TABLE lift_muscle_map (
 );
 INSERT INTO "lift_muscle_map" VALUES('back squat','quads,glutes',0);
 INSERT INTO "lift_muscle_map" VALUES('dips','triceps',0);
-INSERT INTO "lift_muscle_map" VALUES('flat barbell bench press','chest,front delt',0);
-INSERT INTO "lift_muscle_map" VALUES('incline barbell bench press','chest,front delt',0);
+INSERT INTO "lift_muscle_map" VALUES('flat barbell bench press','chest,front delts',0);
+INSERT INTO "lift_muscle_map" VALUES('incline barbell bench press','chest,front delts',0);
 INSERT INTO "lift_muscle_map" VALUES('reverse-grip smith incline press','chest',0);
 INSERT INTO "lift_muscle_map" VALUES('hammer strength press','chest',0);
 INSERT INTO "lift_muscle_map" VALUES('pec deck','chest',0);
 INSERT INTO "lift_muscle_map" VALUES('hammer strength row','back',0);
 INSERT INTO "lift_muscle_map" VALUES('straight bar pulldown','back',0);
 INSERT INTO "lift_muscle_map" VALUES('cable pullover','back',0);
-INSERT INTO "lift_muscle_map" VALUES('face pull','rear delt',0);
-INSERT INTO "lift_muscle_map" VALUES('cable lat raise','side delt',0);
-INSERT INTO "lift_muscle_map" VALUES('machine lat raise','side delt',0);
+INSERT INTO "lift_muscle_map" VALUES('face pull','rear delts',0);
+INSERT INTO "lift_muscle_map" VALUES('cable lat raise','side delts',0);
+INSERT INTO "lift_muscle_map" VALUES('machine lat raise','side delts',0);
 INSERT INTO "lift_muscle_map" VALUES('hack squat','quads',0);
 INSERT INTO "lift_muscle_map" VALUES('leg press','quads,glutes',0);
 INSERT INTO "lift_muscle_map" VALUES('rdl','hamstrings,glutes',0);
@@ -70,11 +70,11 @@ INSERT INTO "lift_muscle_map" VALUES('unilateral cable pushdown','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('ezbar skullcrusher','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist curl','forearms',0);
 INSERT INTO "lift_muscle_map" VALUES('cable wrist extension','forearms',0);
-INSERT INTO "lift_muscle_map" VALUES('dumbbell lat raise','side delt',0);
+INSERT INTO "lift_muscle_map" VALUES('dumbbell lat raise','side delts',0);
 INSERT INTO "lift_muscle_map" VALUES('smith jm press','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('overhead cable extension','triceps',0);
 INSERT INTO "lift_muscle_map" VALUES('hanging leg raise','abs',1);
-INSERT INTO "lift_muscle_map" VALUES('rear delt cable fly','rear delt',0);
+INSERT INTO "lift_muscle_map" VALUES('rear delt cable fly','rear delts',0);
 INSERT INTO "lift_muscle_map" VALUES('machine preacher curl','biceps',0);
 CREATE TABLE meta (
   key TEXT PRIMARY KEY,

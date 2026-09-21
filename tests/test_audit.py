@@ -357,11 +357,11 @@ def test_cmd_audit_volume_zero(audit_db):
 
 
 def test_cmd_audit_mev_zero_never_flags_zero(audit_db):
-    """check 8: MEV 0 muscles (front delt) never flag volume_zero, zero meets the floor."""
+    """check 8: MEV 0 muscles (front delts) never flag volume_zero, zero meets the floor."""
     log, c = audit_db
     out = _run_cmd_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
-    front_zero = [f for f in flags if f["check"] == "volume_zero" and f["evidence"].startswith("front delt:")]
+    front_zero = [f for f in flags if f["check"] == "volume_zero" and f["evidence"].startswith("front delts:")]
     assert front_zero == []
     # sanity: a nonzero-MEV muscle with no data still flags
     assert _chest_volume_flags(log, "volume_zero") != []
@@ -405,7 +405,7 @@ def test_cmd_audit_volume_never_trained(audit_db):
 
 
 EXPECTED_MEV = {
-    "chest": 8, "back": 10, "front delt": 0, "side delt": 6, "rear delt": 6,
+    "chest": 8, "back": 10, "front delts": 0, "side delts": 6, "rear delts": 6,
     "biceps": 6, "triceps": 6, "quads": 8, "hamstrings": 6, "glutes": 6,
     "adductors": 4, "abs": 6, "forearms": 6,
 }
@@ -414,9 +414,9 @@ JSON_BLOCK = """```json mev-bounds
 {
   "chest": 8,
   "back": 10,
-  "front delt": 0,
-  "side delt": 6,
-  "rear delt": 6,
+  "front delts": 0,
+  "side delts": 6,
+  "rear delts": 6,
   "biceps": 6,
   "triceps": 6,
   "quads": 8,
@@ -507,9 +507,9 @@ def test_rep_band_bound_uses_constants(audit_db):
 def test_priority_set_and_list(audit_db):
     """priority set writes the table, list reads it back."""
     log, _ = audit_db
-    log.cmd_priority_set("side delt", "priority", None)
+    log.cmd_priority_set("side delts", "priority", None)
     assert log.read_priorities(log.conn()) == {
-        "side delt": {"tier": "priority", "since": log.date.today().isoformat(), "until": None}
+        "side delts": {"tier": "priority", "since": log.date.today().isoformat(), "until": None}
     }
 
 

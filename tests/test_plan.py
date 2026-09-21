@@ -35,8 +35,8 @@ def test_plan_empty_db_shape(log_module):
 def test_plan_ledger_and_lifts(log_module):
     log = log_module
     log.cmd_start("test")
-    log.cmd_log("bench", 100, 5, "", "chest,front delt")
-    log.cmd_log("bench", 100, 6, "", "chest,front delt")
+    log.cmd_log("bench", 100, 5, "", "chest,front delts")
+    log.cmd_log("bench", 100, 6, "", "chest,front delts")
     bundle = json.loads(_plan(log))
     assert bundle["ledger"]["chest"]["sets"] == 2
     assert bundle["ledger"]["chest"]["sessions"] == 1

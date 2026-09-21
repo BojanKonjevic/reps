@@ -42,18 +42,18 @@ describe('volume aggregation logic', () => {
     expect(weeks[k].triceps).toBe(1);
   });
 
-  it('counts split delt heads and adductors', () => {
+  it('counts split delts heads and adductors', () => {
     const weeks: Record<string, Record<string, number>> = {};
     const k = '2026 W1';
     weeks[k] = blank();
-    ['chest,front delt', 'side delt', 'rear delt', 'adductors'].forEach(m =>
+    ['chest,front delts', 'side delts', 'rear delts', 'adductors'].forEach(m =>
       m.split(',').forEach(g => {
         if (g in weeks[k]) weeks[k][g] += 1;
       })
     );
-    expect(weeks[k]['front delt']).toBe(1);
-    expect(weeks[k]['side delt']).toBe(1);
-    expect(weeks[k]['rear delt']).toBe(1);
+    expect(weeks[k]['front delts']).toBe(1);
+    expect(weeks[k]['side delts']).toBe(1);
+    expect(weeks[k]['rear delts']).toBe(1);
     expect(weeks[k].adductors).toBe(1);
   });
 });

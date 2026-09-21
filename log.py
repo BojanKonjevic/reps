@@ -158,28 +158,51 @@ def resolve_known_prefix(toks, known, max_words, what):
     return " ".join(toks[:match]), " ".join(toks[match:])
 
 
+def canon_muscle_name(text, vocab):
+    """Canonical muscle name, tolerating a missing plural s (delt -> delts).
+
+    Returns None for unknown names so callers can leave them through for
+    audit/doctor to flag instead of guessing.
+    """
+    t = text.strip().lower()
+    if t in vocab:
+        return t
+    if t + "s" in vocab:
+        return t + "s"
+    return None
+
+
 def _join_muscles(words, vocab):
     """Reassemble muscle words into canonical names (multi-word heads re-joined)."""
     out, i = [], 0
     while i < len(words):
-        pair = " ".join(words[i:i + 2]).lower()
-        if i + 1 < len(words) and pair in vocab:
-            out.append(pair)
+        two = canon_muscle_name(" ".join(words[i:i + 2]), vocab) if i + 1 < len(words) else None
+        if two is not None:
+            out.append(two)
             i += 2
-        else:
-            out.append(words[i].lower())
-            i += 1
+            continue
+        one = canon_muscle_name(words[i], vocab)
+        out.append(one if one is not None else words[i].lower())
+        i += 1
     return out
 
 
 def clean_muscles(value):
     seen = set()
     out = []
+    try:
+        vocab = set(load_constants()["muscles"]) | set(load_constants().get("untracked", []))
+    except SystemExit:
+        vocab = set()
     for p in value.split(","):
         m = p.strip().lower()
-        if m and m not in seen:
-            seen.add(m)
-            out.append(m)
+        if not m:
+            continue
+        c = canon_muscle_name(m, vocab) or m
+        if c in seen:
+            continue
+        seen.add(c)
+        out.append(c)
     return ",".join(out)
 
 
@@ -516,12 +539,77 @@ def cmd_stats():
     print(json.dumps(out, indent=2))
 
 
-def cmd_export():
-    c = conn()
+def build_snapshot(c=None):
+    """Full dashboard payload. Worker ignores unknown fields, so the CLI can
+    extend this without breaking the page. Missing tables never fail: a fresh
+    DB exports history plus empty forward sections."""
+    c = c or conn()
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
     sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
-    print(json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}, indent=2))
+    try:
+        constants = load_constants()
+    except SystemExit:
+        constants = None
+    try:
+        split_active = read_split("active", c=c)
+    except sqlite3.Error:
+        split_active = []
+    try:
+        rotation = parse_rotation(c)
+    except sqlite3.Error:
+        rotation = []
+    try:
+        progression = {r["exercise"]: {"verdict": r["verdict"], "next": r["next_target"],
+                                       "direction": r["direction"], "workout_id": r["workout_id"]}
+                       for r in c.execute(
+                           "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
+                           "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
+    except sqlite3.Error:
+        progression = {}
+    goals = []
+    try:
+        for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall():
+            entry = dict(g)
+            try:
+                entry.update(goal_progress(c, dict(g)))
+            except (sqlite3.Error, SystemExit):
+                pass
+            goals.append(entry)
+    except sqlite3.Error:
+        goals = []
+    try:
+        priority = read_priorities(c)
+    except sqlite3.Error:
+        priority = {}
+    try:
+        deload = [dict(r) for r in active_deloads(c)]
+    except sqlite3.Error:
+        deload = []
+    try:
+        rules = rules_with_confirm(c)
+    except sqlite3.Error:
+        rules = []
+    try:
+        flags = [dict(r) for r in c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()]
+    except sqlite3.Error:
+        flags = []
+    try:
+        mapping = [dict(r) for r in c.execute("SELECT * FROM lift_muscle_map ORDER BY exercise").fetchall()]
+    except sqlite3.Error:
+        mapping = []
+    try:
+        movement_notes = [dict(r) for r in c.execute("SELECT * FROM movement_notes ORDER BY exercise, id").fetchall()]
+    except sqlite3.Error:
+        movement_notes = []
+    return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
+            "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
+            "progression": progression, "goals": goals, "priority": priority, "deload": deload,
+            "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes}
+
+
+def cmd_export():
+    print(json.dumps(build_snapshot(), indent=2))
 
 
 def cmd_weigh(kg, note):
@@ -1261,6 +1349,10 @@ def cmd_priority_set(muscle, tier, until=None):
     if tier not in ("priority", "maintain", "deprioritize"):
         sys.exit("tier must be one of priority maintain deprioritize (quoting never needed; tier is the last word)")
     constants = load_constants()
+    known = set(constants["muscles"]) | set(constants.get("untracked", []))
+    hit = canon_muscle_name(muscle, known)
+    if hit is not None:
+        muscle = hit
     if muscle not in constants["muscles"]:
         sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.get('untracked', []))})")
     if until is not None:
@@ -2116,10 +2208,7 @@ def cmd_sync(force=False):
                 base_etag = res.headers.get("ETag")
         except OSError as e:
             sys.exit("sync pull-first failed: " + str(e))
-    workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
-    sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
-    bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
-    payload = json.dumps({"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets, "bodyweight": bw}).encode()
+    payload = json.dumps(build_snapshot(c)).encode()
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + secret,
                "User-Agent": "reps-sync/1"}
     if base_etag:
@@ -2612,9 +2701,12 @@ def main():
         words = " ".join(toks).replace(",", " ").split()
         takes = 0
         while takes < len(words):
-            if takes + 2 <= len(words) and " ".join(words[-(takes + 2):-takes] if takes else words[-2:]).lower() in vocab:
+            rest = len(words) - takes
+            two = " ".join(words[rest - 2:rest]).lower() if rest >= 2 else None
+            one = words[rest - 1].lower()
+            if two is not None and canon_muscle_name(two, vocab) is not None:
                 takes += 2
-            elif words[-(takes + 1)].lower() in vocab:
+            elif canon_muscle_name(one, vocab) is not None:
                 takes += 1
             else:
                 break
