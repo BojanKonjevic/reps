@@ -77,7 +77,7 @@ export function stacked(
   const area = L.area;
   const mx = L.mx;
   const t = niceTicks(0, mx, 3);
-  g.font = "600 12px 'IBM Plex Sans', sans-serif";
+  g.font = "600 16px 'IBM Plex Sans', sans-serif";
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));

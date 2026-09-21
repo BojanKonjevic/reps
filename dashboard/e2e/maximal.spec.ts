@@ -25,14 +25,17 @@ test.describe('maximal mock', () => {
     await page.screenshot({ path: '/tmp/max-dash.png', fullPage: true });
   });
 
-  test('trend filters isolate goals and stalling', async ({ page }) => {
+  test('trend filters isolate and combine', async ({ page }) => {
     await gotoMock(page);
-    await page.locator('#legTrend button', { hasText: /^Goals$/ }).click();
+    await page.locator('#trendFacets button', { hasText: /^Goals$/ }).click();
     await expect(page.locator('#trendGrid .mini')).toHaveCount(2);
-    await page.locator('#legTrend button', { hasText: /^Stalling$/ }).click();
+    await page.locator('#trendFacets button', { hasText: /^Stalling$/ }).click();
     const n = await page.locator('#trendGrid .mini').count();
-    if (n < 1) throw new Error('stalling filter hid everything');
-    await page.locator('#legTrend button', { hasText: /^All$/ }).click();
+    if (n <= 2) throw new Error('combining filters should widen, got ' + n);
+    await page.locator('#trendSearch').fill('press');
+    const m = await page.locator('#trendGrid .mini').count();
+    if (m >= n) throw new Error('search should narrow, got ' + m);
+    await page.locator('#trendFacets button', { hasText: /^Reset$/ }).click();
     await expect(page.locator('#trendGrid .mini').first()).toBeVisible();
   });
 

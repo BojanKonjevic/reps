@@ -28,7 +28,7 @@ export function muscleChart(
   const { g, W, H } = fit(cv);
   const P = 46;
   g.clearRect(0, 0, W, H);
-  g.font = "600 12px 'IBM Plex Sans', sans-serif";
+  g.font = "600 16px 'IBM Plex Sans', sans-serif";
   if (!counts.length) {
     g.fillStyle = TC;
     putText(g, W, 'no sets logged for this muscle yet', P, H / 2, 'left');

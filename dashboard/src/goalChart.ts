@@ -40,7 +40,7 @@ export function goalChart(
   const { g, W, H } = fit(cv);
   const P = 40;
   g.clearRect(0, 0, W, H);
-  g.font = "600 11px 'IBM Plex Sans', sans-serif";
+  g.font = "600 15px 'IBM Plex Sans', sans-serif";
   const n = Math.max(actuals.length, checkpoints.length);
   if (!n) {
     g.fillStyle = TC;

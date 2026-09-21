@@ -69,6 +69,7 @@ try {
   // storage unavailable, start fresh
 }
 let LIFTDATA: { pts: LiftPoint[]; ex: string; fut: number | null } | null = null;
+const FILTER: { q: string; facets: Set<string> } = { q: '', facets: new Set() };
 let MUSDATA: { labels: string[]; weeks: Array<Record<string, number>> } | null = null;
 let MUSPAGE: { mus: string } | null = null;
 let MUSPIE: { slices: PieSlice[]; sets: number[] } | null = null;
@@ -1185,17 +1186,94 @@ function showLift(ex: string) {
 }
 
 function refreshTrend() {
+  drawTrendFilters();
   drawTrendChips();
   drawMinis();
+}
+
+function liftMatches(t: string, i: number, facet: string): boolean {
+  if (facet === 'goal') return goalByExercise(SNAP, t) !== null;
+  if (facet === 'stall') {
+    const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+    return stallSessions(pts) >= 3 || deloadWatch(pts);
+  }
+  if (facet === 'focus') {
+    const prio = prioMuscles(SNAP);
+    return musclesOf(SNAP, t).some(m => prio.has(m.toLowerCase()));
+  }
+  return false;
+}
+
+function passFilter(t: string, i: number): boolean {
+  if (FILTER.q && t.toLowerCase().indexOf(FILTER.q) < 0) return false;
+  if (!FILTER.facets.size) return true;
+  for (const f of FILTER.facets) if (liftMatches(t, i, f)) return true;
+  return false;
+}
+
+function drawTrendFilters() {
+  const box = document.getElementById('trendFacets')!;
+  if (box.childElementCount) {
+    box.querySelectorAll('button[data-facet]').forEach(b => {
+      const f = (b as HTMLButtonElement).dataset.facet || '';
+      const on = FILTER.facets.has(f);
+      b.classList.toggle('off', !on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    return;
+  }
+  const search = document.getElementById('trendSearch') as HTMLInputElement;
+  search.value = FILTER.q;
+  search.addEventListener('input', () => {
+    FILTER.q = search.value.trim().toLowerCase();
+    refreshTrend();
+  });
+  const mkReset = () => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini';
+    b.textContent = 'Reset';
+    b.addEventListener('click', () => {
+      FILTER.q = '';
+      FILTER.facets.clear();
+      search.value = '';
+      HADHIDDEN = true;
+      HIDDEN.clear();
+      saveHidden();
+      refreshTrend();
+    });
+    box.appendChild(b);
+  };
+  mkReset();
+  [
+    ['Goals', 'goal'],
+    ['Stalling', 'stall'],
+    ['Focus', 'focus'],
+  ].forEach(([label, facet]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini off';
+    b.textContent = label;
+    b.dataset.facet = facet;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => {
+      if (FILTER.facets.has(facet)) FILTER.facets.delete(facet);
+      else FILTER.facets.add(facet);
+      refreshTrend();
+    });
+    box.appendChild(b);
+  });
 }
 function drawMinis() {
   const grid = document.getElementById('trendGrid')!;
   grid.innerHTML = '';
-  const shown = TREND.top.map((t, i) => i).filter(i => !HIDDEN.has(TREND.top[i]));
+  const shown = TREND.top
+    .map((t, i) => i)
+    .filter(i => !HIDDEN.has(TREND.top[i]) && passFilter(TREND.top[i], i));
   if (!shown.length) {
     const e = document.createElement('div');
     e.className = 'empty';
-    e.textContent = 'everything hidden, use All to bring lifts back';
+    e.textContent = 'no lifts match, adjust filters or use Reset';
     grid.appendChild(e);
     return;
   }
@@ -1300,7 +1378,13 @@ function drawTrendChips() {
     b.addEventListener('click', () => {
       HADHIDDEN = true;
       if (hide) TREND.top.forEach(t => HIDDEN.add(t));
-      else HIDDEN.clear();
+      else {
+        HIDDEN.clear();
+        FILTER.q = '';
+        FILTER.facets.clear();
+        const search = document.getElementById('trendSearch') as HTMLInputElement;
+        if (search) search.value = '';
+      }
       saveHidden();
       refreshTrend();
     });
@@ -1308,29 +1392,6 @@ function drawTrendChips() {
   };
   mkBtn('All', false);
   mkBtn('None', true);
-  const mkFilter = (label: string, keep: (t: string, i: number) => boolean) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chip mini';
-    b.textContent = label;
-    b.addEventListener('click', () => {
-      HADHIDDEN = true;
-      HIDDEN.clear();
-      TREND.top.forEach(t => {
-        if (!keep(t, TREND.top.indexOf(t))) HIDDEN.add(t);
-      });
-      saveHidden();
-      refreshTrend();
-    });
-    lt.appendChild(b);
-  };
-  const trendPts = (i: number) =>
-    (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
-  mkFilter('Goals', t => goalByExercise(SNAP, t) !== null);
-  mkFilter('Stalling', (t, i) => {
-    const pts = trendPts(i);
-    return stallSessions(pts) >= 3 || deloadWatch(pts);
-  });
   TREND.top.forEach((t, i) => {
     const b = document.createElement('button');
     b.type = 'button';

@@ -34,7 +34,7 @@ export function liftChart(
   const { g, W, H } = fit(cv);
   const P = 46;
   g.clearRect(0, 0, W, H);
-  g.font = "600 12px 'IBM Plex Sans', sans-serif";
+  g.font = "600 16px 'IBM Plex Sans', sans-serif";
   LIFTPTS = [];
   if (!pts.length) {
     g.fillStyle = TC;
