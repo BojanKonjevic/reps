@@ -49,7 +49,7 @@ Enforced by the `end` gate (precondition 4): a session with an exercise missing 
 
 ### 8. Volume vs MEV (rolling 8-week window)
 
-Backstop for the live plan-time volume check (AGENTS.md Session start step 7), not the primary mechanism. The live check covers every tracked muscle each session and nudges volume conversationally; this deterministic check runs the same computation on a different code path and catches anything the live check misses (a bug in the live logic, a session logged outside the normal chat flow, manual DB edits). Expected to rarely fire on a well-planned block; when it does, treat it as a signal the live check failed, not just that volume is low.
+Backstop for the live plan-time volume check (LOGGING.md Session start step 8), not the primary mechanism. The live check covers every tracked muscle each session and nudges volume conversationally; this deterministic check runs the same computation on a different code path and catches anything the live check misses (a bug in the live logic, a session logged outside the normal chat flow, manual DB edits). Expected to rarely fire on a well-planned block; when it does, treat it as a signal the live check failed, not just that volume is low.
 
 - For each tracked muscle in `constants.json`: compute weekly sets for each of the last 8 weeks (current week + 7 back) from `range`. Weeks with no logged sets count as 0, not as absent. Two separate flags, counted over the whole window (a good week in between does not reset the count):
   - `volume_zero` (high): 0 sets in ≥ 4 of the last 8 weeks.

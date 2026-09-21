@@ -123,6 +123,7 @@ CREATE TABLE rules (
   created TEXT NOT NULL
 );
 INSERT INTO "rules" VALUES(1,'straps/grip','straps on anything grip-limited, including wrapping straps around cable attachments instead of handles. Grip is never a limiter.','2026-09-18',NULL,'active','2026-09-20T15:14:08');
+INSERT INTO "rules" VALUES(2,'autoreg','autoreg: manage training volume within MEV to MRV bounds and swap movements only at strong evidence, narrate every change with evidence, everything revertible','2026-09-21',NULL,'active','2026-09-21T22:14:01');
 CREATE TABLE set_muscles (
   set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
   muscle TEXT NOT NULL,

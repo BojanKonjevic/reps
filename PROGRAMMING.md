@@ -46,6 +46,34 @@ Deloads are state, not just narration. Scope is per lift (`deload set --scope li
 2. While active, affected lifts train at reduced volume per SCIENCE.md deload guidance, trajectories resume next session. Planning reads deload state from `plan` and it outranks everything except Active rules and injuries.
 3. The `end` note for a session trained under Deload state must include the word `deload` (the gate enforces this). After `end` completes, run `deload clear` (it appends the dated State line itself).
 
+## Autoregulation (coach pass)
+
+Runs at every session start after `plan`, before prescription (LOGGING.md step 7). The loop watches recovery per lift, muscle, and system, and adjusts the program with severity matched to signal clarity. Lagging by design: it acts on one to two bad sessions of evidence, never on soreness reports alone and never preemptively.
+
+Standing permission lives in the rules table ("autoreg: manage volume within MEV..MRV and swap at strong evidence, narrate everything"). It authorizes exactly the actions below, nothing else. "Stop autoreg" archives it and halts the loop. Every auto-change is narrated in the session plan with its evidence, one line each, and appended to MEMORY.md State as `YYYY-MM-DD: autoreg (<scope>): <change> (<evidence>)`. "Revert that" restores baseline lines for the affected slots immediately and clears their holds.
+
+Signals, read off `plan` plus targeted `range`/`history` (two to three sessions per involved lift, never bulk pulls):
+
+1. Residuals: actual versus progression target or trajectory per lift.
+2. Scope: isolated (one lift), grouped (two or more lifts, same muscle), systemic (three or more lifts across two or more patterns).
+3. Persistence: the pattern holds two or more consecutive sessions. Deload watch firing counts as one witness.
+4. Confounders, which screen out instead of acting: sleep, stress, travel, sick notes; break return within two sessions; active deload; program change within one rotation; goal test singles.
+
+Tiers:
+
+- High acts: systemic pattern, or grouped pattern persisting two or more sessions, no confounders.
+- Medium prompts with a concrete one-tap proposal: grouped pattern on first occurrence; single-lift two-session drops outside the deload flow.
+- Low writes a `flag` only. No action, no narration beyond plan flags.
+
+Actions:
+
+- Trim (auto on high): minus one set from accessory slots covering the affected muscles, compounds last, never below MEV, at most one set per slot per rotation. Each trim records a hold: `autoreg hold: <slot> <movement> until <date>`, eight days out. Held slots are skipped by later passes.
+- Add (auto on clear recovery): the mirror. Progression hitting plus headroom to MAV means plus one set under the same constraints.
+- Swap (auto only at very strong evidence): the grouped pattern repeating across two or more rotations, or persisting through a completed deload. Otherwise prompt. Swaps use existing slot alternates; a missing alternate is proposed, never invented.
+- Return is slow by construction. Holds expiring restore baseline only on clear signals, never automatically. Volume comes back slower than it left, which is what stops the loop oscillating.
+
+What this never does: preemptive cuts before bad sessions exist, swaps on a single sore week, programmed changes during an active deload, anything below MEV, anything touching a goal trajectory without going through the Goals flow.
+
 ## Split review (review the split)
 
 "review the split" or similar phrases triggers a check of the Active split against SCIENCE.md's existing exercise-selection evidence. Process:
