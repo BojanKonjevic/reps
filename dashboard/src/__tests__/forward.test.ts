@@ -32,6 +32,33 @@ describe('stall and deload signals', () => {
   it('counts sessions since the best e1rm', () => {
     expect(stallSessions([{ ev: 100 }, { ev: 102 }, { ev: 101 }, { ev: 100 }])).toBe(2);
   });
+  it('ignores progress in other slots', () => {
+    const pts = [
+      { ev: 100, slot: 'U1' },
+      { ev: 100, slot: 'U2' },
+      { ev: 105, slot: 'U1' },
+      { ev: 100, slot: 'U2' },
+      { ev: 99, slot: 'U2' },
+    ];
+    expect(stallSessions(pts)).toBe(3);
+  });
+  it('resets on a same-slot PR', () => {
+    const pts = [
+      { ev: 100, slot: 'U1' },
+      { ev: 90, slot: 'U1' },
+      { ev: 95, slot: 'U1' },
+      { ev: 101, slot: 'U1' },
+    ];
+    expect(stallSessions(pts)).toBe(0);
+  });
+  it('counts short runs that stay under the flag threshold', () => {
+    expect(
+      stallSessions([
+        { ev: 100, slot: 'U1' },
+        { ev: 99, slot: 'U1' },
+      ])
+    ).toBe(2);
+  });
   it('flags two consecutive 5pct drops', () => {
     expect(deloadWatch([{ ev: 100 }, { ev: 94 }, { ev: 88 }])).toBe(true);
     expect(deloadWatch([{ ev: 100 }, { ev: 99 }, { ev: 101 }])).toBe(false);

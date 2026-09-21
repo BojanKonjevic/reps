@@ -1185,6 +1185,15 @@ function showLift(ex: string) {
   window.scrollTo(0, 0);
 }
 
+function trendStallPts(i: number): Array<{ ev: number; slot: string | null }> {
+  const out: Array<{ ev: number; slot: string | null }> = [];
+  TREND.series[i].forEach((v, k) => {
+    if (v === null) return;
+    out.push({ ev: v, slot: SLOT_OF_DATE[TREND.days[k]] || null });
+  });
+  return out;
+}
+
 function refreshTrend() {
   drawTrendFilters();
   drawTrendChips();
@@ -1194,7 +1203,7 @@ function refreshTrend() {
 function liftMatches(t: string, i: number, facet: string): boolean {
   if (facet === 'goal') return goalByExercise(SNAP, t) !== null;
   if (facet === 'stall') {
-    const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+    const pts = trendStallPts(i);
     return stallSessions(pts) >= 3 || deloadWatch(pts);
   }
   if (facet === 'focus') {
@@ -1296,8 +1305,7 @@ function drawMinis() {
     al.href = '#/l/' + encodeURIComponent(t);
     al.textContent = t;
     h.appendChild(al);
-    const evs = vals.filter(v => v !== null) as number[];
-    const pts = evs.map(ev => ({ ev }));
+    const pts = trendStallPts(i);
     const marks: Array<[string, string]> = [];
     if (stallSessions(pts) >= 3) marks.push(['stalling', 'bad']);
     else if (deloadWatch(pts)) marks.push(['slipping', 'bad']);

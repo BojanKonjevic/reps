@@ -105,12 +105,30 @@ export function nextSlot(
   return { day: rotation[j], basis };
 }
 
-export function stallSessions(pts: Array<{ ev: number }>): number {
+export interface StallPoint {
+  ev: number;
+  slot?: string | null;
+}
+
+export function stallSessions(pts: StallPoint[]): number {
+  // Backend rule: no PR in 3 same-slot sessions. PR means strictly beating
+  // the prior best (the first session is the baseline, never a PR). Only
+  // sessions in the latest session's slot count, so a lift alternating two
+  // slots does not flag on the other slot's progress.
   if (pts.length < 2) return 0;
-  const best = Math.max(...pts.map(p => p.ev));
+  const cur = pts[pts.length - 1].slot ?? null;
+  let best = -Infinity;
+  let seen = false;
+  const isPR = pts.map(p => {
+    const pr = seen && p.ev > best;
+    if (p.ev > best) best = p.ev;
+    seen = true;
+    return pr;
+  });
   let n = 0;
   for (let i = pts.length - 1; i >= 0; i -= 1) {
-    if (pts[i].ev >= best) break;
+    if ((pts[i].slot ?? null) !== cur) continue;
+    if (isPR[i]) break;
     n += 1;
   }
   return n;
