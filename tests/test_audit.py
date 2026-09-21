@@ -356,6 +356,17 @@ def test_cmd_audit_volume_zero(audit_db):
     assert _chest_volume_flags(log, "volume_low") == []
 
 
+def test_cmd_audit_mev_zero_never_flags_zero(audit_db):
+    """check 8: MEV 0 muscles (front delt) never flag volume_zero, zero meets the floor."""
+    log, c = audit_db
+    out = _run_cmd_audit(log)
+    flags = json.loads(out.strip().splitlines()[-1])["flags"]
+    front_zero = [f for f in flags if f["check"] == "volume_zero" and f["evidence"].startswith("front delt:")]
+    assert front_zero == []
+    # sanity: a nonzero-MEV muscle with no data still flags
+    assert _chest_volume_flags(log, "volume_zero") != []
+
+
 def test_cmd_audit_volume_low(audit_db):
     """check 8: 4 of last 8 weeks low-but-nonzero fires volume_low, medium."""
     log, c = audit_db

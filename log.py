@@ -843,6 +843,10 @@ def weekly_volume(c, muscle, week_starts):
 
 def count_bad_weeks(weekly, mev):
     """Zero and low week counts over the whole window (audit check 8 rule)."""
+    if mev == 0:
+        # MEV 0 means no direct work is required (covered indirectly),
+        # so zero-set weeks meet the floor and never flag.
+        return (0, 0)
     return (sum(1 for n in weekly if n == 0),
             sum(1 for n in weekly if 0 < n < mev))
 
