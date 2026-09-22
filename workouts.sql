@@ -276,6 +276,7 @@ CREATE TABLE workouts (
   notes TEXT NOT NULL DEFAULT ''
 );
 INSERT INTO "workouts" VALUES(2,'2026-09-20','rest','split transition friction, fewer rest days since last leg day than usual');
+INSERT INTO "workouts" VALUES(3,'2026-09-21','rest','');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
