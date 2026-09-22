@@ -147,7 +147,7 @@ test.describe('Rich snapshot sections', () => {
     await expect(bench).toContainText('adjusted 2026-09-15: two misses');
     await expect(bench).toContainText('grouped fatigue: chest');
     await expect(bench).toContainText('best 92.5 x 5 (e1RM 108)');
-    await expect(bench).toContainText('hit → 95x5 ↑ · paused reps');
+    await expect(bench).toContainText('hit → 95x5 · up · paused reps');
     await expect(bench).toContainText('hit → 95x5 up · paused reps');
     await expect(bench).toContainText('setup: touch low');
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();

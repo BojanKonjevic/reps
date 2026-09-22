@@ -1898,13 +1898,6 @@ function changeOf(changes: any[], ex: string): any {
   return null;
 }
 
-function dirArrow(direction: string): string {
-  if (direction === 'up') return '↑';
-  if (direction === 'down') return '↓';
-  if (direction === 'flat') return '→';
-  return '';
-}
-
 function groupedOf(auto: any, ex: string): string[] {
   const out: string[] = [];
   for (const [mus, lifts] of Object.entries((auto && auto.grouped) || {})) {
@@ -2096,9 +2089,9 @@ function showLifts() {
         p.verdict +
         ' → ' +
         p.next +
-        (p.direction ? ' ' + dirArrow(p.direction) : '') +
+        (p.direction ? ' · ' + p.direction : '') +
         (p.note ? ' · ' + p.note : '');
-      info.appendChild(pl);
+      card.appendChild(pl);
     }
     (notesByEx[t] || []).forEach(n => {
       const nl = document.createElement('div');
