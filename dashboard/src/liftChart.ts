@@ -71,7 +71,9 @@ export function liftChart(
   const col = LC[0];
   const linePts = pts.map(p => ({ x: px(p.date), y: py(p.ev) }));
   g.fillStyle = TC;
-  putText(g, W, fmtV(pts[0].ev) + ' start', linePts[0].x + 8, py(pts[0].ev) - 12, 'left');
+  const fy0 = showFuture ? py(futureEv as number) : null;
+  if (fy0 === null || Math.abs(py(pts[0].ev) - fy0) > 18)
+    putText(g, W, fmtV(pts[0].ev) + ' start', linePts[0].x + 8, py(pts[0].ev) - 12, 'left');
   if (!showFuture)
     putText(
       g,
