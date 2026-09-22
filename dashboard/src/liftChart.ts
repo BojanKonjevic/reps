@@ -68,8 +68,10 @@ export function liftChart(
   drawYAxis(g, W, H, P, t);
   drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
   const showFuture = futureEv !== undefined && futureEv !== null && pts.length > 0;
+  const col = LC[0];
+  const linePts = pts.map(p => ({ x: px(p.date), y: py(p.ev) }));
   g.fillStyle = TC;
-  putText(g, W, fmtV(pts[0].ev) + ' start', P + 4, py(pts[0].ev) - 12, 'left');
+  putText(g, W, fmtV(pts[0].ev) + ' start', linePts[0].x + 8, py(pts[0].ev) - 12, 'left');
   if (!showFuture)
     putText(
       g,
@@ -79,8 +81,6 @@ export function liftChart(
       py(pts[pts.length - 1].ev) - 12,
       'right'
     );
-  const col = LC[0];
-  const linePts = pts.map(p => ({ x: px(p.date), y: py(p.ev) }));
   drawLine(g, linePts, col);
   pts.forEach(p => {
     const x = px(p.date),
