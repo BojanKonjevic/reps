@@ -584,6 +584,12 @@ function render() {
     }
     lm.appendChild(sp);
   });
+  if (lastFull >= 0) {
+    const wkLabel = document.createElement('span');
+    wkLabel.className = 'meta';
+    wkLabel.textContent = labels[lastFull] === thisWk ? 'this week so far' : 'last week';
+    lm.appendChild(wkLabel);
+  }
   const dayDetail: Record<string, string[]> = {};
   for (const w of W) dayDetail[w.date] = dayDetail[w.date] || [];
   for (const s of S) {
