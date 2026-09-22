@@ -110,4 +110,12 @@ test.describe('Rich snapshot sections', () => {
     await gotoRich(page);
     await expect(page.locator('#nowLines')).toContainText('Break: 3d since last session');
   });
+
+  test('lift page shows time since last PR, first set is the baseline', async ({ page }) => {
+    await gotoRich(page);
+    await page.goto('#/l/bench');
+    await expect(page.locator('#liftPRs')).toContainText('last PR 3d ago');
+    await page.goto('#/l/squat');
+    await expect(page.locator('#liftPRs')).toContainText('no PR yet');
+  });
 });

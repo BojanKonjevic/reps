@@ -86,7 +86,7 @@ export interface AdherenceDay {
 
 export interface AdherenceWeek {
   week: string;
-  done: number;
+  trained: number;
   expected: number;
 }
 
@@ -101,18 +101,20 @@ export function missedExpected(
 }
 
 export function adherenceWeeks(days: AdherenceDay[]): AdherenceWeek[] {
-  // Group verdicts by calendar week, preserving date order. expected counts
-  // training days only (rest days are scheduled, not hit-rate).
+  // Group verdicts by calendar week, preserving date order. trained counts
+  // sessions on planned training days (done plus swapped: training happened,
+  // just not the prescribed slot); expected counts planned training days
+  // only, so rest days never move the number.
   const groups: AdherenceWeek[] = [];
-  const at: Record<string, AdherenceWeek> = {};
+  const byWeek: Record<string, AdherenceWeek> = {};
   for (const d of days || []) {
     const w = weekKey(d.date);
-    if (!at[w]) {
-      at[w] = { week: w, done: 0, expected: 0 };
-      groups.push(at[w]);
+    if (!byWeek[w]) {
+      byWeek[w] = { week: w, trained: 0, expected: 0 };
+      groups.push(byWeek[w]);
     }
-    if (d.expected.toLowerCase() !== 'rest') at[w].expected += 1;
-    if (d.status === 'done') at[w].done += 1;
+    if (d.expected.toLowerCase() !== 'rest') byWeek[w].expected += 1;
+    if (d.status === 'done' || d.status === 'swapped') byWeek[w].trained += 1;
   }
   return groups;
 }
@@ -123,13 +125,15 @@ export function goalPercent(goal: {
   actuals?: Array<{ ev: number }>;
 }): number | null {
   // Share of the trajectory covered, from the first checkpoint (the
-  // trajectory anchor) to the target, at the latest actual.
+  // trajectory anchor) to the target, at the latest actual. Clamped: below
+  // the start reads 0%, at or past the target reads 100%.
   const cps = goal.checkpoints || [];
   const acts = goal.actuals || [];
   if (!cps.length || !acts.length) return null;
   const span = goal.target_e1rm - cps[0];
   if (!(span > 0)) return null;
-  return Math.round(((acts[acts.length - 1].ev - cps[0]) / span) * 100);
+  const pct = ((acts[acts.length - 1].ev - cps[0]) / span) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct)));
 }
 
 export function nextSlot(

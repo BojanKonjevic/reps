@@ -54,13 +54,19 @@ export function touchTip(el: HTMLElement, show: (x: number, y: number) => void) 
     },
     { passive: true }
   );
-  const later = () => {
+  const scheduleHide = () => {
     if (TIP_TIMER) window.clearTimeout(TIP_TIMER);
     TIP_TIMER = window.setTimeout(() => {
       hideTip();
       TIP_TIMER = 0;
     }, 2400);
   };
-  el.addEventListener('touchend', later);
+  el.addEventListener('touchend', scheduleHide);
   el.addEventListener('touchcancel', () => hideTip());
+}
+
+export function bindHover(el: HTMLCanvasElement, show: (x: number, y: number) => void) {
+  // One call wires both pointer paths for a chart canvas.
+  el.addEventListener('mousemove', ev => show(ev.clientX, ev.clientY));
+  touchTip(el, show);
 }

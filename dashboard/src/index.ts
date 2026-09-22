@@ -6,7 +6,7 @@ import { bwline } from './bwChart';
 import { stacked, stackedHit } from './stackedChart';
 import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
-import { showTip, hideTip, touchTip } from './tip';
+import { showTip, hideTip, bindHover } from './tip';
 import { goalChart, goalHit } from './goalChart';
 import { muscleChart, muscleHit } from './muscleChart';
 import { pieChart, pieHit, piePalette, PieSlice } from './pieChart';
@@ -175,15 +175,24 @@ async function main() {
       return;
     }
     stacked(musCv, MUSDATA.labels, MUSDATA.weeks, hit);
+    const mev = mevOf(SNAP, MUSDATA.labels[hit.wi]);
     showTip(
       MUSDATA.labels[hit.wi],
-      [[MC[hit.g], hit.g + ' ' + MUSDATA.weeks[hit.wi][hit.g] + ' sets']],
+      [
+        [
+          MC[hit.g],
+          hit.g +
+            ' ' +
+            MUSDATA.weeks[hit.wi][hit.g] +
+            ' sets' +
+            (mev > 0 ? ' (MEV ' + mev + ')' : ''),
+        ],
+      ],
       cx,
       cy
     );
   };
-  musCv.addEventListener('mousemove', ev => musShow(ev.clientX, ev.clientY));
-  touchTip(musCv, musShow);
+  bindHover(musCv, musShow);
   musCv.addEventListener('click', ev => {
     if (!MUSDATA) return;
     const r = musCv.getBoundingClientRect();
@@ -211,8 +220,7 @@ async function main() {
     bwline(bwCv, BWDATA, idx);
     showTip(BWDATA[idx].date, [[null, BWDATA[idx].kg.toFixed(1) + ' kg']], cx, cy);
   };
-  bwCv.addEventListener('mousemove', ev => bwShow(ev.clientX, ev.clientY));
-  touchTip(bwCv, bwShow);
+  bindHover(bwCv, bwShow);
   bwCv.addEventListener('mouseleave', () => {
     hideTip();
     if (vis(bwCv)) bwline(bwCv, BWDATA, -1);
@@ -250,8 +258,7 @@ async function main() {
     );
     liftCv.style.cursor = 'pointer';
   };
-  liftCv.addEventListener('mousemove', ev => liftShow(ev.clientX, ev.clientY));
-  touchTip(liftCv, liftShow);
+  bindHover(liftCv, liftShow);
   liftCv.addEventListener('mouseleave', () => {
     hideTip();
     if (LIFTDATA && vis(liftCv)) liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1, LIFTDATA.fut);
@@ -296,8 +303,7 @@ async function main() {
       );
     }
   };
-  goalCv.addEventListener('mousemove', ev => goalShow(ev.clientX, ev.clientY));
-  touchTip(goalCv, goalShow);
+  bindHover(goalCv, goalShow);
   goalCv.addEventListener('mouseleave', () => {
     hideTip();
     if (LIFTGOAL && vis(goalCv))
@@ -340,8 +346,7 @@ async function main() {
       cy
     );
   };
-  musVolCv.addEventListener('mousemove', ev => musVolShow(ev.clientX, ev.clientY));
-  touchTip(musVolCv, musVolShow);
+  bindHover(musVolCv, musVolShow);
   musVolCv.addEventListener('mouseleave', () => {
     hideTip();
     const m = musVolData();
@@ -373,8 +378,7 @@ async function main() {
       cy
     );
   };
-  musPieCv.addEventListener('mousemove', ev => musPieShow(ev.clientX, ev.clientY));
-  touchTip(musPieCv, musPieShow);
+  bindHover(musPieCv, musPieShow);
   musPieCv.addEventListener('click', ev => {
     if (!MUSPIE) return;
     const r = musPieCv.getBoundingClientRect();
@@ -550,10 +554,6 @@ function render() {
       })
       .map(m => m.toLowerCase())
   );
-  const mevOf = (g: string) => {
-    const c = (snap.constants || {}).muscles || {};
-    return (c[g] && c[g].mev) || 0;
-  };
   const labels = MUSDATA ? MUSDATA.labels : [];
   const wk = MUSDATA ? MUSDATA.weeks : [];
   const thisWk = weekKey(new Date().toISOString().slice(0, 10));
@@ -576,7 +576,7 @@ function render() {
     sp.appendChild(document.createTextNode(g));
     if (lastFull >= 0) {
       const n = (wk[lastFull] || {})[g] || 0;
-      const mev = mevOf(g);
+      const mev = mevOf(snap, g);
       const tag = document.createElement('span');
       tag.className = 'meta' + (mev > 0 && n < mev ? ' low' : '');
       tag.textContent = ' · ' + n + (mev > 0 ? '/' + mev : '');
@@ -1444,8 +1444,7 @@ function drawMinis() {
         cy
       );
     };
-    cv.addEventListener('mousemove', ev => miniShow(ev.clientX, ev.clientY));
-    touchTip(cv, miniShow);
+    bindHover(cv, miniShow);
     cv.addEventListener('mouseleave', () => {
       hideTip();
       if (vis(cv)) mini(cv, TREND.days, vals, col);
@@ -1642,7 +1641,7 @@ function renderAdh(snap: any) {
   list.className = 'adhweeks';
   weeks.forEach(w => {
     const row = document.createElement('div');
-    row.textContent = w.week + ' · ' + w.done + '/' + w.expected + ' sessions';
+    row.textContent = w.week + ' · ' + w.trained + '/' + w.expected + ' sessions';
     list.appendChild(row);
   });
   card.appendChild(list);
@@ -1722,6 +1721,11 @@ function prioMuscles(snap: any): Set<string> {
       })
       .map(m => m.toLowerCase())
   );
+}
+
+function mevOf(snap: any, g: string): number {
+  const c = (snap.constants || {}).muscles || {};
+  return (c[g] && c[g].mev) || 0;
 }
 
 function goalByExercise(snap: any, exercise: string): any {
@@ -1918,8 +1922,7 @@ function attachGoalHover(
       showTip('session ' + (bi + 1) + ' (plan)', [[col, 'target e1RM ' + fmtV(cps[bi])]], cx, cy);
     }
   };
-  cv.addEventListener('mousemove', ev => goalShow(ev.clientX, ev.clientY));
-  touchTip(cv, goalShow);
+  bindHover(cv, goalShow);
   cv.addEventListener('mouseleave', () => {
     hideTip();
     if (vis(cv)) goalChart(cv, acts, cps, col);
@@ -1937,7 +1940,7 @@ function renderForward(snap: any, W: any[], S: any[]) {
   const jobs: Array<() => void> = [];
   const wdate: Record<number, string> = {};
   for (const w of W) wdate[w.id] = w.date;
-  goals.forEach((g, i) => {
+  goals.forEach(g => {
     const card = document.createElement('div');
     card.className = 'goalcard card future';
     card.style.margin = '0';
