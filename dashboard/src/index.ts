@@ -481,7 +481,6 @@ function render() {
   refreshTrend();
   renderNow(snap, W, S);
   renderNext(snap, W, S);
-  renderSlots(snap);
   renderProgramSummary(snap);
   renderForward(snap, W, S);
   renderAdh(snap);
@@ -1559,62 +1558,6 @@ function renderNext(snap: any, W: any[], S: any[]) {
   cap.className = 'cap';
   cap.textContent = nxt.basis + '. Confirm or override in chat before training.';
   card.appendChild(cap);
-}
-
-function renderSlots(snap: any) {
-  // Same-slot comparison: the last runs of each active day side by side,
-  // which is how a block is actually judged.
-  const grid = document.getElementById('slotGrid')!;
-  grid.innerHTML = '';
-  const { ordered } = orderedSplitDays(snap);
-  if (!ordered.length) {
-    const e = document.createElement('div');
-    e.className = 'empty';
-    e.textContent = 'no program synced yet';
-    grid.appendChild(e);
-    return;
-  }
-  const wdate: Record<number, string> = {};
-  for (const w of SNAP.workouts || []) wdate[w.id] = w.date;
-  ordered.forEach(day => {
-    const card = document.createElement('div');
-    card.className = 'slotcard card';
-    card.style.margin = '0';
-    const h = document.createElement('h3');
-    h.textContent = day;
-    card.appendChild(h);
-    const dates = Object.keys(SLOT_OF_DATE)
-      .filter(d => SLOT_OF_DATE[d] === day)
-      .sort()
-      .slice(-3)
-      .reverse();
-    if (!dates.length) {
-      const e = document.createElement('div');
-      e.className = 'empty';
-      e.textContent = 'no runs logged';
-      card.appendChild(e);
-    }
-    dates.forEach(d => {
-      const row = document.createElement('div');
-      row.className = 'slotrow';
-      const al = document.createElement('a');
-      al.href = '#/s/' + d;
-      al.textContent = fmtD(d);
-      row.appendChild(al);
-      const ms = (DAY_MOVES[day] || [])
-        .map(m => {
-          const top = topSetOn(SNAP.sets || [], wdate, m, d);
-          return top ? m + ' ' + top.w + 'x' + top.r : null;
-        })
-        .filter(Boolean) as string[];
-      const detail = document.createElement('span');
-      detail.className = 'meta';
-      detail.textContent = ms.length ? ms.join(' · ') : 'no mapped lifts logged';
-      row.appendChild(detail);
-      card.appendChild(row);
-    });
-    grid.appendChild(card);
-  });
 }
 
 function renderAdh(snap: any) {

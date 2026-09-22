@@ -82,12 +82,6 @@ test.describe('Rich snapshot sections', () => {
     await expect(squat).toContainText('no target yet');
   });
 
-  test('same-slot section lists runs per day', async ({ page }) => {
-    await gotoRich(page);
-    await expect(page.locator('#slotGrid .slotcard')).toHaveCount(2);
-    await expect(page.locator('#slotGrid')).toContainText('bench 92.5x5');
-  });
-
   test('goal cards show percent to target', async ({ page }) => {
     await gotoRich(page);
     await expect(page.locator('#goalGrid .goalmeta').first()).toContainText('27% there');
