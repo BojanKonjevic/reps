@@ -17,6 +17,7 @@ import {
   deloadWatch,
   parseNextTarget,
   musclePageData,
+  missedExpected,
 } from './forward';
 
 interface SnapWorkout {
@@ -543,7 +544,8 @@ function render() {
   for (const w of W)
     if (w.status === 'rest' && !(dayDetail[w.date] && dayDetail[w.date].length))
       restDates[w.date] = true;
-  const drawCal = () => renderCal(viewY, viewM, dayDetail, restDates);
+  const missed = missedExpected(SNAP.adherence);
+  const drawCal = () => renderCal(viewY, viewM, dayDetail, restDates, missed);
   document.getElementById('calPrev')!.onclick = () => {
     viewM -= 1;
     if (viewM < 0) {
@@ -597,7 +599,8 @@ function renderCal(
   year: number,
   month: number,
   dayDetail: Record<string, string[]>,
-  restDates: Record<string, boolean>
+  restDates: Record<string, boolean>,
+  missedDates: Record<string, string> = {}
 ) {
   const names = [
     'January',
@@ -657,14 +660,17 @@ function renderCal(
     const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     const trained = dayDetail[key] && dayDetail[key].length > 0;
     const rested = !trained && !!restDates[key];
+    const missed = !trained && !rested && !!missedDates[key] && key <= todayS;
     const isPR = PR && PR.prDates.has(key);
     const el = document.createElement(trained || rested ? 'a' : 'div');
     const link = trained || rested ? (el as HTMLAnchorElement) : null;
     if (link) link.href = '#/s/' + key;
+    if (missed) el.title = 'missed: expected ' + missedDates[key];
     el.className =
       'cd' +
       (trained ? ' t' : '') +
       (rested ? ' r' : '') +
+      (missed ? ' m' : '') +
       (key === todayS ? ' today' : '') +
       (key > todayS ? ' fut' : '') +
       (breakDates[key] ? ' brk' : '');

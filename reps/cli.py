@@ -4,6 +4,7 @@ from datetime import date
 
 from .audit import cmd_audit, cmd_doctor
 from .autoreg import cmd_autoreg_apply, cmd_autoreg_log, cmd_autoreg_revert
+from .adherence import cmd_rotation_anchor, cmd_rotation_status
 from .constants import (_join_muscles, canon_muscle_name, cmd_constants_set,
                         cmd_constants_show, cmd_constants_validate, load_constants)
 from .db import conn
@@ -62,6 +63,7 @@ def usage():
          " | goal show [id] | goal rewrite <id> | goal drop <id>"
          " | autoreg apply --day <day> --slot <n> --to <movements> <sets> --evidence <text> [--from <movements>]"
          " | autoreg log | autoreg revert <id>"
+         " | rotation anchor <date> <day> | rotation status [--from <date>] [--to <date>]"
     )
 
 
@@ -163,6 +165,19 @@ def main():
         cmd_meta_show(rest[1] if len(rest) > 1 else None)
     elif cmd == "meta" and rest[:1] == ["set"] and len(rest) >= 3:
         cmd_meta_set(rest[1], " ".join(rest[2:]))
+    elif cmd == "rotation" and rest[:1] == ["anchor"] and len(rest) >= 3:
+        # Day can go unquoted: date is the first token, the rest is the day.
+        cmd_rotation_anchor(rest[1], " ".join(rest[2:]))
+    elif cmd == "rotation" and rest[:1] == ["status"]:
+        from_iso = to_iso = None
+        toks = rest[1:]
+        if "--from" in toks:
+            j = toks.index("--from")
+            from_iso = toks[j + 1] if j + 1 < len(toks) else None
+        if "--to" in toks:
+            j = toks.index("--to")
+            to_iso = toks[j + 1] if j + 1 < len(toks) else None
+        cmd_rotation_status(from_iso, to_iso)
     elif cmd == "progression" and rest[:1] == ["set"] and len(rest) >= 2:
         toks = rest[1:]
         first_flag = next((i for i, t in enumerate(toks) if t.startswith("--")), len(toks))

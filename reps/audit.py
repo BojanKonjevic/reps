@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 
 from . import db
 from .constants import load_constants
@@ -218,6 +219,29 @@ def cmd_doctor():
             if day.lower() != "rest" and day.lower() not in split_days:
                 problems.append({"check": "rotation",
                                  "fix": f"rotation day '{day}' matches no splits.day value (see split show)"})
+    anchor_row = c.execute("SELECT value FROM meta WHERE key = 'rotation_anchor'").fetchone()
+    if anchor_row is not None:
+        try:
+            anchor = json.loads(anchor_row["value"])
+            anchor_ok = (isinstance(anchor, dict) and isinstance(anchor.get("date"), str)
+                         and isinstance(anchor.get("index"), int) and not isinstance(anchor.get("index"), bool))
+            if anchor_ok:
+                date.fromisoformat(anchor["date"])
+        except (ValueError, TypeError):
+            anchor_ok = False
+        if not anchor_ok:
+            problems.append({"check": "rotation_anchor",
+                             "fix": "rotation_anchor must be {\"date\": \"YYYY-MM-DD\", \"index\": <int>} "
+                                    "(see rotation anchor)"})
+        else:
+            if date.fromisoformat(anchor["date"]) > date.today():
+                problems.append({"check": "rotation_anchor",
+                                 "fix": f"rotation_anchor date {anchor['date']} is in the future"})
+            if (not isinstance(rotation, list) or not rotation
+                    or anchor["index"] < 0 or anchor["index"] >= len(rotation)):
+                problems.append({"check": "rotation_anchor",
+                                 "fix": f"rotation_anchor index {anchor['index']} is out of range "
+                                        f"for the current rotation (see meta show rotation)"})
     orphan_prog = c.execute(
         "SELECT workout_id, exercise FROM progression WHERE workout_id NOT IN (SELECT id FROM workouts)").fetchall()
     for r in orphan_prog:

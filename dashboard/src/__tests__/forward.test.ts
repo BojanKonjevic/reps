@@ -6,6 +6,7 @@ import {
   deloadWatch,
   parseNextTarget,
   musclePageData,
+  missedExpected,
 } from '../forward';
 
 describe('slot labeling and rotation', () => {
@@ -116,5 +117,23 @@ describe('muscle page data', () => {
     const q = musclePageData(W, S, 'quads');
     expect(q.total).toBe(0);
     expect(q.labels).toEqual([]);
+  });
+});
+
+describe('adherence missed days', () => {
+  it('maps missed dates to their expected day', () => {
+    expect(
+      missedExpected({
+        days: [
+          { date: '2026-09-20', expected: 'U2', trained: null, status: 'missed' },
+          { date: '2026-09-21', expected: 'U1', trained: 'U1', status: 'done' },
+          { date: '2026-09-22', expected: 'rest', trained: null, status: 'rest_ok' },
+        ],
+      })
+    ).toEqual({ '2026-09-20': 'U2' });
+  });
+  it('tolerates a missing adherence section', () => {
+    expect(missedExpected(null)).toEqual({});
+    expect(missedExpected(undefined)).toEqual({});
   });
 });

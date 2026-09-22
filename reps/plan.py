@@ -1,6 +1,7 @@
 import json
 from datetime import date, datetime
 
+from .adherence import adherence_block, expectation_context
 from .autoreg import autoreg_block
 from .constants import load_constants
 from .db import conn, open_workout
@@ -90,6 +91,23 @@ def cmd_plan(slot=None, verbose=False):
                                   "confidence": "high" if best_score == len(trained) else "medium"}
             elif best_day:
                 slot_guess = {"day": None, "basis": f"last trained {best_day}, rotation unparseable", "confidence": "low"}
+
+    adherence = adherence_block(c)
+    if adherence is not None:
+        # Second basis: what the rotation prescribed for today, regardless of
+        # what the last session implies. The agent states the assumption either
+        # way; the user confirms or overrides.
+        ctx = expectation_context(c, rotation, adherence["anchor"], today_iso)
+        slot_guess["expected"] = ctx
+        second = f"expected today: {ctx['day']}"
+        detail = []
+        if ctx["last_done"]:
+            detail.append(f"last done: {ctx['last_done']['day']} {ctx['last_done']['date']}")
+        if ctx["missed"]:
+            detail.append("missed " + ", ".join(f"{m['day']} {m['date']}" for m in ctx["missed"]))
+        if detail:
+            second += " (" + "; ".join(detail) + ")"
+        slot_guess["basis"] += "; " + second
 
     vol_weeks = thresholds["volume_window_weeks"]
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
@@ -198,6 +216,7 @@ def cmd_plan(slot=None, verbose=False):
         "priority": priorities,
         "deload": deload if deload else None,
         "autoreg": autoreg,
+        "adherence": adherence,
         "compaction": compaction_due(),
     }
     if verbose:
@@ -220,6 +239,9 @@ def cmd_plan(slot=None, verbose=False):
             parts = ([f"{m['exercise']} {m['streak']}xmiss" for m in autoreg["miss_streaks"]]
                      + [f"{d['exercise']} dropping" for d in autoreg["drop_watch"]])
             lines.append(f"autoreg signals: {', '.join(parts)}")
+        if adherence is not None and adherence["drift"]:
+            lines.append(f"adherence drift: {adherence['drift_days']} non-done days, "
+                         f"consider rotation anchor <date> <day>")
         if bundle["compaction"]["due"]:
             lines.append("compaction due")
         print("\n".join(lines))

@@ -77,6 +77,23 @@ export function labelSession(
   return bestScore > 0 ? best : null;
 }
 
+export interface AdherenceDay {
+  date: string;
+  expected: string;
+  trained: string | null;
+  status: string;
+}
+
+export function missedExpected(
+  adherence: { days?: AdherenceDay[] } | null | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of (adherence && adherence.days) || []) {
+    if (d.status === 'missed') out[d.date] = d.expected;
+  }
+  return out;
+}
+
 export function nextSlot(
   lastDay: string | null,
   rotation: string[]

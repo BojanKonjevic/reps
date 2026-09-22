@@ -8,6 +8,7 @@ import urllib.request
 from datetime import datetime
 
 from . import db
+from .adherence import adherence_snapshot
 from .constants import load_constants
 from .db import SCHEMA, conn
 from .goals import goal_progress
@@ -79,10 +80,15 @@ def build_snapshot(c=None):
         movement_notes = [dict(r) for r in c.execute("SELECT * FROM movement_notes ORDER BY exercise, id").fetchall()]
     except sqlite3.Error:
         movement_notes = []
+    try:
+        adherence = adherence_snapshot(c)
+    except (sqlite3.Error, SystemExit):
+        adherence = None
     return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
             "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
             "progression": progression, "goals": goals, "priority": priority, "deload": deload,
-            "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes}
+            "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes,
+            "adherence": adherence}
 
 
 def cmd_export():

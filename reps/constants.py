@@ -48,7 +48,8 @@ def validate_constants(raw, source):
         val = thresholds.get(key)
         if not isinstance(val, (int, float)) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be positive")
-    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days", "default_new_slot_sets"):
+    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days", "default_new_slot_sets",
+                "adherence_drift_days"):
         val = thresholds.get(key)
         if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
             sys.exit(f"constants invalid at {source}: thresholds.{key} must be a positive integer")

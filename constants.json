@@ -136,6 +136,7 @@
     "volume_window_weeks": 8,
     "volume_bad_weeks": 4,
     "ledger_retention_days": 7,
+    "adherence_drift_days": 3,
     "e1rm_warn_ratio": 1.5,
     "duplicate_name_distance": 2,
     "goal_divergence_pct": 5,
