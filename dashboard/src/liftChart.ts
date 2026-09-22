@@ -116,7 +116,8 @@ export function liftChart(
     g.stroke();
     g.restore();
     g.fillStyle = TC;
-    putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
+    if (fx < W / 2) putText(g, W, fmtV(futureEv) + ' next', fx + 12, fy - 10, 'left');
+    else putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
   }
   if (hover !== undefined && hover >= 0 && hover < pts.length) {
     const p = pts[hover];
