@@ -94,11 +94,9 @@ test.describe('Rich snapshot sections', () => {
     await expect(page.locator('#adhCard')).toContainText('1/2 sessions');
   });
 
-  test('legend dims deprioritized muscles and marks MEV attainment', async ({ page }) => {
+  test('legend dims deprioritized muscles', async ({ page }) => {
     await gotoRich(page);
     await expect(page.locator('#legMus a.dim').first()).toContainText('back');
-    await expect(page.locator('#legMus .chip .meta').first()).toContainText('/');
-    await expect(page.locator('#legMus')).toContainText('last week');
   });
 
   test('break line follows snapshot break_days, not a hardcoded 5', async ({ page }) => {

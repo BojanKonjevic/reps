@@ -553,14 +553,6 @@ function render() {
       })
       .map(m => m.toLowerCase())
   );
-  const labels = MUSDATA ? MUSDATA.labels : [];
-  const wk = MUSDATA ? MUSDATA.weeks : [];
-  const thisWk = weekKey(new Date().toISOString().slice(0, 10));
-  const lastFull = !labels.length
-    ? -1
-    : labels[labels.length - 1] === thisWk && labels.length > 1
-      ? wk.length - 2
-      : wk.length - 1;
   GROUPS.forEach(g => {
     const sp = document.createElement('a');
     sp.className =
@@ -573,23 +565,8 @@ function render() {
     sw.style.background = MC[g];
     sp.appendChild(sw);
     sp.appendChild(document.createTextNode(g));
-    if (lastFull >= 0) {
-      const n = (wk[lastFull] || {})[g] || 0;
-      const mev = mevOf(snap, g);
-      const tag = document.createElement('span');
-      tag.className = 'meta' + (mev > 0 && n < mev ? ' low' : '');
-      tag.textContent = ' · ' + n + (mev > 0 ? '/' + mev : '');
-      tag.title = 'sets in ' + labels[lastFull] + (mev > 0 ? ' (MEV ' + mev + ')' : '');
-      sp.appendChild(tag);
-    }
     lm.appendChild(sp);
   });
-  if (lastFull >= 0) {
-    const wkLabel = document.createElement('span');
-    wkLabel.className = 'meta';
-    wkLabel.textContent = labels[lastFull] === thisWk ? 'this week so far' : 'last week';
-    lm.appendChild(wkLabel);
-  }
   const dayDetail: Record<string, string[]> = {};
   for (const w of W) dayDetail[w.date] = dayDetail[w.date] || [];
   for (const s of S) {
