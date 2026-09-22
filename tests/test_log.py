@@ -299,7 +299,7 @@ def test_end_closes_workout(log_module):
     log_module.cmd_start("initial note")
     log_module.cmd_log("bench", 100, 5, "", "chest")
     log_module.cmd_split_set("Test", 1, "bench", 2)
-    log_module.cmd_progression_set("bench", "baseline", "test", "flat")
+    log_module.cmd_progression_set("bench", "baseline", "80x5", "flat")
     output = capture_stdout(log_module.cmd_end, "final note")
     data = json.loads(output)
     assert "closed" in data

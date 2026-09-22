@@ -157,7 +157,7 @@ def test_end_reports_sets_and_next(log_module):
     log_module.cmd_start("test")
     log_module.cmd_log("bench", 100, 5, "", "chest")
     log_module.cmd_split_set("Test", 1, "bench", 2)
-    log_module.cmd_progression_set("bench", "baseline", "test", "flat")
+    log_module.cmd_progression_set("bench", "baseline", "80x5", "flat")
     out = json.loads(capture_stdout(log_module.cmd_end, "done"))
     assert out["sets"] == 1
     assert "sync" in out["next"]

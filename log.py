@@ -1257,6 +1257,8 @@ def cmd_progression_set(exercise, verdict, next_target, direction, note="", work
         sys.exit("direction must be one of up flat down (quoting never needed; flags delimit values)")
     if not next_target:
         sys.exit("next target is required (e.g. 82.5x5)")
+    if not re.match(r"^\d+(\.\d+)?x\d+$", next_target.strip()):
+        sys.exit(f"next target must be weight x reps (e.g. 82.5x5), got '{next_target}'")
     c = conn()
     exercise = exercise.strip().lower()
     if workout_id is None:

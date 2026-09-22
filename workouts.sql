@@ -117,17 +117,17 @@ CREATE TABLE progression (
   created TEXT NOT NULL,
   UNIQUE (workout_id, exercise)
 );
-INSERT INTO "progression" VALUES(1,4,'incline barbell bench press','baseline','75','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(2,4,'cable lat raise','baseline','11.25','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(3,4,'hammer strength row','baseline','90','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(4,4,'machine lat raise','baseline','60','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(5,4,'pec deck','baseline','85','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(6,4,'straight bar pulldown','baseline','77','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(7,4,'ezbar curl','baseline','35','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(8,4,'bayesian curl','baseline','11.25','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(9,4,'smith jm press','baseline','30','flat','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(10,4,'overhead cable extension','baseline','25','up','','2026-09-22T10:41:27');
-INSERT INTO "progression" VALUES(11,4,'face pull','baseline','38.75','flat','','2026-09-22T10:41:27');
+INSERT INTO "progression" VALUES(1,4,'incline barbell bench press','baseline','75x6','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(2,4,'cable lat raise','baseline','11.25x8','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(3,4,'hammer strength row','baseline','90x8','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(4,4,'machine lat raise','baseline','60x9','flat','','2026-09-22T17:13:42');
+INSERT INTO "progression" VALUES(5,4,'pec deck','baseline','85x8','flat','','2026-09-22T17:13:42');
+INSERT INTO "progression" VALUES(6,4,'straight bar pulldown','baseline','77x8','flat','','2026-09-22T17:13:42');
+INSERT INTO "progression" VALUES(7,4,'ezbar curl','baseline','35x6','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(8,4,'bayesian curl','baseline','11.25x8','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(9,4,'smith jm press','baseline','30x8','flat','','2026-09-22T17:13:42');
+INSERT INTO "progression" VALUES(10,4,'overhead cable extension','baseline','25x12','up','','2026-09-22T17:13:42');
+INSERT INTO "progression" VALUES(11,4,'face pull','baseline','38.75x10','flat','','2026-09-22T17:11:12');
 CREATE TABLE rules (
   id INTEGER PRIMARY KEY,
   subject TEXT NOT NULL,

@@ -109,7 +109,7 @@ def test_gate_blocks_unreconciled(log_module):
     _seeded(log)
     log.cmd_log("fly", 20, 10, "", "chest")
     for ex in ("bench", "row", "fly"):
-        log.cmd_progression_set(ex, "hold", "test", "flat")
+        log.cmd_progression_set(ex, "hold", "80x5", "flat")
     buf = io.StringIO()
     try:
         with redirect_stdout(buf):

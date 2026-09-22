@@ -49,6 +49,13 @@ def test_check_dry_run_matches_end(log_module):
     assert "not ready to close" in out
 
 
+def test_progression_next_requires_reps(log_module):
+    log = log_module
+    _seed_session(log)
+    with pytest.raises(SystemExit, match="weight x reps"):
+        log.cmd_progression_set("bench", "hit", "102.5", "up")
+
+
 def test_end_succeeds_after_progression(log_module):
     log = log_module
     _seed_session(log)

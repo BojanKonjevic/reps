@@ -44,7 +44,7 @@ def close_session(log, note="done"):
         judged = {r["exercise"] for r in c.execute(
             "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
         for ex in sorted(trained - judged):
-            log.cmd_progression_set(ex, "baseline", "test", "flat")
+            log.cmd_progression_set(ex, "baseline", "80x5", "flat")
         new = sorted(set(trained) - log.split_all_movements("active"))
         if new:
             days = log.split_day_order("active")
