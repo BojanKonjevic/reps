@@ -1,4 +1,26 @@
 BEGIN TRANSACTION;
+CREATE TABLE autoreg_changes (
+  id INTEGER PRIMARY KEY,
+  date TEXT NOT NULL,
+  action TEXT NOT NULL,
+  day TEXT NOT NULL,
+  slot INTEGER NOT NULL,
+  before_movements TEXT NOT NULL,
+  before_sets INTEGER NOT NULL,
+  after_movements TEXT NOT NULL,
+  after_sets INTEGER NOT NULL,
+  evidence TEXT NOT NULL DEFAULT '',
+  reverted_on TEXT
+);
+CREATE TABLE autoreg_holds (
+  id INTEGER PRIMARY KEY,
+  day TEXT NOT NULL,
+  movements TEXT NOT NULL,
+  action TEXT NOT NULL,
+  set_on TEXT NOT NULL,
+  hold_until TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE bodyweight (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,

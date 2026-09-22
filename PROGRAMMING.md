@@ -50,9 +50,9 @@ Deloads are state, not just narration. Scope is per lift (`deload set --scope li
 
 Runs at every session start after `plan`, before prescription (LOGGING.md step 7). The loop watches recovery per lift, muscle, and system, and adjusts the program with severity matched to signal clarity. Lagging by design: it acts on one to two bad sessions of evidence, never on soreness reports alone and never preemptively.
 
-Standing permission lives in the rules table ("autoreg: manage volume within MEV..MRV and swap at strong evidence, narrate everything"). It authorizes exactly the actions below, nothing else. "Stop autoreg" archives it and halts the loop. Every auto-change is narrated in the session plan with its evidence, one line each, and appended to MEMORY.md State as `YYYY-MM-DD: autoreg (<scope>): <change> (<evidence>)`. "Revert that" restores baseline lines for the affected slots immediately and clears their holds.
+Standing permission lives in the rules table ("autoreg: manage volume within MEV..MRV and swap at strong evidence, narrate everything"). It authorizes exactly the actions below, nothing else. "Stop autoreg" archives it and halts the loop. Every auto-change goes through `autoreg apply` (the only writer, it enforces holds and the MEV floor) and is narrated in the session plan with its evidence, one line each, and appended to MEMORY.md State as `YYYY-MM-DD: autoreg (<scope>): <change> (<evidence>)`. "Revert that" runs `autoreg revert`, which restores baseline lines for the affected slots immediately and clears their holds.
 
-Signals, read off `plan` plus targeted `range`/`history` (two to three sessions per involved lift, never bulk pulls):
+Signals, read off `plan.autoreg` (miss_streaks, drop_watch, grouped, program_volume) plus targeted `range`/`history` (two to three sessions per involved lift, never bulk pulls):
 
 1. Residuals: actual versus progression target or trajectory per lift.
 2. Scope: isolated (one lift), grouped (two or more lifts, same muscle), systemic (three or more lifts across two or more patterns).
@@ -67,7 +67,7 @@ Tiers:
 
 Actions:
 
-- Trim (auto on high): minus one set from accessory slots covering the affected muscles, compounds last, never below MEV, at most one set per slot per rotation. Each trim records a hold: `autoreg hold: <slot> <movement> until <date>`, eight days out. Held slots are skipped by later passes.
+- Trim (auto on high): minus one set from accessory slots covering the affected muscles, compounds last, never below MEV, at most one set per slot per rotation. Each trim records a hold row in `autoreg_holds`, eight days out. Held slots are skipped by later passes.
 - Add (auto on clear recovery): the mirror. Progression hitting plus headroom to MAV means plus one set under the same constraints.
 - Swap (auto only at very strong evidence): the grouped pattern repeating across two or more rotations, or persisting through a completed deload. Otherwise prompt. Swaps use existing slot alternates; a missing alternate is proposed, never invented.
 - Return is slow by construction. Holds expiring restore baseline only on clear signals, never automatically. Volume comes back slower than it left, which is what stops the loop oscillating.
