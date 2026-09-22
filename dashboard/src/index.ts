@@ -1877,7 +1877,7 @@ function holdExercises(auto: any): Set<string> {
 
 function recentChanges(auto: any, changes: any[]): Set<string> {
   const out = new Set<string>();
-  for (const ch of (changes || []).slice(0, 5)) {
+  for (const ch of changes || []) {
     if (ch.reverted_on) continue;
     for (const m of (ch.after_movements || '').split('/')) {
       const t = m.trim().toLowerCase();
@@ -1885,6 +1885,23 @@ function recentChanges(auto: any, changes: any[]): Set<string> {
     }
   }
   return out;
+}
+
+function changeOf(changes: any[], ex: string): any {
+  // Newest unreverted change touching the exercise (snapshot is newest-first).
+  const low = ex.toLowerCase();
+  for (const ch of changes || []) {
+    if (ch.reverted_on) continue;
+    const moves = (ch.after_movements || '').split('/').map((m: string) => m.trim().toLowerCase());
+    if (moves.indexOf(low) >= 0) return ch;
+  }
+  return null;
+}
+
+function dirArrow(direction: string): string {
+  if (direction === 'up') return '↑';
+  if (direction === 'down') return '↓';
+  return '→';
 }
 
 function groupedOf(auto: any, ex: string): string[] {
@@ -1907,7 +1924,6 @@ function liftRank(
   if (fx.held.has(t.toLowerCase()) || fx.changed.has(t.toLowerCase())) return 0;
   const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
   if (isStalling(pts) || deloadWatch(pts)) return 1;
-  if (groupedOf(SNAP.autoreg, t).length) return 1;
   if (goalByExercise(SNAP, t)) return 2;
   return 3;
 }
@@ -2000,6 +2016,9 @@ function showLifts() {
         'bad',
       ])
     );
+    const change = changeOf(SNAP.autoreg_changes || [], t);
+    if (change)
+      marks.push(['adjusted ' + change.date + ': ' + (change.evidence || change.action), 'plan']);
     const grouped = groupedOf(SNAP.autoreg, t);
     if (grouped.length) marks.push(['grouped fatigue: ' + grouped.join(', '), 'bad']);
     const pts = (vals.filter(x => x !== null) as number[]).map(ev => ({ ev }));
@@ -2021,10 +2040,10 @@ function showLifts() {
     const mus = musclesOf(SNAP, t);
     if (mus.length) {
       const row = document.createElement('div');
-      row.className = 'cap';
-      mus.forEach((m, k) => {
-        if (k > 0) row.appendChild(document.createTextNode(', '));
+      row.className = 'legend';
+      mus.forEach(m => {
         const a = document.createElement('a');
+        a.className = 'chip';
         a.href = '#/m/' + encodeURIComponent(m);
         a.textContent = m;
         row.appendChild(a);
@@ -2045,7 +2064,17 @@ function showLifts() {
       const line = document.createElement('div');
       line.className = 'cap';
       line.textContent =
-        'last ' + last.weight + ' x ' + last.reps + ' · best ' + best.weight + ' x ' + best.reps;
+        'last ' +
+        last.weight +
+        ' x ' +
+        last.reps +
+        ' · best ' +
+        best.weight +
+        ' x ' +
+        best.reps +
+        ' (e1RM ' +
+        fmtV(e1rm(best.weight, best.reps)) +
+        ')';
       card.appendChild(line);
     }
     const p = prog[t.toLowerCase()];
@@ -2053,7 +2082,7 @@ function showLifts() {
       const pl = document.createElement('div');
       pl.className = 'cap';
       pl.textContent =
-        p.verdict + ' → ' + p.next + ' ' + p.direction + (p.note ? ' · ' + p.note : '');
+        p.verdict + ' → ' + p.next + ' ' + dirArrow(p.direction) + (p.note ? ' · ' + p.note : '');
       card.appendChild(pl);
     }
     (notesByEx[t] || []).forEach(n => {
@@ -2123,7 +2152,7 @@ function musPasses(m: string, vol: any, grouped: Record<string, string[]>): bool
   for (const f of MUSF) {
     if (f === 'below' && status === 'below_mev') return true;
     if (f === 'above' && status === 'above_mrv') return true;
-    if (f === 'priority' && (tier === 'priority' || tier === 'deprioritize')) return true;
+    if (f === 'priority' && tier === 'priority') return true;
     if (f === 'grouped' && grouped[m]) return true;
   }
   return false;
@@ -2184,8 +2213,11 @@ function showMuscles() {
     al.textContent = m;
     h.appendChild(al);
     const marks: Array<[string, string]> = [];
-    if (entry.status === 'below_mev') marks.push(['below MEV', 'bad']);
-    else if (entry.status === 'above_mrv') marks.push(['above MRV', 'bad']);
+    if (vol[m]) {
+      if (entry.status === 'below_mev') marks.push(['below MEV', 'bad']);
+      else if (entry.status === 'above_mrv') marks.push(['above MRV', 'bad']);
+      else marks.push(['in range', '']);
+    }
     const tier = tierOf(m);
     if (tier && tier !== 'maintain') marks.push([tier, tier === 'priority' ? 'plan' : '']);
     if (grouped[m]) marks.push(['grouped fatigue: ' + grouped[m].join(', '), 'bad']);

@@ -144,7 +144,10 @@ test.describe('Rich snapshot sections', () => {
     await expect(page.locator('#liftsSub')).toContainText('2 movements');
     const bench = page.locator('#liftGrid .mini', { hasText: 'flat barbell bench press' });
     await expect(bench).toContainText('trim, holds until 2026-09-23');
+    await expect(bench).toContainText('adjusted 2026-09-15: two misses');
     await expect(bench).toContainText('grouped fatigue: chest');
+    await expect(bench).toContainText('best 92.5 x 5 (e1RM 108)');
+    await expect(bench).toContainText('hit → 95x5 ↑ · paused reps');
     await expect(bench).toContainText('hit → 95x5 up · paused reps');
     await expect(bench).toContainText('setup: touch low');
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
@@ -158,9 +161,14 @@ test.describe('Rich snapshot sections', () => {
     await page.goto('#/muscles');
     const chest = page.locator('#musGrid .mini', { hasText: 'chest' });
     await expect(chest).toContainText('below MEV');
-    await expect(chest).toContainText('grouped fatigue: bench');
+    await expect(chest).toContainText('grouped fatigue: flat barbell bench press');
+    await expect(page.locator('#musGrid')).toContainText('in range');
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     await expect(page.locator('#musGrid .mini')).toHaveCount(1);
+    await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
+    await page.locator('#musFacets button', { hasText: 'Priority' }).click();
+    await expect(page.locator('#musGrid .mini')).toHaveCount(1);
+    await expect(page.locator('#musGrid .mini').first()).toContainText('chest');
   });
 
   test('coach notes read the snapshot signals aloud', async ({ page }) => {
