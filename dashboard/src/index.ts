@@ -481,6 +481,7 @@ function render() {
   refreshTrend();
   renderNow(snap, W, S);
   renderNext(snap, W, S);
+  renderSignals(snap);
   renderProgramSummary(snap);
   renderForward(snap, W, S);
   renderAdh(snap);
@@ -1541,6 +1542,39 @@ function renderNext(snap: any, W: any[], S: any[]) {
   cap.className = 'cap';
   cap.textContent = nxt.basis + '. Confirm or override in chat before training.';
   card.appendChild(cap);
+}
+
+function renderSignals(snap: any) {
+  // Warning signs in words. The backend computes every line; the page only
+  // reads them aloud, worst first. Nothing here is generated or inferred.
+  const wrap = document.getElementById('sigWrap')!;
+  const card = document.getElementById('sigCard')!;
+  card.innerHTML = '';
+  if (!('signals' in snap)) {
+    wrap.hidden = true;
+    return;
+  }
+  wrap.hidden = false;
+  const rows: Array<{ severity: string; text: string }> = snap.signals || [];
+  if (!rows.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'all clear, nothing flagged';
+    card.appendChild(e);
+    return;
+  }
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'sigrow';
+    const tag = document.createElement('span');
+    tag.className = 'sigtag sig-' + r.severity;
+    tag.textContent = r.severity.toUpperCase();
+    row.appendChild(tag);
+    const tx = document.createElement('span');
+    tx.textContent = r.text;
+    row.appendChild(tx);
+    card.appendChild(row);
+  });
 }
 
 function renderAdh(snap: any) {

@@ -10,6 +10,7 @@ from datetime import datetime
 from . import db
 from .adherence import adherence_snapshot
 from .constants import load_constants
+from .signals import build_signals
 from .db import SCHEMA, conn
 from .goals import goal_progress
 from .muscles import attach_muscles
@@ -84,11 +85,15 @@ def build_snapshot(c=None):
         adherence = adherence_snapshot(c)
     except (sqlite3.Error, SystemExit):
         adherence = None
+    try:
+        signals = build_signals(c)
+    except (sqlite3.Error, SystemExit):
+        signals = []
     return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
             "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
             "progression": progression, "goals": goals, "priority": priority, "deload": deload,
             "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes,
-            "adherence": adherence}
+            "adherence": adherence, "signals": signals}
 
 
 def cmd_export():

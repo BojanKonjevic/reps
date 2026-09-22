@@ -62,6 +62,10 @@ const RICH_SNAPSHOT = {
       { date: '2026-09-12', expected: 'rest', trained: null, status: 'rest_ok' },
     ],
   },
+  signals: [
+    { severity: 'high', text: 'chest: 0 sets in 7 of last 8 weeks (MEV 8)' },
+    { severity: 'info', text: 'deloading lift bench' },
+  ],
 };
 
 async function gotoRich(page: Page) {
@@ -110,5 +114,12 @@ test.describe('Rich snapshot sections', () => {
     await expect(page.locator('#liftPRs')).toContainText('last PR 3d ago');
     await page.goto('#/l/squat');
     await expect(page.locator('#liftPRs')).toContainText('no PR yet');
+  });
+
+  test('coach notes read the snapshot signals aloud', async ({ page }) => {
+    await gotoRich(page);
+    await expect(page.locator('#sigWrap')).toBeVisible();
+    await expect(page.locator('#sigCard .sigtag').first()).toHaveText('HIGH');
+    await expect(page.locator('#sigCard')).toContainText('chest: 0 sets in 7 of last 8 weeks');
   });
 });

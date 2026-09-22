@@ -45,14 +45,15 @@ from .sessions import (cmd_calendar, cmd_check, cmd_context, cmd_delete_set,
                        cmd_log, cmd_notes, cmd_range, cmd_rest, cmd_session,
                        cmd_start, cmd_stats, cmd_today, cmd_update,
                        cmd_update_workout, cmd_weigh, end_gate_items)
+from .signals import SEVERITY_ORDER, build_signals
 from .sync import (build_snapshot, cmd_dump, cmd_export, cmd_restore, cmd_sync)
 
 __all__ = [
-    "CFG", "CONSTANTS_FILE", "DB", "MEMORY_FILE", "SCHEMA",
+    "CFG", "CONSTANTS_FILE", "DB", "MEMORY_FILE", "SCHEMA", "SEVERITY_ORDER",
     "active_deloads", "adherence_block", "adherence_snapshot", "append_memory_state", "attach_muscles",
     "autoreg_active_holds", "autoreg_block", "autoreg_drop_watch",
     "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted",
-    "best_e1rm", "best_split_day", "build_checkpoints", "build_snapshot",
+    "best_e1rm", "best_split_day", "build_checkpoints", "build_signals", "build_snapshot",
     "canon_muscle_name", "classify_date", "clean_muscles", "cmd_audit", "cmd_autoreg_apply",
     "cmd_autoreg_log", "cmd_autoreg_revert", "cmd_calendar", "cmd_check",
     "cmd_constants_set", "cmd_constants_show", "cmd_constants_validate",

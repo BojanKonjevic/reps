@@ -21,7 +21,7 @@ Protocol and state live in `docs/`, code in `reps/` with `log.py` as the entry:
 - `docs/SCIENCE.md` — evidence reference with trust tiers. Read for defaults, never for what I already logged.
 - `constants.json` — single source of truth for muscles, MEV/MAV/MRV, thresholds. Edited via `log.py constants set`, never by hand.
 - `docs/AUDIT.md` — data quality protocol. `docs/ISSUES.md` — agent behavior issue log.
-- `reps/` — the CLI implementation, one module per domain (`sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `audit`, `sync`, `cli`, plus `db`, `constants`, `muscles`, `memory`, `progression`). `log.py` at the root is only the entry point and re-export; put new commands in the matching module and export them from `reps/__init__.py`. Backend paths (`workouts.db`, `constants.json`, `docs/MEMORY.md`) resolve from the repo root, never the cwd. Rotation schedule state lives in meta (`rotation`, `rotation_anchor` via `rotation anchor`); per-date verdicts come from `rotation status` and `plan`'s `adherence`, never from hand-counting dates.
+- `reps/` — the CLI implementation, one module per domain (`sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, `cli`, plus `db`, `constants`, `muscles`, `memory`, `progression`). `log.py` at the root is only the entry point and re-export; put new commands in the matching module and export them from `reps/__init__.py`. Backend paths (`workouts.db`, `constants.json`, `docs/MEMORY.md`) resolve from the repo root, never the cwd. Rotation schedule state lives in meta (`rotation`, `rotation_anchor` via `rotation anchor`); per-date verdicts come from `rotation status` and `plan`'s `adherence`, never from hand-counting dates.
 
 ## Triggers
 

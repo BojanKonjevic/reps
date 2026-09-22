@@ -31,7 +31,7 @@ Three layers, each doing one job.
 ## Repo map
 
 - `log.py`, the CLI entry point and only writer (implementation in `reps/`, one module per domain). SQLite at `workouts.db`, tracked dump at `workouts.sql`.
-- `reps/`, the backend: `sessions` (logging, the `end` gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the `plan` bundle), `goals`, `autoreg`, `adherence` (`rotation anchor`, `rotation status`), `audit` (`audit`, `doctor`), `sync` (`sync`, `dump`, `restore`, `export`), `cli` (argv parsing), plus `db`, `constants`, `muscles`, `memory`, `progression`.
+- `reps/`, the backend: `sessions` (logging, the `end` gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the `plan` bundle), `goals`, `autoreg`, `adherence` (`rotation anchor`, `rotation status`), `signals` (coach-notes sentences for the dashboard), `audit` (`audit`, `doctor`), `sync` (`sync`, `dump`, `restore`, `export`), `cli` (argv parsing), plus `db`, `constants`, `muscles`, `memory`, `progression`.
 - `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
 - `AGENTS.md`, the agent map. `constants.json`, the evidence numbers.
 - `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.

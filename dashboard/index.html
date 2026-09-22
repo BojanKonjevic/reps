@@ -172,6 +172,33 @@
         margin: 0 0 6px;
         font-size: 1rem;
       }
+      .sigrow {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 0.88rem;
+        padding: 3px 0;
+      }
+      .sigtag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 600;
+        flex: none;
+        width: 52px;
+      }
+      .sig-high {
+        color: #f09090;
+      }
+      .sig-medium {
+        color: #e6c400;
+      }
+      .sig-low {
+        color: #8a8478;
+      }
+      .sig-info {
+        color: #b0aca2;
+      }
       .dtstrip {
         display: flex;
         flex-wrap: wrap;
@@ -825,6 +852,11 @@
       <div id="nextWrap">
         <h2>Next up</h2>
         <div class="card" id="nextCard"></div>
+      </div>
+      <div id="sigWrap" hidden>
+        <h2>Coach notes</h2>
+        <div class="card" id="sigCard"></div>
+        <div class="cap">Warning signs in words, worst first. Every line restates a computed fact.</div>
       </div>
       <div>
         <h2>Estimated 1RM trend</h2>
