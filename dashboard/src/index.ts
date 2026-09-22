@@ -392,7 +392,7 @@ function render() {
   const sessions = W.filter(w => w.status !== 'rest');
   const sdates = sessions.map(w => w.date).sort();
   document.getElementById('sub')!.textContent = sdates.length
-    ? sessions.length + ' sessions'
+    ? sessions.length + (sessions.length === 1 ? ' session' : ' sessions')
     : W.length
       ? 'no sessions yet, ' + W.length + ' rest days logged'
       : 'no sync yet, log your first session';
