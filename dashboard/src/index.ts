@@ -1999,6 +1999,15 @@ function showLifts() {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.margin = '0';
+    const row = document.createElement('div');
+    row.className = 'listrow';
+    card.appendChild(row);
+    const info = document.createElement('div');
+    info.className = 'listinfo';
+    row.appendChild(info);
+    const chartbox = document.createElement('div');
+    chartbox.className = 'listchart';
+    row.appendChild(chartbox);
     const h = document.createElement('div');
     h.className = 'minititle';
     const al = document.createElement('a');
@@ -2037,22 +2046,22 @@ function showLifts() {
       });
       h.appendChild(wrap);
     }
-    card.appendChild(h);
+    info.appendChild(h);
     const mus = musclesOf(SNAP, t);
     if (mus.length) {
-      const row = document.createElement('div');
-      row.className = 'legend';
+      const mrow = document.createElement('div');
+      mrow.className = 'legend';
       mus.forEach(m => {
         const a = document.createElement('a');
         a.className = 'chip';
         a.href = '#/m/' + encodeURIComponent(m);
         a.textContent = m;
-        row.appendChild(a);
+        mrow.appendChild(a);
       });
-      card.appendChild(row);
+      info.appendChild(mrow);
     }
     const cv = document.createElement('canvas');
-    card.appendChild(cv);
+    chartbox.appendChild(cv);
     const sets = (SNAP.sets || []).filter((s: any) => s.exercise === t);
     if (sets.length) {
       const last = sets.slice().sort((a: any, b: any) => {
@@ -2076,7 +2085,7 @@ function showLifts() {
         ' (e1RM ' +
         fmtV(e1rm(best.weight, best.reps)) +
         ')';
-      card.appendChild(line);
+      info.appendChild(line);
     }
     const p = prog[t.toLowerCase()];
     if (p) {
@@ -2084,13 +2093,13 @@ function showLifts() {
       pl.className = 'cap';
       pl.textContent =
         p.verdict + ' → ' + p.next + ' ' + dirArrow(p.direction) + (p.note ? ' · ' + p.note : '');
-      card.appendChild(pl);
+      info.appendChild(pl);
     }
     (notesByEx[t] || []).forEach(n => {
       const nl = document.createElement('div');
       nl.className = 'cap';
       nl.textContent = 'setup: ' + n;
-      card.appendChild(nl);
+      info.appendChild(nl);
     });
     card.addEventListener('click', ev => {
       if ((ev.target as HTMLElement).tagName !== 'A')
@@ -2208,6 +2217,15 @@ function showMuscles() {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.margin = '0';
+    const row = document.createElement('div');
+    row.className = 'listrow';
+    card.appendChild(row);
+    const info = document.createElement('div');
+    info.className = 'listinfo';
+    row.appendChild(info);
+    const chartbox = document.createElement('div');
+    chartbox.className = 'listchart';
+    row.appendChild(chartbox);
     const h = document.createElement('div');
     h.className = 'minititle';
     const al = document.createElement('a');
@@ -2234,10 +2252,10 @@ function showMuscles() {
       });
       h.appendChild(wrap);
     }
-    card.appendChild(h);
+    info.appendChild(h);
     const cv = document.createElement('canvas');
     cv.style.height = '120px';
-    card.appendChild(cv);
+    chartbox.appendChild(cv);
     const data = musclePageData(D!.W, D!.S, m);
     const lifts = data.lifts || [];
     lifts.slice(0, 3).forEach(l => {
@@ -2250,7 +2268,7 @@ function showMuscles() {
       const meta = document.createElement('span');
       meta.textContent = ' ' + l.sets + ' sets · ' + Math.round(l.share * 100) + '%';
       row.appendChild(meta);
-      card.appendChild(row);
+      info.appendChild(row);
     });
     if (lifts.length > 3) {
       const more = document.createElement('div');
@@ -2259,7 +2277,7 @@ function showMuscles() {
       a.href = '#/m/' + encodeURIComponent(m);
       a.textContent = '+' + (lifts.length - 3) + ' more';
       more.appendChild(a);
-      card.appendChild(more);
+      info.appendChild(more);
     }
     card.addEventListener('click', ev => {
       if ((ev.target as HTMLElement).tagName !== 'A')

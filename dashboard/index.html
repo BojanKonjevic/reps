@@ -280,6 +280,36 @@
         height: 140px;
         display: block;
       }
+      .listrow {
+        display: flex;
+        gap: 18px;
+        align-items: stretch;
+      }
+      .listinfo {
+        flex: 0 0 340px;
+        min-width: 0;
+      }
+      .listinfo .minititle a {
+        font-size: 1.05rem;
+      }
+      .listchart {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+      }
+      .listchart canvas {
+        width: 100%;
+        height: 140px;
+        display: block;
+      }
+      @media (max-width: 900px) {
+        .listrow {
+          flex-direction: column;
+        }
+        .listinfo {
+          flex: none;
+        }
+      }
       .mini {
         min-width: 0;
       }
