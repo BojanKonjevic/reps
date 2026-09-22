@@ -2,9 +2,10 @@ import json
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from . import db
+from .adherence import parse_anchor
 from .constants import load_constants
 from .db import ROOT, SCHEMA, conn
 from .goals import goal_progress
@@ -126,7 +127,6 @@ def cmd_audit():
     # Every week in the window counts: weeks with no logged sets are 0, not
     # absent. Zero and low volume are separate flags; bad weeks are counted
     # across the whole window, a good week in between does not reset anything.
-    from datetime import date, timedelta
     today = date.today()
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
     base = week_starts[0].isoformat()
@@ -221,27 +221,9 @@ def cmd_doctor():
                                  "fix": f"rotation day '{day}' matches no splits.day value (see split show)"})
     anchor_row = c.execute("SELECT value FROM meta WHERE key = 'rotation_anchor'").fetchone()
     if anchor_row is not None:
-        try:
-            anchor = json.loads(anchor_row["value"])
-            anchor_ok = (isinstance(anchor, dict) and isinstance(anchor.get("date"), str)
-                         and isinstance(anchor.get("index"), int) and not isinstance(anchor.get("index"), bool))
-            if anchor_ok:
-                date.fromisoformat(anchor["date"])
-        except (ValueError, TypeError):
-            anchor_ok = False
-        if not anchor_ok:
-            problems.append({"check": "rotation_anchor",
-                             "fix": "rotation_anchor must be {\"date\": \"YYYY-MM-DD\", \"index\": <int>} "
-                                    "(see rotation anchor)"})
-        else:
-            if date.fromisoformat(anchor["date"]) > date.today():
-                problems.append({"check": "rotation_anchor",
-                                 "fix": f"rotation_anchor date {anchor['date']} is in the future"})
-            if (not isinstance(rotation, list) or not rotation
-                    or anchor["index"] < 0 or anchor["index"] >= len(rotation)):
-                problems.append({"check": "rotation_anchor",
-                                 "fix": f"rotation_anchor index {anchor['index']} is out of range "
-                                        f"for the current rotation (see meta show rotation)"})
+        _, problem = parse_anchor(anchor_row["value"], rotation)
+        if problem:
+            problems.append({"check": "rotation_anchor", "fix": problem})
     orphan_prog = c.execute(
         "SELECT workout_id, exercise FROM progression WHERE workout_id NOT IN (SELECT id FROM workouts)").fetchall()
     for r in orphan_prog:

@@ -7,7 +7,7 @@ everything so the CLI and existing tooling keep working.
 from .adherence import (adherence_block, adherence_snapshot, classify_date, cmd_rotation_anchor,
                         cmd_rotation_status, drift_days, expected_day,
                         expectation_context, get_anchor, is_rest_day,
-                        match_day, status_range)
+                        match_day, parse_anchor, status_range)
 from .audit import cmd_audit, cmd_doctor
 from .autoreg import (autoreg_active_holds, autoreg_block, autoreg_drop_watch,
                       autoreg_grouped, autoreg_miss_streaks, autoreg_permitted,
@@ -75,7 +75,7 @@ __all__ = [
     "end_gate_items", "expected_day", "expectation_context", "get_anchor",
     "goal_progress", "goal_sessions", "is_rest_day", "load_constants",
     "main", "match_day", "mev_floor_warnings", "muscles_for_movements", "open_workout",
-    "parse_mev_from_science", "parse_movements", "parse_rotation",
+    "parse_anchor", "parse_mev_from_science", "parse_movements", "parse_rotation",
     "placeholders", "programmed_weekly_volume", "read_priorities",
     "read_split", "rep_band_bound", "rule_status_rows", "rules_with_confirm",
     "split_all_movements", "split_day_order", "status_range",

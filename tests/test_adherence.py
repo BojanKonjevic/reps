@@ -234,3 +234,38 @@ def test_doctor_anchor_checks(log_module):
         assert False, "should have exited"
     except SystemExit as e:
         assert e.code == 1
+
+
+def test_status_stops_at_today(log_module):
+    log = log_module
+    c = log.conn()
+    _seed_3day(log)
+    log.cmd_rotation_anchor("2026-08-10", "Upper A")
+    future = (date.today() + timedelta(days=5)).isoformat()
+    out = json.loads(_out(log.cmd_rotation_status, date.today().isoformat(), future))
+    assert out and all(e["date"] <= date.today().isoformat() for e in out)
+    out = json.loads(_out(log.cmd_rotation_status, future, future))
+    assert out == []
+
+
+def test_open_session_does_not_count_as_trained(log_module):
+    log = log_module
+    c = log.conn()
+    _seed_3day(log)
+    today = date.today()
+    log.cmd_rotation_anchor((today - timedelta(days=3)).isoformat(), "Upper A")
+    log.cmd_start("test")
+    log.cmd_log("bench", 100, 5, "", "chest")
+    entry = json.loads(_out(log.cmd_rotation_status, today.isoformat(), today.isoformat()))[0]
+    assert entry["status"] == "missed"
+
+
+def test_invalid_anchor_says_so(log_module):
+    log = log_module
+    c = log.conn()
+    log.cmd_meta_set("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    c.execute("INSERT INTO meta (key, value) VALUES ('rotation_anchor', 'not json')")
+    c.commit()
+    with pytest.raises(SystemExit, match="invalid"):
+        log.cmd_rotation_status()
+    assert json.loads(_plan(log))["adherence"] is None

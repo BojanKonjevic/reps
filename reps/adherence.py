@@ -18,28 +18,39 @@ def is_rest_day(name):
     return name.strip().lower() == "rest"
 
 
-def get_anchor(c):
-    """Parsed rotation_anchor or None when missing, corrupt, or out of range."""
-    raw = meta_get(c, "rotation_anchor")
+def parse_anchor(raw, rotation):
+    """Validate a stored anchor. Returns (anchor, problem): anchor is None
+    when missing or invalid, problem is None when valid. Missing (no row)
+    is not a problem, it just disables adherence."""
     if not raw:
-        return None
+        return None, None
+    malformed = (None, "rotation_anchor must be {\"date\": \"YYYY-MM-DD\", \"index\": <int>} "
+                       "(see rotation anchor)")
     try:
         anchor = json.loads(raw)
     except ValueError:
-        return None
-    if not isinstance(anchor, dict):
-        return None
+        return malformed
+    if not isinstance(anchor, dict) or not isinstance(anchor.get("date"), str):
+        return malformed
     try:
         day = date.fromisoformat(anchor["date"]).isoformat()
-        index = anchor["index"]
-    except (KeyError, TypeError, ValueError):
-        return None
+    except ValueError:
+        return malformed
+    index = anchor.get("index")
     if not isinstance(index, int) or isinstance(index, bool) or index < 0:
-        return None
-    rotation = parse_rotation(c)
+        return malformed
+    if date.fromisoformat(day) > date.today():
+        return None, f"rotation_anchor date {day} is in the future"
     if not rotation or index >= len(rotation):
-        return None
-    return {"date": day, "index": index}
+        return None, (f"rotation_anchor index {index} is out of range "
+                       f"for the current rotation (see meta show rotation)")
+    return {"date": day, "index": index}, None
+
+
+def get_anchor(c):
+    """Parsed rotation_anchor or None when missing, corrupt, or out of range."""
+    anchor, _ = parse_anchor(meta_get(c, "rotation_anchor"), parse_rotation(c))
+    return anchor
 
 
 def expected_day(rotation, anchor, day_iso):
@@ -49,10 +60,15 @@ def expected_day(rotation, anchor, day_iso):
 
 
 def trained_exercises(c, day_iso):
-    """Distinct exercises logged on a date (rest rows carry no sets)."""
+    """Distinct exercises in done sessions on a date.
+
+    Done only: an open in-progress workout must not flip the day to done
+    before `end`, and rest rows carry no sets. Matches the slot guess, which
+    also reads the last done session.
+    """
     return {r["exercise"] for r in c.execute(
         "SELECT DISTINCT s.exercise FROM sets s JOIN workouts w ON w.id = s.workout_id "
-        "WHERE w.date = ? AND w.status != 'rest'", (day_iso,)).fetchall()}
+        "WHERE w.date = ? AND w.status = 'done'", (day_iso,)).fetchall()}
 
 
 def match_day(c, trained):
@@ -202,11 +218,16 @@ def cmd_rotation_anchor(date_str, day):
 
 
 def cmd_rotation_status(from_iso=None, to_iso=None):
-    """Adherence verdicts per date over a range (default: last 14 days)."""
+    """Adherence verdicts per date over a range (default: last 14 days).
+
+    Entries stop at today: future dates have nothing to classify.
+    """
     c = conn()
     rotation = parse_rotation(c)
     anchor = get_anchor(c)
     if not rotation or anchor is None:
+        if meta_get(c, "rotation_anchor"):
+            sys.exit("rotation anchor is set but invalid (see doctor)")
         sys.exit("rotation adherence needs a rotation and an anchor (rotation anchor <date> <day>)")
     today = date.today().isoformat()
     try:
@@ -215,6 +236,8 @@ def cmd_rotation_status(from_iso=None, to_iso=None):
             (date.fromisoformat(to_iso) - timedelta(days=13)).isoformat()
     except ValueError:
         sys.exit("status dates must be YYYY-MM-DD")
+    to_iso = min(to_iso, today)
     if from_iso > to_iso:
-        sys.exit("status --from cannot be after --to")
+        print(json.dumps([]))
+        return
     print(json.dumps(status_range(c, rotation, anchor, from_iso, to_iso), indent=2))
