@@ -2083,15 +2083,25 @@ function showLifts() {
     }
     const p = prog[t.toLowerCase()];
     if (p) {
+      const arrows: Record<string, [string, string]> = {
+        up: ['↑', '#7fd67f'],
+        flat: ['→', '#b0aca2'],
+        down: ['↓', '#f09090'],
+      };
       const pl = document.createElement('div');
       pl.className = 'cap';
-      pl.textContent =
-        p.verdict +
-        ' → ' +
-        p.next +
-        (p.direction ? ' · ' + p.direction : '') +
-        (p.note ? ' · ' + p.note : '');
-      card.appendChild(pl);
+      pl.appendChild(document.createTextNode(p.verdict + ' '));
+      if (p.direction && arrows[p.direction]) {
+        const arrow = document.createElement('span');
+        arrow.textContent = arrows[p.direction][0];
+        arrow.style.color = arrows[p.direction][1];
+        arrow.style.fontWeight = '700';
+        pl.appendChild(arrow);
+        pl.appendChild(document.createTextNode(' ' + p.next + (p.note ? ' · ' + p.note : '')));
+      } else {
+        pl.appendChild(document.createTextNode('→ ' + p.next + (p.note ? ' · ' + p.note : '')));
+      }
+      info.appendChild(pl);
     }
     (notesByEx[t] || []).forEach(n => {
       const nl = document.createElement('div');
