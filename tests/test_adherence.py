@@ -70,6 +70,12 @@ def test_anchor_resolves_first_rotation_index(log_module):
         log.cmd_rotation_anchor("2999-01-01", "Upper A")
     with pytest.raises(SystemExit, match="YYYY-MM-DD"):
         log.cmd_rotation_anchor("yesterday", "Upper A")
+    c = log.conn()
+    for bad in ('{"date": "2026-09-01", "index": 1.5}', '{"date": "2026-09-01", "index": true}',
+                '{"date": "2026-09-01", "index": "1"}'):
+        c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'", (bad,))
+        c.commit()
+        assert log.get_anchor(c) is None
 
 
 def test_status_classifications(log_module):

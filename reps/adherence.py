@@ -31,10 +31,10 @@ def get_anchor(c):
         return None
     try:
         day = date.fromisoformat(anchor["date"]).isoformat()
-        index = int(anchor["index"])
+        index = anchor["index"]
     except (KeyError, TypeError, ValueError):
         return None
-    if isinstance(anchor["index"], bool) or index < 0:
+    if not isinstance(index, int) or isinstance(index, bool) or index < 0:
         return None
     rotation = parse_rotation(c)
     if not rotation or index >= len(rotation):
