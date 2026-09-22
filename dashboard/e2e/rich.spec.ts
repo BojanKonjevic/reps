@@ -142,7 +142,7 @@ test.describe('Rich snapshot sections', () => {
     await gotoRich(page);
     await page.goto('#/lifts');
     await expect(page.locator('#liftsSub')).toContainText('2 movements');
-    const bench = page.locator('#liftGrid .mini', { hasText: 'flat barbell bench press' });
+    const bench = page.locator('#liftGrid .card', { hasText: 'flat barbell bench press' });
     await expect(bench).toContainText('trim, holds until 2026-09-23');
     await expect(bench).toContainText('adjusted 2026-09-15: two misses');
     await expect(bench).toContainText('grouped fatigue: chest');
@@ -151,24 +151,24 @@ test.describe('Rich snapshot sections', () => {
     await expect(bench).toContainText('hit → 95x5 up · paused reps');
     await expect(bench).toContainText('setup: touch low');
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
-    await expect(page.locator('#liftGrid .mini')).toHaveCount(1);
+    await expect(page.locator('#liftGrid .card')).toHaveCount(1);
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
-    await expect(page.locator('#liftGrid .mini')).toHaveCount(2);
+    await expect(page.locator('#liftGrid .card')).toHaveCount(2);
   });
 
   test('muscles page shows volume status and grouped badges', async ({ page }) => {
     await gotoRich(page);
     await page.goto('#/muscles');
-    const chest = page.locator('#musGrid .mini', { hasText: 'chest' });
+    const chest = page.locator('#musGrid .card', { hasText: 'chest' });
     await expect(chest).toContainText('below MEV');
     await expect(chest).toContainText('grouped fatigue: flat barbell bench press');
     await expect(page.locator('#musGrid')).toContainText('in range');
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
-    await expect(page.locator('#musGrid .mini')).toHaveCount(1);
+    await expect(page.locator('#musGrid .card')).toHaveCount(1);
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     await page.locator('#musFacets button', { hasText: 'Priority' }).click();
-    await expect(page.locator('#musGrid .mini')).toHaveCount(1);
-    await expect(page.locator('#musGrid .mini').first()).toContainText('chest');
+    await expect(page.locator('#musGrid .card')).toHaveCount(1);
+    await expect(page.locator('#musGrid .card').first()).toContainText('chest');
   });
 
   test('coach notes read the snapshot signals aloud', async ({ page }) => {

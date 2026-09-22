@@ -1997,7 +1997,8 @@ function showLifts() {
     const vals = TREND.series[i];
     const col = liftColor(t);
     const card = document.createElement('div');
-    card.className = 'mini';
+    card.className = 'card';
+    card.style.margin = '0';
     const h = document.createElement('div');
     h.className = 'minititle';
     const al = document.createElement('a');
@@ -2205,7 +2206,8 @@ function showMuscles() {
   shown.forEach(m => {
     const entry = vol[m] || { weekly: [], mev: 0, mav: null, mrv: null };
     const card = document.createElement('div');
-    card.className = 'mini';
+    card.className = 'card';
+    card.style.margin = '0';
     const h = document.createElement('div');
     h.className = 'minititle';
     const al = document.createElement('a');

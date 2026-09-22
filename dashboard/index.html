@@ -270,6 +270,16 @@
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 14px 12px;
       }
+      .listgrid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .listgrid canvas {
+        width: 100%;
+        height: 140px;
+        display: block;
+      }
       .mini {
         min-width: 0;
       }
@@ -1092,7 +1102,7 @@
           />
           <span class="legend" id="liftFacets"></span>
         </div>
-        <div class="minigrid" id="liftGrid"></div>
+        <div class="listgrid" id="liftGrid"></div>
         <div class="cap">Tap a lift for PR history, trajectory, and full history.</div>
       </div>
     </div>
@@ -1116,7 +1126,7 @@
         <div class="filterbar">
           <span class="legend" id="musFacets"></span>
         </div>
-        <div class="minigrid" id="musGrid"></div>
+        <div class="listgrid" id="musGrid"></div>
         <div class="cap">Weekly sets against MEV/MAV/MRV. Tap a muscle for the full page.</div>
       </div>
     </div>
