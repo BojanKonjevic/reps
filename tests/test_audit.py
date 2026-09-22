@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import pytest
 
 from contextlib import redirect_stdout
+from datetime import date
 
 from conftest import close_session
 
@@ -23,6 +24,8 @@ def audit_db():
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     os.environ["REPS_DB"] = path
+    import reps.db
+    reps.db.DB = path
     import log
     reload(log)
     from log import conn
@@ -429,13 +432,6 @@ JSON_BLOCK = """```json mev-bounds
 ```"""
 
 
-def _write_science(tmp_path, monkeypatch, log, content):
-    p = tmp_path / "SCIENCE.md"
-    p.write_text(content)
-    monkeypatch.setattr(log, "SCIENCE_FILE", str(p))
-    return p
-
-
 def test_parse_mev_reads_constants(audit_db):
     """parse_mev_from_science returns the MEV map from constants.json."""
     log, _ = audit_db
@@ -448,7 +444,7 @@ def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
     log, _ = audit_db
     p = tmp_path / "constants.json"
     p.write_text("{not json")
-    monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
+    monkeypatch.setattr("reps.constants.CONSTANTS_FILE", str(p))
     with pytest.raises(SystemExit, match="unreadable"):
         log.load_constants()
 
@@ -456,12 +452,13 @@ def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
 def test_load_constants_fails_on_empty_muscles(audit_db, tmp_path, monkeypatch):
     """A constants file with an empty muscles map exits instead of warning."""
     import json as _json
+    import reps.constants
     log, _ = audit_db
-    full = _json.loads(open(log.CONSTANTS_FILE).read())
+    full = _json.loads(open(reps.constants.CONSTANTS_FILE).read())
     full["muscles"] = {}
     p = tmp_path / "constants.json"
     p.write_text(_json.dumps(full))
-    monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
+    monkeypatch.setattr("reps.constants.CONSTANTS_FILE", str(p))
     with pytest.raises(SystemExit, match="empty"):
         log.load_constants()
 
@@ -473,14 +470,15 @@ def test_doctor_flags_deleted_tracked_muscle(audit_db):
     log.cmd_log("bench", 100, 5, "", "chest")
     c.execute("DELETE FROM lift_muscle_map WHERE exercise = 'bench'")
     import json as _json
-    full = _json.loads(open(log.CONSTANTS_FILE).read())
+    import reps.constants
+    full = _json.loads(open(reps.constants.CONSTANTS_FILE).read())
     del full["muscles"]["chest"]
     import tempfile, os
     fd, path = tempfile.mkstemp(suffix=".json")
     os.write(fd, _json.dumps(full).encode())
     os.close(fd)
-    old = log.CONSTANTS_FILE
-    log.CONSTANTS_FILE = path
+    old = reps.constants.CONSTANTS_FILE
+    reps.constants.CONSTANTS_FILE = path
     try:
         buf = io.StringIO()
         with redirect_stdout(buf):
@@ -491,7 +489,7 @@ def test_doctor_flags_deleted_tracked_muscle(audit_db):
                 assert e.code == 1
         assert "chest" in buf.getvalue()
     finally:
-        log.CONSTANTS_FILE = old
+        reps.constants.CONSTANTS_FILE = old
         os.unlink(path)
 
 
@@ -509,7 +507,7 @@ def test_priority_set_and_list(audit_db):
     log, _ = audit_db
     log.cmd_priority_set("side delts", "priority", None)
     assert log.read_priorities(log.conn()) == {
-        "side delts": {"tier": "priority", "since": log.date.today().isoformat(), "until": None}
+        "side delts": {"tier": "priority", "since": date.today().isoformat(), "until": None}
     }
 
 

@@ -12,6 +12,10 @@ def tmp_db(monkeypatch):
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     monkeypatch.setenv("REPS_DB", path)
+    # Backend modules snapshot their path globals at import, so point the
+    # live one at the tmp DB too (undone automatically with the env above).
+    import reps.db
+    monkeypatch.setattr(reps.db, "DB", path)
     # Force reimport of log module to pick up new DB
     import importlib
     import log

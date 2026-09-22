@@ -46,7 +46,7 @@ def test_dashboard_volume_test_derives_blank():
 
 
 def test_science_has_no_numeric_tables():
-    with open(os.path.join(ROOT, "SCIENCE.md")) as f:
+    with open(os.path.join(ROOT, "docs", "SCIENCE.md")) as f:
         text = f.read()
     assert "mev-bounds" not in text
     assert "| Chest" not in text

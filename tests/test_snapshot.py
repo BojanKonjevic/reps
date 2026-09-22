@@ -40,7 +40,7 @@ def test_export_forward_state_survives_empty_db(log_module, tmp_path, monkeypatc
     """A fresh DB still exports the full schema with empty forward sections."""
     import sqlite3
     fresh = str(tmp_path / "fresh.db")
-    monkeypatch.setattr(log_module, "DB", fresh)
+    monkeypatch.setattr("reps.db.DB", fresh)
     c = sqlite3.connect(fresh)
     c.executescript(log_module.SCHEMA)
     c.commit()

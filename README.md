@@ -22,19 +22,20 @@ You never touch the CLI yourself. The commands are the agent's vocabulary, not y
 
 Three layers, each doing one job.
 
-**The database holds facts.** `log.py` stores workouts, sets with weight, reps, muscles and notes, bodyweight, plus program state: splits, mappings, progression, flags, priorities, deloads, rules, goals. Derivable numbers (ledger, volume, e1RM, slot guess) are computed on read by `plan`, never stored. Non-negotiable rules fail loudly at the point of violation (the `end` gate, mapping authority, loud `constants.json`). The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
+**The database holds facts.** `log.py` (entry point for the `reps/` package: `sessions`, `program`, `plan`, `goals`, `autoreg`, `audit`, `sync`, `cli`) stores workouts, sets with weight, reps, muscles and notes, bodyweight, plus program state: splits, mappings, progression, flags, priorities, deloads, rules, goals. Derivable numbers (ledger, volume, e1RM, slot guess) are computed on read by `plan`, never stored. Non-negotiable rules fail loudly at the point of violation (the `end` gate, mapping authority, loud `constants.json`). The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
 
-**The markdown holds the rules.** AGENTS.md is the map: LOGGING.md runs sessions, PROGRAMMING.md designs the program, DASHBOARD.md owns the frontend. MEMORY.md carries your state, the program and goals live in SQLite behind `split`/`map`/`rule`/`goal` commands. SCIENCE.md pins the evidence-based defaults. This is what keeps the agent honest.
+**The markdown holds the rules.** AGENTS.md is the map: `docs/LOGGING.md` runs sessions, `docs/PROGRAMMING.md` designs the program, `docs/DASHBOARD.md` owns the frontend. `docs/MEMORY.md` carries your state, the program and goals live in SQLite behind `split`/`map`/`rule`/`goal` commands. `docs/SCIENCE.md` pins the evidence-based defaults. This is what keeps the agent honest.
 
 **The dashboard shows it back.** `log.py sync` pushes a snapshot to a read-only Cloudflare Worker. Graphs over headline numbers: e1RM trends per lift, volume by muscle, calendar, PRs.
 
 ## Repo map
 
-- `log.py`, the CLI and only writer. SQLite at `workouts.db`, tracked dump at `workouts.sql`.
-- `AGENTS.md`, the agent map (`LOGGING.md`, `PROGRAMMING.md`, `DASHBOARD.md`). `MEMORY.md`, your training state.
-- `SCIENCE.md`, evidence defaults. `AUDIT.md`, the data-quality checklist. `ISSUES.md`, noticed problems waiting for a fix.
+- `log.py`, the CLI entry point and only writer (implementation in `reps/`, one module per domain). SQLite at `workouts.db`, tracked dump at `workouts.sql`.
+- `reps/`, the backend: `sessions` (logging, the `end` gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the `plan` bundle), `goals`, `autoreg`, `audit` (`audit`, `doctor`), `sync` (`sync`, `dump`, `restore`, `export`), `cli` (argv parsing), plus `db`, `constants`, `muscles`, `memory`, `progression`.
+- `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
+- `AGENTS.md`, the agent map. `constants.json`, the evidence numbers.
 - `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
-- `tests/`, the deterministic pytest suite for everything `log.py` enforces.
+- `tests/`, the deterministic pytest suite for everything the backend enforces.
 
 ## Backup and recovery
 

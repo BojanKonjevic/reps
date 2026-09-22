@@ -99,7 +99,7 @@ def start_stub(state):
 def write_cfg(tmp_path, monkeypatch, log_module, port):
     cfg = tmp_path / "config.json"
     cfg.write_text(json.dumps({"url": f"http://127.0.0.1:{port}", "secret": "test-secret"}))
-    monkeypatch.setattr(log_module, "CFG", str(cfg))
+    monkeypatch.setattr("reps.db.CFG", str(cfg))
 
 
 def capture(fn, *args):

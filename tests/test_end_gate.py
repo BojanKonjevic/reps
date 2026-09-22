@@ -151,7 +151,7 @@ def test_deload_clear_appends_state_line(log_module, tmp_path, monkeypatch):
     log = log_module
     p = tmp_path / "MEMORY.md"
     p.write_text("# memory\n\n## State\n\n- old line\n\n## Other\n")
-    monkeypatch.setattr(log, "MEMORY_FILE", str(p))
+    monkeypatch.setattr("reps.memory.MEMORY_FILE", str(p))
     log.cmd_retag("bench", "chest")
     log.cmd_deload_set("lift", "bench")
     log.cmd_deload_clear()
@@ -317,7 +317,7 @@ def test_restore_accepts_new_tables(log_module, tmp_path, monkeypatch):
     _seed_session(log)
     log.cmd_progression_set("bench", "baseline", "100x5", "flat")
     live = str(tmp_path / "live.db")
-    monkeypatch.setattr(log, "DB", live)
+    monkeypatch.setattr("reps.db.DB", live)
     with open(tmp_path / "workouts.sql", "w") as f:
         for line in log.conn().iterdump():
             f.write(f"{line}\n")

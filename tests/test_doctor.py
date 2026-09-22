@@ -36,7 +36,7 @@ def test_doctor_fails_on_bad_constants(log_module, tmp_path, monkeypatch):
     log = log_module
     p = tmp_path / "constants.json"
     p.write_text("{broken")
-    monkeypatch.setattr(log, "CONSTANTS_FILE", str(p))
+    monkeypatch.setattr("reps.constants.CONSTANTS_FILE", str(p))
     out, code = _run(log.cmd_doctor)
     assert code == 1
     assert json.loads(out)["ok"] is False
@@ -99,7 +99,7 @@ def test_doctor_rotation_edge_cases(log_module):
 def test_doctor_flags_dump_drift(log_module, tmp_path, monkeypatch):
     log = log_module
     live = str(tmp_path / "live.db")
-    monkeypatch.setattr(log, "DB", live)
+    monkeypatch.setattr("reps.db.DB", live)
     log.conn().execute("SELECT 1")
     with open(tmp_path / "workouts.sql", "w") as f:
         f.write("CREATE TABLE workouts (id INTEGER PRIMARY KEY);\n")
