@@ -1,4 +1,4 @@
-import { fit, LC } from './charts';
+import { fit, liftColor } from './charts';
 
 export interface PieSlice {
   label: string;
@@ -35,7 +35,7 @@ export function pieChart(cv: HTMLCanvasElement, slices: PieSlice[], hover?: numb
   let a = -Math.PI / 2;
   slices.forEach((s, i) => {
     const a2 = a + s.frac * Math.PI * 2;
-    g.fillStyle = LC[i % LC.length];
+    g.fillStyle = liftColor(s.label);
     g.beginPath();
     g.moveTo(cx, cy);
     g.arc(cx, cy, hover === i ? R + 4 : R, a, a2);
@@ -45,6 +45,6 @@ export function pieChart(cv: HTMLCanvasElement, slices: PieSlice[], hover?: numb
   });
 }
 
-export function piePalette(i: number): string {
-  return LC[i % LC.length];
+export function piePalette(label: string): string {
+  return liftColor(label);
 }

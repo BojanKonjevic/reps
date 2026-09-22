@@ -10,6 +10,18 @@ export const LC: string[] = (() => {
   return arr;
 })();
 
+export function liftColor(name: string): string {
+  // Stable color per lift: the same exercise renders identically in the
+  // trend grid, goal cards, and lift page instead of by list position.
+  let h = 2166136261;
+  const key = (name || '').toLowerCase();
+  for (let i = 0; i < key.length; i += 1) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return LC[(h >>> 0) % LC.length];
+}
+
 export const TC = '#cfc9bc';
 export const GC = '#3a3733';
 export const STARC = '#e6c400';

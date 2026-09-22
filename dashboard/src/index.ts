@@ -1,23 +1,27 @@
 import { fmtV, fmtD, isDate, e1rm } from './utils';
-import { LC, MC, GROUPS } from './charts';
+import { MC, GROUPS, liftColor } from './charts';
 import { liftChart, getLiftPts, LiftPoint } from './liftChart';
 import { mini } from './miniChart';
 import { bwline } from './bwChart';
 import { stacked, stackedHit } from './stackedChart';
 import { computePRs, PRData } from './prs';
 import { weekKey } from './date';
-import { showTip, hideTip } from './tip';
+import { showTip, hideTip, touchTip } from './tip';
 import { goalChart, goalHit } from './goalChart';
 import { muscleChart, muscleHit } from './muscleChart';
 import { pieChart, pieHit, piePalette, PieSlice } from './pieChart';
 import {
   splitDayExercises,
   labelSession,
+  nextSlot,
   isStalling,
   deloadWatch,
   parseNextTarget,
   musclePageData,
   missedExpected,
+  adherenceWeeks,
+  goalPercent,
+  AdherenceDay,
 } from './forward';
 
 interface SnapWorkout {
@@ -75,6 +79,7 @@ let MUSDATA: { labels: string[]; weeks: Array<Record<string, number>> } | null =
 let MUSPAGE: { mus: string } | null = null;
 let MUSPIE: { slices: PieSlice[]; sets: number[] } | null = null;
 let LIFTGOAL: {
+  ex: string;
   actuals: Array<{ date: string; ev: number }>;
   checkpoints: number[];
   tops: Record<string, { w: number; r: number }>;
@@ -124,7 +129,7 @@ async function main() {
             document.getElementById('chGoal') as HTMLCanvasElement,
             LIFTGOAL.actuals,
             LIFTGOAL.checkpoints,
-            LC[0]
+            liftColor(LIFTGOAL.ex)
           );
       } else if (VIEW === 'mus' && MUSPAGE) {
         paintMuscle(MUSPAGE.mus);
@@ -157,19 +162,13 @@ async function main() {
     ch.style.cursor = near(ev) ? 'pointer' : 'default';
   });
   const musCv = document.getElementById('chMus') as HTMLCanvasElement;
-  musCv.addEventListener('mousemove', ev => {
+  const musShow = (cx: number, cy: number) => {
     if (!MUSDATA || !vis(musCv)) {
       hideTip();
       return;
     }
     const r = musCv.getBoundingClientRect();
-    const hit = stackedHit(
-      musCv,
-      MUSDATA.labels,
-      MUSDATA.weeks,
-      ev.clientX - r.left,
-      ev.clientY - r.top
-    );
+    const hit = stackedHit(musCv, MUSDATA.labels, MUSDATA.weeks, cx - r.left, cy - r.top);
     if (!hit) {
       hideTip();
       stacked(musCv, MUSDATA.labels, MUSDATA.weeks);
@@ -179,10 +178,12 @@ async function main() {
     showTip(
       MUSDATA.labels[hit.wi],
       [[MC[hit.g], hit.g + ' ' + MUSDATA.weeks[hit.wi][hit.g] + ' sets']],
-      ev.clientX,
-      ev.clientY
+      cx,
+      cy
     );
-  });
+  };
+  musCv.addEventListener('mousemove', ev => musShow(ev.clientX, ev.clientY));
+  touchTip(musCv, musShow);
   musCv.addEventListener('click', ev => {
     if (!MUSDATA) return;
     const r = musCv.getBoundingClientRect();
@@ -200,28 +201,30 @@ async function main() {
     if (MUSDATA && vis(musCv)) stacked(musCv, MUSDATA.labels, MUSDATA.weeks);
   });
   const bwCv = document.getElementById('chBw') as HTMLCanvasElement;
-  bwCv.addEventListener('mousemove', ev => {
+  const bwShow = (cx: number, cy: number) => {
     if (!BWDATA.length || !vis(bwCv)) {
       hideTip();
       return;
     }
     const r = bwCv.getBoundingClientRect();
-    const idx = sliceIdx(ev.clientX - r.left, r.width, BWDATA.length);
+    const idx = sliceIdx(cx - r.left, r.width, BWDATA.length);
     bwline(bwCv, BWDATA, idx);
-    showTip(BWDATA[idx].date, [[null, BWDATA[idx].kg.toFixed(1) + ' kg']], ev.clientX, ev.clientY);
-  });
+    showTip(BWDATA[idx].date, [[null, BWDATA[idx].kg.toFixed(1) + ' kg']], cx, cy);
+  };
+  bwCv.addEventListener('mousemove', ev => bwShow(ev.clientX, ev.clientY));
+  touchTip(bwCv, bwShow);
   bwCv.addEventListener('mouseleave', () => {
     hideTip();
     if (vis(bwCv)) bwline(bwCv, BWDATA, -1);
   });
   const liftCv = document.getElementById('chLift') as HTMLCanvasElement;
-  liftCv.addEventListener('mousemove', ev => {
+  const liftShow = (cx: number, cy: number) => {
     if (!LIFTDATA || !vis(liftCv)) {
       hideTip();
       return;
     }
     const r = liftCv.getBoundingClientRect();
-    const x = ev.clientX - r.left;
+    const x = cx - r.left;
     let bi = -1,
       bd = 1e9;
     getLiftPts().forEach((p, i) => {
@@ -242,30 +245,33 @@ async function main() {
     showTip(
       p.date,
       [[null, p.w + ' x ' + p.r + ' (e1RM ' + p.ev.toFixed(1) + ')' + (p.pr ? ' PR' : '')]],
-      ev.clientX,
-      ev.clientY
+      cx,
+      cy
     );
     liftCv.style.cursor = 'pointer';
-  });
+  };
+  liftCv.addEventListener('mousemove', ev => liftShow(ev.clientX, ev.clientY));
+  touchTip(liftCv, liftShow);
   liftCv.addEventListener('mouseleave', () => {
     hideTip();
     if (LIFTDATA && vis(liftCv)) liftChart(liftCv, LIFTDATA.pts, LIFTDATA.ex, -1, LIFTDATA.fut);
     liftCv.style.cursor = 'default';
   });
   const goalCv = document.getElementById('chGoal') as HTMLCanvasElement;
-  goalCv.addEventListener('mousemove', ev => {
+  const goalCol = () => liftColor((LIFTGOAL && LIFTGOAL.ex) || '');
+  const goalShow = (cx: number, cy: number) => {
     if (!LIFTGOAL || !vis(goalCv)) {
       hideTip();
       return;
     }
     const r = goalCv.getBoundingClientRect();
-    const bi = goalHit(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, ev.clientX - r.left);
+    const bi = goalHit(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, cx - r.left);
     if (bi < 0) {
       hideTip();
-      goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0]);
+      goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, goalCol());
       return;
     }
-    goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0], bi);
+    goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, goalCol(), bi);
     if (bi < LIFTGOAL.actuals.length) {
       const a = LIFTGOAL.actuals[bi];
       const top = LIFTGOAL.tops[a.date];
@@ -275,24 +281,27 @@ async function main() {
       showTip(
         fmtD(a.date),
         [
-          [LC[0], logged],
+          [goalCol(), logged],
           [null, 'plan ' + fmtV(LIFTGOAL.checkpoints[bi])],
         ],
-        ev.clientX,
-        ev.clientY
+        cx,
+        cy
       );
     } else {
       showTip(
         'session ' + (bi + 1) + ' (plan)',
-        [[LC[0], 'target e1RM ' + fmtV(LIFTGOAL.checkpoints[bi])]],
-        ev.clientX,
-        ev.clientY
+        [[goalCol(), 'target e1RM ' + fmtV(LIFTGOAL.checkpoints[bi])]],
+        cx,
+        cy
       );
     }
-  });
+  };
+  goalCv.addEventListener('mousemove', ev => goalShow(ev.clientX, ev.clientY));
+  touchTip(goalCv, goalShow);
   goalCv.addEventListener('mouseleave', () => {
     hideTip();
-    if (LIFTGOAL && vis(goalCv)) goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, LC[0]);
+    if (LIFTGOAL && vis(goalCv))
+      goalChart(goalCv, LIFTGOAL.actuals, LIFTGOAL.checkpoints, goalCol());
   });
   const musVolCv = document.getElementById('chMusVol') as HTMLCanvasElement;
   const musVolData = () => {
@@ -310,14 +319,14 @@ async function main() {
       color: entry.color || '#888',
     };
   };
-  musVolCv.addEventListener('mousemove', ev => {
+  const musVolShow = (cx: number, cy: number) => {
     const m = musVolData();
     if (!m || !vis(musVolCv)) {
       hideTip();
       return;
     }
     const r = musVolCv.getBoundingClientRect();
-    const bi = muscleHit(musVolCv, m.data.counts.length, ev.clientX - r.left);
+    const bi = muscleHit(musVolCv, m.data.counts.length, cx - r.left);
     if (bi < 0) {
       hideTip();
       muscleChart(musVolCv, m.data.labels, m.data.counts, m.bands, m.color);
@@ -327,23 +336,25 @@ async function main() {
     showTip(
       m.data.labels[bi],
       [[m.color, m.data.counts[bi] + ' sets (MEV ' + m.bands.mev + ')']],
-      ev.clientX,
-      ev.clientY
+      cx,
+      cy
     );
-  });
+  };
+  musVolCv.addEventListener('mousemove', ev => musVolShow(ev.clientX, ev.clientY));
+  touchTip(musVolCv, musVolShow);
   musVolCv.addEventListener('mouseleave', () => {
     hideTip();
     const m = musVolData();
     if (m && vis(musVolCv)) muscleChart(musVolCv, m.data.labels, m.data.counts, m.bands, m.color);
   });
   const musPieCv = document.getElementById('chMusPie') as HTMLCanvasElement;
-  musPieCv.addEventListener('mousemove', ev => {
+  const musPieShow = (cx: number, cy: number) => {
     if (!MUSPIE || !vis(musPieCv)) {
       hideTip();
       return;
     }
     const r = musPieCv.getBoundingClientRect();
-    const bi = pieHit(musPieCv, MUSPIE.slices, ev.clientX - r.left, ev.clientY - r.top);
+    const bi = pieHit(musPieCv, MUSPIE.slices, cx - r.left, cy - r.top);
     if (bi < 0) {
       hideTip();
       pieChart(musPieCv, MUSPIE.slices);
@@ -354,14 +365,16 @@ async function main() {
       MUSPIE.slices[bi].label,
       [
         [
-          piePalette(bi),
+          piePalette(MUSPIE.slices[bi].label),
           MUSPIE.sets[bi] + ' sets · ' + Math.round(MUSPIE.slices[bi].frac * 100) + '%',
         ],
       ],
-      ev.clientX,
-      ev.clientY
+      cx,
+      cy
     );
-  });
+  };
+  musPieCv.addEventListener('mousemove', ev => musPieShow(ev.clientX, ev.clientY));
+  touchTip(musPieCv, musPieShow);
   musPieCv.addEventListener('click', ev => {
     if (!MUSPIE) return;
     const r = musPieCv.getBoundingClientRect();
@@ -383,6 +396,12 @@ function sliceIdx(x: number, cw: number, n: number): number {
 
 function vis(cv: HTMLCanvasElement): boolean {
   return cv.clientWidth > 0 && cv.clientHeight > 0;
+}
+
+function breakGap(snap: any): number {
+  // Same rule as plan's today.break: gap of break_days + 1 or more.
+  const t = snap && snap.constants && snap.constants.thresholds;
+  return ((t && t.break_days) || 4) + 1;
 }
 
 function render() {
@@ -457,8 +476,11 @@ function render() {
   }
   refreshTrend();
   renderNow(snap, W, S);
+  renderNext(snap, W, S);
+  renderSlots(snap);
   renderProgramSummary(snap);
   renderForward(snap, W, S);
+  renderAdh(snap);
   D = { W, S, BW };
   const noted: Record<string, string> = {};
   for (const w of W) if (w.notes) noted[w.date] = w.notes;
@@ -520,15 +542,47 @@ function render() {
   const lm = document.getElementById('legMus')!;
   lm.innerHTML = '';
   const focus = prioMuscles(snap);
+  const deprio = new Set(
+    Object.keys(snap.priority || {})
+      .filter(m => {
+        const t = snap.priority[m];
+        return (typeof t === 'string' ? t : t.tier) === 'deprioritize';
+      })
+      .map(m => m.toLowerCase())
+  );
+  const mevOf = (g: string) => {
+    const c = (snap.constants || {}).muscles || {};
+    return (c[g] && c[g].mev) || 0;
+  };
+  const labels = MUSDATA ? MUSDATA.labels : [];
+  const wk = MUSDATA ? MUSDATA.weeks : [];
+  const thisWk = weekKey(new Date().toISOString().slice(0, 10));
+  const lastFull = !labels.length
+    ? -1
+    : labels[labels.length - 1] === thisWk && labels.length > 1
+      ? wk.length - 2
+      : wk.length - 1;
   GROUPS.forEach(g => {
     const sp = document.createElement('a');
-    sp.className = 'chip' + (focus.has(g.toLowerCase()) ? ' focus' : '');
+    sp.className =
+      'chip' +
+      (focus.has(g.toLowerCase()) ? ' focus' : '') +
+      (deprio.has(g.toLowerCase()) ? ' dim' : '');
     sp.href = '#/m/' + encodeURIComponent(g);
     const sw = document.createElement('span');
     sw.className = 'sw';
     sw.style.background = MC[g];
     sp.appendChild(sw);
     sp.appendChild(document.createTextNode(g));
+    if (lastFull >= 0) {
+      const n = (wk[lastFull] || {})[g] || 0;
+      const mev = mevOf(g);
+      const tag = document.createElement('span');
+      tag.className = 'meta' + (mev > 0 && n < mev ? ' low' : '');
+      tag.textContent = ' · ' + n + (mev > 0 ? '/' + mev : '');
+      tag.title = 'sets in ' + labels[lastFull] + (mev > 0 ? ' (MEV ' + mev + ')' : '');
+      sp.appendChild(tag);
+    }
     lm.appendChild(sp);
   });
   const dayDetail: Record<string, string[]> = {};
@@ -653,8 +707,8 @@ function renderCal(
         new Date(trainedDates[i - 1] + 'T12:00:00').getTime()) /
         86400000
     );
-    // Matches plan's break rule: gap of break_days + 1 (4 + 1) or more.
-    if (gap >= 5) breakDates[trainedDates[i]] = true;
+    // Matches plan's break rule: gap of break_days + 1 or more.
+    if (gap >= breakGap(SNAP)) breakDates[trainedDates[i]] = true;
   }
   for (let d = 1; d <= days; d += 1) {
     const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
@@ -859,7 +913,7 @@ function paintMuscle(mus: string) {
     row.className = 'row';
     const sw = document.createElement('span');
     sw.className = 'sw';
-    sw.style.background = piePalette(i);
+    sw.style.background = piePalette(s.label);
     row.appendChild(sw);
     if (s.link) {
       const al = document.createElement('a');
@@ -1120,12 +1174,17 @@ function showLift(ex: string) {
       const top = topSetOn(D!.S, wdate, ex, a.date);
       if (top) tops[a.date] = top;
     });
-    LIFTGOAL = { actuals: acts, checkpoints: goal.checkpoints || [], tops };
+    LIFTGOAL = { ex, actuals: acts, checkpoints: goal.checkpoints || [], tops };
+    const lpct = goalPercent({
+      target_e1rm: goal.target_e1rm,
+      checkpoints: goal.checkpoints || [],
+      actuals: acts,
+    });
     goalChart(
       document.getElementById('chGoal') as HTMLCanvasElement,
       acts,
       goal.checkpoints || [],
-      LC[0]
+      liftColor(ex)
     );
     const cap = document.getElementById('liftGoalCap')!;
     cap.textContent =
@@ -1133,6 +1192,7 @@ function showLift(ex: string) {
       fmtV(goal.target_e1rm) +
       ' by ' +
       fmtD(goal.deadline) +
+      (lpct !== null ? ', ' + lpct + '% there' : '') +
       (goal.next_checkpoint !== null && goal.next_checkpoint !== undefined
         ? ', next checkpoint ' + fmtV(goal.next_checkpoint)
         : ', trajectory complete') +
@@ -1162,6 +1222,7 @@ function showLift(ex: string) {
   );
   const seen = new Set<string>();
   const top2 = { ev: 0 };
+  let lastPR: string | null = null;
   order.forEach(s => {
     if (s.exercise !== ex) return;
     const ev = e1rm(s.weight, s.reps);
@@ -1173,6 +1234,7 @@ function showLift(ex: string) {
     if (ev > top2.ev) {
       const jump = ev - top2.ev;
       top2.ev = ev;
+      lastPR = wdate[s.workout_id];
       const item = document.createElement('a');
       item.className = 'tl-item';
       item.href = '#/s/' + wdate[s.workout_id];
@@ -1196,6 +1258,18 @@ function showLift(ex: string) {
       tl.appendChild(item);
     }
   });
+  const prNote = document.createElement('div');
+  prNote.className = 'cap';
+  if (!lastPR) {
+    prNote.textContent = 'no PR yet, the first logged set is the baseline';
+  } else {
+    const days = Math.round(
+      (new Date().getTime() - new Date(lastPR + 'T12:00:00').getTime()) / 86400000
+    );
+    prNote.textContent =
+      days <= 0 ? 'PR today' : 'last PR ' + days + 'd ago (' + fmtD(lastPR) + ')';
+  }
+  tl.insertBefore(prNote, tl.firstChild);
   window.scrollTo(0, 0);
 }
 
@@ -1334,10 +1408,10 @@ function drawMinis() {
         location.hash = '#/l/' + encodeURIComponent(t);
     });
     grid.appendChild(wrap);
-    const col = LC[i % LC.length],
+    const col = liftColor(t),
       prs = prDate[t] || {};
     jobs.push([cv, vals, col]);
-    cv.addEventListener('mousemove', ev => {
+    const miniShow = (cx: number, cy: number) => {
       if (!vis(cv)) {
         hideTip();
         return;
@@ -1349,7 +1423,7 @@ function drawMinis() {
         bd = 1e9;
       for (let k = 0; k < n; k += 1) {
         if (vals[k] === null) continue;
-        const d = Math.abs(pxi(k) - (ev.clientX - r.left));
+        const d = Math.abs(pxi(k) - (cx - r.left));
         if (d < bd) {
           bd = d;
           bi = k;
@@ -1366,10 +1440,12 @@ function drawMinis() {
       showTip(
         TREND.days[bi],
         [[col, fmtV(vals[bi]!) + detail + (prs[TREND.days[bi]] ? ' PR' : '')]],
-        ev.clientX,
-        ev.clientY
+        cx,
+        cy
       );
-    });
+    };
+    cv.addEventListener('mousemove', ev => miniShow(ev.clientX, ev.clientY));
+    touchTip(cv, miniShow);
     cv.addEventListener('mouseleave', () => {
       hideTip();
       if (vis(cv)) mini(cv, TREND.days, vals, col);
@@ -1412,7 +1488,7 @@ function drawTrendChips() {
     b.setAttribute('aria-pressed', HIDDEN.has(t) ? 'false' : 'true');
     const sw = document.createElement('span');
     sw.className = 'sw';
-    sw.style.background = LC[i % LC.length];
+    sw.style.background = liftColor(t);
     b.appendChild(sw);
     b.appendChild(document.createTextNode(t));
     b.addEventListener('click', () => {
@@ -1424,6 +1500,156 @@ function drawTrendChips() {
     });
     lt.appendChild(b);
   });
+}
+
+function renderNext(snap: any, W: any[], S: any[]) {
+  // Prospective card: what the rotation says is up next, with last numbers
+  // and progression targets per movement. Computed from the same inputs as
+  // plan's slot guess (last done session + rotation step).
+  const card = document.getElementById('nextCard')!;
+  card.innerHTML = '';
+  const wdate: Record<number, string> = {};
+  for (const w of W) wdate[w.id] = w.date;
+  const done = W.filter(w => w.status === 'done' && S.some(s => s.workout_id === w.id)).sort(
+    (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id)
+  );
+  const moves = splitDayExercises(snap.split_active || []);
+  const rot: string[] = snap.rotation || [];
+  const last = done.length ? done[done.length - 1] : null;
+  const lastEx = last ? S.filter(s => s.workout_id === last.id).map(s => s.exercise) : [];
+  const lastDay = last ? labelSession(lastEx, moves) : null;
+  const nxt = nextSlot(lastDay, rot);
+  if (!last || !lastDay || !nxt.day || !(moves[nxt.day] || []).length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = !Object.keys(moves).length
+      ? 'no program synced yet, split show in chat is the source'
+      : 'log a session and the next slot appears here';
+    card.appendChild(e);
+    return;
+  }
+  const h = document.createElement('h3');
+  h.textContent = 'Next up: ' + nxt.day;
+  card.appendChild(h);
+  const prog = snap.progression || {};
+  (moves[nxt.day] || []).forEach(m => {
+    const hist = S.filter(s => (s.exercise || '').toLowerCase() === m.toLowerCase());
+    const lastDate = hist.length
+      ? hist
+          .map(s => wdate[s.workout_id] || (s.created || '').slice(0, 10))
+          .sort()
+          .pop()!
+      : null;
+    const top = lastDate ? topSetOn(S, wdate, m, lastDate) : null;
+    const p = prog[m.toLowerCase()];
+    const row = document.createElement('div');
+    row.className = 'nextrow';
+    const al = document.createElement('a');
+    al.href = '#/l/' + encodeURIComponent(m);
+    al.textContent = m;
+    row.appendChild(al);
+    const detail = document.createElement('span');
+    detail.className = 'meta';
+    detail.textContent =
+      (top ? 'last ' + top.w + ' x ' + top.r + ' · ' + fmtD(lastDate!) : 'never logged') +
+      (p ? ' → target ' + p.next + ' ' + p.direction : ' · no target yet');
+    row.appendChild(detail);
+    card.appendChild(row);
+  });
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  cap.textContent = nxt.basis + '. Confirm or override in chat before training.';
+  card.appendChild(cap);
+}
+
+function renderSlots(snap: any) {
+  // Same-slot comparison: the last runs of each active day side by side,
+  // which is how a block is actually judged.
+  const grid = document.getElementById('slotGrid')!;
+  grid.innerHTML = '';
+  const { ordered } = orderedSplitDays(snap);
+  if (!ordered.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'no program synced yet';
+    grid.appendChild(e);
+    return;
+  }
+  const wdate: Record<number, string> = {};
+  for (const w of SNAP.workouts || []) wdate[w.id] = w.date;
+  ordered.forEach(day => {
+    const card = document.createElement('div');
+    card.className = 'slotcard card';
+    card.style.margin = '0';
+    const h = document.createElement('h3');
+    h.textContent = day;
+    card.appendChild(h);
+    const dates = Object.keys(SLOT_OF_DATE)
+      .filter(d => SLOT_OF_DATE[d] === day)
+      .sort()
+      .slice(-3)
+      .reverse();
+    if (!dates.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'no runs logged';
+      card.appendChild(e);
+    }
+    dates.forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'slotrow';
+      const al = document.createElement('a');
+      al.href = '#/s/' + d;
+      al.textContent = fmtD(d);
+      row.appendChild(al);
+      const ms = (DAY_MOVES[day] || [])
+        .map(m => {
+          const top = topSetOn(SNAP.sets || [], wdate, m, d);
+          return top ? m + ' ' + top.w + 'x' + top.r : null;
+        })
+        .filter(Boolean) as string[];
+      const detail = document.createElement('span');
+      detail.className = 'meta';
+      detail.textContent = ms.length ? ms.join(' · ') : 'no mapped lifts logged';
+      row.appendChild(detail);
+      card.appendChild(row);
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderAdh(snap: any) {
+  const wrap = document.getElementById('adhWrap')!;
+  const card = document.getElementById('adhCard')!;
+  card.innerHTML = '';
+  const days: AdherenceDay[] = (snap.adherence && snap.adherence.days) || [];
+  if (!days.length) {
+    wrap.hidden = true;
+    return;
+  }
+  wrap.hidden = false;
+  const strip = document.createElement('div');
+  strip.className = 'dtstrip';
+  days.forEach(d => {
+    const s = document.createElement('span');
+    s.className = 'dt dt-' + d.status.replace('_', '');
+    s.title = d.date + ': ' + d.status + ' (expected ' + d.expected + ')';
+    strip.appendChild(s);
+  });
+  card.appendChild(strip);
+  const weeks = adherenceWeeks(days).slice(-8);
+  const list = document.createElement('div');
+  list.className = 'adhweeks';
+  weeks.forEach(w => {
+    const row = document.createElement('div');
+    row.textContent = w.week + ' · ' + w.done + '/' + w.expected + ' sessions';
+    list.appendChild(row);
+  });
+  card.appendChild(list);
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  cap.textContent = 'Green is trained as planned, red is missed, hollow is scheduled rest.';
+  card.appendChild(cap);
 }
 
 function renderNow(snap: any, W: any[], S: any[]) {
@@ -1449,7 +1675,8 @@ function renderNow(snap: any, W: any[], S: any[]) {
         new Date(doneDates[doneDates.length - 1] + 'T12:00:00').getTime()) /
         86400000
     );
-    if (gap >= 5) line('<b>Break:</b> ' + gap + 'd since last session, no PR attempts.');
+    if (gap >= breakGap(snap))
+      line('<b>Break:</b> ' + gap + 'd since last session, no PR attempts.');
   }
   const deload = snap.deload || [];
   deload.forEach((d: any) => line('<b>Deloading</b> ' + esc(d.subject) + '.'));
@@ -1659,13 +1886,13 @@ function attachGoalHover(
   col: string,
   tops: Record<string, { w: number; r: number }>
 ) {
-  cv.addEventListener('mousemove', ev => {
+  const goalShow = (cx: number, cy: number) => {
     if (!vis(cv)) {
       hideTip();
       return;
     }
     const r = cv.getBoundingClientRect();
-    const bi = goalHit(cv, acts, cps, ev.clientX - r.left);
+    const bi = goalHit(cv, acts, cps, cx - r.left);
     if (bi < 0) {
       hideTip();
       goalChart(cv, acts, cps, col);
@@ -1684,18 +1911,15 @@ function attachGoalHover(
           [col, logged],
           [null, 'plan ' + fmtV(cps[bi])],
         ],
-        ev.clientX,
-        ev.clientY
+        cx,
+        cy
       );
     } else {
-      showTip(
-        'session ' + (bi + 1) + ' (plan)',
-        [[col, 'target e1RM ' + fmtV(cps[bi])]],
-        ev.clientX,
-        ev.clientY
-      );
+      showTip('session ' + (bi + 1) + ' (plan)', [[col, 'target e1RM ' + fmtV(cps[bi])]], cx, cy);
     }
-  });
+  };
+  cv.addEventListener('mousemove', ev => goalShow(ev.clientX, ev.clientY));
+  touchTip(cv, goalShow);
   cv.addEventListener('mouseleave', () => {
     hideTip();
     if (vis(cv)) goalChart(cv, acts, cps, col);
@@ -1727,20 +1951,26 @@ function renderForward(snap: any, W: any[], S: any[]) {
     card.appendChild(cv);
     const meta = document.createElement('div');
     meta.className = 'goalmeta';
+    const acts = (g.actuals || []).map((a: any) => ({ date: a.date, ev: a.e1rm }));
+    const pct = goalPercent({
+      target_e1rm: g.target_e1rm,
+      checkpoints: g.checkpoints || [],
+      actuals: acts,
+    });
     const bits = [
       'target e1RM ' + fmtV(g.target_e1rm) + ' by ' + fmtD(g.deadline),
       g.next_checkpoint !== null && g.next_checkpoint !== undefined
         ? 'next checkpoint ' + fmtV(g.next_checkpoint)
         : 'trajectory complete',
     ];
+    if (pct !== null) bits.push(pct + '% there' + (g.on_track === false ? ', off track' : ''));
     if (g.on_track === false) bits.push('OFF TRACK');
     if (g.slippage) bits.push('slippage: deadline needs room');
     meta.textContent = bits.join(' | ');
     card.appendChild(meta);
     grid.appendChild(card);
-    const acts = (g.actuals || []).map((a: any) => ({ date: a.date, ev: a.e1rm }));
     const cps = g.checkpoints || [];
-    const col = LC[i % LC.length];
+    const col = liftColor(g.exercise);
     jobs.push(() => goalChart(cv, acts, cps, col));
     const tops: Record<string, { w: number; r: number }> = {};
     acts.forEach((a: { date: string }) => {

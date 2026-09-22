@@ -17,6 +17,21 @@ export function fmtTick(v: number, step: number): string {
   return v.toFixed(dec);
 }
 
+export function timeRolling(
+  rows: Array<{ date: string; kg: number }>,
+  spanDays: number
+): Array<number | null> {
+  // Trailing mean over the previous spanDays per point. Points with no
+  // history inside the window read null so the overlay starts honestly.
+  const t = (d: string) => new Date(d + 'T12:00:00').getTime();
+  return rows.map((r, i) => {
+    const from = t(r.date) - spanDays * 86400000;
+    const win = rows.slice(0, i + 1).filter(q => t(q.date) >= from);
+    if (!win.length) return null;
+    return win.reduce((a, q) => a + q.kg, 0) / win.length;
+  });
+}
+
 export function isDate(s: string): boolean {
   if (!s || s.length !== 10 || s.charAt(4) !== '-' || s.charAt(7) !== '-') return false;
   for (let i = 0; i < 10; i += 1) {

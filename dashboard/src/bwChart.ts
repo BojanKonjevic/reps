@@ -1,6 +1,7 @@
 import { fit, putText, LC, TC, drawYAxis } from './charts';
 import { fmtD } from './utils';
 import { niceTicks } from './utils';
+import { timeRolling } from './utils';
 
 export function bwline(
   cv: HTMLCanvasElement,
@@ -57,6 +58,16 @@ export function bwline(
   });
   g.stroke();
   g.restore();
+  const roll = timeRolling(rows, 7);
+  g.strokeStyle = '#8a8478';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  roll.forEach((v, i) => {
+    if (v === null) return;
+    if (i === 0 || roll[i - 1] === null) g.moveTo(px(i), py(v));
+    else g.lineTo(px(i), py(v));
+  });
+  g.stroke();
   g.fillStyle = LC[0];
   g.textAlign = 'center';
   rows.forEach((r, i) => {

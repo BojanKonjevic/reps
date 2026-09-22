@@ -1,7 +1,7 @@
 import {
   fit,
   putText,
-  LC,
+  liftColor,
   TC,
   GC,
   drawYAxis,
@@ -68,7 +68,7 @@ export function liftChart(
   drawYAxis(g, W, H, P, t);
   drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
   const showFuture = futureEv !== undefined && futureEv !== null && pts.length > 0;
-  const col = LC[0];
+  const col = liftColor(ex);
   const linePts = pts.map(p => ({ x: px(p.date), y: py(p.ev) }));
   g.fillStyle = TC;
   const fy0 = showFuture ? py(futureEv as number) : null;

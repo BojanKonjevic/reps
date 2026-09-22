@@ -36,3 +36,31 @@ export function showTip(title: string, rows: Array<[string | null, string]>, x: 
 export function hideTip() {
   if (TIP) TIP.style.display = 'none';
 }
+
+let TIP_TIMER = 0;
+
+export function touchTip(el: HTMLElement, show: (x: number, y: number) => void) {
+  // Phone equivalent of hover: first touch shows the same tip, it dismisses
+  // itself shortly after the touch ends so it never gets stuck open.
+  el.addEventListener(
+    'touchstart',
+    ev => {
+      if (TIP_TIMER) {
+        window.clearTimeout(TIP_TIMER);
+        TIP_TIMER = 0;
+      }
+      const t = ev.changedTouches[0];
+      show(t.clientX, t.clientY);
+    },
+    { passive: true }
+  );
+  const later = () => {
+    if (TIP_TIMER) window.clearTimeout(TIP_TIMER);
+    TIP_TIMER = window.setTimeout(() => {
+      hideTip();
+      TIP_TIMER = 0;
+    }, 2400);
+  };
+  el.addEventListener('touchend', later);
+  el.addEventListener('touchcancel', () => hideTip());
+}

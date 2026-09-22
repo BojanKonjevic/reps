@@ -137,3 +137,28 @@ describe('adherence missed days', () => {
     expect(missedExpected(undefined)).toEqual({});
   });
 });
+
+describe('goal percent and adherence weeks', () => {
+  it('measures trajectory share from the first checkpoint', async () => {
+    const { goalPercent } = await import('../forward');
+    expect(
+      goalPercent({ target_e1rm: 150, checkpoints: [100, 125, 150], actuals: [{ ev: 136 }] })
+    ).toBe(72);
+    expect(goalPercent({ target_e1rm: 150, checkpoints: [], actuals: [{ ev: 136 }] })).toBeNull();
+    expect(goalPercent({ target_e1rm: 150, checkpoints: [100], actuals: [] })).toBeNull();
+    expect(
+      goalPercent({ target_e1rm: 90, checkpoints: [100, 95, 90], actuals: [{ ev: 95 }] })
+    ).toBeNull();
+  });
+  it('groups adherence verdicts by week', async () => {
+    const { adherenceWeeks } = await import('../forward');
+    expect(
+      adherenceWeeks([
+        { date: '2026-09-14', expected: 'U1', trained: 'U1', status: 'done' },
+        { date: '2026-09-15', expected: 'L1', trained: null, status: 'missed' },
+        { date: '2026-09-16', expected: 'rest', trained: null, status: 'rest_ok' },
+      ])
+    ).toEqual([{ week: '2026 W38', done: 1, expected: 2 }]);
+    expect(adherenceWeeks([])).toEqual([]);
+  });
+});

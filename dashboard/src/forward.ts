@@ -84,6 +84,12 @@ export interface AdherenceDay {
   status: string;
 }
 
+export interface AdherenceWeek {
+  week: string;
+  done: number;
+  expected: number;
+}
+
 export function missedExpected(
   adherence: { days?: AdherenceDay[] } | null | undefined
 ): Record<string, string> {
@@ -92,6 +98,38 @@ export function missedExpected(
     if (d.status === 'missed') out[d.date] = d.expected;
   }
   return out;
+}
+
+export function adherenceWeeks(days: AdherenceDay[]): AdherenceWeek[] {
+  // Group verdicts by calendar week, preserving date order. expected counts
+  // training days only (rest days are scheduled, not hit-rate).
+  const groups: AdherenceWeek[] = [];
+  const at: Record<string, AdherenceWeek> = {};
+  for (const d of days || []) {
+    const w = weekKey(d.date);
+    if (!at[w]) {
+      at[w] = { week: w, done: 0, expected: 0 };
+      groups.push(at[w]);
+    }
+    if (d.expected.toLowerCase() !== 'rest') at[w].expected += 1;
+    if (d.status === 'done') at[w].done += 1;
+  }
+  return groups;
+}
+
+export function goalPercent(goal: {
+  target_e1rm: number;
+  checkpoints?: number[];
+  actuals?: Array<{ ev: number }>;
+}): number | null {
+  // Share of the trajectory covered, from the first checkpoint (the
+  // trajectory anchor) to the target, at the latest actual.
+  const cps = goal.checkpoints || [];
+  const acts = goal.actuals || [];
+  if (!cps.length || !acts.length) return null;
+  const span = goal.target_e1rm - cps[0];
+  if (!(span > 0)) return null;
+  return Math.round(((acts[acts.length - 1].ev - cps[0]) / span) * 100);
 }
 
 export function nextSlot(

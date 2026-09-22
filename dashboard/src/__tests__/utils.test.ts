@@ -73,3 +73,18 @@ describe('utils', () => {
     });
   });
 });
+
+describe('timeRolling', () => {
+  it('averages the trailing window per point', async () => {
+    const { timeRolling } = await import('../utils');
+    const rows = [
+      { date: '2026-09-01', kg: 80 },
+      { date: '2026-09-02', kg: 82 },
+      { date: '2026-09-10', kg: 90 },
+    ];
+    const out = timeRolling(rows, 7);
+    expect(out[0]).toBe(80);
+    expect(out[1]).toBe(81);
+    expect(out[2]).toBe(90);
+  });
+});
