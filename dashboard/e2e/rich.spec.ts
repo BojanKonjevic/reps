@@ -32,7 +32,29 @@ const RICH_SNAPSHOT = {
     },
   },
   progression: {
-    bench: { verdict: 'hit', next: '95x5', direction: 'up', workout_id: 3 },
+    bench: { verdict: 'hit', next: '95x5', direction: 'up', workout_id: 3, note: 'paused reps' },
+  },
+  mapping: [
+    { exercise: 'bench', muscles: 'chest', is_bodyweight_only: 0 },
+    { exercise: 'squat', muscles: 'quads', is_bodyweight_only: 0 },
+  ],
+  movement_notes: [{ exercise: 'bench', note: 'touch low', created: '2026-09-14T19:00:00' }],
+  autoreg: {
+    permitted: true,
+    holds: [
+      { id: 1, day: 'Upper A', movements: 'flat barbell bench press', action: 'trim', set_on: '2026-09-15', hold_until: '2026-09-23', reason: 'two misses' },
+    ],
+    miss_streaks: [],
+    drop_watch: [],
+    grouped: { chest: ['flat barbell bench press'] },
+    program_volume: {},
+  },
+  autoreg_changes: [
+    { id: 1, date: '2026-09-15', action: 'trim', day: 'Upper A', slot: 1, before_movements: 'bench', before_sets: 3, after_movements: 'bench', after_sets: 2, evidence: 'two misses', reverted_on: null },
+  ],
+  volume: {
+    chest: { weekly: [0, 0, 0, 0, 0, 0, 3, 2], mev: 8, mav: [14, 20], mrv: 25, freq: [2, 3], status: 'below_mev' },
+    back: { weekly: [3, 3, 3, 3, 3, 3, 3, 3], mev: 10, mav: [14, 22], mrv: 28, freq: [2, 3], status: 'in_range' },
   },
   goals: [
     {
@@ -114,6 +136,31 @@ test.describe('Rich snapshot sections', () => {
     await expect(page.locator('#liftPRs')).toContainText('last PR 3d ago');
     await page.goto('#/l/squat');
     await expect(page.locator('#liftPRs')).toContainText('no PR yet');
+  });
+
+  test('movements page shows cards, badges and filters', async ({ page }) => {
+    await gotoRich(page);
+    await page.goto('#/lifts');
+    await expect(page.locator('#liftsSub')).toContainText('2 movements');
+    const bench = page.locator('#liftGrid .mini', { hasText: 'flat barbell bench press' });
+    await expect(bench).toContainText('trim, holds until 2026-09-23');
+    await expect(bench).toContainText('grouped fatigue: chest');
+    await expect(bench).toContainText('hit → 95x5 up · paused reps');
+    await expect(bench).toContainText('setup: touch low');
+    await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
+    await expect(page.locator('#liftGrid .mini')).toHaveCount(1);
+    await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
+    await expect(page.locator('#liftGrid .mini')).toHaveCount(2);
+  });
+
+  test('muscles page shows volume status and grouped badges', async ({ page }) => {
+    await gotoRich(page);
+    await page.goto('#/muscles');
+    const chest = page.locator('#musGrid .mini', { hasText: 'chest' });
+    await expect(chest).toContainText('below MEV');
+    await expect(chest).toContainText('grouped fatigue: bench');
+    await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
+    await expect(page.locator('#musGrid .mini')).toHaveCount(1);
   });
 
   test('coach notes read the snapshot signals aloud', async ({ page }) => {

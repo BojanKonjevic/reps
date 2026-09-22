@@ -169,7 +169,10 @@ def adherence_snapshot(c):
     span = load_constants()["thresholds"]["volume_window_weeks"] * 7
     days = status_range(c, rotation, anchor,
                         (today - timedelta(days=span - 1)).isoformat(), today.isoformat())
-    return {"anchor": anchor, "days": days}
+    threshold = load_constants()["thresholds"].get("adherence_drift_days", 3)
+    run = drift_days(days)
+    return {"anchor": anchor, "days": days, "drift": run >= threshold,
+            "drift_days": run, "drift_threshold": threshold}
 
 
 def expectation_context(c, rotation, anchor, today_iso, lookback=90):

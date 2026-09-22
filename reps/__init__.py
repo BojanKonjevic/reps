@@ -37,7 +37,8 @@ from .program import (active_deloads, best_split_day, cmd_deload_clear,
                       deload_covers, mev_floor_warnings, muscles_for_movements,
                       parse_movements, parse_rotation, programmed_weekly_volume,
                       read_priorities, read_split, rule_status_rows,
-                      rules_with_confirm, split_all_movements, split_day_order)
+                      rules_with_confirm, split_all_movements, split_day_order,
+                      volume_block)
 from .progression import (cmd_progression_set, cmd_progression_show,
                           top_e1rm_by_date)
 from .sessions import (cmd_calendar, cmd_check, cmd_context, cmd_delete_set,
@@ -80,6 +81,5 @@ __all__ = [
     "placeholders", "programmed_weekly_volume", "read_priorities",
     "read_split", "rep_band_bound", "rule_status_rows", "rules_with_confirm",
     "split_all_movements", "split_day_order", "status_range",
-    "top_e1rm_by_date",
-    "tracked_muscles", "validate_constants",
+    "top_e1rm_by_date", "tracked_muscles", "validate_constants", "volume_block",
 ]

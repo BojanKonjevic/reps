@@ -102,6 +102,27 @@ def classify_volume(weekly, mev, mrv, vol_bad):
     return "in_range"
 
 
+def volume_block(c):
+    """Per-muscle weekly counts plus bounds and status, the same shape plan builds.
+
+    Shared by plan and the dashboard snapshot so both read one computation.
+    """
+    from datetime import timedelta
+    constants = load_constants()
+    thresholds = constants["thresholds"]
+    today = date.today()
+    vol_weeks = thresholds["volume_window_weeks"]
+    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
+    vol_bad = thresholds["volume_bad_weeks"]
+    volume = {}
+    for muscle, entry in constants["muscles"].items():
+        weekly = weekly_volume(c, muscle, week_starts)
+        volume[muscle] = {"weekly": weekly, "mev": entry["mev"], "mav": entry["mav"],
+                          "mrv": entry["mrv"], "freq": entry["freq"],
+                          "status": classify_volume(weekly, entry["mev"], entry["mrv"], vol_bad)}
+    return volume
+
+
 def meta_get(c, key):
     row = c.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else None

@@ -9,13 +9,14 @@ from datetime import datetime
 
 from . import db
 from .adherence import adherence_snapshot
+from .autoreg import autoreg_block
 from .constants import load_constants
 from .signals import build_signals
 from .db import SCHEMA, conn
 from .goals import goal_progress
 from .muscles import attach_muscles
 from .program import (active_deloads, parse_rotation, read_priorities,
-                    read_split, rules_with_confirm)
+                    read_split, rules_with_confirm, volume_block)
 
 
 def build_snapshot(c=None):
@@ -40,7 +41,8 @@ def build_snapshot(c=None):
         rotation = []
     try:
         progression = {r["exercise"]: {"verdict": r["verdict"], "next": r["next_target"],
-                                       "direction": r["direction"], "workout_id": r["workout_id"]}
+                                       "direction": r["direction"], "workout_id": r["workout_id"],
+                                       "note": r["note"]}
                        for r in c.execute(
                            "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
                            "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
@@ -89,11 +91,27 @@ def build_snapshot(c=None):
         signals = build_signals(c)
     except (sqlite3.Error, SystemExit):
         signals = []
+    try:
+        autoreg = autoreg_block(c)
+    except (sqlite3.Error, SystemExit):
+        autoreg = None
+    try:
+        changes = [dict(r) for r in c.execute(
+            "SELECT id, date, action, day, slot, before_movements, before_sets, "
+            "after_movements, after_sets, evidence, reverted_on FROM autoreg_changes "
+            "ORDER BY id DESC LIMIT 20").fetchall()]
+    except sqlite3.Error:
+        changes = []
+    try:
+        volume = volume_block(c)
+    except (sqlite3.Error, SystemExit):
+        volume = {}
     return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
             "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
             "progression": progression, "goals": goals, "priority": priority, "deload": deload,
             "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes,
-            "adherence": adherence, "signals": signals}
+            "adherence": adherence, "signals": signals, "autoreg": autoreg,
+            "autoreg_changes": changes, "volume": volume}
 
 
 def cmd_export():

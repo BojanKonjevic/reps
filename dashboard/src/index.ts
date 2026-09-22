@@ -632,6 +632,15 @@ function render() {
   route();
 }
 
+function prTrophy(title: string): HTMLSpanElement {
+  const tr = document.createElement('span');
+  tr.className = 'prt';
+  tr.title = title;
+  tr.innerHTML =
+    '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  return tr;
+}
+
 function renderCal(
   year: number,
   month: number,
@@ -712,14 +721,7 @@ function renderCal(
       (key > todayS ? ' fut' : '') +
       (breakDates[key] ? ' brk' : '');
     el.textContent = String(d);
-    if (isPR) {
-      const tr = document.createElement('span');
-      tr.className = 'prt';
-      tr.title = 'personal record';
-      tr.innerHTML =
-        '<svg viewBox="0 0 16 16"><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor"/><path d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
-      el.appendChild(tr);
-    }
+    if (isPR) el.appendChild(prTrophy('personal record'));
     if (link) {
       link.addEventListener('click', hideTip);
       link.addEventListener('mousemove', ev => {
@@ -768,6 +770,8 @@ function route() {
   const lift = h.slice(0, 4) === '#/l/' ? decodeURIComponent(h.slice(4)) : '';
   const mus = h.slice(0, 4) === '#/m/' ? decodeURIComponent(h.slice(4)) : '';
   const prog = h === '#/program';
+  const lifts = h === '#/lifts';
+  const muscles = h === '#/muscles';
   if (ds && isDate(ds) && D) {
     if (VIEW === 'dash') DASHY = window.scrollY;
     VIEW = 'sess';
@@ -784,6 +788,14 @@ function route() {
     if (VIEW === 'dash') DASHY = window.scrollY;
     VIEW = 'prog';
     showProgram();
+  } else if (lifts && D) {
+    if (VIEW === 'dash') DASHY = window.scrollY;
+    VIEW = 'lifts';
+    showLifts();
+  } else if (muscles && D) {
+    if (VIEW === 'dash') DASHY = window.scrollY;
+    VIEW = 'muscles';
+    showMuscles();
   } else {
     const restore = VIEW !== 'dash';
     VIEW = 'dash';
@@ -792,6 +804,8 @@ function route() {
     document.getElementById('viewLift')!.hidden = true;
     document.getElementById('viewProgram')!.hidden = true;
     document.getElementById('viewMuscle')!.hidden = true;
+    document.getElementById('viewLifts')!.hidden = true;
+    document.getElementById('viewMuscles')!.hidden = true;
     document.title = 'reps dashboard';
     if (restore) {
       // Full repaint once layout settles: any canvas painted while the dash
@@ -808,6 +822,8 @@ function showProgram() {
   document.getElementById('viewLift')!.hidden = true;
   document.getElementById('viewMuscle')!.hidden = true;
   document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewLifts')!.hidden = true;
+  document.getElementById('viewMuscles')!.hidden = true;
   const v = document.getElementById('viewProgram')!;
   v.hidden = false;
   document.title = 'program';
@@ -826,6 +842,8 @@ function showMuscle(mus: string) {
   document.getElementById('viewLift')!.hidden = true;
   document.getElementById('viewProgram')!.hidden = true;
   const v = document.getElementById('viewMuscle')!;
+  document.getElementById('viewLifts')!.hidden = true;
+  document.getElementById('viewMuscles')!.hidden = true;
   v.hidden = false;
   document.title = match;
   MUSPAGE = { mus: match };
@@ -927,6 +945,8 @@ function showSession(ds: string) {
   document.getElementById('viewLift')!.hidden = true;
   document.getElementById('viewProgram')!.hidden = true;
   document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewLifts')!.hidden = true;
+  document.getElementById('viewMuscles')!.hidden = true;
   const v = document.getElementById('viewSession')!;
   v.hidden = false;
   const title = document.getElementById('sessTitle')!;
@@ -1072,6 +1092,8 @@ function showLift(ex: string) {
   document.getElementById('viewSession')!.hidden = true;
   document.getElementById('viewProgram')!.hidden = true;
   document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewLifts')!.hidden = true;
+  document.getElementById('viewMuscles')!.hidden = true;
   const v = document.getElementById('viewLift')!;
   v.hidden = false;
   const title = document.getElementById('liftTitle')!;
@@ -1732,6 +1754,16 @@ function renderProgramSummary(snap: any) {
   link.id = 'progLink';
   link.textContent = 'Full split';
   rotLine.appendChild(link);
+  rotLine.appendChild(document.createTextNode(' · '));
+  const liftsLink = document.createElement('a');
+  liftsLink.href = '#/lifts';
+  liftsLink.textContent = 'Movements';
+  rotLine.appendChild(liftsLink);
+  rotLine.appendChild(document.createTextNode(' · '));
+  const musclesLink = document.createElement('a');
+  musclesLink.href = '#/muscles';
+  musclesLink.textContent = 'Muscles';
+  rotLine.appendChild(musclesLink);
   rotLine.appendChild(document.createTextNode('.'));
 }
 
@@ -1827,6 +1859,428 @@ function renderProgramPage(snap: any) {
     panels.appendChild(panel);
   });
   grid.appendChild(panels);
+}
+
+const LIFTF: { q: string; facets: Set<string> } = { q: '', facets: new Set() };
+const MUSF: Set<string> = new Set();
+
+function holdExercises(auto: any): Set<string> {
+  const out = new Set<string>();
+  for (const h of (auto && auto.holds) || []) {
+    for (const m of (h.movements || '').split('/')) {
+      const t = m.trim().toLowerCase();
+      if (t) out.add(t);
+    }
+  }
+  return out;
+}
+
+function recentChanges(auto: any, changes: any[]): Set<string> {
+  const out = new Set<string>();
+  for (const ch of (changes || []).slice(0, 5)) {
+    if (ch.reverted_on) continue;
+    for (const m of (ch.after_movements || '').split('/')) {
+      const t = m.trim().toLowerCase();
+      if (t) out.add(t);
+    }
+  }
+  return out;
+}
+
+function groupedOf(auto: any, ex: string): string[] {
+  const out: string[] = [];
+  for (const [mus, lifts] of Object.entries((auto && auto.grouped) || {})) {
+    if ((lifts as string[]).some(l => l.toLowerCase() === ex.toLowerCase())) out.push(mus);
+  }
+  return out;
+}
+
+function liftRank(
+  t: string,
+  i: number,
+  fx: {
+    held: Set<string>;
+    changed: Set<string>;
+    prog: any;
+  }
+): number {
+  if (fx.held.has(t.toLowerCase()) || fx.changed.has(t.toLowerCase())) return 0;
+  const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+  if (isStalling(pts) || deloadWatch(pts)) return 1;
+  if (groupedOf(SNAP.autoreg, t).length) return 1;
+  if (goalByExercise(SNAP, t)) return 2;
+  return 3;
+}
+
+function liftPasses(
+  t: string,
+  i: number,
+  fx: { held: Set<string>; changed: Set<string> }
+): boolean {
+  if (LIFTF.q && t.toLowerCase().indexOf(LIFTF.q) < 0) return false;
+  if (!LIFTF.facets.size) return true;
+  for (const f of LIFTF.facets) {
+    if (f === 'autoreg' && (fx.held.has(t.toLowerCase()) || fx.changed.has(t.toLowerCase())))
+      return true;
+    if (f === 'grouped' && groupedOf(SNAP.autoreg, t).length) return true;
+    if (f === 'goal' && goalByExercise(SNAP, t)) return true;
+    if (f === 'stall') {
+      const pts = (TREND.series[i].filter(v => v !== null) as number[]).map(ev => ({ ev }));
+      if (isStalling(pts) || deloadWatch(pts)) return true;
+    }
+    if (f === 'focus' && musclesOf(SNAP, t).some(m => prioMuscles(SNAP).has(m.toLowerCase())))
+      return true;
+  }
+  return false;
+}
+
+function showLifts() {
+  document.getElementById('viewDash')!.hidden = true;
+  document.getElementById('viewSession')!.hidden = true;
+  document.getElementById('viewLift')!.hidden = true;
+  document.getElementById('viewProgram')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewMuscles')!.hidden = true;
+  const v = document.getElementById('viewLifts')!;
+  v.hidden = false;
+  document.title = 'movements';
+  const grid = document.getElementById('liftGrid')!;
+  grid.innerHTML = '';
+  const sub = document.getElementById('liftsSub')!;
+  const wdate: Record<number, string> = {};
+  for (const w of SNAP.workouts || []) wdate[w.id] = w.date;
+  const prDate: Record<string, Record<string, boolean>> = {};
+  for (const s of SNAP.sets || []) {
+    if (PR && PR.prIds.has(s.id))
+      (prDate[s.exercise] = prDate[s.exercise] || {})[wdate[s.workout_id] || ''] = true;
+  }
+  const todayS = new Date().toISOString().slice(0, 10);
+  const thisMonth = todayS.slice(0, 7);
+  const holds: Array<{ movements: string; action: string; hold_until: string; reason: string }> =
+    (SNAP.autoreg && SNAP.autoreg.holds) || [];
+  const held = holdExercises(SNAP.autoreg);
+  const changed = recentChanges(SNAP.autoreg, SNAP.autoreg_changes || []);
+  const prog = SNAP.progression || {};
+  const notesByEx: Record<string, string[]> = {};
+  for (const n of SNAP.movement_notes || []) {
+    (notesByEx[n.exercise] = notesByEx[n.exercise] || []).push(n.note);
+  }
+  const order = TREND.top
+    .map((t, i) => i)
+    .sort(
+      (a, b) =>
+        liftRank(TREND.top[a], a, { held, changed, prog }) -
+          liftRank(TREND.top[b], b, { held, changed, prog }) ||
+        (TREND.top[a] < TREND.top[b] ? -1 : 1)
+    )
+    .filter(i => liftPasses(TREND.top[i], i, { held, changed }));
+  sub.textContent = order.length + ' movements';
+  const jobs: Array<[HTMLCanvasElement, (number | null)[], string]> = [];
+  order.forEach(i => {
+    const t = TREND.top[i];
+    const vals = TREND.series[i];
+    const col = liftColor(t);
+    const card = document.createElement('div');
+    card.className = 'mini';
+    const h = document.createElement('div');
+    h.className = 'minititle';
+    const al = document.createElement('a');
+    al.href = '#/l/' + encodeURIComponent(t);
+    al.textContent = t;
+    h.appendChild(al);
+    if (Object.keys(prDate[t] || {}).some(d => d.slice(0, 7) === thisMonth))
+      h.appendChild(prTrophy("PR'd this month"));
+    const marks: Array<[string, string]> = [];
+    const myHolds = holds.filter(hh =>
+      hh.movements.split('/').some(m => m.trim().toLowerCase() === t.toLowerCase())
+    );
+    myHolds.forEach(hh =>
+      marks.push([
+        hh.action + ', holds until ' + hh.hold_until + (hh.reason ? ' (' + hh.reason + ')' : ''),
+        'bad',
+      ])
+    );
+    const grouped = groupedOf(SNAP.autoreg, t);
+    if (grouped.length) marks.push(['grouped fatigue: ' + grouped.join(', '), 'bad']);
+    const pts = (vals.filter(x => x !== null) as number[]).map(ev => ({ ev }));
+    if (isStalling(pts)) marks.push(['stalling', 'bad']);
+    else if (deloadWatch(pts)) marks.push(['slipping', 'bad']);
+    if (goalByExercise(SNAP, t)) marks.push(['goal', 'plan']);
+    if (marks.length) {
+      const wrap = document.createElement('span');
+      wrap.className = 'ministat';
+      marks.forEach(m => {
+        const s = document.createElement('span');
+        s.className = 'minisub ' + m[1];
+        s.textContent = m[0];
+        wrap.appendChild(s);
+      });
+      h.appendChild(wrap);
+    }
+    card.appendChild(h);
+    const mus = musclesOf(SNAP, t);
+    if (mus.length) {
+      const row = document.createElement('div');
+      row.className = 'cap';
+      mus.forEach((m, k) => {
+        if (k > 0) row.appendChild(document.createTextNode(', '));
+        const a = document.createElement('a');
+        a.href = '#/m/' + encodeURIComponent(m);
+        a.textContent = m;
+        row.appendChild(a);
+      });
+      card.appendChild(row);
+    }
+    const cv = document.createElement('canvas');
+    card.appendChild(cv);
+    const sets = (SNAP.sets || []).filter((s: any) => s.exercise === t);
+    if (sets.length) {
+      const last = sets.slice().sort((a: any, b: any) => {
+        const d = (wdate[b.workout_id] || '').localeCompare(wdate[a.workout_id] || '');
+        return d !== 0 ? d : b.id - a.id;
+      })[0];
+      const best = sets
+        .slice()
+        .sort((a: any, b: any) => e1rm(b.weight, b.reps) - e1rm(a.weight, a.reps))[0];
+      const line = document.createElement('div');
+      line.className = 'cap';
+      line.textContent =
+        'last ' + last.weight + ' x ' + last.reps + ' · best ' + best.weight + ' x ' + best.reps;
+      card.appendChild(line);
+    }
+    const p = prog[t.toLowerCase()];
+    if (p) {
+      const pl = document.createElement('div');
+      pl.className = 'cap';
+      pl.textContent =
+        p.verdict + ' → ' + p.next + ' ' + p.direction + (p.note ? ' · ' + p.note : '');
+      card.appendChild(pl);
+    }
+    (notesByEx[t] || []).forEach(n => {
+      const nl = document.createElement('div');
+      nl.className = 'cap';
+      nl.textContent = 'setup: ' + n;
+      card.appendChild(nl);
+    });
+    card.addEventListener('click', ev => {
+      if ((ev.target as HTMLElement).tagName !== 'A')
+        location.hash = '#/l/' + encodeURIComponent(t);
+    });
+    grid.appendChild(card);
+    jobs.push([cv, vals, col]);
+  });
+  drawLiftFilters();
+  if (grid.clientWidth > 0) jobs.forEach(j => mini(j[0], TREND.days, j[1], j[2]));
+  window.scrollTo(0, 0);
+}
+
+function drawLiftFilters() {
+  const box = document.getElementById('liftFacets')!;
+  if (box.childElementCount) {
+    box.querySelectorAll('button[data-facet]').forEach(b => {
+      const f = (b as HTMLButtonElement).dataset.facet || '';
+      const on = LIFTF.facets.has(f);
+      b.classList.toggle('off', !on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    return;
+  }
+  const search = document.getElementById('liftSearch') as HTMLInputElement;
+  search.value = LIFTF.q;
+  search.addEventListener('input', () => {
+    LIFTF.q = search.value.trim().toLowerCase();
+    showLifts();
+  });
+  [
+    ['Autoreg', 'autoreg'],
+    ['Grouped', 'grouped'],
+    ['Goals', 'goal'],
+    ['Stalling', 'stall'],
+    ['Focus', 'focus'],
+  ].forEach(([label, facet]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini off';
+    b.textContent = label;
+    b.dataset.facet = facet;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => {
+      if (LIFTF.facets.has(facet)) LIFTF.facets.delete(facet);
+      else LIFTF.facets.add(facet);
+      showLifts();
+    });
+    box.appendChild(b);
+  });
+}
+
+function musPasses(m: string, vol: any, grouped: Record<string, string[]>): boolean {
+  if (!MUSF.size) return true;
+  const v = vol[m];
+  const status = v ? v.status : 'in_range';
+  const prio = SNAP.priority || {};
+  const t = prio[m];
+  const tier = typeof t === 'string' ? t : t ? t.tier : null;
+  for (const f of MUSF) {
+    if (f === 'below' && status === 'below_mev') return true;
+    if (f === 'above' && status === 'above_mrv') return true;
+    if (f === 'priority' && (tier === 'priority' || tier === 'deprioritize')) return true;
+    if (f === 'grouped' && grouped[m]) return true;
+  }
+  return false;
+}
+
+function showMuscles() {
+  document.getElementById('viewDash')!.hidden = true;
+  document.getElementById('viewSession')!.hidden = true;
+  document.getElementById('viewLift')!.hidden = true;
+  document.getElementById('viewProgram')!.hidden = true;
+  document.getElementById('viewMuscle')!.hidden = true;
+  document.getElementById('viewLifts')!.hidden = true;
+  const v = document.getElementById('viewMuscles')!;
+  v.hidden = false;
+  document.title = 'muscles';
+  const grid = document.getElementById('musGrid')!;
+  grid.innerHTML = '';
+  const sub = document.getElementById('musSub2')!;
+  const vol = SNAP.volume || null;
+  if (!vol) {
+    sub.textContent = 'no volume data, sync first';
+    return;
+  }
+  const grouped: Record<string, string[]> = (SNAP.autoreg && SNAP.autoreg.grouped) || {};
+  const prio = SNAP.priority || {};
+  const tierOf = (m: string) => {
+    const t = prio[m];
+    return typeof t === 'string' ? t : t ? t.tier : null;
+  };
+  const bad = (m: string) =>
+    vol[m] && (vol[m].status === 'below_mev' || vol[m].status === 'above_mrv');
+  const order = GROUPS.slice().sort((a, b) => {
+    const ba = bad(a) ? 0 : 1;
+    const bb = bad(b) ? 0 : 1;
+    if (ba !== bb) return ba - bb;
+    const pa = tierOf(a) && tierOf(a) !== 'maintain' ? 0 : 1;
+    const pb = tierOf(b) && tierOf(b) !== 'maintain' ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return a < b ? -1 : 1;
+  });
+  const shown = order.filter(m => musPasses(m, vol, grouped));
+  sub.textContent = shown.length + ' muscles';
+  const mon = new Date();
+  mon.setHours(12, 0, 0, 0);
+  mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  const wlabels = [7, 6, 5, 4, 3, 2, 1, 0].map(k =>
+    fmtD(new Date(mon.getTime() - k * 7 * 86400000).toISOString().slice(0, 10))
+  );
+  const jobs: Array<() => void> = [];
+  shown.forEach(m => {
+    const entry = vol[m] || { weekly: [], mev: 0, mav: null, mrv: null };
+    const card = document.createElement('div');
+    card.className = 'mini';
+    const h = document.createElement('div');
+    h.className = 'minititle';
+    const al = document.createElement('a');
+    al.href = '#/m/' + encodeURIComponent(m);
+    al.textContent = m;
+    h.appendChild(al);
+    const marks: Array<[string, string]> = [];
+    if (entry.status === 'below_mev') marks.push(['below MEV', 'bad']);
+    else if (entry.status === 'above_mrv') marks.push(['above MRV', 'bad']);
+    const tier = tierOf(m);
+    if (tier && tier !== 'maintain') marks.push([tier, tier === 'priority' ? 'plan' : '']);
+    if (grouped[m]) marks.push(['grouped fatigue: ' + grouped[m].join(', '), 'bad']);
+    if (marks.length) {
+      const wrap = document.createElement('span');
+      wrap.className = 'ministat';
+      marks.forEach(x => {
+        const s = document.createElement('span');
+        s.className = ('minisub ' + x[1]).trim();
+        s.textContent = x[0];
+        wrap.appendChild(s);
+      });
+      h.appendChild(wrap);
+    }
+    card.appendChild(h);
+    const cv = document.createElement('canvas');
+    cv.style.height = '120px';
+    card.appendChild(cv);
+    const data = musclePageData(D!.W, D!.S, m);
+    const lifts = data.lifts || [];
+    lifts.slice(0, 3).forEach(l => {
+      const row = document.createElement('div');
+      row.className = 'cap';
+      const a = document.createElement('a');
+      a.href = '#/l/' + encodeURIComponent(l.ex);
+      a.textContent = l.ex;
+      row.appendChild(a);
+      const meta = document.createElement('span');
+      meta.textContent = ' ' + l.sets + ' sets · ' + Math.round(l.share * 100) + '%';
+      row.appendChild(meta);
+      card.appendChild(row);
+    });
+    if (lifts.length > 3) {
+      const more = document.createElement('div');
+      more.className = 'cap';
+      const a = document.createElement('a');
+      a.href = '#/m/' + encodeURIComponent(m);
+      a.textContent = '+' + (lifts.length - 3) + ' more';
+      more.appendChild(a);
+      card.appendChild(more);
+    }
+    card.addEventListener('click', ev => {
+      if ((ev.target as HTMLElement).tagName !== 'A')
+        location.hash = '#/m/' + encodeURIComponent(m);
+    });
+    grid.appendChild(card);
+    jobs.push(() =>
+      muscleChart(
+        cv,
+        wlabels,
+        entry.weekly || [],
+        {
+          mev: entry.mev !== undefined ? entry.mev : 0,
+          mav: entry.mav || null,
+          mrv: entry.mrv !== undefined ? entry.mrv : null,
+        },
+        MC[m] || '#888'
+      )
+    );
+  });
+  drawMusFilters();
+  if (grid.clientWidth > 0) jobs.forEach(run => run());
+  window.scrollTo(0, 0);
+}
+
+function drawMusFilters() {
+  const box = document.getElementById('musFacets')!;
+  if (box.childElementCount) {
+    box.querySelectorAll('button[data-facet]').forEach(b => {
+      const f = (b as HTMLButtonElement).dataset.facet || '';
+      const on = MUSF.has(f);
+      b.classList.toggle('off', !on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    return;
+  }
+  [
+    ['Below MEV', 'below'],
+    ['Above MRV', 'above'],
+    ['Priority', 'priority'],
+    ['Grouped', 'grouped'],
+  ].forEach(([label, facet]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip mini off';
+    b.textContent = label;
+    b.dataset.facet = facet;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => {
+      if (MUSF.has(facet)) MUSF.delete(facet);
+      else MUSF.add(facet);
+      showMuscles();
+    });
+    box.appendChild(b);
+  });
 }
 
 function topSetOn(

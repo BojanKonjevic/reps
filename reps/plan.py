@@ -6,10 +6,10 @@ from .autoreg import autoreg_block
 from .constants import load_constants
 from .db import conn, open_workout
 from .goals import goal_progress
-from .program import (active_deloads, classify_volume, compaction_due,
+from .program import (active_deloads, compaction_due,
                     parse_active_split_days, parse_movements, parse_rotation,
                     priority_needs_confirm, read_priorities, read_split,
-                    rules_with_confirm, weekly_volume)
+                    rules_with_confirm, volume_block)
 
 
 def cmd_plan(slot=None, verbose=False):
@@ -109,15 +109,7 @@ def cmd_plan(slot=None, verbose=False):
             second += " (" + "; ".join(detail) + ")"
         slot_guess["basis"] += "; " + second
 
-    vol_weeks = thresholds["volume_window_weeks"]
-    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
-    vol_bad = thresholds["volume_bad_weeks"]
-    volume = {}
-    for muscle, entry in constants["muscles"].items():
-        weekly = weekly_volume(c, muscle, week_starts)
-        volume[muscle] = {"weekly": weekly, "mev": entry["mev"], "mav": entry["mav"],
-                          "mrv": entry["mrv"], "freq": entry["freq"],
-                          "status": classify_volume(weekly, entry["mev"], entry["mrv"], vol_bad)}
+    volume = volume_block(c)
 
     retention = thresholds["ledger_retention_days"]
     cutoff = (today - timedelta(days=retention - 1)).isoformat()
