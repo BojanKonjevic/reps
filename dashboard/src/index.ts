@@ -1901,7 +1901,8 @@ function changeOf(changes: any[], ex: string): any {
 function dirArrow(direction: string): string {
   if (direction === 'up') return '↑';
   if (direction === 'down') return '↓';
-  return '→';
+  if (direction === 'flat') return '→';
+  return '';
 }
 
 function groupedOf(auto: any, ex: string): string[] {
@@ -2092,7 +2093,11 @@ function showLifts() {
       const pl = document.createElement('div');
       pl.className = 'cap';
       pl.textContent =
-        p.verdict + ' → ' + p.next + ' ' + dirArrow(p.direction) + (p.note ? ' · ' + p.note : '');
+        p.verdict +
+        ' → ' +
+        p.next +
+        (p.direction ? ' ' + dirArrow(p.direction) : '') +
+        (p.note ? ' · ' + p.note : '');
       info.appendChild(pl);
     }
     (notesByEx[t] || []).forEach(n => {
