@@ -127,6 +127,8 @@ INSERT INTO "movement_notes" VALUES(12,'seated leg curl','stack steps: 50 57 63 
 INSERT INTO "movement_notes" VALUES(13,'adductor machine','width setting 7','2026-09-23T08:49:04');
 INSERT INTO "movement_notes" VALUES(14,'adductor machine','stack increments 3.75','2026-09-23T08:50:46');
 INSERT INTO "movement_notes" VALUES(15,'crunch machine','single loading horn, starter unknown, logged weight is plates only; seat height middle (unnumbered)','2026-09-23T09:01:31');
+INSERT INTO "movement_notes" VALUES(16,'cable reverse curl','bilateral','2026-09-23T09:39:08');
+INSERT INTO "movement_notes" VALUES(17,'cable wrist curl','unilateral, log weaker side with L/R when sides diverge','2026-09-23T09:39:08');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL,
@@ -178,6 +180,7 @@ INSERT INTO "rules" VALUES(2,'autoreg','autoreg: manage training volume within M
 INSERT INTO "rules" VALUES(3,'coaching','after every logged set, state the next set: same movement with weight and reps call, or next movement with setup notes and conservative first-set target when cold start','2026-09-22',NULL,'active','2026-09-22T09:13:06');
 INSERT INTO "rules" VALUES(4,'bodyweight','ask for bodyweight at session start so it gets measured on the gym scale','2026-09-22',NULL,'active','2026-09-22T10:45:59');
 INSERT INTO "rules" VALUES(5,'coaching','don''t prompt for sleep or pain at session close, sleep is consistent and pain none unless volunteered','2026-09-23',NULL,'active','2026-09-23T09:34:57');
+INSERT INTO "rules" VALUES(6,'coaching','at every session end, show two separate blocks: what the agent wrote this session (notes, memory, rules, progression, sync/commit), and chat-only thoughts, conversational','2026-09-23',NULL,'active','2026-09-23T09:38:03');
 CREATE TABLE set_muscles (
   set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
   muscle TEXT NOT NULL,
