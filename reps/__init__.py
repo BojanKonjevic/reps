@@ -1,7 +1,7 @@
 """reps: workout log. Code owns what is derivable or enforceable, the agent owns what is judgment.
 
-Package surface. Import from here; `log.py` at the repo root re-exports
-everything so the CLI and existing tooling keep working.
+Package surface. Domain operations live in one module per domain; agents
+reach them through typed MCP tools in reps.mcp, tests import them from here.
 """
 
 from .adherence import (adherence_block, adherence_snapshot, classify_date, rotation_anchor,
@@ -47,7 +47,7 @@ from .progression import (progression_set, progression_show,
                           top_e1rm_by_date)
 from .sessions import (calendar, check, context, delete_set,
                        delete_workout, end, exercises, history,
-                       log, notes, range, rest, session,
+                       log, notes, rest, session, session_range,
                        start, stats, today, update,
                        update_workout, weigh, end_gate_items)
 from .signals import SEVERITY_ORDER, build_signals
@@ -69,7 +69,7 @@ __all__ = [
     "history", "log", "map_note", "map_show", "meta_set",
     "meta_show", "notes", "plan", "priority_clear",
     "priority_list", "priority_set", "progression_set",
-    "progression_show", "range", "rename", "rest",
+    "progression_show", "rename", "rest", "session_range",
     "restore", "retag", "rotation_anchor", "rotation_status",
     "rule_add", "rule_confirm",
     "rule_list", "session", "split_diff", "split_move",

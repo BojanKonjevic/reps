@@ -243,7 +243,7 @@ def session_range(from_date: str, to_date: str) -> dict:
         from_date: Start yyyy-mm-dd.
         to_date: End yyyy-mm-dd.
     """
-    return run_domain(_sessions.range, from_date, to_date)
+    return run_domain(_sessions.session_range, from_date, to_date)
 
 
 @mcp.tool()

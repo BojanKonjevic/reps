@@ -322,7 +322,7 @@ def test_bad_numeric_inputs_exit_cleanly(log_module):
         (log_module.weigh, ("abc", ""), "must be a number"),
         (log_module.history, ("bench", "abc"), "integer"),
         (log_module.session, ("not-a-date",), "YYYY-MM-DD"),
-        (log_module.range, ("not-a-date", "2026-01-01"), "YYYY-MM-DD"),
+        (log_module.session_range, ("not-a-date", "2026-01-01"), "YYYY-MM-DD"),
         (log_module.update, (set_id, "weight", "abc"), "must be a number"),
         (log_module.update, (set_id, "reps", "abc"), "integer"),
         (log_module.delete_set, ("abc",), "no such set"),

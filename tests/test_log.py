@@ -158,7 +158,7 @@ def test_session_returns_correct_workout_ids(log_module):
 
 
 def test_range_returns_correct_date_bounds(log_module):
-    """range returns workouts within date bounds."""
+    """session_range returns workouts within date bounds."""
     c = log_module.conn()
     today = date.today()
     d0 = (today - timedelta(days=10)).isoformat()
@@ -171,7 +171,7 @@ def test_range_returns_correct_date_bounds(log_module):
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
         c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
-    output = capture_stdout(log_module.range, d1, d2)
+    output = capture_stdout(log_module.session_range, d1, d2)
     data = json.loads(output)
     assert data["from"] == d1
     assert data["to"] == d2

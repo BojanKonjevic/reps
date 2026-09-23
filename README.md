@@ -30,9 +30,8 @@ Three layers, each doing one job.
 
 ## Repo map
 
-- `reps/`, the backend: `sessions` (logging, the end gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the plan bundle), `goals`, `autoreg`, `adherence` (rotation anchor and status), `signals`, `audit` (audit_data, doctor), `sync` (sync_push, dump, restore, export), `models` (Pydantic validation), `mcp` (the agent interface). SQLite at `workouts.db`, tracked dump at `workouts.sql`. `log.py` is maintenance only (doctor, dump, restore, export).
 - `reps/`, the backend: `sessions` (logging, the `end` gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the `plan` bundle), `goals`, `autoreg`, `adherence` (rotation anchor and status), `signals` (coach-notes sentences for the dashboard), `audit` (audit_data, doctor), `sync` (sync_push, dump, restore, export), `models` (Pydantic validation), `mcp` (the agent interface), plus `db`, `constants`, `muscles`, `memory`, `progression`.
-- `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
+- `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `ARCHITECTURE.md` (code map), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
 - `AGENTS.md`, the agent map. `constants.json`, the evidence numbers.
 - `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
 - `tests/`, the deterministic pytest suite for everything the backend enforces.

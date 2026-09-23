@@ -437,7 +437,7 @@ def session(datestr):
     print(json.dumps({"date": day, "workouts": out}, indent=2))
 
 
-def range(fromstr, tostr):
+def session_range(fromstr, tostr):
     try:
         d0 = date.fromisoformat(fromstr).isoformat()
         d1 = date.fromisoformat(tostr).isoformat()

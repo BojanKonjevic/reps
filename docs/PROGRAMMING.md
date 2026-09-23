@@ -30,7 +30,7 @@ The splits table holds two variants. Baseline is the reference program and is ne
 
 ## Prioritize (prioritize)
 
-`prioritize <muscle> [for <duration>]`, in plain words ("side delts for the next 3 months", "bring up hamstrings"). Fully specified requests execute in the same response. Open requests get a short thread first: state the current picture from data, ask only what the recommendation depends on, then propose order plus sets plus frequency verdict with one line of reason each, and execute on confirm.
+`prioritize` arrives in plain words with a muscle and an optional duration ("side delts for the next 3 months", "bring up hamstrings"). Fully specified requests execute in the same response. Open requests get a short thread first: state the current picture from data, ask only what the recommendation depends on, then propose order plus sets plus frequency verdict with one line of reason each, and execute on confirm.
 
 1. Resolve the muscle first: delt heads track separately, so "delts" alone gets asked which head. Untracked groups (neck, calves, traps) are refused, or tracked first per the mapping rule.
 2. Rewrite the active split with `program_split_move` (position) and `program_split_set` (set counts): the muscle's lifts move to position 1, second at worst, in every slot containing them. If another focus is already active, ask how to order the two before rewriting. Their set counts go up; other accessories in the same slots drop a set or hold (never to zero) so total session volume stays roughly flat. Baseline split is untouched and never planned from. If a workout is open, the rewrite takes effect next session unless the user says to apply it now.
