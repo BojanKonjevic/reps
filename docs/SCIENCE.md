@@ -6,7 +6,7 @@ Last reviewed: Sep 18 2026
 
 ## Volume landmarks (sets/week)
 
-Numbers live in `constants.json` (single source of truth, edited via `log.py constants set` on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
+Numbers live in `constants.json` (single source of truth, edited via the `constants_set` tool on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
 Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
 
@@ -18,7 +18,7 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 
 ## Frequency guidance
 
-Sessions/week per muscle lives in `constants.json` (`freq`, edited via `log.py constants set` on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles.
+Sessions/week per muscle lives in `constants.json` (`freq`, edited via the `constants_set` tool on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles.
 
 Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at ~3.5x and legs at ~1.75x (current 8-day rotation) fall inside the settled range. Side delts at ~3.5x sit inside the range above, no deviation. Rear delts at ~3.5x sit inside the range above, no deviation.
 

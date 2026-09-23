@@ -1,13 +1,13 @@
 # memory
 
-Durable training memory: injuries, sleep, life context, monthly rollups. Program config and goals live in SQLite (read via `plan`, `split show`, `map show`, `goal show`). Keep it short, current state only.
+Durable training memory: injuries, sleep, life context, monthly rollups. Program config and goals live in SQLite (read via `plan`, `program_split_show`, `muscle_map_show`, `goal_show`). Keep it short, current state only.
 
 ## State
 
 Bodyweight, injuries, sleep, motivation notes that carry over. One line each, newest last.
 
 - Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day). All weigh-ins in shoes, shorts, tank top unless stated otherwise.
-- Sep 20 2026: block plan. Next 8 weeks flat to failure on U1-U4/L1-L2, no goals, no prios, calibrate RIR by predicting then verifying to failure. Week 9 deload. Then build RIR tracking plus mesocycle planning into log.py, and plan the next 6 weeks with a mesocycle, few prios and goals.
+- Sep 20 2026: block plan. Next 8 weeks flat to failure on U1-U4/L1-L2, no goals, no prios, calibrate RIR by predicting then verifying to failure. Week 9 deload. Then build RIR tracking plus mesocycle planning into reps/, and plan the next 6 weeks with a mesocycle, few prios and goals.
 - Sep 23 2026: RIR calibration is personal practice only (predict mid-set, e.g. at rep 6 call 2 more, verify to failure), nothing logged to the app yet.
 
 ## Monthly rollups
