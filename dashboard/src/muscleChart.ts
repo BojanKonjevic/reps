@@ -28,14 +28,20 @@ export function muscleChart(
   const { g, W, H } = fit(cv);
   const P = 46;
   g.clearRect(0, 0, W, H);
-  g.font = "600 16px 'IBM Plex Sans', sans-serif";
+  // Compact mode for list-page minis: fewer ticks, smaller type, sparse
+  // x labels, and no per-point value labels that would collide with the
+  // MEV/MRV line labels at this height.
+  const compact = H < 170;
+  g.font = compact
+    ? "600 13px 'IBM Plex Sans', sans-serif"
+    : "600 16px 'IBM Plex Sans', sans-serif";
   if (!counts.length) {
     g.fillStyle = TC;
     putText(g, W, 'no sets logged for this muscle yet', P, H / 2, 'left');
     return;
   }
   let mx = Math.max(...counts, bands.mev, bands.mrv || 0, bands.mav ? bands.mav[1] : 0, 1);
-  const t = niceTicks(0, mx, 3);
+  const t = niceTicks(0, mx, compact ? 2 : 3);
   mx = t.hi;
   const n = counts.length;
   const bw = (W - P - 8) / n;
@@ -94,12 +100,12 @@ export function muscleChart(
     g.fill();
   });
   const li = counts.length - 1;
-  if (li >= 0) {
+  if (li >= 0 && !compact) {
     g.fillStyle = color;
     putText(g, W, String(counts[li]), pxi(li) + 8, py(counts[li]) - 10, 'left');
   }
   g.fillStyle = TC;
-  const step = Math.ceil(n / 6);
+  const step = compact ? Math.max(1, n - 1) : Math.ceil(n / 6);
   counts.forEach((c, i) => {
     if (i === 0 || i === n - 1 || i % step === 0)
       putText(g, W, labels[i], P + i * bw + bw / 2, H - 8, 'center');
