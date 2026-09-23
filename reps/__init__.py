@@ -23,6 +23,9 @@ from .goals import (build_checkpoints, cmd_goal_add, cmd_goal_drop,
                     cmd_goal_rewrite, cmd_goal_show, goal_progress,
                     goal_sessions)
 from .memory import MEMORY_FILE, append_memory_state
+from .mcp.server import call_tool as mcp_call_tool
+from .mcp.server import list_tool_names as mcp_list_tool_names
+from .mcp.server import mcp as mcp_server
 from .models import (ConstantsModel, SnapshotModel, SnapshotValidationError,
                      first_error, validate_snapshot)
 from .muscles import (attach_muscles, best_e1rm, cmd_map_note, cmd_map_show,
@@ -78,7 +81,7 @@ __all__ = [
     "e1rm_of",
     "end_gate_items", "expected_day",     "expectation_context", "first_error", "get_anchor",
     "goal_progress", "goal_sessions",     "is_rest_day", "load_constants", "load_constants_model",
-    "main", "match_day", "mev_floor_warnings", "muscles_for_movements", "open_workout",
+    "main", "match_day", "mcp_call_tool", "mcp_list_tool_names", "mcp_server", "mev_floor_warnings", "muscles_for_movements", "open_workout",
     "parse_anchor", "parse_mev_from_science", "parse_movements", "parse_rotation",
     "placeholders", "programmed_weekly_volume", "read_priorities",
     "read_split", "rep_band_bound", "rule_status_rows", "rules_with_confirm",

@@ -14,7 +14,7 @@ pytestmark = pytest.mark.skipif(
     os.environ.get("REPS_NO_MCP") == "1", reason="mcp dependency unavailable")
 
 
-def call(name, args=None, log_module=None):
+def call(name, args=None):
     from reps.mcp.server import call_tool
     return asyncio.run(call_tool(name, args or {}))
 
@@ -108,4 +108,4 @@ def test_handlers_hold_no_business_logic():
     text = pathlib.Path("reps/mcp/server.py").read_text()
     for banned in (".execute(", "sqlite3", "sys.exit", "CREATE TABLE", "INSERT INTO"):
         assert banned not in text, f"MCP handler layer must not contain {banned!r}"
-    assert text.count("_run(") >= 50, "every tool delegates through the shared adapter"
+    assert text.count("run_domain(") >= 50, "every tool delegates through the shared adapter"
