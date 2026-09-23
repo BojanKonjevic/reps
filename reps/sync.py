@@ -29,7 +29,7 @@ def build_snapshot(c=None):
     sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
     try:
-        constants = load_constants()
+        constants = load_constants().model_dump()
     except SystemExit:
         constants = None
     try:

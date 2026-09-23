@@ -22,11 +22,11 @@ def build_signals(c=None):
     """Warning signs in words, worst first. Empty means all clear."""
     c = c or conn()
     constants = load_constants()
-    thresholds = constants["thresholds"]
+    thresholds = constants.thresholds
     today = date.today()
     out = []
 
-    vol_weeks = thresholds["volume_window_weeks"]
+    vol_weeks = thresholds.volume_window_weeks
     week_starts = [today - timedelta(days=today.weekday() + 7 * i)
                    for i in range(vol_weeks - 1, -1, -1)]
     sessions = c.execute(
@@ -38,25 +38,25 @@ def build_signals(c=None):
                     "text": f"not enough history for volume reads yet ({sessions} sessions "
                             f"in {vol_weeks} weeks)"})
     else:
-        vol_bad = thresholds["volume_bad_weeks"]
-        for muscle, entry in constants["muscles"].items():
+        vol_bad = thresholds.volume_bad_weeks
+        for muscle, entry in constants.muscles.items():
             weekly = weekly_volume(c, muscle, week_starts)
-            status = classify_volume(weekly, entry["mev"], entry["mrv"], vol_bad)
+            status = classify_volume(weekly, entry.mev, entry.mrv, vol_bad)
             if status == "below_mev":
-                zero_weeks, low_weeks = count_bad_weeks(weekly, entry["mev"])
+                zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev)
                 if zero_weeks >= vol_bad:
                     out.append({"severity": "high",
                                 "text": f"{muscle}: 0 sets in {zero_weeks} of last {vol_weeks} "
-                                        f"weeks (MEV {entry['mev']})"})
+                                        f"weeks (MEV {entry.mev})"})
                 else:
                     out.append({"severity": "medium",
                                 "text": f"{muscle}: under MEV in {low_weeks} of last {vol_weeks} "
-                                        f"weeks (MEV {entry['mev']})"})
+                                        f"weeks (MEV {entry.mev})"})
             elif status == "above_mrv":
                 recent = weekly[-4:] if len(weekly) >= 4 else weekly
                 avg = sum(recent) / len(recent) if recent else 0
                 out.append({"severity": "medium",
-                            "text": f"{muscle}: averaging {avg:.1f}/wk over MRV {entry['mrv']}"})
+                            "text": f"{muscle}: averaging {avg:.1f}/wk over MRV {entry.mrv}"})
 
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
         prog = goal_progress(c, dict(g))
@@ -93,7 +93,7 @@ def build_signals(c=None):
         "ORDER BY date DESC, id DESC LIMIT 1").fetchone()
     if last_done:
         gap = (today - date.fromisoformat(last_done["date"])).days
-        if gap >= thresholds["break_days"] + 1:
+        if gap >= thresholds.break_days + 1:
             out.append({"severity": "medium",
                         "text": f"{gap}d since last session, no PR attempts until back"})
 

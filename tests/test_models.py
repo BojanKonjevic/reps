@@ -26,6 +26,16 @@ def test_file_constants_validate():
     ConstantsModel.model_validate(_file_constants())
 
 
+def test_load_constants_returns_canonical_model():
+    from reps.constants import load_constants
+    model = load_constants()
+    assert isinstance(model, ConstantsModel)
+    assert model.muscles["chest"].mev == 8
+    assert model.thresholds.volume_window_weeks == 8
+    assert model.rep_bands[0].max_reps == 6
+    assert model.explained_keywords[:2] == ["deload", "return"]
+
+
 def test_constants_rejects_bool_mev():
     raw = _file_constants()
     raw["muscles"]["chest"]["mev"] = True

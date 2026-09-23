@@ -142,7 +142,7 @@ def adherence_block(c, window_days=14):
     today = date.today()
     days = status_range(c, rotation, anchor,
                         (today - timedelta(days=window_days - 1)).isoformat(), today.isoformat())
-    vol_weeks = load_constants()["thresholds"]["volume_window_weeks"]
+    vol_weeks = load_constants().thresholds.volume_window_weeks
     freq_start = (today - timedelta(days=vol_weeks * 7 - 1)).isoformat()
     window = status_range(c, rotation, anchor, freq_start, today.isoformat())
     frequency = {}
@@ -150,7 +150,7 @@ def adherence_block(c, window_days=14):
         expected = [e for e in window if e["expected"].lower() == day.lower()]
         frequency[day] = {"expected": len(expected),
                           "done": sum(1 for e in expected if e["status"] == "done")}
-    threshold = load_constants()["thresholds"].get("adherence_drift_days", 3)
+    threshold = load_constants().thresholds.adherence_drift_days
     run = drift_days(days)
     return {"anchor": anchor, "days": days, "frequency": frequency,
             "drift": run >= threshold, "drift_days": run, "drift_threshold": threshold}
@@ -166,10 +166,10 @@ def adherence_snapshot(c):
     if not rotation or anchor is None:
         return None
     today = date.today()
-    span = load_constants()["thresholds"]["volume_window_weeks"] * 7
+    span = load_constants().thresholds.volume_window_weeks * 7
     days = status_range(c, rotation, anchor,
                         (today - timedelta(days=span - 1)).isoformat(), today.isoformat())
-    threshold = load_constants()["thresholds"].get("adherence_drift_days", 3)
+    threshold = load_constants().thresholds.adherence_drift_days
     run = drift_days(days)
     return {"anchor": anchor, "days": days, "drift": run >= threshold,
             "drift_days": run, "drift_threshold": threshold}

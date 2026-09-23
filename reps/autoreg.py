@@ -47,7 +47,7 @@ def autoreg_drop_watch(c):
     Deload sessions are filtered out first (they deliberately deviate).
     Deterministic reuse of top_e1rm_by_date, same shape as the Session report watch.
     """
-    threshold = load_constants()["thresholds"].get("deload_watch_pct", -5)
+    threshold = load_constants().thresholds.deload_watch_pct
     out = []
     for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall():
         ex = r["exercise"]

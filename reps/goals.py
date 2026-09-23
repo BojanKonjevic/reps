@@ -50,7 +50,7 @@ def goal_progress(c, goal):
         "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
     sessions = goal_sessions(c, goal)
     completed = min(len(sessions), len(checkpoints))
-    divergence = load_constants()["thresholds"].get("goal_divergence_pct", 5)
+    divergence = load_constants().thresholds.goal_divergence_pct
     consecutive_misses = 0
     for i in range(completed):
         _, actual, notes, _ = sessions[i]

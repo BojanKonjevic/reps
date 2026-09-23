@@ -102,6 +102,10 @@ class Thresholds(BaseModel):
     default_new_slot_sets: StrictInt = Field(gt=0)
     adherence_drift_days: StrictInt = Field(gt=0)
     progression_drop_pct: Union[StrictInt, StrictFloat] = Field(lt=0)
+    deload_watch_pct: Union[StrictInt, StrictFloat] = -5
+    goal_divergence_pct: Union[StrictInt, StrictFloat] = 5
+    deload_volume_reduction: list[Union[StrictInt, StrictFloat]] = Field(
+        default_factory=lambda: [0.4, 0.6])
 
 
 class ConstantsModel(BaseModel):
@@ -114,7 +118,9 @@ class ConstantsModel(BaseModel):
     untracked: list[StrictStr] = Field(default_factory=list)
     rep_bands: list[RepBand] = Field(min_length=1)
     thresholds: Thresholds
-    explained_keywords: list[StrictStr] = Field(default_factory=list)
+    explained_keywords: list[StrictStr] = Field(
+        default_factory=lambda: ["deload", "return", "program change", "injury",
+                                 "technique", "sick", "travel"])
     rep_scheme_default: list[StrictInt] = Field(default_factory=lambda: [3, 8])
 
     @model_validator(mode="after")

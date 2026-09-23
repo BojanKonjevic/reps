@@ -43,21 +43,20 @@ def audit():
         by_ex.setdefault(s["exercise"], []).append(s)
 
     constants = load_constants()
-    explained = tuple(constants.get("explained_keywords", ["deload", "return", "program change", "injury", "technique", "sick", "travel"]))
-    thresholds = constants.get("thresholds", {})
-    drop_pct = thresholds.get("progression_drop_pct", -50)
-    dup_dist = thresholds.get("duplicate_name_distance", 2)
-    stale_hours = thresholds.get("stale_workout_hours", 8)
-    vol_weeks = thresholds.get("volume_window_weeks", 8)
-    vol_bad = thresholds.get("volume_bad_weeks", 4)
+    explained = tuple(constants.explained_keywords)
+    thresholds = constants.thresholds
+    drop_pct = thresholds.progression_drop_pct
+    dup_dist = thresholds.duplicate_name_distance
+    stale_hours = thresholds.stale_workout_hours
+    vol_weeks = thresholds.volume_window_weeks
+    vol_bad = thresholds.volume_bad_weeks
 
     def jump_bound(reps):
-        for band in constants.get("rep_bands", []):
-            max_reps = band.get("max_reps")
-            if max_reps is None:
+        for band in constants.rep_bands:
+            if band.max_reps is None:
                 return None
-            if reps <= max_reps:
-                return band.get("jump_pct")
+            if reps <= band.max_reps:
+                return band.jump_pct
         return None
 
     for ex, ex_sets in by_ex.items():
@@ -130,7 +129,7 @@ def audit():
     today = date.today()
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
     base = week_starts[0].isoformat()
-    mev_bounds = {m: e["mev"] for m, e in constants["muscles"].items()}
+    mev_bounds = {m: e.mev for m, e in constants.muscles.items()}
     priorities = read_priorities(c)
     for muscle, mev in mev_bounds.items():
         rows = c.execute("""
@@ -199,7 +198,7 @@ def doctor():
                                                        (m,)).fetchone()}))):
         for ex in exercises:
             problems.append({"check": check, "fix": f"muscle_map_set for \"{ex}\""})
-    known_muscles = set(constants["muscles"]) | set(constants.get("untracked", []))
+    known_muscles = set(constants.muscles) | set(constants.untracked)
     stray = [r["muscle"] for r in c.execute("SELECT DISTINCT muscle FROM set_muscles").fetchall()
              if r["muscle"] not in known_muscles]
     for muscle in stray:
@@ -249,4 +248,4 @@ def doctor():
     if problems:
         print(json.dumps({"ok": False, "problems": problems}, indent=2))
         sys.exit(1)
-    print(json.dumps({"ok": True, "muscles": len(constants["muscles"])}))
+    print(json.dumps({"ok": True, "muscles": len(constants.muscles)}))

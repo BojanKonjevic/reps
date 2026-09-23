@@ -15,7 +15,7 @@ from .autoreg import (autoreg_active_holds, autoreg_block, autoreg_drop_watch,
 from .constants import (CONSTANTS_FILE, canon_muscle_name, clean_muscles,
                         constants_set, constants_show,
                         constants_validate, load_constants,
-                        load_constants_model, parse_mev_from_science, rep_band_bound,
+                        parse_mev_from_science, rep_band_bound,
                         tracked_muscles, validate_constants)
 from .db import CFG, DB, SCHEMA, conn, open_workout, placeholders
 from .goals import (build_checkpoints, goal_add, goal_drop,
@@ -79,7 +79,7 @@ __all__ = [
     "consume_session_flags", "day_movements", "deload_covers", "drift_days",
     "e1rm_of",
     "end_gate_items", "expected_day",     "expectation_context", "first_error", "get_anchor",
-    "goal_progress", "goal_sessions",     "is_rest_day", "load_constants", "load_constants_model",
+    "goal_progress", "goal_sessions",     "is_rest_day", "load_constants",
     "match_day", "mcp_call_tool", "mcp_list_tool_names", "mcp_server", "mev_floor_warnings", "muscles_for_movements", "open_workout",
     "parse_anchor", "parse_mev_from_science", "parse_movements", "parse_rotation",
     "placeholders", "programmed_weekly_volume", "read_priorities",

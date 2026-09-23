@@ -16,7 +16,7 @@ def plan(slot=None, verbose=False):
     from datetime import timedelta
     c = conn()
     constants = load_constants()
-    thresholds = constants["thresholds"]
+    thresholds = constants.thresholds
     today = date.today()
     today_iso = today.isoformat()
 
@@ -33,10 +33,10 @@ def plan(slot=None, verbose=False):
         gap_over = False
         if last_created:
             try:
-                gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds["stale_workout_hours"] * 3600
+                gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds.stale_workout_hours * 3600
             except ValueError:
                 gap_over = False
-        is_stale = w["date"] != today_iso or age_days >= thresholds["stale_workout_days"] or gap_over
+        is_stale = w["date"] != today_iso or age_days >= thresholds.stale_workout_days or gap_over
         stale = {"is_stale": is_stale, "age_days": age_days, "last_set_created": last_created}
     last_done = c.execute(
         "SELECT date FROM workouts WHERE status = 'done' "
@@ -44,7 +44,7 @@ def plan(slot=None, verbose=False):
         "ORDER BY date DESC, id DESC LIMIT 1").fetchone()
     last_session = last_done["date"] if last_done else None
     gap_days = (today - date.fromisoformat(last_session)).days if last_session else None
-    on_break = gap_days is not None and gap_days >= thresholds["break_days"] + 1
+    on_break = gap_days is not None and gap_days >= thresholds.break_days + 1
 
     days = parse_active_split_days(c)
     rotation = parse_rotation(c)
@@ -111,10 +111,10 @@ def plan(slot=None, verbose=False):
 
     volume = volume_block(c)
 
-    retention = thresholds["ledger_retention_days"]
+    retention = thresholds.ledger_retention_days
     cutoff = (today - timedelta(days=retention - 1)).isoformat()
     ledger = {}
-    for muscle in constants["muscles"]:
+    for muscle in constants.muscles:
         rows = c.execute("""
             SELECT w.date as day, COUNT(*) as sets
             FROM sets s

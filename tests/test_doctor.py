@@ -29,7 +29,7 @@ def test_doctor_healthy(log_module):
     c.commit()
     out, code = _run(log.doctor)
     assert code == 0
-    assert json.loads(out) == {"ok": True, "muscles": len(log.load_constants()["muscles"])}
+    assert json.loads(out) == {"ok": True, "muscles": len(log.load_constants().muscles)}
 
 
 def test_doctor_fails_on_bad_constants(log_module, tmp_path, monkeypatch):

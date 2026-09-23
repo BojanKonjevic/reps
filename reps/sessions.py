@@ -68,8 +68,8 @@ def log(exercise, weight, reps, note, muscles, bodyweight=False):
         c.execute("UPDATE lift_muscle_map SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
     constants = load_constants()
-    warn_ratio = constants["thresholds"].get("e1rm_warn_ratio", 1.5)
-    dup_dist = constants["thresholds"].get("duplicate_name_distance", 2)
+    warn_ratio = constants.thresholds.e1rm_warn_ratio
+    dup_dist = constants.thresholds.duplicate_name_distance
     warnings = []
     if w["date"] != date.today().isoformat():
         warnings.append(f"open workout is from {w['date']}, not today; confirm this set belongs there")
@@ -160,7 +160,7 @@ def update(set_id, field, value):
         if new_weight > 0:
             new_e1rm = e1rm_of(new_weight, new_reps)
             best = best_e1rm(c, existing["exercise"], exclude_set=int(set_id))
-            warn_ratio = load_constants()["thresholds"].get("e1rm_warn_ratio", 1.5)
+            warn_ratio = load_constants().thresholds.e1rm_warn_ratio
             if best > 0 and new_e1rm > best * warn_ratio:
                 warnings.append(f"e1RM {new_e1rm:.1f} is over {round((warn_ratio - 1) * 100)}% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
     c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))

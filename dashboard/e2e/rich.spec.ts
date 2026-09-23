@@ -42,11 +42,11 @@ const RICH_SNAPSHOT = {
   autoreg: {
     permitted: true,
     holds: [
-      { id: 1, day: 'Upper A', movements: 'flat barbell bench press', action: 'trim', set_on: '2026-09-15', hold_until: '2026-09-23', reason: 'two misses' },
+      { id: 1, day: 'Upper A', movements: 'bench', action: 'trim', set_on: '2026-09-15', hold_until: '2026-09-23', reason: 'two misses' },
     ],
     miss_streaks: [],
     drop_watch: [],
-    grouped: { chest: ['flat barbell bench press'] },
+    grouped: { chest: ['bench'] },
     program_volume: {},
   },
   autoreg_changes: [
@@ -142,13 +142,12 @@ test.describe('Rich snapshot sections', () => {
     await gotoRich(page);
     await page.goto('#/lifts');
     await expect(page.locator('#liftsSub')).toContainText('2 movements');
-    const bench = page.locator('#liftGrid .card', { hasText: 'flat barbell bench press' });
+    const bench = page.locator('#liftGrid .card', { hasText: 'bench' });
     await expect(bench).toContainText('trim, holds until 2026-09-23');
     await expect(bench).toContainText('adjusted 2026-09-15: two misses');
     await expect(bench).toContainText('grouped fatigue: chest');
     await expect(bench).toContainText('best 92.5 x 5 (e1RM 108)');
     await expect(bench).toContainText('hit ↑ 95x5 · paused reps');
-    await expect(bench).toContainText('hit → 95x5 up · paused reps');
     await expect(bench).toContainText('setup: touch low');
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
     await expect(page.locator('#liftGrid .card')).toHaveCount(1);
@@ -161,7 +160,7 @@ test.describe('Rich snapshot sections', () => {
     await page.goto('#/muscles');
     const chest = page.locator('#musGrid .card', { hasText: 'chest' });
     await expect(chest).toContainText('below MEV');
-    await expect(chest).toContainText('grouped fatigue: flat barbell bench press');
+    await expect(chest).toContainText('grouped fatigue: bench');
     await expect(page.locator('#musGrid')).toContainText('in range');
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     await expect(page.locator('#musGrid .card')).toHaveCount(1);

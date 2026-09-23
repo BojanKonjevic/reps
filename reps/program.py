@@ -109,17 +109,17 @@ def volume_block(c):
     """
     from datetime import timedelta
     constants = load_constants()
-    thresholds = constants["thresholds"]
+    thresholds = constants.thresholds
     today = date.today()
-    vol_weeks = thresholds["volume_window_weeks"]
+    vol_weeks = thresholds.volume_window_weeks
     week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
-    vol_bad = thresholds["volume_bad_weeks"]
+    vol_bad = thresholds.volume_bad_weeks
     volume = {}
-    for muscle, entry in constants["muscles"].items():
+    for muscle, entry in constants.muscles.items():
         weekly = weekly_volume(c, muscle, week_starts)
-        volume[muscle] = {"weekly": weekly, "mev": entry["mev"], "mav": entry["mav"],
-                          "mrv": entry["mrv"], "freq": entry["freq"],
-                          "status": classify_volume(weekly, entry["mev"], entry["mrv"], vol_bad)}
+        volume[muscle] = {"weekly": weekly, "mev": entry.mev, "mav": entry.mav,
+                          "mrv": entry.mrv, "freq": entry.freq,
+                          "status": classify_volume(weekly, entry.mev, entry.mrv, vol_bad)}
     return volume
 
 
@@ -212,12 +212,12 @@ def priority_set(muscle, tier, until=None):
     if tier not in ("priority", "maintain", "deprioritize"):
         sys.exit("tier must be one of priority maintain deprioritize")
     constants = load_constants()
-    known = set(constants["muscles"]) | set(constants.get("untracked", []))
+    known = set(constants.muscles) | set(constants.untracked)
     hit = canon_muscle_name(muscle, known)
     if hit is not None:
         muscle = hit
-    if muscle not in constants["muscles"]:
-        sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.get('untracked', []))})")
+    if muscle not in constants.muscles:
+        sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.untracked)})")
     if until is not None:
         try:
             until = date.fromisoformat(until).isoformat()
@@ -431,7 +431,7 @@ def split_reconcile(day, after=None):
         insert_at = anchor["slot"] + 1
     else:
         insert_at = len(rows) + 1
-    new_slot_sets = load_constants()["thresholds"].get("default_new_slot_sets", 2)
+    new_slot_sets = load_constants().thresholds.default_new_slot_sets
     for i, ex in enumerate(new):
         c.execute("UPDATE splits SET slot = slot + 1 WHERE variant = 'active' AND day = ? AND slot >= ?",
                   (day, insert_at + i))
@@ -597,7 +597,7 @@ def programmed_weekly_volume(c, split_rows=None):
     0, not absent. Unmapped movements contribute nothing.
     """
     constants = load_constants()
-    totals = {m: 0 for m in constants["muscles"]}
+    totals = {m: 0 for m in constants.muscles}
     rows = split_rows if split_rows is not None else read_split("active", c=c)
     for r in rows:
         for move in parse_movements(r["movements"]):
@@ -627,9 +627,9 @@ def mev_floor_warnings(after_vol, affected):
     constants = load_constants()
     out = []
     for m in sorted(affected):
-        entry = constants["muscles"].get(m)
-        if entry is None or entry["mev"] == 0:
+        entry = constants.muscles.get(m)
+        if entry is None or entry.mev == 0:
             continue
-        if after_vol.get(m, 0) < entry["mev"]:
-            out.append(f"{m}: programmed {after_vol.get(m, 0)}/wk below MEV {entry['mev']} after this edit")
+        if after_vol.get(m, 0) < entry.mev:
+            out.append(f"{m}: programmed {after_vol.get(m, 0)}/wk below MEV {entry.mev} after this edit")
     return out

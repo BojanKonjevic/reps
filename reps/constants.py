@@ -14,9 +14,9 @@ CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(ROOT, "constants.
 def validate_constants(raw, source):
     """Validate a parsed constants candidate against ConstantsModel.
 
-    Exits loudly on any defect. Returns the raw mapping unchanged so
-    callers keep the exact file content (including forward-compatible
-    extras); use load_constants_model() for the typed representation.
+    Exits loudly on any defect. Returns the raw mapping unchanged; it is
+    for validating write candidates (see constants_set), not a read path.
+    All reads go through load_constants(), which returns the model.
     """
     try:
         ConstantsModel.model_validate(raw)
@@ -25,8 +25,13 @@ def validate_constants(raw, source):
     return raw
 
 
-def load_constants_model() -> ConstantsModel:
-    """Load constants.json as a validated ConstantsModel."""
+def load_constants() -> ConstantsModel:
+    """Load constants.json as the canonical validated ConstantsModel.
+
+    The single source of truth for taxonomy and thresholds. Fails loudly
+    on parse error or constraint violation. No silent fallback, no raw
+    dict: attribute access on the model is the only read path.
+    """
     try:
         with open(CONSTANTS_FILE, 'r') as f:
             raw = json.load(f)
@@ -38,42 +43,26 @@ def load_constants_model() -> ConstantsModel:
         sys.exit(f"constants invalid at {CONSTANTS_FILE}: {first_error(e)}")
 
 
-def load_constants():
-    """Load constants.json, the single source of truth for taxonomy and thresholds.
-
-    Fails loudly on parse error or missing tracked muscle. No silent fallback.
-    CONTRACT_MUSCLES is the completeness gate, not a parallel source: the file
-    owns every number, the gate only names which muscles must be present.
-    """
-    try:
-        with open(CONSTANTS_FILE, 'r') as f:
-            raw = json.load(f)
-    except (OSError, ValueError) as e:
-        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
-    return validate_constants(raw, CONSTANTS_FILE)
-
-
 def parse_mev_from_science():
     """Backward-compatible MEV map, now derived from constants.json."""
     constants = load_constants()
-    return {muscle: entry["mev"] for muscle, entry in constants["muscles"].items()}
+    return {muscle: entry.mev for muscle, entry in constants.muscles.items()}
 
 
 def rep_band_bound(reps):
     """Jump threshold for given reps, from constants.json rep_bands. None above 15."""
     constants = load_constants()
-    for band in constants["rep_bands"]:
-        max_reps = band.get("max_reps")
-        if max_reps is None:
+    for band in constants.rep_bands:
+        if band.max_reps is None:
             return None
-        if reps <= max_reps:
-            return band.get("jump_pct")
+        if reps <= band.max_reps:
+            return band.jump_pct
     return None
 
 
 def tracked_muscles():
     """Ordered tracked muscle list from constants.json."""
-    return list(load_constants()["muscles"].keys())
+    return list(load_constants().muscles.keys())
 
 
 def canon_muscle_name(text, vocab):
@@ -109,7 +98,7 @@ def clean_muscles(value):
     seen = set()
     out = []
     try:
-        vocab = set(load_constants()["muscles"]) | set(load_constants().get("untracked", []))
+        vocab = set(load_constants().muscles) | set(load_constants().untracked)
     except SystemExit:
         vocab = set()
     for p in value.split(","):
@@ -125,7 +114,7 @@ def clean_muscles(value):
 
 
 def constants_show(key=None):
-    constants = load_constants()
+    constants = load_constants().model_dump()
     if not key:
         print(json.dumps(constants, indent=2))
         return
