@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { pieChart, pieHit, piePalette, type PieSlice } from '../pieChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { onResizePaint } from '../lib/paint';
+  import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     slices: PieSlice[];
@@ -13,16 +13,12 @@
 
   let cv: HTMLCanvasElement;
 
-  function visible(): boolean {
-    return cv.clientWidth > 0 && cv.clientHeight > 0;
-  }
-
   function paint(hover = -1) {
-    if (cv && visible()) pieChart(cv, slices, hover);
+    if (isVisible(cv)) pieChart(cv, slices, hover);
   }
 
   function show(cx: number, cy: number) {
-    if (!visible()) {
+    if (!isVisible(cv)) {
       hideTip();
       return;
     }
@@ -54,8 +50,9 @@
     if (link) location.hash = link;
   }
 
+  canvasShell(() => paint());
+
   onMount(() => {
-    paint();
     bindHover(cv, show);
     cv.addEventListener('click', click);
     const leave = () => {
@@ -63,11 +60,9 @@
       paint();
     };
     cv.addEventListener('mouseleave', leave);
-    const cleanupResize = onResizePaint(() => paint());
     return () => {
       cv.removeEventListener('click', click);
       cv.removeEventListener('mouseleave', leave);
-      cleanupResize();
     };
   });
 

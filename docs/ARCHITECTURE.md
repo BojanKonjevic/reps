@@ -54,9 +54,10 @@ Where things belong and what owns what. Read before changing code structure or a
 ## Module homes
 
 - Svelte pages and views: `dashboard/src/pages/` (one per route). Independently understandable; UI state lives in the component model, not global mutable DOM state.
-- Reusable UI components: `dashboard/src/components/`. Bespoke styling stays; this is not a component-library app.
-- Server state: `dashboard/src/queries/` (TanStack Query query functions, `snapshot` query key, invalidation and refetch instead of bespoke refresh).
-- Runtime schemas: `dashboard/src/schemas/` (Zod; inferred types flow into components, no redundant interfaces).
+- Reusable UI components: `dashboard/src/components/`. Canvas components share the lifecycle in `dashboard/src/lib/canvas.ts`; hover and tooltip bodies stay per chart. Bespoke styling stays; this is not a component-library app.
+- Server state: `dashboard/src/queries/` (TanStack Query query functions, `snapshot` query key, invalidation and refetch instead of bespoke refresh). The snapshot is published state, not live data: no window-focus refetch, no realtime transport. Updates arrive through `sync_push`, the query only reads.
+- Data and domain math for the dashboard: `dashboard/src/lib/dashboard.ts` (derived view models), plus the long-standing source modules at `dashboard/src/` root (`forward.ts`, `prs.ts`, `utils.ts`, `date.ts`, `charts.ts` and the chart renderers). New cross-cutting helpers go in `lib/`; do not re-home the root modules their tests import.
+- Runtime schemas: `dashboard/src/schemas/` (Zod; inferred types flow into components, no redundant interfaces). Zod models what the dashboard can render: core facts strict, stale-tolerant sections partial, matching the dashboard's null-safe reads. Python validates strictly before publication.
 - Formatting and presentation helpers: `dashboard/src/lib/` alongside chart math.
 - Charting: D3 (`d3-scale`, `d3-array`) for scales, domains, extents, ticks; Reps owns canvas rendering, PR and goal visuals, hit testing, tooltips, styling.
 - MCP tools: `reps/mcp/server.py`, one thin function per domain operation, sharing the `run_domain` adapter. New capability means a domain function first, then a tool.

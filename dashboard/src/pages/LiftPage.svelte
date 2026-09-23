@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { e1rm, fmtD, fmtV } from '../utils';
-  import { liftColor } from '../charts';
   import { goalPercent, parseNextTarget } from '../forward';
   import type { Snapshot } from '../schemas/snapshot';
   import { musclesOf, notesOf, prData, topSetOn } from '../lib/dashboard';

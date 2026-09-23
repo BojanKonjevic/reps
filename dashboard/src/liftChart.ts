@@ -11,7 +11,7 @@ import {
   drawHoverPoint,
   drawLine,
 } from './charts';
-import { linearScale, padDomain, valueExtent } from './lib/scales';
+import { linearScale, padDomain, timeScale, valueExtent } from './lib/scales';
 import { fmtV, fmtD } from './utils';
 import { niceTicks } from './utils';
 
@@ -45,11 +45,8 @@ export function liftChart(
   const d0 = pts[0].date;
   const todayS = new Date().toISOString().slice(0, 10);
   const d1 = pts[pts.length - 1].date > todayS ? pts[pts.length - 1].date : todayS;
-  const t0 = new Date(d0 + 'T12:00:00').getTime();
-  const t1 = new Date(d1 + 'T12:00:00').getTime();
-  const span = Math.max(1, t1 - t0);
-  const xScale = linearScale([t0, t0 + span], [P, W - 8]);
-  const xOf = (dt: string) => xScale(new Date(dt + 'T12:00:00').getTime());
+  const xScale = timeScale([d0, d1], [P, W - 8]);
+  const xOf = (dt: string) => xScale(new Date(dt + 'T12:00:00'));
   const ext = valueExtent(
     pts.map(p => p.ev).concat(futureEv !== undefined && futureEv !== null ? [futureEv] : [])
   ) || [0, 1];

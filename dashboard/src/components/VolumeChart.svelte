@@ -3,7 +3,7 @@
   import { stacked, stackedHit, type StackedHit } from '../stackedChart';
   import { bindHover, hideTip, showTip } from '../tip';
   import { MC } from '../charts';
-  import { onResizePaint } from '../lib/paint';
+  import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     labels: string[];
@@ -17,16 +17,12 @@
   let cv: HTMLCanvasElement;
   let hover: StackedHit | null = $state(null);
 
-  function visible(): boolean {
-    return cv.clientWidth > 0 && cv.clientHeight > 0;
-  }
-
   function paint() {
-    if (cv && visible()) stacked(cv, labels, weeks, hover);
+    if (isVisible(cv)) stacked(cv, labels, weeks, hover);
   }
 
   function show(cx: number, cy: number) {
-    if (!visible()) {
+    if (!isVisible(cv)) {
       hideTip();
       return;
     }
@@ -60,8 +56,9 @@
     if (hit && onSelect) onSelect(hit.g);
   }
 
+  canvasShell(() => paint());
+
   onMount(() => {
-    paint();
     bindHover(cv, show);
     cv.addEventListener('click', click);
     const leave = () => {
@@ -70,11 +67,9 @@
       paint();
     };
     cv.addEventListener('mouseleave', leave);
-    const cleanupResize = onResizePaint(() => paint());
     return () => {
       cv.removeEventListener('click', click);
       cv.removeEventListener('mouseleave', leave);
-      cleanupResize();
     };
   });
 

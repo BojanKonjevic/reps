@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { bwline } from '../bwChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { onResizePaint } from '../lib/paint';
+  import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     rows: Array<{ date: string; kg: number }>;
@@ -18,16 +18,12 @@
     return Math.min(n - 1, Math.max(0, i));
   }
 
-  function visible(): boolean {
-    return cv.clientWidth > 0 && cv.clientHeight > 0;
-  }
-
   function paint(hover = -1) {
-    if (cv && visible()) bwline(cv, rows, hover);
+    if (isVisible(cv)) bwline(cv, rows, hover);
   }
 
   function show(cx: number, cy: number) {
-    if (!rows.length || !visible()) {
+    if (!rows.length || !isVisible(cv)) {
       hideTip();
       return;
     }
@@ -37,18 +33,17 @@
     showTip(rows[idx].date, [[null, rows[idx].kg.toFixed(1) + ' kg']], cx, cy);
   }
 
+  canvasShell(() => paint());
+
   onMount(() => {
-    paint();
     bindHover(cv, show);
     const leave = () => {
       hideTip();
       paint();
     };
     cv.addEventListener('mouseleave', leave);
-    const cleanupResize = onResizePaint(() => paint());
     return () => {
       cv.removeEventListener('mouseleave', leave);
-      cleanupResize();
     };
   });
 

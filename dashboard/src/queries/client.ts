@@ -10,6 +10,10 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       retry: 1,
+      // Published-snapshot semantics: the dashboard reads what sync_push
+      // published. No focus/reconnect refetch, no realtime transport.
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   },
 });

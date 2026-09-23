@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { muscleChart, muscleHit, type MuscleBands } from '../muscleChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { onResizePaint } from '../lib/paint';
+  import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     id?: string;
@@ -17,16 +17,12 @@
 
   let cv: HTMLCanvasElement;
 
-  function visible(): boolean {
-    return cv.clientWidth > 0 && cv.clientHeight > 0;
-  }
-
   function paint(hover = -1) {
-    if (cv && visible()) muscleChart(cv, labels, counts, bands, color, hover);
+    if (isVisible(cv)) muscleChart(cv, labels, counts, bands, color, hover);
   }
 
   function show(cx: number, cy: number) {
-    if (!visible()) {
+    if (!isVisible(cv)) {
       hideTip();
       return;
     }
@@ -41,18 +37,17 @@
     showTip(labels[bi], [[color, counts[bi] + ' sets (MEV ' + bands.mev + ')']], cx, cy);
   }
 
+  canvasShell(() => paint());
+
   onMount(() => {
-    paint();
     bindHover(cv, show);
     const leave = () => {
       hideTip();
       paint();
     };
     cv.addEventListener('mouseleave', leave);
-    const cleanupResize = onResizePaint(() => paint());
     return () => {
       cv.removeEventListener('mouseleave', leave);
-      cleanupResize();
     };
   });
 

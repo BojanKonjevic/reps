@@ -8,8 +8,9 @@ import {
   nextSlot,
   splitDayExercises,
 } from '../forward';
+import { weekKey } from '../date';
 import { computePRs, type PRData } from '../prs';
-import { e1rm, fmtD, fmtV } from '../utils';
+import { e1rm, fmtD } from '../utils';
 import type { Snapshot } from '../schemas/snapshot';
 
 // Pure derived data for pages. This module owns every computation the old
@@ -385,6 +386,61 @@ export function programModel(snap: Snapshot): { sub: string; days: SplitDay[]; r
 
 export function prData(snap: Snapshot): PRData {
   return computePRs(snap.workouts, snap.sets);
+}
+
+export function prDatesOf(snap: Snapshot, pr: PRData): Record<string, Record<string, boolean>> {
+  const wdate = workoutDateOf(snap);
+  const m: Record<string, Record<string, boolean>> = {};
+  for (const s of snap.sets) {
+    if (pr.prIds.has(s.id)) (m[s.exercise] = m[s.exercise] || {})[wdate[s.workout_id] || ''] = true;
+  }
+  return m;
+}
+
+export function dayDetailOf(snap: Snapshot): Record<string, string[]> {
+  const m: Record<string, string[]> = {};
+  for (const w of snap.workouts) m[w.date] = m[w.date] || [];
+  const wdate = workoutDateOf(snap);
+  for (const s of snap.sets) {
+    const d = wdate[s.workout_id] || s.created.slice(0, 10);
+    (m[d] = m[d] || []).push(s.exercise + ' ' + s.weight + 'x' + s.reps);
+  }
+  return m;
+}
+
+export function restDatesOf(
+  snap: Snapshot,
+  dayDetail: Record<string, string[]>
+): Record<string, boolean> {
+  const m: Record<string, boolean> = {};
+  for (const w of snap.workouts) {
+    if (w.status === 'rest' && !(dayDetail[w.date] && dayDetail[w.date].length)) m[w.date] = true;
+  }
+  return m;
+}
+
+export interface VolumeWeeks {
+  labels: string[];
+  rows: Array<Record<string, number>>;
+}
+
+export function volumeWeeksOf(snap: Snapshot, groups: string[]): VolumeWeeks {
+  const wdate = workoutDateOf(snap);
+  const blank = () => Object.fromEntries(groups.map(g => [g, 0]));
+  const weeks: Record<string, Record<string, number>> = {};
+  for (const s of snap.sets) {
+    const k = weekKey(wdate[s.workout_id] || s.created.slice(0, 10));
+    weeks[k] = weeks[k] || blank();
+    (s.muscles || '')
+      .split(',')
+      .map(x => x.trim().toLowerCase())
+      .filter(x => x)
+      .forEach(g => {
+        if (g in weeks[k]) weeks[k][g] += 1;
+      });
+  }
+  const labels = Object.keys(weeks).sort();
+  return { labels, rows: labels.map(k => weeks[k]) };
 }
 
 export function topSetOn(

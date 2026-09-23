@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { getLiftPts, liftChart, type LiftPoint } from '../liftChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { onResizePaint } from '../lib/paint';
+  import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     pts: LiftPoint[];
@@ -14,12 +14,8 @@
 
   let cv: HTMLCanvasElement;
 
-  function visible(): boolean {
-    return cv.clientWidth > 0 && cv.clientHeight > 0;
-  }
-
   function paint(hover = -1) {
-    if (cv && visible()) liftChart(cv, pts, exercise, hover, futureEv);
+    if (isVisible(cv)) liftChart(cv, pts, exercise, hover, futureEv);
   }
 
   function near(ev: MouseEvent): { x: number; y: number; date: string } | null {
@@ -39,7 +35,7 @@
   }
 
   function show(cx: number, cy: number) {
-    if (!visible()) {
+    if (!isVisible(cv)) {
       hideTip();
       return;
     }
@@ -76,8 +72,9 @@
     if (p) location.hash = '#/s/' + p.date;
   }
 
+  canvasShell(() => paint());
+
   onMount(() => {
-    paint();
     bindHover(cv, show);
     cv.addEventListener('click', click);
     const mouse = (ev: MouseEvent) => {
@@ -90,12 +87,10 @@
       cv.style.cursor = 'default';
     };
     cv.addEventListener('mouseleave', leave);
-    const cleanupResize = onResizePaint(() => paint());
     return () => {
       cv.removeEventListener('click', click);
       cv.removeEventListener('mousemove', mouse);
       cv.removeEventListener('mouseleave', leave);
-      cleanupResize();
     };
   });
 

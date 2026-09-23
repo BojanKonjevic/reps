@@ -3,27 +3,30 @@
   import { liftColor, MC } from '../charts';
   import { GROUPS } from '../charts';
   import { goalPercent, isStalling, deloadWatch } from '../forward';
-  import { weekKey } from '../date';
   import { fmtD, fmtV } from '../utils';
   import type { Snapshot } from '../schemas/snapshot';
   import {
     bestSetRows,
     breakGap,
     computeTrend,
+    dayDetailOf,
     deprioMuscles,
     goalExerciseSet,
     missedMap,
     musclesOf,
     nextUp,
     nowLines,
+    prDatesOf,
     prioMuscles,
     programModel,
     prData,
     rankLifts,
     recentNotes,
+    restDatesOf,
     slotOfDate,
     subLine,
     trendMarks,
+    volumeWeeksOf,
     adherenceWeeksView,
   } from '../lib/dashboard';
   import {
@@ -86,56 +89,13 @@
     top.map((t, i) => i).filter(i => !ui.hidden.has(top[i]) && passFilter(top[i], i))
   );
 
-  const prDateOf = $derived.by(() => {
-    const wdate: Record<number, string> = {};
-    for (const w of snap.workouts) wdate[w.id] = w.date;
-    const m: Record<string, Record<string, boolean>> = {};
-    for (const s of snap.sets) {
-      if (pr.prIds.has(s.id))
-        (m[s.exercise] = m[s.exercise] || {})[wdate[s.workout_id] || ''] = true;
-    }
-    return m;
-  });
+  const prDateOf = $derived(prDatesOf(snap, pr));
 
-  const dayDetail = $derived.by(() => {
-    const m: Record<string, string[]> = {};
-    for (const w of snap.workouts) m[w.date] = m[w.date] || [];
-    const wdate: Record<number, string> = {};
-    for (const w of snap.workouts) wdate[w.id] = w.date;
-    for (const s of snap.sets) {
-      const d = wdate[s.workout_id] || s.created.slice(0, 10);
-      (m[d] = m[d] || []).push(s.exercise + ' ' + s.weight + 'x' + s.reps);
-    }
-    return m;
-  });
+  const dayDetail = $derived(dayDetailOf(snap));
 
-  const restDates = $derived.by(() => {
-    const m: Record<string, boolean> = {};
-    for (const w of snap.workouts) {
-      if (w.status === 'rest' && !(dayDetail[w.date] && dayDetail[w.date].length)) m[w.date] = true;
-    }
-    return m;
-  });
+  const restDates = $derived(restDatesOf(snap, dayDetail));
 
-  const volumeWeeks = $derived.by(() => {
-    const wdate: Record<number, string> = {};
-    for (const w of snap.workouts) wdate[w.id] = w.date;
-    const blank = () => Object.fromEntries(GROUPS.map(g => [g, 0]));
-    const weeks: Record<string, Record<string, number>> = {};
-    for (const s of snap.sets) {
-      const k = weekKey(wdate[s.workout_id] || s.created.slice(0, 10));
-      weeks[k] = weeks[k] || blank();
-      (s.muscles || '')
-        .split(',')
-        .map(x => x.trim().toLowerCase())
-        .filter(x => x)
-        .forEach(g => {
-          if (g in weeks[k]) weeks[k][g] += 1;
-        });
-    }
-    const labels = Object.keys(weeks).sort();
-    return { labels, rows: labels.map(k => weeks[k]) };
-  });
+  const volumeWeeks = $derived(volumeWeeksOf(snap, GROUPS));
 
   const focus = $derived(prioMuscles(snap));
   const deprio = $derived(deprioMuscles(snap));

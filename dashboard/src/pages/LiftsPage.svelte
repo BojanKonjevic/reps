@@ -4,7 +4,7 @@
   import { liftColor } from '../charts';
   import { deloadWatch, isStalling } from '../forward';
   import type { Snapshot } from '../schemas/snapshot';
-  import { computeTrend, musclesOf, notesOf, prData, rankLifts } from '../lib/dashboard';
+  import { computeTrend, musclesOf, prData, rankLifts } from '../lib/dashboard';
   import { ui } from '../lib/filters.svelte';
   import TrendMini from '../components/TrendMini.svelte';
 
