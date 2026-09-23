@@ -127,7 +127,7 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
         urllib.request.urlopen(req, timeout=5).read()
         state.requests.clear()
 
-        out = capture(log_module.cmd_sync)
+        out = capture(log_module.sync)
         assert json.loads(out.strip().splitlines()[0])["synced"] is True
         puts = [r for r in state.requests if r["method"] == "PUT"]
         assert any(r["method"] == "GET" for r in state.requests)
@@ -148,7 +148,7 @@ def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch, capsys):
     try:
         write_cfg(tmp_path, monkeypatch, log_module, server.server_port)
         try:
-            log_module.cmd_sync()
+            log_module.sync()
             assert False, "should have exited"
         except SystemExit as e:
             assert "sync rejected" in str(e).lower()
@@ -166,7 +166,7 @@ def test_sync_force_skips_pull_and_overwrites(log_module, tmp_path, monkeypatch)
     server = start_stub(state)
     try:
         write_cfg(tmp_path, monkeypatch, log_module, server.server_port)
-        out = capture(log_module.cmd_sync, True)
+        out = capture(log_module.sync, True)
         assert json.loads(out.strip().splitlines()[0])["synced"] is True
         puts = [r for r in state.requests if r["method"] == "PUT"]
         assert not [r for r in state.requests if r["method"] == "GET"]

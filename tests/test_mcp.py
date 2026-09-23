@@ -28,7 +28,7 @@ def test_tool_surface_is_domain_shaped(log_module):
                      "constants_show", "snapshot_export", "sync_push", "audit_data",
                      "muscle_map_set"):
         assert expected in names, f"missing tool {expected}"
-    assert not any(n.startswith("cmd_") or n.startswith("log_") for n in names), \
+    assert not any("cmd_" in n or n in ("main", "usage") for n in names), \
         "tools are domain operations, not CLI command wrappers"
 
 
@@ -45,7 +45,7 @@ def test_session_lifecycle_through_mcp(log_module):
     assert hist["ok"] is True and hist["data"][0]["exercise"] == "bench"
     assert call("progression_set", {"exercise": "bench", "verdict": "baseline",
                                    "next_target": "82.5x5", "direction": "flat"})["ok"] is True
-    log.cmd_split_set("Upper A", 1, "bench", 5)
+    log.split_set("Upper A", 1, "bench", 5)
     assert call("program_split_reconcile", {"day": "Upper A"})["ok"] is True
     ended = call("session_end", {"note": "mcp done"})
     assert ended["ok"] is True
@@ -63,8 +63,8 @@ def test_refusals_surface_as_errors(log_module):
 
 def test_read_tools_share_domain_logic(log_module):
     log = log_module
-    log.cmd_start("read check")
-    log.cmd_log("bench", 80, 5, "", "chest", False)
+    log.start("read check")
+    log.log("bench", 80, 5, "", "chest", False)
     assert call("session_exercises", {})["data"] == ["bench"]
     assert call("muscle_map_show", {"exercise": "bench"})["ok"] is True
     assert call("program_split_show", {})["ok"] is True

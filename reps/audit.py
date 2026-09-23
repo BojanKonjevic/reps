@@ -14,7 +14,7 @@ from .program import (count_bad_weeks, day_movements, read_priorities,
                       split_day_order)
 
 
-def cmd_audit():
+def audit():
     """Run deterministic audit checks and output flagged items."""
     c = conn()
     import itertools
@@ -172,7 +172,7 @@ def cmd_audit():
     print(json.dumps({"flags": flags, "skipped": []}))
 
 
-def cmd_doctor():
+def doctor():
     """Structural check: constants, DB, and dashboard agree. Non-correlated."""
     problems = []
     try:
@@ -198,7 +198,7 @@ def cmd_doctor():
                                       if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?",
                                                        (m,)).fetchone()}))):
         for ex in exercises:
-            problems.append({"check": check, "fix": f"map set \"{ex}\" <muscles>"})
+            problems.append({"check": check, "fix": f"muscle_map_set for \"{ex}\""})
     known_muscles = set(constants["muscles"]) | set(constants.get("untracked", []))
     stray = [r["muscle"] for r in c.execute("SELECT DISTINCT muscle FROM set_muscles").fetchall()
              if r["muscle"] not in known_muscles]
@@ -245,7 +245,7 @@ def cmd_doctor():
         if dump_tables != expected:
             problems.append({"check": "dump_drift",
                              "fix": f"workouts.sql tables {sorted(dump_tables)} differ from SCHEMA "
-                                    f"{sorted(expected)}; run log.py dump"})
+                                    f"{sorted(expected)}; run maintenance_dump"})
     if problems:
         print(json.dumps({"ok": False, "problems": problems}, indent=2))
         sys.exit(1)

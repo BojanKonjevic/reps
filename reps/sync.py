@@ -125,11 +125,11 @@ def build_snapshot_validated(c=None) -> dict:
     return snap
 
 
-def cmd_export():
+def export():
     print(json.dumps(build_snapshot_validated(), indent=2))
 
 
-def cmd_sync(force=False):
+def sync(force=False):
     try:
         cfg = json.load(open(db.CFG))
         url, secret = cfg["url"], cfg["secret"]
@@ -171,7 +171,7 @@ def cmd_sync(force=False):
                 detail = {}
             server_etag = detail.get("etag") or e.headers.get("ETag")
             sys.exit(f"sync rejected: snapshot changed since pull (server {server_etag}), another session pushed first. "
-                     "Reconcile, then 'log.py sync force' to overwrite deliberately.")
+                     "Reconcile, then sync_push with force true to overwrite deliberately.")
         sys.exit("sync failed: " + str(e))
     except OSError as e:
         sys.exit("sync failed: " + str(e))
@@ -184,7 +184,7 @@ def cmd_sync(force=False):
     print(f"dumped SQL to {sql_file}")
 
 
-def cmd_dump():
+def dump():
     c = conn()
     sql_file = os.path.join(os.path.dirname(os.path.abspath(db.DB)), "workouts.sql")
     with open(sql_file, 'w') as f:
@@ -193,7 +193,7 @@ def cmd_dump():
     print(json.dumps({"dumped": sql_file}))
 
 
-def cmd_restore(force=False):
+def restore(force=False):
     if not force:
         try:
             rc = sqlite3.connect(db.DB)

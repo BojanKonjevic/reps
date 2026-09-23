@@ -1,12 +1,35 @@
 #!/usr/bin/env python3
-"""reps: workout log. Code owns what is derivable or enforceable, the agent owns what is judgment.
+"""reps maintenance entry. NOT the agent interface (that is MCP: reps.mcp).
 
-CLI entry point. The implementation lives in the reps/ package; this module
-re-exports its surface so `python log.py ...` and `import log` keep working.
+Local recovery and development only: rebuild the live DB from the SQL
+backup, re-write the backup from the live DB, print the dashboard payload,
+or run the consistency check. Agents operate Reps through MCP tools;
+nothing here is a second application interface.
 """
 
-from reps import *  # noqa: F401,F403
-from reps.cli import main  # noqa: F401
+import sys
+
+from reps.audit import doctor
+from reps.sync import dump, export, restore
+
+
+def usage():
+    sys.exit("usage: log.py doctor | dump | restore [force] | export")
+
+
+def main():
+    args = sys.argv[1:]
+    if args == ["doctor"]:
+        doctor()
+    elif args == ["dump"]:
+        dump()
+    elif args == ["export"]:
+        export()
+    elif args[:1] == ["restore"]:
+        restore(len(args) > 1 and args[1] == "force")
+    else:
+        usage()
+
 
 if __name__ == "__main__":
     main()

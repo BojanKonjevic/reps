@@ -10,7 +10,7 @@ from datetime import date, timedelta
 def _signals(log):
     buf = io.StringIO()
     with redirect_stdout(buf):
-        log.cmd_export()
+        log.export()
     return json.loads(buf.getvalue())["signals"]
 
 
@@ -32,7 +32,7 @@ def _judge(c, wid, exercise, verdict):
 def test_thin_history_reports_info_only(log_module):
     log = log_module
     c = log.conn()
-    log.cmd_retag("bench", "chest")
+    log.retag("bench", "chest")
     _done(c, date.today().isoformat(), "bench")
     signals = _signals(log)
     assert len(signals) == 1
@@ -43,7 +43,7 @@ def test_thin_history_reports_info_only(log_module):
 def test_volume_miss_and_streak_ordering(log_module):
     log = log_module
     c = log.conn()
-    log.cmd_retag("bench", "chest")
+    log.retag("bench", "chest")
     for weeks_ago in range(8):
         day = (date.today() - timedelta(weeks=weeks_ago) - timedelta(days=date.today().weekday())).isoformat()
         _done(c, day, "bench")
@@ -58,8 +58,8 @@ def test_volume_miss_and_streak_ordering(log_module):
 def test_miss_streak_and_break_lines(log_module):
     log = log_module
     c = log.conn()
-    log.cmd_retag("bench", "chest")
-    log.cmd_retag("row", "back")
+    log.retag("bench", "chest")
+    log.retag("row", "back")
     d1 = (date.today() - timedelta(days=10)).isoformat()
     d2 = (date.today() - timedelta(days=9)).isoformat()
     for d in (d1, d2):

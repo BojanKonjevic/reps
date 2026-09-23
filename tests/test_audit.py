@@ -6,7 +6,6 @@ import io
 import os
 import sys
 import tempfile
-from importlib import reload
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -26,11 +25,9 @@ def audit_db():
     os.environ["REPS_DB"] = path
     import reps.db
     reps.db.DB = path
-    import log
-    reload(log)
-    from log import conn
-    c = conn()
-    yield log, c
+    import reps
+    c = reps.conn()
+    yield reps, c
     try:
         os.unlink(path)
     except OSError:
@@ -40,8 +37,8 @@ def audit_db():
 def test_audit_missing_muscle_tags(audit_db):
     """Check 2: Find sets where muscles is empty or ''."""
     log, c = audit_db
-    log.cmd_start("test")
-    log.cmd_log("bench", 100, 5, "", "chest")
+    log.start("test")
+    log.log("bench", 100, 5, "", "chest")
     # Insert directly to bypass validation for audit test (no junction rows)
     wid = c.execute("SELECT id FROM workouts WHERE status = 'open'").fetchone()["id"]
     c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'squat', 150, 5, '', datetime('now'))", (wid,))
@@ -59,10 +56,10 @@ def test_audit_missing_muscle_tags(audit_db):
 def test_audit_zero_weight_non_bodyweight(audit_db):
     """Zero weight sets only allowed for bodyweight exercises."""
     log, c = audit_db
-    log.cmd_start("test")
+    log.start("test")
     # This should fail - bench is not a bodyweight exercise
     try:
-        log.cmd_log("bench", 0, 5, "", "chest")
+        log.log("bench", 0, 5, "", "chest")
         assert False, "should have exited"
     except SystemExit as e:
         assert "zero weight not allowed" in str(e).lower()
@@ -73,7 +70,7 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
     c.commit()
 
     # This should work - pullup is bodyweight
-    log.cmd_log("pullup", 0, 5, "", "back,biceps")
+    log.log("pullup", 0, 5, "", "back,biceps")
 
 
 def test_audit_stale_open_workout(audit_db):
@@ -91,8 +88,8 @@ def test_audit_stale_open_workout(audit_db):
     c.commit()
 
     # Also create a fresh open workout
-    log.cmd_start("fresh")
-    log.cmd_log("bench", 100, 5, "", "chest")
+    log.start("fresh")
+    log.log("bench", 100, 5, "", "chest")
 
     stale = c.execute("""
         SELECT w.id, w.date FROM workouts w
@@ -126,10 +123,10 @@ def test_audit_duplicate_exercise_names(audit_db):
         return previous_row[-1]
 
     log, c = audit_db
-    log.cmd_start("test")
+    log.start("test")
     # Add some exercises with near-duplicate names (Levenshtein <= 2)
     for ex in ["bench", "benches", "squat", "sqaut", "deadlift"]:
-        log.cmd_log(ex, 100, 5, "", "chest")
+        log.log(ex, 100, 5, "", "chest")
     close_session(log, "done")
 
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
@@ -247,32 +244,32 @@ def _seed_jump(c, second_notes):
         c.commit()
 
 
-def _run_cmd_audit(log):
+def _run_audit(log):
     old_stdout = sys.stdout
     sys.stdout = io.StringIO()
     try:
-        log.cmd_audit()
+        log.audit()
         return sys.stdout.getvalue()
     finally:
         sys.stdout = old_stdout
 
 
-def test_cmd_audit_flags_unexplained_jump(audit_db):
-    """cmd_audit check 4: unexplained ~30% e1RM jump is flagged."""
+def test_audit_flags_unexplained_jump(audit_db):
+    """audit check 4: unexplained ~30% e1RM jump is flagged."""
     log, c = audit_db
     _seed_jump(c, "")
-    out = _run_cmd_audit(log)
+    out = _run_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
     jumps = [f for f in flags if f["check"] == "progression_jump"]
     assert len(jumps) == 1
     assert jumps[0]["severity"] == "high"
 
 
-def test_cmd_audit_skips_explained_jump(audit_db):
-    """cmd_audit check 4: jump explained by workout note is skipped."""
+def test_audit_skips_explained_jump(audit_db):
+    """audit check 4: jump explained by workout note is skipped."""
     log, c = audit_db
     _seed_jump(c, "return after deload week")
-    out = _run_cmd_audit(log)
+    out = _run_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
     assert [f for f in flags if f["check"] == "progression_jump"] == []
 
@@ -292,33 +289,33 @@ def _seed_progression(c, first, second):
 
 
 def _progression_jumps(log):
-    out = _run_cmd_audit(log)
+    out = _run_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
     return [f for f in flags if f["check"] == "progression_jump"]
 
 
-def test_cmd_audit_ignores_routine_rep_pr(audit_db):
+def test_audit_ignores_routine_rep_pr(audit_db):
     """check 4: +1 rep (+2.9% e1RM) is below the 2-6 band bound, no flag."""
     log, c = audit_db
     _seed_progression(c, (100, 5), (100, 6))
     assert _progression_jumps(log) == []
 
 
-def test_cmd_audit_ignores_high_rep_plus_one(audit_db):
+def test_audit_ignores_high_rep_plus_one(audit_db):
     """check 4: +1 rep at high reps (+3.3%) is below the 11-15 band bound."""
     log, c = audit_db
     _seed_progression(c, (80, 12), (80, 13))
     assert _progression_jumps(log) == []
 
 
-def test_cmd_audit_skips_above_15_reps(audit_db):
+def test_audit_skips_above_15_reps(audit_db):
     """check 4: e1RM above 15 reps never flags, however large the jump."""
     log, c = audit_db
     _seed_progression(c, (100, 16), (140, 16))
     assert _progression_jumps(log) == []
 
 
-def test_cmd_audit_flags_single_to_double(audit_db):
+def test_audit_flags_single_to_double(audit_db):
     """check 4: same-weight single to double (+6.7%) exceeds the low band."""
     log, c = audit_db
     _seed_progression(c, (100, 1), (100, 2))
@@ -343,12 +340,12 @@ def _seed_muscle_weeks(c, muscle, week_sets):
 
 
 def _chest_volume_flags(log, check):
-    out = _run_cmd_audit(log)
+    out = _run_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
     return [f for f in flags if f["check"] == check and f["evidence"].startswith("chest:")]
 
 
-def test_cmd_audit_volume_zero(audit_db):
+def test_audit_volume_zero(audit_db):
     """check 8: 4 of last 8 weeks at zero sets fires volume_zero, high."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
@@ -359,10 +356,10 @@ def test_cmd_audit_volume_zero(audit_db):
     assert _chest_volume_flags(log, "volume_low") == []
 
 
-def test_cmd_audit_mev_zero_never_flags_zero(audit_db):
+def test_audit_mev_zero_never_flags_zero(audit_db):
     """check 8: MEV 0 muscles (front delts) never flag volume_zero, zero meets the floor."""
     log, c = audit_db
-    out = _run_cmd_audit(log)
+    out = _run_audit(log)
     flags = json.loads(out.strip().splitlines()[-1])["flags"]
     front_zero = [f for f in flags if f["check"] == "volume_zero" and f["evidence"].startswith("front delts:")]
     assert front_zero == []
@@ -370,7 +367,7 @@ def test_cmd_audit_mev_zero_never_flags_zero(audit_db):
     assert _chest_volume_flags(log, "volume_zero") != []
 
 
-def test_cmd_audit_volume_low(audit_db):
+def test_audit_volume_low(audit_db):
     """check 8: 4 of last 8 weeks low-but-nonzero fires volume_low, medium."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {0: 2, 1: 2, 2: 2, 3: 2, 4: 8, 5: 8, 6: 8, 7: 8})
@@ -381,7 +378,7 @@ def test_cmd_audit_volume_low(audit_db):
     assert _chest_volume_flags(log, "volume_zero") == []
 
 
-def test_cmd_audit_volume_scattered_below_threshold(audit_db):
+def test_audit_volume_scattered_below_threshold(audit_db):
     """check 8: 3 bad weeks out of 8 fires nothing."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8, 4: 8})
@@ -389,7 +386,7 @@ def test_cmd_audit_volume_scattered_below_threshold(audit_db):
     assert _chest_volume_flags(log, "volume_low") == []
 
 
-def test_cmd_audit_volume_no_streak_reset(audit_db):
+def test_audit_volume_no_streak_reset(audit_db):
     """check 8: a good week splitting bad weeks does not reset the count."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {2: 8, 5: 8, 6: 8, 7: 8})
@@ -398,7 +395,7 @@ def test_cmd_audit_volume_no_streak_reset(audit_db):
     assert "0 sets in 4 of last 8 weeks" in zeros[0]["evidence"]
 
 
-def test_cmd_audit_volume_never_trained(audit_db):
+def test_audit_volume_never_trained(audit_db):
     """check 8: a muscle absent from every week still flags as zero."""
     log, c = audit_db
     zeros = _chest_volume_flags(log, "volume_zero")
@@ -466,8 +463,8 @@ def test_load_constants_fails_on_empty_muscles(audit_db, tmp_path, monkeypatch):
 def test_doctor_flags_deleted_tracked_muscle(audit_db):
     """Deleting a tracked muscle still referenced by sets fails doctor, not load."""
     log, c = audit_db
-    log.cmd_start("test")
-    log.cmd_log("bench", 100, 5, "", "chest")
+    log.start("test")
+    log.log("bench", 100, 5, "", "chest")
     c.execute("DELETE FROM lift_muscle_map WHERE exercise = 'bench'")
     import json as _json
     import reps.constants
@@ -483,7 +480,7 @@ def test_doctor_flags_deleted_tracked_muscle(audit_db):
         buf = io.StringIO()
         with redirect_stdout(buf):
             try:
-                log.cmd_doctor()
+                log.doctor()
                 assert False, "should have exited"
             except SystemExit as e:
                 assert e.code == 1
@@ -505,7 +502,7 @@ def test_rep_band_bound_uses_constants(audit_db):
 def test_priority_set_and_list(audit_db):
     """priority set writes the table, list reads it back."""
     log, _ = audit_db
-    log.cmd_priority_set("side delts", "priority", None)
+    log.priority_set("side delts", "priority", None)
     assert log.read_priorities(log.conn()) == {
         "side delts": {"tier": "priority", "since": date.today().isoformat(), "until": None}
     }
@@ -515,19 +512,19 @@ def test_priority_rejects_untracked_muscle(audit_db):
     """Tier A: writing a priority tier for an untracked muscle fails."""
     log, _ = audit_db
     with pytest.raises(SystemExit, match="not a tracked muscle"):
-        log.cmd_priority_set("neck", "priority", None)
+        log.priority_set("neck", "priority", None)
 
 
 def test_priority_rejects_bad_tier(audit_db):
     log, _ = audit_db
     with pytest.raises(SystemExit, match="tier must be"):
-        log.cmd_priority_set("chest", "urgent", None)
+        log.priority_set("chest", "urgent", None)
 
 
-def test_cmd_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
+def test_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
     """check 8: a deprioritize muscle still flags, one severity lower, annotated."""
     log, c = audit_db
-    log.cmd_priority_set("chest", "deprioritize", None)
+    log.priority_set("chest", "deprioritize", None)
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
@@ -535,7 +532,7 @@ def test_cmd_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypat
     assert "priority: deprioritize" in zeros[0]["evidence"]
 
 
-def test_cmd_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monkeypatch):
+def test_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monkeypatch):
     """check 8: without a priority entry the same data flags at full severity."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})

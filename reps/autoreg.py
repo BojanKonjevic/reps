@@ -89,17 +89,17 @@ def autoreg_block(c):
             "program_volume": programmed_weekly_volume(c)}
 
 
-def cmd_autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=None):
+def autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=None):
     """Single entry point for every autonomous program edit.
 
-    Refuses, in order: no permission rule, missing slot, --from mismatch,
+    Refuses, in order: no permission rule, missing slot, from-guard mismatch,
     unmapped movements, held slot, below-MEV result.
     """
     from datetime import timedelta
     c = conn()
     today = date.today().isoformat()
     if not autoreg_permitted(c):
-        sys.exit("autoreg has no standing permission (rule add <text> --subject autoreg)")
+        sys.exit("autoreg has no standing permission (program_rule_add with subject autoreg)")
     try:
         slot = int(slot)
     except (TypeError, ValueError):
@@ -112,7 +112,7 @@ def cmd_autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements
     if cur is None:
         sys.exit(f"no active split slot '{slot}' on '{day}'")
     if from_movements is not None and parse_movements(from_movements) != parse_movements(cur["movements"]):
-        sys.exit(f"--from mismatch: slot {slot} on '{day}' holds '{cur['movements']}', "
+        sys.exit(f"from-guard mismatch: slot {slot} on '{day}' holds '{cur['movements']}', "
                  f"not '{from_movements.strip().lower()}' (refusing to clobber a concurrent edit)")
     to_movements = (to_movements or "").strip().lower()
     if not to_movements:
@@ -127,7 +127,7 @@ def cmd_autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements
         sys.exit("evidence is required (quote the reason)")
     for move in parse_movements(to_movements):
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
-            sys.exit(f"'{move}' has no mapping (run map set first), split unchanged")
+            sys.exit(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
     held = c.execute("SELECT * FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                      (day, cur["movements"], today)).fetchone()
     if held:
@@ -168,13 +168,13 @@ def cmd_autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements
                       "evidence": evidence.strip()}))
 
 
-def cmd_autoreg_log():
+def autoreg_log():
     c = conn()
     rows = c.execute("SELECT * FROM autoreg_changes ORDER BY id").fetchall()
     print(json.dumps([{**dict(r), "reverted": r["reverted_on"] is not None} for r in rows], indent=2))
 
 
-def cmd_autoreg_revert(change_id):
+def autoreg_revert(change_id):
     """Restore before state exactly; clears matching unexpired holds."""
     c = conn()
     today = date.today().isoformat()

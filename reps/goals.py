@@ -71,13 +71,13 @@ def goal_progress(c, goal):
             "next_checkpoint": checkpoints[completed] if completed < len(checkpoints) else None}
 
 
-def cmd_goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
+def goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
     c = conn()
     exercise = (exercise or "").strip().lower()
     if not exercise:
         sys.exit("goal exercise is required")
     if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone():
-        sys.exit(f"'{exercise}' has no mapping (run map set first)")
+        sys.exit(f"'{exercise}' has no mapping (run muscle_map_set first)")
     try:
         target_e1rm = float(target_e1rm)
     except (TypeError, ValueError):
@@ -95,7 +95,7 @@ def cmd_goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=Non
             "SELECT CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
             "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (exercise,)).fetchone()
         if not top:
-            sys.exit(f"no logged sets for '{exercise}', pass --from <e1rm> to seed the trajectory")
+            sys.exit(f"no logged sets for '{exercise}', pass start_e1rm to seed the trajectory")
         start_e1rm = top["e1rm"]
     else:
         try:
@@ -121,7 +121,7 @@ def cmd_goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=Non
                       "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline}))
 
 
-def cmd_goal_show(goal_id=None):
+def goal_show(goal_id=None):
     c = conn()
     if goal_id is not None:
         try:
@@ -141,7 +141,7 @@ def cmd_goal_show(goal_id=None):
     print(json.dumps(out, indent=2))
 
 
-def cmd_goal_rewrite(goal_id):
+def goal_rewrite(goal_id):
     c = conn()
     try:
         goal_id = int(goal_id)
@@ -164,7 +164,7 @@ def cmd_goal_rewrite(goal_id):
     print(json.dumps({"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh}))
 
 
-def cmd_goal_drop(goal_id):
+def goal_drop(goal_id):
     c = conn()
     try:
         goal_id = int(goal_id)

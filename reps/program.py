@@ -129,7 +129,7 @@ def meta_get(c, key):
 
 
 def compaction_due():
-    # Meta only. Nothing in log.py parses prose for this fact.
+    # Meta only. No interface parses prose for this fact.
     c = conn()
     last = meta_get(c, "last_compacted")
     if last in (None, "", "never"):
@@ -151,7 +151,7 @@ def compaction_due():
     return {"due": date.today() > first and last_date < first, "last": last}
 
 
-def cmd_meta_show(key=None):
+def meta_show(key=None):
     c = conn()
     if key:
         print(json.dumps({key: meta_get(c, key)}))
@@ -159,7 +159,7 @@ def cmd_meta_show(key=None):
     print(json.dumps({r["key"]: r["value"] for r in c.execute("SELECT key, value FROM meta ORDER BY key")}, indent=2))
 
 
-def cmd_meta_set(key, value):
+def meta_set(key, value):
     if key not in ("last_compacted", "compaction_postponed_until", "rotation"):
         sys.exit("meta key must be one of last_compacted compaction_postponed_until rotation")
     if key == "last_compacted" and value not in ("never", ""):
@@ -207,10 +207,10 @@ def priority_needs_confirm(c):
     return out
 
 
-def cmd_priority_set(muscle, tier, until=None):
+def priority_set(muscle, tier, until=None):
     muscle = muscle.strip().lower()
     if tier not in ("priority", "maintain", "deprioritize"):
-        sys.exit("tier must be one of priority maintain deprioritize (quoting never needed; tier is the last word)")
+        sys.exit("tier must be one of priority maintain deprioritize")
     constants = load_constants()
     known = set(constants["muscles"]) | set(constants.get("untracked", []))
     hit = canon_muscle_name(muscle, known)
@@ -231,20 +231,20 @@ def cmd_priority_set(muscle, tier, until=None):
     print(json.dumps({"priority": muscle, "tier": tier, "until": until}))
 
 
-def cmd_priority_clear(muscle):
+def priority_clear(muscle):
     c = conn()
     cur = c.execute("DELETE FROM priority WHERE muscle = ?", (muscle.strip().lower(),))
     c.commit()
     print(json.dumps({"cleared": muscle.strip().lower(), "rows": cur.rowcount}))
 
 
-def cmd_priority_list():
+def priority_list():
     c = conn()
     rows = c.execute("SELECT * FROM priority ORDER BY muscle").fetchall()
     print(json.dumps([dict(r) for r in rows], indent=2))
 
 
-def cmd_deload_set(scope, subject):
+def deload_set(scope, subject):
     if scope not in ("lift", "slot"):
         sys.exit("scope must be lift or slot (quote multi-word names)")
     if not subject:
@@ -254,7 +254,7 @@ def cmd_deload_set(scope, subject):
     if scope == "lift":
         subject = subject.strip().lower()
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (subject,)).fetchone():
-            sys.exit(f"'{subject}' has no mapping (run map set first)")
+            sys.exit(f"'{subject}' has no mapping (run muscle_map_set first)")
     else:
         match = next((d for d in split_day_order("active", c=c) if d.lower() == subject.strip().lower()), None)
         if not match:
@@ -271,7 +271,7 @@ def cmd_deload_set(scope, subject):
     print(json.dumps({"deload_id": cur.lastrowid, "scope": scope, "subject": subject}))
 
 
-def cmd_deload_clear():
+def deload_clear():
     # Prose first: if the State write fails, the DB is untouched and a retry
     # is safe. A markdown edit must never break a DB command halfway.
     c = conn()
@@ -306,21 +306,6 @@ def split_all_movements(variant="active", c=None):
     return moves
 
 
-def split_day_prefix(toks, c=None):
-    """Split leading tokens into (day, rest) using the longest known day name.
-
-    Lets multi-word days go unquoted; unknown days fall back to first token
-    so the command itself reports the problem.
-    """
-    days = split_day_order("active", c=c) + split_day_order("baseline", c=c)
-    for n in range(min(3, len(toks)), 0, -1):
-        candidate = " ".join(toks[:n])
-        match = next((d for d in days if d.lower() == candidate.lower()), None)
-        if match:
-            return match, " ".join(toks[n:])
-    return (toks[0], " ".join(toks[1:])) if toks else (None, None)
-
-
 def day_movements(day, variant="active", c=None):
     moves = []
     for r in read_split(variant, day, c=c):
@@ -338,7 +323,7 @@ def best_split_day(trained, c=None):
     return best_day
 
 
-def cmd_split_show(day=None, variant="active"):
+def split_show(day=None, variant="active"):
     c = conn()
     if variant not in ("active", "baseline"):
         sys.exit("variant must be active or baseline")
@@ -352,7 +337,7 @@ def cmd_split_show(day=None, variant="active"):
     print("\n".join(lines))
 
 
-def cmd_split_set(day, slot, movements, sets, variant="active"):
+def split_set(day, slot, movements, sets, variant="active"):
     c = conn()
     if variant not in ("active", "baseline"):
         sys.exit("variant must be active or baseline (quote multi-word day names)")
@@ -368,7 +353,7 @@ def cmd_split_set(day, slot, movements, sets, variant="active"):
         sys.exit("movements cannot be empty")
     for move in parse_movements(movements):
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
-            sys.exit(f"'{move}' has no mapping (run map set first), split unchanged")
+            sys.exit(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
     before = c.execute("SELECT movements FROM splits WHERE variant = ? AND day = ? AND slot = ?",
                        (variant, day, slot)).fetchone()
     c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES (?, ?, ?, ?, ?) "
@@ -389,7 +374,7 @@ def cmd_split_set(day, slot, movements, sets, variant="active"):
     print(json.dumps(out))
 
 
-def cmd_split_move(day, exercise, to_slot):
+def split_move(day, exercise, to_slot):
     c = conn()
     exercise = exercise.strip().lower()
     try:
@@ -421,7 +406,7 @@ def cmd_split_move(day, exercise, to_slot):
     print(json.dumps({"moved": exercise, "day": day, "to_slot": to_slot}))
 
 
-def cmd_split_reconcile(day, after=None):
+def split_reconcile(day, after=None):
     c = conn()
     if not read_split("active", day, c=c):
         sys.exit(f"no active split day '{day}'")
@@ -456,7 +441,7 @@ def cmd_split_reconcile(day, after=None):
     print(json.dumps({"reconciled": day, "added": new}))
 
 
-def cmd_split_diff():
+def split_diff():
     c = conn()
     active = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("active", c=c)}
     baseline = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("baseline", c=c)}
@@ -468,7 +453,7 @@ def cmd_split_diff():
     print("\n".join(lines) if lines else "active matches baseline")
 
 
-def cmd_split_revert(day=None):
+def split_revert(day=None):
     c = conn()
     if day:
         base = read_split("baseline", day, c=c)
@@ -503,7 +488,7 @@ def consume_session_flags(c, workout_id):
     return cur.rowcount
 
 
-def cmd_flag_add(subject, reason):
+def flag_add(subject, reason):
     if not reason:
         sys.exit("flag reason is required")
     c = conn()
@@ -514,13 +499,13 @@ def cmd_flag_add(subject, reason):
     print(json.dumps({"flag_id": cur.lastrowid, "subject": subject.strip().lower()}))
 
 
-def cmd_flag_list():
+def flag_list():
     c = conn()
     rows = c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()
     print(json.dumps([dict(r) for r in rows], indent=2))
 
 
-def cmd_flag_consume(flag_id):
+def flag_consume(flag_id):
     c = conn()
     try:
         flag_id = int(flag_id)
@@ -534,7 +519,7 @@ def cmd_flag_consume(flag_id):
     print(json.dumps({"consumed": flag_id}))
 
 
-def cmd_rule_add(text, subject, expires=None):
+def rule_add(text, subject, expires=None):
     if not text:
         sys.exit("rule text is required")
     if not subject:
@@ -568,7 +553,7 @@ def rules_with_confirm(c):
     return out
 
 
-def cmd_rule_list(expiring_within=None):
+def rule_list(expiring_within=None):
     c = conn()
     out = rules_with_confirm(c)
     today = date.today()
@@ -581,7 +566,7 @@ def cmd_rule_list(expiring_within=None):
     print(json.dumps(out, indent=2))
 
 
-def cmd_rule_confirm(rule_id, extend=None, archive=False):
+def rule_confirm(rule_id, extend=None, archive=False):
     c = conn()
     try:
         rule_id = int(rule_id)
@@ -599,7 +584,7 @@ def cmd_rule_confirm(rule_id, extend=None, archive=False):
             sys.exit("extend date must be YYYY-MM-DD")
         c.execute("UPDATE rules SET expiry = ?, status = 'active' WHERE id = ?", (expiry, rule_id))
     else:
-        sys.exit("rule confirm needs --extend <date> or --archive")
+        sys.exit("rule confirm needs an extend date or archive true")
     c.commit()
     print(json.dumps({"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}))
 

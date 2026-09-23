@@ -10,7 +10,7 @@ from .program import (active_deloads, best_split_day, consume_session_flags,
                       split_all_movements, split_day_order)
 
 
-def cmd_start(note):
+def start(note):
     c = conn()
     existing = open_workout(c)
     if existing:
@@ -30,7 +30,7 @@ def cmd_start(note):
     print(json.dumps({"workout_id": cur.lastrowid, "reused": False, "date": today}))
 
 
-def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
+def log(exercise, weight, reps, note, muscles, bodyweight=False):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -59,7 +59,7 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
 
     if not mapping:
         if not muscles:
-            sys.exit(f"muscles= required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
+            sys.exit(f"muscles required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
         c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
                   (exercise, muscles, 1 if bodyweight else 0))
     elif not muscles:
@@ -90,7 +90,7 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     if mapping and muscles and set(muscles.split(",")) != set(mapping["muscles"].split(",")):
         sys.exit(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping['muscles']}); "
                  f"the mapping is authoritative, log a genuine variation under its own exercise name "
-                 f"or change it everywhere with map set")
+                 f"or change it everywhere with muscle_map_set")
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -109,10 +109,10 @@ def cmd_log(exercise, weight, reps, note, muscles, bodyweight=False):
     print(json.dumps(out))
 
 
-def cmd_update(set_id, field, value):
+def update(set_id, field, value):
     allowed = {"weight", "reps", "exercise", "note"}
     if field == "muscles":
-        sys.exit("per-set muscles are gone, the mapping is authoritative; run map set <exercise> <muscles>")
+        sys.exit("per-set muscles are gone, the mapping is authoritative; run muscle_map_set for the exercise")
     if field not in allowed:
         sys.exit("field must be one of weight reps exercise note")
     c = conn()
@@ -149,7 +149,7 @@ def cmd_update(set_id, field, value):
     if field == "exercise":
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
-            sys.exit(f"exercise '{value}' has no mapping (run map set first)")
+            sys.exit(f"exercise '{value}' has no mapping (run muscle_map_set first)")
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -171,7 +171,7 @@ def cmd_update(set_id, field, value):
     print(json.dumps(out))
 
 
-def cmd_end(note, force=None):
+def end(note, force=None):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -179,7 +179,7 @@ def cmd_end(note, force=None):
     outstanding = end_gate_items(c, w, note if not force else (note + f" {force}" if note else force))
     hard = [o for o in outstanding if o.get("hard")]
     if hard:
-        print(f"cannot close workout {w['id']}, {len(hard)} hard items outstanding (--force cannot skip these):\n")
+        print(f"cannot close workout {w['id']}, {len(hard)} hard items outstanding (force cannot skip these):\n")
         for o in hard:
             print(f"  {o['item']}\n    {o['fix']}")
         sys.exit(1)
@@ -187,7 +187,7 @@ def cmd_end(note, force=None):
         print(f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:\n")
         for o in outstanding:
             print(f"  {o['item']}\n    {o['fix']}")
-        print(f"\nor: log.py end --force \"<reason>\"   (reason is written into the workout note; "
+        print(f"\nor: session_end with a force reason (the reason is written into the workout note; "
               f"writeback items only, missing muscles always block)")
         sys.exit(1)
     if force:
@@ -207,7 +207,7 @@ def cmd_end(note, force=None):
     print(json.dumps(out))
 
 
-def cmd_rest(day, note):
+def rest(day, note):
     try:
         day = date.fromisoformat(day).isoformat()
     except ValueError:
@@ -237,7 +237,7 @@ def cmd_rest(day, note):
     print(json.dumps({"rest_id": cur.lastrowid, "date": day, "appended": False}))
 
 
-def cmd_today():
+def today():
     c = conn()
     w = open_workout(c)
     today = date.today().isoformat()
@@ -250,13 +250,13 @@ def cmd_today():
     print(json.dumps({"open": True, "workout": dict(w), "sets": attach_muscles(c, sets), "rest": rest_json}, indent=2))
 
 
-def cmd_exercises():
+def exercises():
     c = conn()
     rows = c.execute("SELECT DISTINCT exercise FROM sets ORDER BY exercise").fetchall()
     print(json.dumps([r["exercise"] for r in rows], indent=2))
 
 
-def cmd_history(exercise, limit):
+def history(exercise, limit):
     try:
         limit = int(limit)
     except (TypeError, ValueError):
@@ -269,7 +269,7 @@ def cmd_history(exercise, limit):
     print(json.dumps(attach_muscles(c, rows), indent=2))
 
 
-def cmd_stats():
+def stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
     out = {"workouts": len([w for w in workouts if w["status"] != "rest"]), "by_exercise": {}}
@@ -280,7 +280,7 @@ def cmd_stats():
     print(json.dumps(out, indent=2))
 
 
-def cmd_weigh(kg, note):
+def weigh(kg, note):
     c = conn()
     today = date.today().isoformat()
     try:
@@ -306,14 +306,14 @@ def end_gate_items(c, w, note):
     """, (w["id"],)).fetchall()
     for m in missing:
         outstanding.append({"item": f"set {m['id']} ({m['exercise']}) has no muscles",
-                            "fix": f"log.py map set \"{m['exercise']}\" <a,b>", "hard": True})
+                            "fix": f"muscle_map_set for \"{m['exercise']}\"", "hard": True})
     trained = [r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (w["id"],)).fetchall()]
     judged = {r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
     for ex in sorted(set(trained) - judged):
         outstanding.append({"item": f"missing progression: {ex}",
-                            "fix": f"log.py progression set \"{ex}\" --verdict <hit|miss|hold|baseline> --next <target> --direction <up|flat|down>"})
+                            "fix": f"progression_set for \"{ex}\" with verdict and next target"})
     known = split_all_movements("active", c=c)
     unreconciled = sorted(set(trained) - known)
     if unreconciled:
@@ -322,10 +322,10 @@ def end_gate_items(c, w, note):
             "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
             (w["id"],)).fetchall()]
         anchor = next((ex for ex in reversed(performed) if ex in day_movements(day, c=c)), None)
-        after = f" --after \"{anchor}\"" if anchor else ""
+        after = f" after \"{anchor}\"" if anchor else ""
         for ex in unreconciled:
             outstanding.append({"item": f"unreconciled slot: {ex} (not in any active split day)",
-                                "fix": f"log.py split reconcile --day \"{day}\"{after}"})
+                                "fix": f"program_split_reconcile on \"{day}\"{after}"})
     deloads = active_deloads(c)
     if deloads:
         day_moves = parse_active_split_days(c)
@@ -334,11 +334,11 @@ def end_gate_items(c, w, note):
             combined = ((w["notes"] + " " + note) if w["notes"] else note).lower()
             if "deload" not in combined:
                 outstanding.append({"item": f"deload session covers {', '.join(sorted(set(covered)))} but the note has no 'deload'",
-                                    "fix": "log.py end \"<note> deload\""})
+                                    "fix": "session_end with deload in the note"})
     return outstanding
 
 
-def cmd_check(note=""):
+def check(note=""):
     c = conn()
     w = open_workout(c)
     if not w:
@@ -352,7 +352,7 @@ def cmd_check(note=""):
     print(json.dumps({"ready": w["id"]}))
 
 
-def cmd_delete_set(set_id):
+def delete_set(set_id):
     try:
         set_id = int(set_id)
     except (TypeError, ValueError):
@@ -367,7 +367,7 @@ def cmd_delete_set(set_id):
                       "was": {"exercise": row["exercise"], "weight": row["weight"], "reps": row["reps"]}}))
 
 
-def cmd_delete_workout(workout_id):
+def delete_workout(workout_id):
     try:
         workout_id = int(workout_id)
     except (TypeError, ValueError):
@@ -383,7 +383,7 @@ def cmd_delete_workout(workout_id):
     print(json.dumps({"deleted_workout": workout_id, "date": row["date"], "deleted_sets": n}))
 
 
-def cmd_update_workout(workout_id, field, value):
+def update_workout(workout_id, field, value):
     allowed = {"notes", "date", "status"}
     if field not in allowed:
         sys.exit("field must be one of notes date status")
@@ -423,7 +423,7 @@ def cmd_update_workout(workout_id, field, value):
     print(json.dumps({"updated_workout": int(workout_id), "field": field}))
 
 
-def cmd_session(datestr):
+def session(datestr):
     try:
         day = date.fromisoformat(datestr).isoformat()
     except ValueError:
@@ -437,7 +437,7 @@ def cmd_session(datestr):
     print(json.dumps({"date": day, "workouts": out}, indent=2))
 
 
-def cmd_range(fromstr, tostr):
+def range(fromstr, tostr):
     try:
         d0 = date.fromisoformat(fromstr).isoformat()
         d1 = date.fromisoformat(tostr).isoformat()
@@ -452,7 +452,7 @@ def cmd_range(fromstr, tostr):
     print(json.dumps({"from": d0, "to": d1, "workouts": out}, indent=2))
 
 
-def cmd_notes(limit):
+def notes(limit):
     try:
         lim = max(1, min(2000, int(limit)))
     except ValueError:
@@ -465,7 +465,7 @@ def cmd_notes(limit):
     print(json.dumps({"workout_notes": [dict(r) for r in wrows], "set_notes": [dict(r) for r in srows]}, indent=2))
 
 
-def cmd_calendar():
+def calendar():
     c = conn()
     wrows = c.execute("SELECT id, date, status FROM workouts ORDER BY date, id").fetchall()
     by_date = {}
@@ -492,7 +492,7 @@ def cmd_calendar():
     print(json.dumps({"dates": days}, indent=2))
 
 
-def cmd_context(n):
+def context(n):
     try:
         limit = max(1, min(5, int(n)))
     except ValueError:

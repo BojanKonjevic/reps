@@ -26,7 +26,7 @@ def capture(fn, *args):
 
 def test_export_includes_forward_state(log_module):
     """Export carries program plus forward sections, not just history."""
-    out = capture(log_module.cmd_export)
+    out = capture(log_module.export)
     snap = json.loads(out)
     for key in ["workouts", "sets", "bodyweight"] + FORWARD_KEYS:
         assert key in snap, f"snapshot missing '{key}'"
@@ -41,15 +41,15 @@ def test_export_list_pages_shape(log_module):
     """List pages get autoreg, recent changes, adherence drift, and volume."""
     log = log_module
     c = log.conn()
-    log.cmd_retag("bench", "chest")
-    log.cmd_retag("incline", "chest")
-    log.cmd_split_set("Upper A", 1, "bench", 5)
-    log.cmd_split_set("Upper A", 2, "incline", 5)
-    log.cmd_meta_set("rotation", json.dumps(["Upper A", "rest"]))
-    log.cmd_rotation_anchor("2026-09-01", "Upper A")
-    log.cmd_rule_add("autoreg: manage volume", "autoreg", None)
-    log.cmd_autoreg_apply("Upper A", 1, "bench", 4, "testing")
-    out = capture(log.cmd_export)
+    log.retag("bench", "chest")
+    log.retag("incline", "chest")
+    log.split_set("Upper A", 1, "bench", 5)
+    log.split_set("Upper A", 2, "incline", 5)
+    log.meta_set("rotation", json.dumps(["Upper A", "rest"]))
+    log.rotation_anchor("2026-09-01", "Upper A")
+    log.rule_add("autoreg: manage volume", "autoreg", None)
+    log.autoreg_apply("Upper A", 1, "bench", 4, "testing")
+    out = capture(log.export)
     snap = json.loads(out)
     assert set(snap["autoreg"]) == {"permitted", "holds", "miss_streaks", "drop_watch",
                                     "grouped", "program_volume"}
@@ -72,7 +72,7 @@ def test_export_forward_state_survives_empty_db(log_module, tmp_path, monkeypatc
     c.executescript(log_module.SCHEMA)
     c.commit()
     c.close()
-    out = capture(log_module.cmd_export)
+    out = capture(log_module.export)
     snap = json.loads(out)
     for key in FORWARD_KEYS:
         assert key in snap, f"snapshot missing '{key}' on fresh DB"

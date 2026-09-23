@@ -12,9 +12,9 @@ def _plan(log, *args):
     buf = io.StringIO()
     with redirect_stdout(buf):
         if args:
-            log.cmd_plan(*args)
+            log.plan(*args)
         else:
-            log.cmd_plan()
+            log.plan()
     return buf.getvalue()
 
 
@@ -34,9 +34,9 @@ def test_plan_empty_db_shape(log_module):
 
 def test_plan_ledger_and_lifts(log_module):
     log = log_module
-    log.cmd_start("test")
-    log.cmd_log("bench", 100, 5, "", "chest,front delts")
-    log.cmd_log("bench", 100, 6, "", "chest,front delts")
+    log.start("test")
+    log.log("bench", 100, 5, "", "chest,front delts")
+    log.log("bench", 100, 6, "", "chest,front delts")
     bundle = json.loads(_plan(log))
     assert bundle["ledger"]["chest"]["sets"] == 2
     assert bundle["ledger"]["chest"]["sessions"] == 1
@@ -128,9 +128,9 @@ def test_plan_slot_guess_follows_rotation(log_module):
 def test_plan_explicit_slot_and_verbose(log_module):
     import datetime as _dt
     log = log_module
-    log.cmd_meta_set("compaction_postponed_until", (_dt.date.today() + _dt.timedelta(days=30)).isoformat())
+    log.meta_set("compaction_postponed_until", (_dt.date.today() + _dt.timedelta(days=30)).isoformat())
     out = _plan(log, "Upper B", True)
     assert "slot guess: Upper B" in out
     assert "compaction due" not in out
     bundle = json.loads(_plan(log, "Upper B", False))
-    assert bundle["slot_guess"] == {"day": "Upper B", "basis": "explicit --slot", "confidence": "high"}
+    assert bundle["slot_guess"] == {"day": "Upper B", "basis": "explicit slot", "confidence": "high"}

@@ -64,7 +64,7 @@ def _levenshtein(a, b):
     return previous_row[-1]
 
 
-def cmd_map_show(exercise=None):
+def map_show(exercise=None):
     c = conn()
     if exercise:
         exercise = exercise.strip().lower()
@@ -80,7 +80,7 @@ def cmd_map_show(exercise=None):
     print(json.dumps([dict(r) for r in rows], indent=2))
 
 
-def cmd_map_note(exercise, text):
+def map_note(exercise, text):
     if not text:
         sys.exit("note text is required")
     c = conn()
@@ -91,7 +91,7 @@ def cmd_map_note(exercise, text):
     print(json.dumps({"note_id": cur.lastrowid, "exercise": exercise.strip().lower()}))
 
 
-def cmd_retag(exercise, muscles, bodyweight=False):
+def retag(exercise, muscles, bodyweight=False):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
@@ -114,7 +114,7 @@ def cmd_retag(exercise, muscles, bodyweight=False):
     print(json.dumps({"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": is_bw}))
 
 
-def cmd_rename(old, new):
+def rename(old, new):
     c = conn()
     old = old.strip().lower()
     new = new.strip().lower()

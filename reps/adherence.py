@@ -195,7 +195,7 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
             "missed": [{"date": e["date"], "day": e["expected"]} for e in missed]}
 
 
-def cmd_rotation_anchor(date_str, day):
+def rotation_anchor(date_str, day):
     """Pin the rotation schedule: on <date> the rotation was at <day>.
 
     Day resolves to the first matching rotation index (case-insensitive).
@@ -220,7 +220,7 @@ def cmd_rotation_anchor(date_str, day):
     print(json.dumps({"anchor": anchor, "day": rotation[match]}))
 
 
-def cmd_rotation_status(from_iso=None, to_iso=None):
+def rotation_status(from_iso=None, to_iso=None):
     """Adherence verdicts per date over a range (default: last 14 days).
 
     Entries stop at today: future dates have nothing to classify.

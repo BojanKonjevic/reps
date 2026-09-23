@@ -138,8 +138,8 @@ def test_snapshot_tolerates_older_payload():
 
 def test_snapshot_volume_entry_shape(log_module):
     log = log_module
-    log.cmd_retag("bench", "chest")
-    log.cmd_split_set("Upper A", 1, "bench", 5)
+    log.retag("bench", "chest")
+    log.split_set("Upper A", 1, "bench", 5)
     snap = log.build_snapshot_validated()
     assert set(snap["volume"]["chest"]) == {"weekly", "mev", "mav", "mrv", "freq", "status"}
     SnapshotModel.model_validate(snap)

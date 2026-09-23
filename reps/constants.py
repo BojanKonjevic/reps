@@ -124,7 +124,7 @@ def clean_muscles(value):
     return ",".join(out)
 
 
-def cmd_constants_show(key=None):
+def constants_show(key=None):
     constants = load_constants()
     if not key:
         print(json.dumps(constants, indent=2))
@@ -139,12 +139,12 @@ def cmd_constants_show(key=None):
     print(json.dumps(node, indent=2))
 
 
-def cmd_constants_validate():
+def constants_validate():
     load_constants()
     print(json.dumps({"valid": True, "file": CONSTANTS_FILE}))
 
 
-def cmd_constants_set(key, value):
+def constants_set(key, value):
     try:
         parsed = json.loads(value)
     except ValueError:

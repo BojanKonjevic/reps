@@ -12,7 +12,7 @@ from .program import (active_deloads, compaction_due,
                     rules_with_confirm, volume_block)
 
 
-def cmd_plan(slot=None, verbose=False):
+def plan(slot=None, verbose=False):
     from datetime import timedelta
     c = conn()
     constants = load_constants()
@@ -50,7 +50,7 @@ def cmd_plan(slot=None, verbose=False):
     rotation = parse_rotation(c)
     slot_guess = {"day": None, "basis": "no history", "confidence": "low"}
     if slot:
-        slot_guess = {"day": slot, "basis": "explicit --slot", "confidence": "high"}
+        slot_guess = {"day": slot, "basis": "explicit slot", "confidence": "high"}
     else:
         last_with_sets = c.execute(
             "SELECT w.date, w.id FROM workouts w WHERE w.status = 'done' "

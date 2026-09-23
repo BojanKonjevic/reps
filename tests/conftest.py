@@ -5,6 +5,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import reps
+import reps.db
+
 
 @pytest.fixture
 def tmp_db(monkeypatch):
@@ -12,14 +15,9 @@ def tmp_db(monkeypatch):
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     monkeypatch.setenv("REPS_DB", path)
-    # Backend modules snapshot their path globals at import, so point the
-    # live one at the tmp DB too (undone automatically with the env above).
-    import reps.db
+    # Domain modules read the DB path global at call time, so pointing the
+    # live global at the tmp DB is enough (undone automatically on teardown).
     monkeypatch.setattr(reps.db, "DB", path)
-    # Force reimport of log module to pick up new DB
-    import importlib
-    import log
-    importlib.reload(log)
     yield path
     try:
         os.unlink(path)
@@ -29,10 +27,12 @@ def tmp_db(monkeypatch):
 
 @pytest.fixture
 def log_module(tmp_db):
-    """Return reloaded log module with tmp DB."""
-    import log
-    import importlib
-    return importlib.reload(log)
+    """Return the reps domain package bound to the tmp DB.
+
+    Tests invoke domain operations directly (reps is the application layer);
+    agents use the same operations through MCP tools.
+    """
+    return reps
 
 
 def close_session(log, note="done"):
@@ -48,21 +48,21 @@ def close_session(log, note="done"):
         judged = {r["exercise"] for r in c.execute(
             "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
         for ex in sorted(trained - judged):
-            log.cmd_progression_set(ex, "baseline", "80x5", "flat")
+            log.progression_set(ex, "baseline", "80x5", "flat")
         new = sorted(set(trained) - log.split_all_movements("active"))
         if new:
             days = log.split_day_order("active")
             day = log.best_split_day(trained) or (days[0] if days else None)
             if day is None:
                 for i, ex in enumerate(sorted(trained), 1):
-                    log.cmd_split_set("Test", i, ex, 2)
+                    log.split_set("Test", i, ex, 2)
             else:
-                log.cmd_split_reconcile(day)
-    return log.cmd_end(note)
+                log.split_reconcile(day)
+    return log.end(note)
 
 
 def seed_split(log, day, *movesets):
     """Seed an active split day: seed_split(log, 'Upper A', ('bench', 3), ('row', 2)).
     Exercises must already have mappings (log a set or map set first)."""
     for i, (move, sets) in enumerate(movesets, 1):
-        log.cmd_split_set(day, i, move, sets)
+        log.split_set(day, i, move, sets)
