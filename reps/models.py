@@ -38,7 +38,7 @@ class MuscleEntry(BaseModel):
     freq: list[Union[StrictInt, StrictFloat]] = Field(min_length=2, max_length=2)
     tier: Literal["settled", "contested", "opinion"]
     source: StrictStr
-    color: StrictStr = Field(pattern=r"#[0-9a-fA-F]{6}")
+    color: StrictStr = Field(pattern=r"^#[0-9a-fA-F]{6}$")
 
     @field_validator("mav")
     @classmethod
@@ -134,7 +134,7 @@ class SnapshotWorkout(BaseModel):
 
     id: StrictInt
     date: StrictStr
-    status: StrictStr
+    status: Literal["open", "done", "rest"]
     notes: StrictStr = ""
 
 
@@ -177,14 +177,36 @@ class SnapshotAnchor(BaseModel):
     index: StrictInt
 
 
+class SnapshotAdherenceDay(BaseModel):
+    """One per-date rotation verdict from classify_date."""
+
+    model_config = ConfigDict(extra="allow")
+
+    date: StrictStr
+    expected: StrictStr
+    trained: Optional[StrictStr] = None
+    status: Literal["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]
+
+
 class SnapshotAdherence(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     anchor: Optional[SnapshotAnchor] = None
-    days: list = Field(default_factory=list)
+    days: list[SnapshotAdherenceDay] = Field(default_factory=list)
     drift: bool = False
     drift_days: Union[StrictInt, StrictFloat] = 0
     drift_threshold: Union[StrictInt, StrictFloat] = 0
+
+
+class SnapshotSplitRow(BaseModel):
+    """One active-split slot from read_split."""
+
+    model_config = ConfigDict(extra="allow")
+
+    day: StrictStr
+    slot: StrictInt
+    movements: StrictStr
+    sets: StrictInt
 
 
 class SnapshotAutoreg(BaseModel):
@@ -194,8 +216,8 @@ class SnapshotAutoreg(BaseModel):
     holds: list = Field(default_factory=list)
     miss_streaks: list = Field(default_factory=list)
     drop_watch: list = Field(default_factory=list)
-    grouped: dict = Field(default_factory=dict)
-    program_volume: dict = Field(default_factory=dict)
+    grouped: dict[StrictStr, list[StrictStr]] = Field(default_factory=dict)
+    program_volume: dict[StrictStr, Union[StrictInt, StrictFloat]] = Field(default_factory=dict)
 
 
 class SnapshotModel(BaseModel):
@@ -213,7 +235,7 @@ class SnapshotModel(BaseModel):
     workouts: list[SnapshotWorkout]
     sets: list[SnapshotSet]
     bodyweight: list[SnapshotBodyweight] = Field(default_factory=list)
-    split_active: list = Field(default_factory=list)
+    split_active: list[SnapshotSplitRow] = Field(default_factory=list)
     rotation: list[StrictStr] = Field(default_factory=list)
     constants: Optional[ConstantsModel] = None
     progression: dict = Field(default_factory=dict)
@@ -236,7 +258,17 @@ class SnapshotValidationError(ValueError):
     sync layer must not publish an arbitrary dict)."""
 
 
-def validate_snapshot(payload):
+def first_error(exc) -> str:
+    """One-line location plus message for the first Pydantic defect."""
+    from pydantic import ValidationError as _ValidationError
+
+    assert isinstance(exc, _ValidationError)
+    first = exc.errors()[0]
+    loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
+    return f"{loc}: {first['msg']}"
+
+
+def validate_snapshot(payload: dict) -> SnapshotModel:
     """Validate a snapshot candidate against SnapshotModel.
 
     Returns the validated SnapshotModel. Raises SnapshotValidationError
@@ -248,6 +280,4 @@ def validate_snapshot(payload):
     try:
         return SnapshotModel.model_validate(payload)
     except _ValidationError as e:
-        first = e.errors()[0]
-        loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
-        raise SnapshotValidationError(f"snapshot invalid: {loc}: {first['msg']}")
+        raise SnapshotValidationError(f"snapshot invalid: {first_error(e)}")

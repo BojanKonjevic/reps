@@ -40,6 +40,13 @@ def test_constants_rejects_bad_color():
         ConstantsModel.model_validate(raw)
 
 
+def test_constants_rejects_embedded_color():
+    raw = _file_constants()
+    raw["muscles"]["chest"]["color"] = "xx#ffa726yy"
+    with pytest.raises(Exception):
+        ConstantsModel.model_validate(raw)
+
+
 def test_constants_rejects_bad_tier():
     raw = _file_constants()
     raw["muscles"]["chest"]["tier"] = "proven"
@@ -136,3 +143,30 @@ def test_snapshot_volume_entry_shape(log_module):
     snap = log.build_snapshot_validated()
     assert set(snap["volume"]["chest"]) == {"weekly", "mev", "mav", "mrv", "freq", "status"}
     SnapshotModel.model_validate(snap)
+
+
+def test_snapshot_rejects_bad_workout_status():
+    with pytest.raises(SnapshotValidationError):
+        validate_snapshot({"exported": "2026-01-01T00:00:00",
+                           "workouts": [{"id": 1, "date": "2026-01-01", "status": "archived"}],
+                           "sets": []})
+
+
+def test_snapshot_rejects_bad_adherence_status():
+    with pytest.raises(SnapshotValidationError):
+        validate_snapshot({"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
+                           "adherence": {"anchor": None, "days": [
+                               {"date": "2026-01-01", "expected": "Upper A",
+                                "trained": None, "status": "sometimes"}],
+                               "drift": False, "drift_days": 0, "drift_threshold": 3}})
+
+
+def test_first_error_reports_location():
+    from pydantic import ValidationError as _VE
+    from reps.models import first_error
+    try:
+        ConstantsModel.model_validate({"muscles": {}, "rep_bands": [], "thresholds": {}})
+    except _VE as e:
+        assert first_error(e).startswith("muscles:")
+    else:
+        raise AssertionError("expected ValidationError")

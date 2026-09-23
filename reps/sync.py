@@ -115,7 +115,7 @@ def build_snapshot(c=None):
             "autoreg_changes": changes, "volume": volume}
 
 
-def build_snapshot_validated(c=None):
+def build_snapshot_validated(c=None) -> dict:
     """Build the dashboard payload and validate it against SnapshotModel
     before publication. Raises SnapshotValidationError on defect: the sync
     layer must not publish an arbitrary dict that happens to match the

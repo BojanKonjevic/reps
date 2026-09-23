@@ -5,7 +5,7 @@ import sys
 from pydantic import ValidationError
 
 from .db import ROOT
-from .models import ConstantsModel
+from .models import ConstantsModel, first_error
 
 
 CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(ROOT, "constants.json"))
@@ -21,13 +21,11 @@ def validate_constants(raw, source):
     try:
         ConstantsModel.model_validate(raw)
     except ValidationError as e:
-        first = e.errors()[0]
-        loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
-        sys.exit(f"constants invalid at {source}: {loc}: {first['msg']}")
+        sys.exit(f"constants invalid at {source}: {first_error(e)}")
     return raw
 
 
-def load_constants_model():
+def load_constants_model() -> ConstantsModel:
     """Load constants.json as a validated ConstantsModel."""
     try:
         with open(CONSTANTS_FILE, 'r') as f:
@@ -37,9 +35,7 @@ def load_constants_model():
     try:
         return ConstantsModel.model_validate(raw)
     except ValidationError as e:
-        first = e.errors()[0]
-        loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
-        sys.exit(f"constants invalid at {CONSTANTS_FILE}: {loc}: {first['msg']}")
+        sys.exit(f"constants invalid at {CONSTANTS_FILE}: {first_error(e)}")
 
 
 def load_constants():

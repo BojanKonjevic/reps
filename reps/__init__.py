@@ -24,7 +24,7 @@ from .goals import (build_checkpoints, cmd_goal_add, cmd_goal_drop,
                     goal_sessions)
 from .memory import MEMORY_FILE, append_memory_state
 from .models import (ConstantsModel, SnapshotModel, SnapshotValidationError,
-                     validate_snapshot)
+                     first_error, validate_snapshot)
 from .muscles import (attach_muscles, best_e1rm, cmd_map_note, cmd_map_show,
                       cmd_rename, cmd_retag, e1rm_of)
 from .plan import cmd_plan
@@ -76,7 +76,7 @@ __all__ = [
     "cmd_update", "cmd_update_workout", "cmd_weigh", "conn",
     "consume_session_flags", "day_movements", "deload_covers", "drift_days",
     "e1rm_of",
-    "end_gate_items", "expected_day", "expectation_context", "get_anchor",
+    "end_gate_items", "expected_day",     "expectation_context", "first_error", "get_anchor",
     "goal_progress", "goal_sessions",     "is_rest_day", "load_constants", "load_constants_model",
     "main", "match_day", "mev_floor_warnings", "muscles_for_movements", "open_workout",
     "parse_anchor", "parse_mev_from_science", "parse_movements", "parse_rotation",
