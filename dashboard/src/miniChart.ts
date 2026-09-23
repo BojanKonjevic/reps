@@ -1,4 +1,6 @@
+import { max, min } from 'd3-array';
 import { fit, putText, TC, GC, drawYAxis } from './charts';
+import { linearScale } from './lib/scales';
 import { fmtV, fmtD } from './utils';
 import { niceTicks } from './utils';
 
@@ -20,13 +22,9 @@ export function mini(
     putText(g, W, 'no data', P, H / 2, 'left');
     return;
   }
-  let mn = Infinity,
-    mx = 0;
-  pts.forEach(pi => {
-    const v = vals[pi]!;
-    if (v < mn) mn = v;
-    if (v > mx) mx = v;
-  });
+  const raw = pts.map(pi => vals[pi]!);
+  let mn = min(raw) ?? 0;
+  let mx = max(raw) ?? 1;
   if (!(mx > mn)) mx = mn + 1;
   const pad = (mx - mn) * 0.3 || 1;
   mn = Math.max(0, mn - pad);
@@ -35,30 +33,31 @@ export function mini(
   mn = t.lo;
   mx = t.hi;
   const n = vals.length;
-  const px = (i: number) => P + (W - P - 6) * (n <= 1 ? 1 : i / (n - 1));
-  const py = (v: number) => H - 15 - (H - 15 - 6) * ((v - mn) / (mx - mn));
+  const px = linearScale([0, Math.max(1, n - 1)], [P, W - 6]);
+  const xOf = (i: number) => (n <= 1 ? W - 6 : px(i));
+  const py = linearScale([mn, mx], [H - 15, 6]);
   drawYAxis(g, W, H, P, t);
   g.strokeStyle = col;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';
   g.beginPath();
   pts.forEach((pi, k) => {
-    if (k === 0) g.moveTo(px(pi), py(vals[pi]!));
-    else g.lineTo(px(pi), py(vals[pi]!));
+    if (k === 0) g.moveTo(xOf(pi), py(vals[pi]!));
+    else g.lineTo(xOf(pi), py(vals[pi]!));
   });
   g.stroke();
   g.fillStyle = col;
   pts.forEach(pi => {
     g.beginPath();
-    g.arc(px(pi), py(vals[pi]!), 2.5, 0, 7);
+    g.arc(xOf(pi), py(vals[pi]!), 2.5, 0, 7);
     g.fill();
   });
   const li = pts[pts.length - 1];
   g.fillStyle = col;
-  if (li > n / 2) putText(g, W, fmtV(vals[li]!), px(li) - 8, py(vals[li]!) - 10, 'right');
-  else putText(g, W, fmtV(vals[li]!), px(li) + 8, py(vals[li]!) - 10, 'left');
+  if (li > n / 2) putText(g, W, fmtV(vals[li]!), xOf(li) - 8, py(vals[li]!) - 10, 'right');
+  else putText(g, W, fmtV(vals[li]!), xOf(li) + 8, py(vals[li]!) - 10, 'left');
   if (hover !== undefined && hover >= 0 && hover < n && vals[hover] !== null) {
-    const x = px(hover);
+    const x = xOf(hover);
     g.strokeStyle = TC;
     g.globalAlpha = 0.45;
     g.lineWidth = 1;

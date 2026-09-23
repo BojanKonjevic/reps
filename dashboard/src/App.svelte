@@ -1,0 +1,57 @@
+<script lang="ts">
+  import { QueryClientProvider } from '@tanstack/svelte-query';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { onMount } from 'svelte';
+  import { queryClient, snapshotKey } from './queries/client';
+  import { fetchSnapshot } from './queries/snapshot';
+  import { syncRoute, route } from './router.svelte';
+  import DashboardPage from './pages/DashboardPage.svelte';
+  import SessionPage from './pages/SessionPage.svelte';
+  import LiftPage from './pages/LiftPage.svelte';
+  import MusclePage from './pages/MusclePage.svelte';
+  import ProgramPage from './pages/ProgramPage.svelte';
+  import LiftsPage from './pages/LiftsPage.svelte';
+  import MusclesPage from './pages/MusclesPage.svelte';
+
+  const snapshot = createQuery(
+    () => ({ queryKey: snapshotKey, queryFn: fetchSnapshot }),
+    () => queryClient
+  );
+
+  onMount(() => {
+    syncRoute();
+    window.addEventListener('hashchange', syncRoute);
+    return () => window.removeEventListener('hashchange', syncRoute);
+  });
+</script>
+
+<QueryClientProvider client={queryClient}>
+  {#if snapshot.isPending}
+    <div class="wrap">
+      <h1>Training dashboard</h1>
+      <div class="sub">loading</div>
+    </div>
+  {:else if snapshot.isError}
+    <div class="wrap">
+      <h1>Training dashboard</h1>
+      <div class="sub">snapshot failed validation: {snapshot.error.message}</div>
+    </div>
+  {:else if snapshot.data}
+    {@const snap = snapshot.data}
+    {#if route.view.name === 'sess'}
+      <SessionPage {snap} date={route.view.date} />
+    {:else if route.view.name === 'lift'}
+      <LiftPage {snap} exercise={route.view.exercise} />
+    {:else if route.view.name === 'muscle'}
+      <MusclePage {snap} muscle={route.view.muscle} />
+    {:else if route.view.name === 'prog'}
+      <ProgramPage {snap} />
+    {:else if route.view.name === 'lifts'}
+      <LiftsPage {snap} />
+    {:else if route.view.name === 'muscles'}
+      <MusclesPage {snap} />
+    {:else}
+      <DashboardPage {snap} />
+    {/if}
+  {/if}
+</QueryClientProvider>

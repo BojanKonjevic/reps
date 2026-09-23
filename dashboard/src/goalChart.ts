@@ -1,4 +1,6 @@
+import { max, min } from 'd3-array';
 import { fit, putText, TC, GC, drawHoverLine } from './charts';
+import { linearScale } from './lib/scales';
 import { fmtV, fmtD, niceTicks } from './utils';
 
 export interface GoalPoint {
@@ -48,20 +50,21 @@ export function goalChart(
     return;
   }
   const all = actuals.map(a => a.ev).concat(checkpoints);
-  let mn = Math.min(...all);
-  let mx = Math.max(...all);
+  let mn = min(all) ?? 0;
+  let mx = max(all) ?? 1;
   const pad = (mx - mn) * 0.3 || 1;
   mn = Math.max(0, mn - pad);
   mx += pad;
   const t = niceTicks(mn, mx, 2);
   mn = t.lo;
   mx = t.hi;
-  const px = (i: number) => P + (W - P - 6) * (n <= 1 ? 1 : i / (n - 1));
-  const py = (v: number) => H - 15 - (H - 15 - 6) * ((v - mn) / (mx - mn));
+  const px = linearScale([0, Math.max(1, n - 1)], [P, W - 6]);
+  const xOf = (i: number) => (n <= 1 ? W - 6 : px(i));
+  const py = linearScale([mn, mx], [H - 15, 6]);
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
-    const y = H - 15 - (H - 15 - 6) * (i / nt);
+    const y = py(v);
     g.strokeStyle = GC;
     g.lineWidth = 1;
     g.beginPath();
@@ -78,14 +81,14 @@ export function goalChart(
   g.lineJoin = 'round';
   g.beginPath();
   actuals.forEach((a, i) => {
-    if (i === 0) g.moveTo(px(i), py(a.ev));
-    else g.lineTo(px(i), py(a.ev));
+    if (i === 0) g.moveTo(xOf(i), py(a.ev));
+    else g.lineTo(xOf(i), py(a.ev));
   });
   g.stroke();
   g.fillStyle = col;
   actuals.forEach((a, i) => {
     g.beginPath();
-    g.arc(px(i), py(a.ev), 3, 0, 7);
+    g.arc(xOf(i), py(a.ev), 3, 0, 7);
     g.fill();
   });
   g.strokeStyle = col;
@@ -94,8 +97,8 @@ export function goalChart(
   g.lineWidth = 2;
   g.beginPath();
   checkpoints.forEach((cp, i) => {
-    if (i === 0) g.moveTo(px(i), py(cp));
-    else g.lineTo(px(i), py(cp));
+    if (i === 0) g.moveTo(xOf(i), py(cp));
+    else g.lineTo(xOf(i), py(cp));
   });
   g.stroke();
   g.setLineDash([]);
@@ -105,13 +108,13 @@ export function goalChart(
     g.strokeStyle = col;
     g.lineWidth = 2;
     g.beginPath();
-    g.arc(px(i), py(cp), 4, 0, 7);
+    g.arc(xOf(i), py(cp), 4, 0, 7);
     g.stroke();
   });
   if (hover !== undefined && hover >= 0 && hover < n) {
     const hv = hover < actuals.length ? actuals[hover].ev : checkpoints[hover];
     if (hv !== undefined) {
-      const x = px(hover);
+      const x = xOf(hover);
       drawHoverLine(g, H, P, x);
       g.fillStyle = col;
       g.beginPath();

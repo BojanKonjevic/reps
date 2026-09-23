@@ -1,4 +1,6 @@
+import { max } from 'd3-array';
 import { fit, putText, TC, GC, MC, GROUPS } from './charts';
+import { linearScale } from './lib/scales';
 import { fmtTick } from './utils';
 import { niceTicks } from './utils';
 
@@ -18,13 +20,13 @@ interface Layout {
 
 function layout(W: number, H: number, weeks: Array<Record<string, number>>): Layout {
   const P = 46;
-  let mx = 1;
-  weeks.forEach(w => {
-    const t = GROUPS.reduce((a, k) => a + w[k], 0);
-    if (t > mx) mx = t;
-  });
-  mx = niceTicks(0, mx, 3).hi;
+  const totals = weeks.map(w => GROUPS.reduce((a, k) => a + w[k], 0));
+  const mx = niceTicks(0, Math.max(1, max(totals) ?? 1), 3).hi;
   return { W, H, P, area: H - P - 42, mx, bw: (W - P - 8) / Math.max(1, weeks.length) };
+}
+
+export function yOfWeek(L: Layout, v: number): number {
+  return linearScale([0, L.mx], [L.H - L.P, L.H - L.P - L.area])(v);
 }
 
 function segRect(
@@ -33,11 +35,13 @@ function segRect(
   wi: number,
   g: string
 ): { x: number; y: number; w: number; h: number } {
-  let y0 = L.H - L.P;
+  let acc = 0;
   for (const gr of GROUPS) {
-    const h = L.area * (weeks[wi][gr] / L.mx);
-    if (gr === g) return { x: L.P + wi * L.bw + 3, y: y0 - h, w: L.bw - 6, h };
-    y0 -= h;
+    acc += weeks[wi][gr];
+    if (gr === g) {
+      const h = (L.area * weeks[wi][gr]) / L.mx;
+      return { x: L.P + wi * L.bw + 3, y: yOfWeek(L, acc), w: L.bw - 6, h };
+    }
   }
   return { x: 0, y: 0, w: 0, h: 0 };
 }
@@ -54,11 +58,11 @@ export function stackedHit(
   const L = layout(r.width, r.height, weeks);
   const wi = Math.floor((x - L.P) / L.bw);
   if (wi < 0 || wi >= weeks.length) return null;
-  let y0 = L.H - L.P;
+  let acc = 0;
   for (const gr of GROUPS) {
-    const h = L.area * (weeks[wi][gr] / L.mx);
-    if (y <= y0 && y >= y0 - h && h > 2) return { wi, g: gr };
-    y0 -= h;
+    acc += weeks[wi][gr];
+    const h = (L.area * weeks[wi][gr]) / L.mx;
+    if (y <= yOfWeek(L, acc - weeks[wi][gr]) && y >= yOfWeek(L, acc) && h > 2) return { wi, g: gr };
   }
   return null;
 }
@@ -74,14 +78,12 @@ export function stacked(
   g.clearRect(0, 0, W, H);
   const L = layout(W, H, weeks);
   const bw = L.bw;
-  const area = L.area;
-  const mx = L.mx;
-  const t = niceTicks(0, mx, 3);
+  const t = niceTicks(0, L.mx, 3);
   g.font = "600 16px 'IBM Plex Sans', sans-serif";
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
-    const y = H - P - area * (i / nt);
+    const y = yOfWeek(L, v);
     g.strokeStyle = GC;
     g.lineWidth = 1;
     g.beginPath();
@@ -104,7 +106,7 @@ export function stacked(
       }
     });
     const total = GROUPS.reduce((a, k) => a + w[k], 0);
-    const top = H - P - area * (total / mx);
+    const top = yOfWeek(L, total);
     g.fillStyle = TC;
     putText(g, W, String(total), P + i * bw + bw / 2, top - 10, 'center');
     const step = Math.ceil(weeks.length / 4);

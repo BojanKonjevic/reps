@@ -1,4 +1,6 @@
+import { max } from 'd3-array';
 import { fit, putText, TC, GC, drawHoverLine } from './charts';
+import { linearScale } from './lib/scales';
 import { niceTicks } from './utils';
 
 export interface MuscleBands {
@@ -40,17 +42,17 @@ export function muscleChart(
     putText(g, W, 'no sets logged for this muscle yet', P, H / 2, 'left');
     return;
   }
-  let mx = Math.max(...counts, bands.mev, bands.mrv || 0, bands.mav ? bands.mav[1] : 0, 1);
+  let mx = max(counts.concat([bands.mev, bands.mrv || 0, bands.mav ? bands.mav[1] : 0, 1])) ?? 1;
   const t = niceTicks(0, mx, compact ? 2 : 3);
   mx = t.hi;
   const n = counts.length;
   const bw = (W - P - 8) / n;
   const area = H - P - 42;
-  const py = (v: number) => H - P - area * (v / mx);
+  const py = linearScale([0, mx], [H - P, H - P - area]);
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
-    const y = H - P - area * (i / nt);
+    const y = py(v);
     g.strokeStyle = GC;
     g.lineWidth = 1;
     g.beginPath();
