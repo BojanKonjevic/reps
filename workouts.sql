@@ -27,6 +27,7 @@ CREATE TABLE bodyweight (
   kg REAL NOT NULL,
   note TEXT NOT NULL DEFAULT ''
 );
+INSERT INTO "bodyweight" VALUES(1,'2026-09-23',79.8,'shoes shorts tank top');
 CREATE TABLE deload_state (
   id INTEGER PRIMARY KEY,
   scope TEXT NOT NULL,
@@ -122,6 +123,10 @@ INSERT INTO "movement_notes" VALUES(8,'cable lat raise','stack micro-increments 
 INSERT INTO "movement_notes" VALUES(9,'machine lat raise','2.5kg increments','2026-09-22T09:39:04');
 INSERT INTO "movement_notes" VALUES(10,'smith jm press','bench 2 incline','2026-09-22T10:21:15');
 INSERT INTO "movement_notes" VALUES(11,'overhead cable extension','cable just under height 8','2026-09-22T10:27:37');
+INSERT INTO "movement_notes" VALUES(12,'seated leg curl','stack steps: 50 57 63 70 77 84 90 97 (6-7 increments)','2026-09-23T08:39:43');
+INSERT INTO "movement_notes" VALUES(13,'adductor machine','width setting 7','2026-09-23T08:49:04');
+INSERT INTO "movement_notes" VALUES(14,'adductor machine','stack increments 3.75','2026-09-23T08:50:46');
+INSERT INTO "movement_notes" VALUES(15,'crunch machine','single loading horn, starter unknown, logged weight is plates only; seat height middle (unnumbered)','2026-09-23T09:01:31');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL,
@@ -150,6 +155,15 @@ INSERT INTO "progression" VALUES(8,4,'bayesian curl','baseline','11.25x8','flat'
 INSERT INTO "progression" VALUES(9,4,'smith jm press','baseline','30x8','flat','','2026-09-22T17:13:42');
 INSERT INTO "progression" VALUES(10,4,'overhead cable extension','baseline','25x12','up','','2026-09-22T17:13:42');
 INSERT INTO "progression" VALUES(11,4,'face pull','baseline','38.75x10','flat','','2026-09-22T17:11:12');
+INSERT INTO "progression" VALUES(12,5,'hack squat','baseline','87x8','flat','','2026-09-23T09:35:01');
+INSERT INTO "progression" VALUES(13,5,'leg extension','baseline','89x10','flat','','2026-09-23T09:35:01');
+INSERT INTO "progression" VALUES(14,5,'leg press','baseline','115x10','flat','','2026-09-23T09:35:01');
+INSERT INTO "progression" VALUES(15,5,'seated leg curl','baseline','63x8','flat','','2026-09-23T09:35:02');
+INSERT INTO "progression" VALUES(16,5,'adductor machine','baseline','41.25x12','flat','','2026-09-23T09:35:02');
+INSERT INTO "progression" VALUES(17,5,'crunch machine','baseline','35x10','flat','','2026-09-23T09:35:02');
+INSERT INTO "progression" VALUES(18,5,'cable crunch','baseline','28.75x11','flat','','2026-09-23T09:35:02');
+INSERT INTO "progression" VALUES(19,5,'cable wrist curl','baseline','11.25x15','flat','','2026-09-23T09:35:02');
+INSERT INTO "progression" VALUES(20,5,'cable reverse curl','baseline','16.25x11','flat','','2026-09-23T09:35:02');
 CREATE TABLE rules (
   id INTEGER PRIMARY KEY,
   subject TEXT NOT NULL,
@@ -163,6 +177,7 @@ INSERT INTO "rules" VALUES(1,'straps/grip','straps on anything grip-limited, inc
 INSERT INTO "rules" VALUES(2,'autoreg','autoreg: manage training volume within MEV to MRV bounds and swap movements only at strong evidence, narrate every change with evidence, everything revertible','2026-09-21',NULL,'active','2026-09-21T22:14:01');
 INSERT INTO "rules" VALUES(3,'coaching','after every logged set, state the next set: same movement with weight and reps call, or next movement with setup notes and conservative first-set target when cold start','2026-09-22',NULL,'active','2026-09-22T09:13:06');
 INSERT INTO "rules" VALUES(4,'bodyweight','ask for bodyweight at session start so it gets measured on the gym scale','2026-09-22',NULL,'active','2026-09-22T10:45:59');
+INSERT INTO "rules" VALUES(5,'coaching','don''t prompt for sleep or pain at session close, sleep is consistent and pain none unless volunteered','2026-09-23',NULL,'active','2026-09-23T09:34:57');
 CREATE TABLE set_muscles (
   set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
   muscle TEXT NOT NULL,
@@ -194,6 +209,29 @@ INSERT INTO "set_muscles" VALUES(20,'triceps');
 INSERT INTO "set_muscles" VALUES(21,'triceps');
 INSERT INTO "set_muscles" VALUES(22,'rear delts');
 INSERT INTO "set_muscles" VALUES(23,'rear delts');
+INSERT INTO "set_muscles" VALUES(24,'quads');
+INSERT INTO "set_muscles" VALUES(25,'quads');
+INSERT INTO "set_muscles" VALUES(26,'quads');
+INSERT INTO "set_muscles" VALUES(27,'quads');
+INSERT INTO "set_muscles" VALUES(28,'quads');
+INSERT INTO "set_muscles" VALUES(29,'quads');
+INSERT INTO "set_muscles" VALUES(29,'glutes');
+INSERT INTO "set_muscles" VALUES(30,'quads');
+INSERT INTO "set_muscles" VALUES(30,'glutes');
+INSERT INTO "set_muscles" VALUES(31,'hamstrings');
+INSERT INTO "set_muscles" VALUES(32,'hamstrings');
+INSERT INTO "set_muscles" VALUES(33,'hamstrings');
+INSERT INTO "set_muscles" VALUES(34,'adductors');
+INSERT INTO "set_muscles" VALUES(35,'adductors');
+INSERT INTO "set_muscles" VALUES(36,'abs');
+INSERT INTO "set_muscles" VALUES(37,'abs');
+INSERT INTO "set_muscles" VALUES(38,'abs');
+INSERT INTO "set_muscles" VALUES(39,'abs');
+INSERT INTO "set_muscles" VALUES(40,'forearms');
+INSERT INTO "set_muscles" VALUES(41,'forearms');
+INSERT INTO "set_muscles" VALUES(42,'forearms');
+INSERT INTO "set_muscles" VALUES(43,'forearms');
+INSERT INTO "set_muscles" VALUES(44,'forearms');
 CREATE TABLE sets (
   id INTEGER PRIMARY KEY,
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
@@ -226,6 +264,27 @@ INSERT INTO "sets" VALUES(20,4,'overhead cable extension',23.75,12,'','2026-09-2
 INSERT INTO "sets" VALUES(21,4,'overhead cable extension',23.75,12,'forearms push into pumped biceps at bottom','2026-09-22T10:34:05');
 INSERT INTO "sets" VALUES(22,4,'face pull',38.75,12,'','2026-09-22T10:36:43');
 INSERT INTO "sets" VALUES(23,4,'face pull',38.75,10,'','2026-09-22T10:39:34');
+INSERT INTO "sets" VALUES(24,5,'hack squat',87.0,8,'','2026-09-23T08:13:07');
+INSERT INTO "sets" VALUES(25,5,'hack squat',87.0,7,'','2026-09-23T08:17:56');
+INSERT INTO "sets" VALUES(26,5,'leg extension',89.0,10,'','2026-09-23T08:23:29');
+INSERT INTO "sets" VALUES(27,5,'leg extension',89.0,10,'','2026-09-23T08:26:11');
+INSERT INTO "sets" VALUES(28,5,'leg extension',89.0,8,'','2026-09-23T08:27:15');
+INSERT INTO "sets" VALUES(29,5,'leg press',115.0,10,'','2026-09-23T08:30:38');
+INSERT INTO "sets" VALUES(30,5,'leg press',115.0,9,'','2026-09-23T08:35:02');
+INSERT INTO "sets" VALUES(31,5,'seated leg curl',63.0,8,'','2026-09-23T08:39:43');
+INSERT INTO "sets" VALUES(32,5,'seated leg curl',63.0,8,'','2026-09-23T08:43:01');
+INSERT INTO "sets" VALUES(33,5,'seated leg curl',63.0,6,'','2026-09-23T08:47:23');
+INSERT INTO "sets" VALUES(34,5,'adductor machine',41.25,12,'','2026-09-23T08:50:46');
+INSERT INTO "sets" VALUES(35,5,'adductor machine',41.25,11,'','2026-09-23T08:54:15');
+INSERT INTO "sets" VALUES(36,5,'crunch machine',35.0,10,'','2026-09-23T09:01:31');
+INSERT INTO "sets" VALUES(37,5,'crunch machine',35.0,8,'','2026-09-23T09:03:48');
+INSERT INTO "sets" VALUES(38,5,'cable crunch',28.75,11,'best feeling of any crunch yet','2026-09-23T09:09:34');
+INSERT INTO "sets" VALUES(39,5,'cable crunch',28.75,11,'','2026-09-23T09:13:09');
+INSERT INTO "sets" VALUES(40,5,'cable wrist curl',11.25,15,'both sides 15 unilateral','2026-09-23T09:19:51');
+INSERT INTO "sets" VALUES(41,5,'cable wrist curl',11.25,13,'','2026-09-23T09:22:17');
+INSERT INTO "sets" VALUES(42,5,'cable wrist curl',11.25,12,'','2026-09-23T09:24:54');
+INSERT INTO "sets" VALUES(43,5,'cable reverse curl',16.25,11,'bilateral','2026-09-23T09:28:09');
+INSERT INTO "sets" VALUES(44,5,'cable reverse curl',16.25,9,'','2026-09-23T09:30:54');
 CREATE TABLE splits (
   id INTEGER PRIMARY KEY,
   variant TEXT NOT NULL,
@@ -366,6 +425,7 @@ CREATE TABLE workouts (
 INSERT INTO "workouts" VALUES(2,'2026-09-20','rest','split transition friction, fewer rest days since last leg day than usual');
 INSERT INTO "workouts" VALUES(3,'2026-09-21','rest','');
 INSERT INTO "workouts" VALUES(4,'2026-09-22','done','U1 baseline. Came in slightly sore, 2d since last bench vs usual 3. JM first time to above Adam''s apple, fantastic. Bicep pump squeezed at bottom on JM and overhead.');
+INSERT INTO "workouts" VALUES(5,'2026-09-23','done','L1 baseline. Cable crunch best ab feeling yet.');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
