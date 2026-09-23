@@ -459,7 +459,7 @@ def test_load_constants_fails_on_empty_muscles(audit_db, tmp_path, monkeypatch):
     p = tmp_path / "constants.json"
     p.write_text(_json.dumps(full))
     monkeypatch.setattr("reps.constants.CONSTANTS_FILE", str(p))
-    with pytest.raises(SystemExit, match="empty"):
+    with pytest.raises(SystemExit, match="muscles"):
         log.load_constants()
 
 

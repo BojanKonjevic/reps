@@ -16,13 +16,15 @@ from .cli import main
 from .constants import (CONSTANTS_FILE, canon_muscle_name, clean_muscles,
                         cmd_constants_set, cmd_constants_show,
                         cmd_constants_validate, load_constants,
-                        parse_mev_from_science, rep_band_bound,
+                        load_constants_model, parse_mev_from_science, rep_band_bound,
                         tracked_muscles, validate_constants)
 from .db import CFG, DB, SCHEMA, conn, open_workout, placeholders
 from .goals import (build_checkpoints, cmd_goal_add, cmd_goal_drop,
                     cmd_goal_rewrite, cmd_goal_show, goal_progress,
                     goal_sessions)
 from .memory import MEMORY_FILE, append_memory_state
+from .models import (ConstantsModel, SnapshotModel, SnapshotValidationError,
+                     validate_snapshot)
 from .muscles import (attach_muscles, best_e1rm, cmd_map_note, cmd_map_show,
                       cmd_rename, cmd_retag, e1rm_of)
 from .plan import cmd_plan
@@ -47,14 +49,14 @@ from .sessions import (cmd_calendar, cmd_check, cmd_context, cmd_delete_set,
                        cmd_start, cmd_stats, cmd_today, cmd_update,
                        cmd_update_workout, cmd_weigh, end_gate_items)
 from .signals import SEVERITY_ORDER, build_signals
-from .sync import (build_snapshot, cmd_dump, cmd_export, cmd_restore, cmd_sync)
+from .sync import (build_snapshot, build_snapshot_validated, cmd_dump, cmd_export, cmd_restore, cmd_sync)
 
 __all__ = [
-    "CFG", "CONSTANTS_FILE", "DB", "MEMORY_FILE", "SCHEMA", "SEVERITY_ORDER",
-    "active_deloads", "adherence_block", "adherence_snapshot", "append_memory_state", "attach_muscles",
+    "CFG", "CONSTANTS_FILE", "ConstantsModel", "DB", "MEMORY_FILE", "SCHEMA", "SEVERITY_ORDER",
+    "SnapshotModel", "SnapshotValidationError", "active_deloads", "adherence_block", "adherence_snapshot", "append_memory_state", "attach_muscles",
     "autoreg_active_holds", "autoreg_block", "autoreg_drop_watch",
     "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted",
-    "best_e1rm", "best_split_day", "build_checkpoints", "build_signals", "build_snapshot",
+    "best_e1rm", "best_split_day", "build_checkpoints", "build_signals", "build_snapshot", "build_snapshot_validated",
     "canon_muscle_name", "classify_date", "clean_muscles", "cmd_audit", "cmd_autoreg_apply",
     "cmd_autoreg_log", "cmd_autoreg_revert", "cmd_calendar", "cmd_check",
     "cmd_constants_set", "cmd_constants_show", "cmd_constants_validate",
@@ -75,11 +77,11 @@ __all__ = [
     "consume_session_flags", "day_movements", "deload_covers", "drift_days",
     "e1rm_of",
     "end_gate_items", "expected_day", "expectation_context", "get_anchor",
-    "goal_progress", "goal_sessions", "is_rest_day", "load_constants",
+    "goal_progress", "goal_sessions",     "is_rest_day", "load_constants", "load_constants_model",
     "main", "match_day", "mev_floor_warnings", "muscles_for_movements", "open_workout",
     "parse_anchor", "parse_mev_from_science", "parse_movements", "parse_rotation",
     "placeholders", "programmed_weekly_volume", "read_priorities",
     "read_split", "rep_band_bound", "rule_status_rows", "rules_with_confirm",
     "split_all_movements", "split_day_order", "status_range",
-    "top_e1rm_by_date", "tracked_muscles", "validate_constants", "volume_block",
+    "top_e1rm_by_date", "tracked_muscles", "validate_constants", "validate_snapshot", "volume_block",
 ]

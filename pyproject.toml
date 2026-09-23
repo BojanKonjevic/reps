@@ -1,0 +1,17 @@
+[project]
+name = "reps"
+version = "1.0.0"
+description = "Chat-first workout log: SQLite facts, Python domain logic, MCP agent interface."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.0",
+  "mcp>=2.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

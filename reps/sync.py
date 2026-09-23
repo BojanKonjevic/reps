@@ -11,6 +11,7 @@ from . import db
 from .adherence import adherence_snapshot
 from .autoreg import autoreg_block
 from .constants import load_constants
+from .models import validate_snapshot
 from .signals import build_signals
 from .db import SCHEMA, conn
 from .goals import goal_progress
@@ -114,8 +115,18 @@ def build_snapshot(c=None):
             "autoreg_changes": changes, "volume": volume}
 
 
+def build_snapshot_validated(c=None):
+    """Build the dashboard payload and validate it against SnapshotModel
+    before publication. Raises SnapshotValidationError on defect: the sync
+    layer must not publish an arbitrary dict that happens to match the
+    frontend's expectations."""
+    snap = build_snapshot(c)
+    validate_snapshot(snap)
+    return snap
+
+
 def cmd_export():
-    print(json.dumps(build_snapshot(), indent=2))
+    print(json.dumps(build_snapshot_validated(), indent=2))
 
 
 def cmd_sync(force=False):
@@ -141,7 +152,7 @@ def cmd_sync(force=False):
                 base_etag = res.headers.get("ETag")
         except OSError as e:
             sys.exit("sync pull-first failed: " + str(e))
-    payload = json.dumps(build_snapshot(c)).encode()
+    payload = json.dumps(build_snapshot_validated(c)).encode()
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + secret,
                "User-Agent": "reps-sync/1"}
     if base_etag:

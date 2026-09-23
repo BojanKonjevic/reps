@@ -44,7 +44,7 @@ repos:
         entry: pytest
         language: python
         language_version: python3
-        additional_dependencies: [pytest]
+        additional_dependencies: [pytest, pydantic, "mcp>=2"]
         args: [tests/, -q]
         always_run: true
         pass_filenames: false

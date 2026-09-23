@@ -1,76 +1,45 @@
 import json
 import os
-import re
 import sys
 
+from pydantic import ValidationError
+
 from .db import ROOT
+from .models import ConstantsModel
 
 
 CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(ROOT, "constants.json"))
 
 
 def validate_constants(raw, source):
-    """Validate a parsed constants candidate, exiting loudly on any defect."""
-    if not isinstance(raw, dict) or not isinstance(raw.get("muscles"), dict) or not raw["muscles"]:
-        sys.exit(f"constants invalid at {source}: missing or empty the muscles map")
-    for muscle, entry in raw["muscles"].items():
-        if not isinstance(entry, dict):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' is not an object")
-        if not isinstance(entry.get("mev"), int) or isinstance(entry.get("mev"), bool) or entry["mev"] < 0:
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a non-negative mev")
-        for bound in ("mav", "mrv"):
-            val = entry.get(bound)
-            if val is None:
-                continue
-            if bound == "mav":
-                if (not isinstance(val, list) or len(val) != 2
-                        or not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in val)
-                        or val[0] > val[1]):
-                    sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs {bound} as [lo, hi]")
-            elif not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
-                sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a non-negative {bound}")
-        freq = entry.get("freq")
-        if (not isinstance(freq, list) or len(freq) != 2
-                or not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in freq)
-                or freq[0] > freq[1]):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs freq as [lo, hi]")
-        if entry.get("tier") not in ("settled", "contested", "opinion"):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a tier")
-        if not isinstance(entry.get("source"), str):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a source string")
-        if not isinstance(entry.get("color"), str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", entry["color"]):
-            sys.exit(f"constants invalid at {source}: muscle '{muscle}' needs a #rrggbb color string")
-    thresholds = raw.get("thresholds")
-    if not isinstance(thresholds, dict):
-        sys.exit(f"constants invalid at {source}: missing thresholds map")
-    for key in ("stale_workout_hours", "stale_workout_days", "break_days",
-                "e1rm_warn_ratio", "duplicate_name_distance"):
-        val = thresholds.get(key)
-        if not isinstance(val, (int, float)) or isinstance(val, bool) or val <= 0:
-            sys.exit(f"constants invalid at {source}: thresholds.{key} must be positive")
-    for key in ("volume_window_weeks", "volume_bad_weeks", "ledger_retention_days", "default_new_slot_sets",
-                "adherence_drift_days"):
-        val = thresholds.get(key)
-        if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
-            sys.exit(f"constants invalid at {source}: thresholds.{key} must be a positive integer")
-    drop = thresholds.get("progression_drop_pct")
-    if not isinstance(drop, (int, float)) or isinstance(drop, bool) or drop >= 0:
-        sys.exit(f"constants invalid at {source}: thresholds.progression_drop_pct must be negative")
-    bands = raw.get("rep_bands")
-    if not isinstance(bands, list) or not bands:
-        sys.exit(f"constants invalid at {source}: missing rep_bands")
-    prev_max = -1
-    for band in bands:
-        if not isinstance(band, dict):
-            sys.exit(f"constants invalid at {source}: rep_bands entries must be objects")
-        max_reps, jump = band.get("max_reps"), band.get("jump_pct")
-        if max_reps is None and jump is None:
-            continue
-        if (not isinstance(max_reps, int) or isinstance(max_reps, bool) or max_reps <= prev_max
-                or not isinstance(jump, (int, float)) or jump <= 0):
-            sys.exit(f"constants invalid at {source}: rep_bands must order ascending max_reps with positive jump_pct")
-        prev_max = max_reps
+    """Validate a parsed constants candidate against ConstantsModel.
+
+    Exits loudly on any defect. Returns the raw mapping unchanged so
+    callers keep the exact file content (including forward-compatible
+    extras); use load_constants_model() for the typed representation.
+    """
+    try:
+        ConstantsModel.model_validate(raw)
+    except ValidationError as e:
+        first = e.errors()[0]
+        loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
+        sys.exit(f"constants invalid at {source}: {loc}: {first['msg']}")
     return raw
+
+
+def load_constants_model():
+    """Load constants.json as a validated ConstantsModel."""
+    try:
+        with open(CONSTANTS_FILE, 'r') as f:
+            raw = json.load(f)
+    except (OSError, ValueError) as e:
+        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
+    try:
+        return ConstantsModel.model_validate(raw)
+    except ValidationError as e:
+        first = e.errors()[0]
+        loc = ".".join(str(p) for p in first["loc"]) if first.get("loc") else "root"
+        sys.exit(f"constants invalid at {CONSTANTS_FILE}: {loc}: {first['msg']}")
 
 
 def load_constants():
