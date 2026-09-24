@@ -335,18 +335,6 @@
       </div>
     </div>
 
-    <h2>Program</h2>
-    <div class="cap" id="rotLine">
-      {#if !snap.program.days.length}
-        No program synced yet.
-      {:else}
-        Rotating {snap.program.rotation.join(' / ')}.
-        <a href={href.program()} id="progLink">Full split</a> ·
-        <a href={href.lifts()}>Movements</a> ·
-        <a href={href.muscles()}>Muscles</a>.
-      {/if}
-    </div>
-
     <h2>Forward</h2>
     <div class="card future futurebg">
       <div class="goalgrid" id="goalGrid">
