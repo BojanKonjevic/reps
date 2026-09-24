@@ -21,6 +21,7 @@
     "@playwright/test": "^1.63.0",
     "@types/d3-array": "^3.2.2",
     "@types/d3-scale": "^4.0.9",
+    "@types/node": "^22.20.4",
     "@typescript-eslint/eslint-plugin": "^8.70.1",
     "@typescript-eslint/parser": "^8.70.1",
     "eslint": "^8.56.0",

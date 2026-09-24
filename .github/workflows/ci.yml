@@ -37,6 +37,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install "pydantic>=2" "mcp>=2" "pytest>=8"
 
+      - name: Install ripgrep (ssot gates and section-7 verification require rg)
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Run pre-commit on all files
         uses: pre-commit/action@v3.0.1
 
