@@ -142,6 +142,26 @@ export function drawValueLabels(
   );
 }
 
+export function drawSingleLine(
+  g: CanvasRenderingContext2D,
+  W: number,
+  P: number,
+  padR: number,
+  y: number,
+  label: string
+) {
+  // The y-axis for one data point: a single gridline labeled with the value.
+  // The floating value label is dropped with it, so the two can never collide.
+  g.strokeStyle = theme.color('line');
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(P, y);
+  g.lineTo(W - padR, y);
+  g.stroke();
+  g.fillStyle = theme.color('ink-dim');
+  putText(g, W, label, 4, y + 4, 'left');
+}
+
 export function drawHoverLine(g: CanvasRenderingContext2D, H: number, P: number, x: number) {
   g.strokeStyle = theme.color('ink-dim');
   g.globalAlpha = 0.45;

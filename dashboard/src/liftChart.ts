@@ -3,6 +3,7 @@
 import {
   fit,
   putText,
+  drawSingleLine,
   drawYAxis,
   drawXAxisLabels,
   drawHoverLine,
@@ -10,8 +11,8 @@ import {
   drawHoverPoint,
   drawLine,
 } from './charts';
-import { linearScale, padDomain, timeScale, valueExtent } from './lib/scales';
-import { fmtV, niceTicks, parseDate } from './lib/format';
+import { centeredDomain, linearScale, padDomain, timeScale, valueExtent } from './lib/scales';
+import { fmtV, niceTicks, parseDate, type Ticks } from './lib/format';
 import { theme } from './lib/theme';
 import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
 
@@ -54,22 +55,29 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
   const ext = valueExtent(
     pts.map(p => p.ev).concat(futureEv !== undefined && futureEv !== null ? [futureEv] : [])
   ) || [0, 1];
-  const [plo, phi] = padDomain(ext, 0.25, 1);
-  let mn = plo,
-    mx = phi;
-  const t = niceTicks(mn, mx, 4);
-  mn = t.lo;
-  mx = t.hi;
-  const py = linearScale([mn, mx], [H - P, 18]);
-  drawYAxis(g, W, H, P, t);
-  drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
   const showFuture = futureEv !== undefined && futureEv !== null && pts.length > 0;
+  const single = pts.length === 1 && !showFuture;
+  let mn: number;
+  let mx: number;
+  let t: Ticks | null = null;
+  if (single) {
+    [mn, mx] = centeredDomain(pts[0].ev);
+  } else {
+    const [plo, phi] = padDomain(ext, 0.25, 1);
+    t = niceTicks(plo, phi, 4);
+    mn = t.lo;
+    mx = t.hi;
+  }
+  const py = linearScale([mn, mx], [H - P, 18]);
+  if (t) drawYAxis(g, W, H, P, t);
+  else drawSingleLine(g, W, P, L.padR, py(pts[0].ev), fmtV(pts[0].ev));
+  drawXAxisLabels(g, W, H, P, pts[0].date, single ? asOf : pts[pts.length - 1].date);
   const linePts = pts.map(p => ({ x: xOf(p.date), y: py(p.ev) }));
   g.fillStyle = theme.color('ink-dim');
   const fy0 = showFuture ? py(futureEv as number) : null;
-  if (fy0 === null || Math.abs(py(pts[0].ev) - fy0) > 18)
+  if (!single && (fy0 === null || Math.abs(py(pts[0].ev) - fy0) > 18))
     putText(g, W, fmtV(pts[0].ev) + ' start', linePts[0].x + 8, py(pts[0].ev) - 12, 'left');
-  if (!showFuture)
+  if (!single && !showFuture)
     putText(
       g,
       W,

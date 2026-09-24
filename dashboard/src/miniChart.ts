@@ -1,8 +1,8 @@
 // SSOT owner: mini-trend geometry. Consumers: TrendMini via plot() -> HitMap.
 
 import { max, min } from 'd3-array';
-import { fit, putText, drawYAxis } from './charts';
-import { linearScale } from './lib/scales';
+import { fit, putText, drawSingleLine, drawYAxis } from './charts';
+import { centeredDomain, linearScale } from './lib/scales';
 import { fmtV, fmtD, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
 import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
@@ -33,20 +33,30 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
     return hit;
   }
   const raw = pts.map(pi => vals[pi]!);
-  let mn = min(raw) ?? 0;
-  let mx = max(raw) ?? 1;
-  if (!(mx > mn)) mx = mn + 1;
-  const pad = (mx - mn) * 0.3 || 1;
-  mn = Math.max(0, mn - pad);
-  mx += pad;
-  const t = niceTicks(mn, mx, 2);
-  mn = t.lo;
-  mx = t.hi;
+  const single = pts.length === 1;
+  let mn: number;
+  let mx: number;
+  if (single) {
+    [mn, mx] = centeredDomain(raw[0]);
+  } else {
+    mn = min(raw) ?? 0;
+    mx = max(raw) ?? 1;
+    if (!(mx > mn)) mx = mn + 1;
+    const pad = (mx - mn) * 0.3 || 1;
+    mn = Math.max(0, mn - pad);
+    mx += pad;
+  }
+  const t = single ? null : niceTicks(mn, mx, 2);
+  if (t) {
+    mn = t.lo;
+    mx = t.hi;
+  }
   const n = vals.length;
   const px = linearScale([0, Math.max(1, n - 1)], [P, W - L.padR]);
   const xOf = (i: number) => (n <= 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - 15, 6]);
-  drawYAxis(g, W, H, P, t);
+  if (single) drawSingleLine(g, W, P, L.padR, py(raw[0]), fmtV(raw[0]));
+  else if (t) drawYAxis(g, W, H, P, t);
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';
@@ -65,8 +75,10 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
   });
   const li = pts[pts.length - 1];
   g.fillStyle = color;
-  if (li > n / 2) putText(g, W, fmtV(vals[li]!), xOf(li) - 8, py(vals[li]!) - 10, 'right');
-  else putText(g, W, fmtV(vals[li]!), xOf(li) + 8, py(vals[li]!) - 10, 'left');
+  if (!single) {
+    if (li > n / 2) putText(g, W, fmtV(vals[li]!), xOf(li) - 8, py(vals[li]!) - 10, 'right');
+    else putText(g, W, fmtV(vals[li]!), xOf(li) + 8, py(vals[li]!) - 10, 'left');
+  }
   if (hover >= 0 && hover < n && vals[hover] !== null) {
     const x = xOf(hover);
     g.strokeStyle = theme.color('ink-dim');

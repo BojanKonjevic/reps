@@ -29,6 +29,13 @@ export function padDomain([lo, hi]: Domain, frac = 0.25, minPad = 0): Domain {
   return [Math.max(0, lo - pad), hi + pad];
 }
 
+// Symmetric domain around a single value. Single-point charts center the
+// dot instead of implying a range that does not exist yet.
+export function centeredDomain(v: number, frac = 0.05, minPad = 1): Domain {
+  const pad = Math.max(minPad, Math.abs(v) * frac);
+  return [Math.max(0, v - pad), v + pad];
+}
+
 export function linearScale(domain: Domain, range: [number, number]) {
   return scaleLinear().domain(domain).range(range);
 }

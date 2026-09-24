@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { linearScale, maxExtent, padDomain, timeScale, valueExtent } from '../lib/scales';
+import {
+  centeredDomain,
+  linearScale,
+  maxExtent,
+  padDomain,
+  timeScale,
+  valueExtent,
+} from '../lib/scales';
 
 describe('valueExtent', () => {
   it('ignores nulls and returns the data min/max', () => {
@@ -46,5 +53,15 @@ describe('timeScale', () => {
     const px = timeScale(['2026-09-10', '2026-09-14'], [46, 800]);
     expect(px(new Date('2026-09-10T12:00:00'))).toBeCloseTo(46, 6);
     expect(px(new Date('2026-09-14T12:00:00'))).toBeCloseTo(800, 6);
+  });
+});
+
+describe('centeredDomain', () => {
+  it('centers one value with a 5% pad', () => {
+    expect(centeredDomain(100)).toEqual([95, 105]);
+  });
+  it('floors tiny values at a pad of 1 with a zero floor', () => {
+    expect(centeredDomain(20)).toEqual([19, 21]);
+    expect(centeredDomain(0)).toEqual([0, 1]);
   });
 });
