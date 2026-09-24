@@ -24,6 +24,25 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
+export function visibleStart(weeks: Array<Record<string, number>>, groups: string[]): number {
+  for (let i = 0; i < weeks.length; i += 1) {
+    const total = groups.reduce((a, k) => a + (weeks[i][k] || 0), 0);
+    if (total > 0) return i;
+  }
+  return Math.max(0, weeks.length - 1);
+}
+
+export function labelIndices(n: number, maxLabels = 4): number[] {
+  if (n <= 0) return [];
+  if (n <= maxLabels) return Array.from({ length: n }, (_, i) => i);
+  const step = Math.ceil(n / maxLabels);
+  const out: number[] = [];
+  for (let i = 0; i < n; i += step) out.push(i);
+  const last = n - 1;
+  if (out[out.length - 1] !== last && last - out[out.length - 1] >= step) out.push(last);
+  return out;
+}
+
 interface Layout {
   W: number;
   H: number;
@@ -34,7 +53,7 @@ interface Layout {
   bw: number;
 }
 
-function layout(W: number, H: number, model: StackedModel): Layout {
+function layout(W: number, H: number, model: StackedModel, start: number): Layout {
   const P = 46;
   const padR = 8;
   const totals = model.weeks.map(w => model.groups.reduce((a, k) => a + (w[k] || 0), 0));
@@ -46,7 +65,7 @@ function layout(W: number, H: number, model: StackedModel): Layout {
     padR,
     area: H - P - 42,
     mx,
-    bw: (W - P - padR) / Math.max(1, model.weeks.length),
+    bw: (W - P - padR) / Math.max(1, model.weeks.length - start),
   };
 }
 
@@ -64,7 +83,9 @@ export function plot(
   const P = 46;
   const hit = emptyHit();
   g.clearRect(0, 0, W, H);
-  const L = layout(W, H, model);
+  const start = visibleStart(weeks, groups);
+  const n = weeks.length - start;
+  const L = layout(W, H, model, start);
   const bw = L.bw;
   const t = niceTicks(0, L.mx, 3);
   g.font = theme.font(16, 600);
@@ -83,13 +104,16 @@ export function plot(
       putText(g, W, fmtTick(v, t.step), 4, y + 4, 'left');
     }
   }
+  const showLabel = new Set(labelIndices(n).map(k => k + start));
   weeks.forEach((w, i) => {
+    if (i < start) return;
+    const vi = i - start;
     let acc = 0;
     groups.forEach(gr => {
       const v = w[gr] || 0;
       acc += v;
       const h = (L.area * v) / L.mx;
-      const x = L.P + i * L.bw + 3;
+      const x = L.P + vi * L.bw + 3;
       const y = yOfWeek(L, acc);
       g.fillStyle = colors[gr] || theme.color('ink-faint');
       g.fillRect(x, y, bw - 6, h);
@@ -102,10 +126,8 @@ export function plot(
     const total = groups.reduce((a, k) => a + (w[k] || 0), 0);
     const top = yOfWeek(L, total);
     g.fillStyle = theme.color('ink-dim');
-    putText(g, W, String(total), P + i * bw + bw / 2, top - 10, 'center');
-    const step = Math.ceil(weeks.length / 4);
-    if (i === 0 || i === weeks.length - 1 || i % step === 0)
-      putText(g, W, labels[i], P + i * bw + bw / 2, H - 8, 'center');
+    putText(g, W, String(total), P + vi * bw + bw / 2, top - 10, 'center');
+    if (showLabel.has(i)) putText(g, W, labels[i], P + vi * bw + bw / 2, H - 8, 'center');
   });
   return hit;
 }
