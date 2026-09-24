@@ -5,10 +5,13 @@ from .autoreg import autoreg_block
 from .constants import load_constants
 from .db import conn, open_workout
 from .goals import goal_progress
-from .program import (active_deloads, compaction_due,
-                    parse_active_split_days, parse_movements, parse_rotation,
+from .program import (active_deloads, compaction_due, get_rotation,
+                    parse_active_split_days, parse_movements,
                     priority_needs_confirm, read_priorities, read_split,
-                    rules_with_confirm, volume_block)
+                    rules_with_confirm, volume_block, lift_muscles_csv)
+from .progression import latest as latest_progression
+from .sessions import last_done, staleness
+from .slots import next_slot, slot_of_session
 
 
 def get_plan(slot=None, verbose=False):
@@ -23,71 +26,38 @@ def get_plan(slot=None, verbose=False):
     rest_row = c.execute("SELECT * FROM workouts WHERE date = ? AND status = 'rest' ORDER BY id", (today_iso,)).fetchone()
     stale = None
     if w:
-        try:
-            age_days = (today - date.fromisoformat(w["date"])).days
-        except ValueError:
-            age_days = 0
-        last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1", (w["id"],)).fetchone()
-        last_created = last["created"] if last else None
-        gap_over = False
-        if last_created:
-            try:
-                gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds.stale_workout_hours * 3600
-            except ValueError:
-                gap_over = False
-        is_stale = w["date"] != today_iso or age_days >= thresholds.stale_workout_days or gap_over
-        stale = {"is_stale": is_stale, "age_days": age_days, "last_set_created": last_created}
-    last_done = c.execute(
-        "SELECT date FROM workouts WHERE status = 'done' "
-        "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = workouts.id) "
-        "ORDER BY date DESC, id DESC LIMIT 1").fetchone()
-    last_session = last_done["date"] if last_done else None
+        stale = staleness(dict(w), today)
+    last = last_done(c)
+    last_session = last["date"] if last else None
     gap_days = (today - date.fromisoformat(last_session)).days if last_session else None
     on_break = gap_days is not None and gap_days >= thresholds.break_days + 1
 
     days = parse_active_split_days(c)
-    rotation = parse_rotation(c)
+    rotation = get_rotation(c)
     slot_guess = {"day": None, "basis": "no history", "confidence": "low"}
     if slot:
         slot_guess = {"day": slot, "basis": "explicit slot", "confidence": "high"}
     else:
-        last_with_sets = c.execute(
-            "SELECT w.date, w.id FROM workouts w WHERE w.status = 'done' "
-            "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = w.id) "
-            "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
+        last_with_sets = last_done(c)
         if last_with_sets and days:
             trained = {r["exercise"] for r in c.execute(
                 "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (last_with_sets["id"],)).fetchall()}
-            best_score = 0
-            best_days = []
-            for day, moves in days.items():
-                score = len(trained & set(moves))
-                if score > best_score:
-                    best_score, best_days = score, [day]
-                elif score == best_score and score > 0:
-                    best_days.append(day)
-            if len(best_days) > 1:
-                slot_guess = {"day": None, "basis": f"last session matches {', '.join(best_days)} equally", "confidence": "low"}
+            match = slot_of_session(list(trained), days)
+            if match["day"] is None and match["candidates"]:
+                slot_guess = {"day": None,
+                              "basis": f"last session matches {', '.join(match['candidates'])} equally",
+                              "confidence": "low"}
                 best_day = None
             else:
-                best_day = best_days[0] if best_days else None
+                best_day = match["day"]
             if best_day and rotation:
-                try:
-                    idx = rotation.index(best_day)
-                except ValueError:
-                    idx = None
-                if idx is not None:
-                    skipped = []
-                    j = (idx + 1) % len(rotation)
-                    while rotation[j].lower() == "rest":
-                        skipped.append(rotation[j])
-                        j = (j + 1) % len(rotation)
-                    nxt = rotation[j]
-                    basis = f"last trained {best_day} ({last_with_sets['date']}), rotation {best_day}->{nxt}"
-                    if skipped:
-                        basis += " (rest day sits between)"
-                    slot_guess = {"day": nxt, "basis": basis,
-                                  "confidence": "high" if best_score == len(trained) else "medium"}
+                nxt = next_slot(best_day, rotation)
+                if nxt["day"] is not None:
+                    slot_guess = {"day": nxt["day"],
+                                  "basis": f"last trained {best_day} ({last_with_sets['date']}), "
+                                           f"rotation {best_day}->{nxt['day']}"
+                                           + (" (rest day sits between)" if "rest day" in nxt["basis"] else ""),
+                                  "confidence": "high" if match["score"] == len(trained) else "medium"}
             elif best_day:
                 slot_guess = {"day": None, "basis": f"last trained {best_day}, rotation unparseable", "confidence": "low"}
 
@@ -118,7 +88,7 @@ def get_plan(slot=None, verbose=False):
             SELECT w.date as day, COUNT(*) as sets
             FROM sets s
             JOIN workouts w ON w.id = s.workout_id
-            JOIN set_muscles sm ON sm.set_id = s.id
+            JOIN set_muscle sm ON sm.set_id = s.id
             WHERE sm.muscle = ? AND date(w.date) >= ?
             GROUP BY day ORDER BY day
         """, (muscle, cutoff)).fetchall()
@@ -128,7 +98,7 @@ def get_plan(slot=None, verbose=False):
     lifts = []
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         top = c.execute(
-            "SELECT weight, reps, CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
+            "SELECT weight, reps, e1rm(weight, reps) AS e1rm "
             "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)).fetchone()
         last = c.execute(
             "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id "
@@ -137,11 +107,9 @@ def get_plan(slot=None, verbose=False):
                       "best_e1rm": round(top["e1rm"], 1) if top else None,
                       "last": dict(last) if last else None})
 
-    progression = {r["exercise"]: {"verdict": r["verdict"], "next": r["next_target"],
+    progression = {r["exercise"]: {"verdict": r["verdict"], "next": f"{r['next_weight']:g}x{r['next_reps']}",
                                                 "direction": r["direction"], "workout_id": r["workout_id"]}
-                   for r in c.execute(
-                       "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
-                       "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
+                   for r in latest_progression(c).values()}
     priorities = read_priorities(c)
     deload = [dict(r) for r in active_deloads(c)]
     # Reading never consumes: consumption happens at `end` (flags touching the
@@ -160,10 +128,10 @@ def get_plan(slot=None, verbose=False):
                      "goal": None, "notes": [], "muscles": []}
             for m in moves:
                 entry["notes"].extend(n["note"] for n in c.execute(
-                    "SELECT note FROM movement_notes WHERE exercise = ? ORDER BY id", (m,)).fetchall())
-                mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (m,)).fetchone()
-                if mapping:
-                    entry["muscles"].extend(mu for mu in mapping["muscles"].split(",") if mu not in entry["muscles"])
+                    "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (m,)).fetchall())
+                csv = lift_muscles_csv(c, m)
+                if csv:
+                    entry["muscles"].extend(mu for mu in csv.split(",") if mu not in entry["muscles"])
             slots.append(entry)
         split_section = {"day": split_day, "slots": slots}
 
@@ -232,7 +200,7 @@ def get_plan(slot=None, verbose=False):
             lines.append(f"autoreg signals: {', '.join(parts)}")
         if adherence is not None and adherence["drift"]:
             lines.append(f"adherence drift: {adherence['drift_days']} non-done days, "
-                         f"consider rotation anchor <date> <day>")
+                         f"consider re-anchoring the rotation")
         if bundle["compaction"]["due"]:
             lines.append("compaction due")
         return {"bundle": bundle, "lines": lines}

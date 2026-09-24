@@ -1,0 +1,389 @@
+{
+  "$defs": {
+    "MuscleEntry": {
+      "additionalProperties": true,
+      "description": "Per-muscle dose landmarks. mav/mrv stay optional: some groups\n(e.g. forearms) have no trusted landmarks, plan falls back to mev.",
+      "properties": {
+        "mev": {
+          "minimum": 0,
+          "title": "Mev",
+          "type": "integer"
+        },
+        "mav": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mav"
+        },
+        "mrv": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mrv"
+        },
+        "freq": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Freq",
+          "type": "array"
+        },
+        "tier": {
+          "enum": [
+            "settled",
+            "contested",
+            "opinion"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "color": {
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mev",
+        "freq",
+        "tier",
+        "source",
+        "color"
+      ],
+      "title": "MuscleEntry",
+      "type": "object"
+    },
+    "RepBand": {
+      "additionalProperties": true,
+      "description": "One progression jump band. Both fields null is the open-ended\nterminator above the top band; otherwise max_reps ascends and\njump_pct is positive.",
+      "properties": {
+        "max_reps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Reps"
+        },
+        "jump_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Jump Pct"
+        }
+      },
+      "title": "RepBand",
+      "type": "object"
+    },
+    "Thresholds": {
+      "additionalProperties": true,
+      "description": "Numeric guardrails. Only the invariants the backend enforces are\nconstrained here; keys the code reads opaquely stay permissive.",
+      "properties": {
+        "stale_workout_hours": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Stale Workout Hours"
+        },
+        "stale_workout_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Stale Workout Days"
+        },
+        "break_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Break Days"
+        },
+        "e1rm_warn_ratio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "E1Rm Warn Ratio"
+        },
+        "duplicate_name_distance": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Duplicate Name Distance"
+        },
+        "volume_window_weeks": {
+          "exclusiveMinimum": 0,
+          "title": "Volume Window Weeks",
+          "type": "integer"
+        },
+        "volume_bad_weeks": {
+          "exclusiveMinimum": 0,
+          "title": "Volume Bad Weeks",
+          "type": "integer"
+        },
+        "ledger_retention_days": {
+          "exclusiveMinimum": 0,
+          "title": "Ledger Retention Days",
+          "type": "integer"
+        },
+        "default_new_slot_sets": {
+          "exclusiveMinimum": 0,
+          "title": "Default New Slot Sets",
+          "type": "integer"
+        },
+        "adherence_drift_days": {
+          "exclusiveMinimum": 0,
+          "title": "Adherence Drift Days",
+          "type": "integer"
+        },
+        "progression_drop_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "lt": 0,
+          "title": "Progression Drop Pct"
+        },
+        "deload_watch_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": -5,
+          "title": "Deload Watch Pct"
+        },
+        "goal_divergence_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 5,
+          "title": "Goal Divergence Pct"
+        },
+        "stall_window_sessions": {
+          "default": 3,
+          "title": "Stall Window Sessions",
+          "type": "integer"
+        },
+        "stall_decline_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "title": "Stall Decline Pct"
+        },
+        "stall_flat_sessions": {
+          "default": 6,
+          "title": "Stall Flat Sessions",
+          "type": "integer"
+        },
+        "stall_min_sessions": {
+          "default": 4,
+          "title": "Stall Min Sessions",
+          "type": "integer"
+        },
+        "bodyweight_gap_days": {
+          "default": 14,
+          "title": "Bodyweight Gap Days",
+          "type": "integer"
+        },
+        "bodyweight_avg_days": {
+          "default": 7,
+          "title": "Bodyweight Avg Days",
+          "type": "integer"
+        },
+        "recent_notes_count": {
+          "default": 6,
+          "title": "Recent Notes Count",
+          "type": "integer"
+        },
+        "trend_top_lifts": {
+          "default": 8,
+          "title": "Trend Top Lifts",
+          "type": "integer"
+        },
+        "deload_volume_reduction": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Deload Volume Reduction",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stale_workout_hours",
+        "stale_workout_days",
+        "break_days",
+        "e1rm_warn_ratio",
+        "duplicate_name_distance",
+        "volume_window_weeks",
+        "volume_bad_weeks",
+        "ledger_retention_days",
+        "default_new_slot_sets",
+        "adherence_drift_days",
+        "progression_drop_pct"
+      ],
+      "title": "Thresholds",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Canonical validated form of constants.json.",
+  "properties": {
+    "version": {
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "muscles": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MuscleEntry"
+      },
+      "minProperties": 1,
+      "title": "Muscles",
+      "type": "object"
+    },
+    "untracked": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Untracked",
+      "type": "array"
+    },
+    "rep_bands": {
+      "items": {
+        "$ref": "#/$defs/RepBand"
+      },
+      "minItems": 1,
+      "title": "Rep Bands",
+      "type": "array"
+    },
+    "thresholds": {
+      "$ref": "#/$defs/Thresholds"
+    },
+    "explained_keywords": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Explained Keywords",
+      "type": "array"
+    },
+    "rep_scheme_default": {
+      "items": {
+        "type": "integer"
+      },
+      "title": "Rep Scheme Default",
+      "type": "array"
+    }
+  },
+  "required": [
+    "muscles",
+    "rep_bands",
+    "thresholds"
+  ],
+  "title": "ConstantsModel",
+  "type": "object"
+}

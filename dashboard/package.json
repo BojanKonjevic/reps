@@ -8,11 +8,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "pnpm run build && wrangler deploy",
     "format": "prettier --write \"src/**/*.{ts,svelte,html,css,json}\"",
     "lint": "eslint \"src/**/*.{ts,svelte}\"",
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "format:check": "prettier --check \"src/**/*.{ts,svelte,html,css,json}\""
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",

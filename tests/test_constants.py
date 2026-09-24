@@ -32,17 +32,22 @@ def test_constants_thresholds_complete():
 
 
 def test_dashboard_derives_from_constants():
-    with open(CHARTS) as f:
-        text = f.read()
-    assert "constants.json" in text
-    assert "#ffa726" not in text, "MC literals must be derived, not hardcoded"
+    import subprocess
+    out = subprocess.run(["rg", "-l", "constants.json", "dashboard/src",
+                                  "--glob", "!**/__tests__/**", "--glob", "!**/fixtures/**",
+                                  "--glob", "!**/generated/**"],
+                         capture_output=True, text=True).stdout.strip()
+    assert out == "", f"dashboard reads constants via snapshot only, found: {out}"
 
 
-def test_dashboard_volume_test_derives_blank():
-    with open(VOLUME_TEST) as f:
-        text = f.read()
-    assert "GROUPS" in text
-    assert "forearms: 0" not in text, "blank() must derive from GROUPS, not a literal"
+def test_generated_snapshot_types_are_the_only_ones():
+    import subprocess
+    out = subprocess.run(["rg", "-n", "(interface Snap\\w*|type Snap\\w*\\s*=)",
+                                      "dashboard/src", "--glob", "!**/generated/**",
+                                      "--glob", "!**/__tests__/**"],
+                         capture_output=True, text=True).stdout.strip()
+    lines = [ln for ln in out.splitlines() if "import " not in ln]
+    assert lines == [], f"hand-written snapshot types found: {lines}"
 
 
 def test_science_has_no_numeric_tables():

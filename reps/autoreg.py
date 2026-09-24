@@ -5,9 +5,10 @@ from .errors import RepsError
 from .constants import load_constants
 from .db import conn
 from .progression import top_e1rm_by_date
-from .program import (mev_floor_warnings, muscles_for_movements,
+from .program import (lift_muscles_csv, mev_floor_warnings, muscles_for_movements,
                       parse_movements, programmed_weekly_volume,
                       read_split, rule_status_rows, split_day_order)
+from .trends import is_slipping
 
 
 def autoreg_permitted(c):
@@ -45,33 +46,30 @@ def autoreg_drop_watch(c):
     """Exercises whose last 3 top-set e1RMs show two consecutive drops at deload_watch_pct size.
 
     Deload sessions are filtered out first (they deliberately deviate).
-    Deterministic reuse of top_e1rm_by_date, same shape as the Session report watch.
+    One implementation, owned by reps/trends.py; this stays a thin caller.
     """
-    threshold = load_constants().thresholds.deload_watch_pct
+    t = load_constants().thresholds.model_dump()
     out = []
     for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall():
         ex = r["exercise"]
-        clean = [(day, e) for day, e, notes, _ in top_e1rm_by_date(c, ex)
+        clean = [e for day, e, notes, _ in top_e1rm_by_date(c, ex)
                  if "deload" not in (notes or "").lower()]
         if len(clean) < 3:
             continue
-        (_, e1), (_, e2), (_, e3) = clean[-3:]
-        if e1 <= 0 or e2 <= 0:
-            continue
-        p1, p2 = (e2 - e1) / e1 * 100, (e3 - e2) / e2 * 100
-        if p1 <= threshold and p2 <= threshold:
-            out.append({"exercise": ex, "drops_pct": [round(p1, 1), round(p2, 1)]})
+        hit = is_slipping(clean[-3:], t)
+        if hit:
+            out.append({"exercise": ex, "drops_pct": hit["drops_pct"]})
     return sorted(out, key=lambda e: e["exercise"])
 
 
 def autoreg_grouped(c, flagged):
-    """Flagged lifts sharing a muscle with 2+ members each, via the mapping table."""
+    """Flagged lifts sharing a muscle with 2+ members each, via lift_muscle."""
     groups: dict = {}
     for ex in flagged:
-        mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (ex,)).fetchone()
-        if not mapping:
+        csv = lift_muscles_csv(c, ex)
+        if not csv:
             continue
-        for mu in mapping["muscles"].split(","):
+        for mu in csv.split(","):  # sanctioned: validated read-model split
             groups.setdefault(mu, set()).add(ex)
     return {mu: sorted(members) for mu, members in sorted(groups.items()) if len(members) >= 2}
 
@@ -126,8 +124,8 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
     if not (evidence or "").strip():
         raise RepsError("evidence is required")
     for move in parse_movements(to_movements):
-        if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
-            raise RepsError(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
+        if lift_muscles_csv(c, move) is None:
+            raise RepsError(f"'{move}' is not a known lift, split unchanged")
     held = c.execute("SELECT * FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                      (day, cur["movements"], today)).fetchone()
     if held:
@@ -147,9 +145,12 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
         action = "trim"
     else:
         action = "add"
-    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?) "
-              "ON CONFLICT (variant, day, slot) DO UPDATE SET movements = excluded.movements, sets = excluded.sets",
-              (day, slot, to_movements, to_sets))
+    from .program import _write_slot
+    try:
+        _write_slot(c, "active", day, slot, parse_movements(to_movements), to_sets)
+    except Exception as e:
+        c.rollback()
+        raise RepsError(f"split write refused: {e}")
     hold_until = None
     if action in ("trim", "swap"):
         hold_until = (date.today() + timedelta(days=8)).isoformat()
@@ -191,9 +192,9 @@ def revert_autoreg_change(change_id):
     if (cur is None or parse_movements(cur["movements"]) != parse_movements(row["after_movements"])
             or cur["sets"] != row["after_sets"]):
         raise RepsError(f"slot {row['slot']} on '{row['day']}' no longer matches the recorded after-state, reconcile manually")
-    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?) "
-              "ON CONFLICT (variant, day, slot) DO UPDATE SET movements = excluded.movements, sets = excluded.sets",
-              (row["day"], row["slot"], row["before_movements"], row["before_sets"]))
+    from .program import _write_slot as _restore_slot
+    _restore_slot(c, "active", row["day"], row["slot"],
+                  parse_movements(row["before_movements"]), row["before_sets"])
     c.execute("UPDATE autoreg_changes SET reverted_on = ? WHERE id = ?", (today, change_id))
     cleared = c.execute("DELETE FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                         (row["day"], row["after_movements"], today)).rowcount

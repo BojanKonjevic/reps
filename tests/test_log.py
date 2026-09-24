@@ -152,8 +152,9 @@ def test_range_returns_correct_date_bounds(log_module):
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', ?)", (d, note))
         c.commit()
         wid = cur.lastrowid
+        from conftest import seed_lift as _seed
+        _seed(c, "bench", "chest")
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
     data = log_module.get_session_range(d1, d2)
     assert data["from"] == d1
@@ -173,7 +174,7 @@ def test_map_set_retags_everywhere(log_module):
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     log_module.set_exercise_mapping("bench", " chest , back , CHEST ")
-    updated = c.execute("SELECT muscle FROM set_muscles WHERE set_id = ? ORDER BY muscle", (set_id,)).fetchall()
+    updated = c.execute("SELECT muscle FROM set_muscle WHERE set_id = ? ORDER BY muscle", (set_id,)).fetchall()
     assert [r["muscle"] for r in updated] == ["back", "chest"]
 
 
@@ -185,9 +186,7 @@ def test_update_exercise_normalizes_case(log_module):
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     # Add mapping for target exercise first
-    c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-              ("incline bench", "chest,triceps", 0))
-    c.commit()
+    log_module.set_exercise_mapping("incline bench", "chest,triceps")
     log_module.update_set(set_id, "exercise", "Incline Bench")
     updated = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
     assert updated["exercise"] == "incline bench"
@@ -220,7 +219,7 @@ def test_retag_updates_all_matching_exercises(log_module):
     data = log_module.set_exercise_mapping("bench", "chest,triceps")
     assert data["updated"] == 2
     for r in c.execute("SELECT id FROM sets").fetchall():
-        muscles = sorted(x["muscle"] for x in c.execute("SELECT muscle FROM set_muscles WHERE set_id = ?", (r["id"],)).fetchall())
+        muscles = sorted(x["muscle"] for x in c.execute("SELECT muscle FROM set_muscle WHERE set_id = ?", (r["id"],)).fetchall())
         assert muscles == ["chest", "triceps"]
 
 
@@ -278,7 +277,7 @@ def test_end_closes_workout(log_module):
     log_module.start_workout("initial note")
     log_module.log_set("bench", 100, 5, "", "chest")
     log_module.set_split("Test", 1, "bench", 2)
-    log_module.set_progression("bench", "baseline", "80x5", "flat")
+    log_module.set_progression("bench", "baseline", 80, 5, "flat")
     data = log_module.end_workout("final note")
     assert "closed" in data
     w = c.execute("SELECT * FROM workouts WHERE id = ?", (data["closed"],)).fetchone()
@@ -329,11 +328,10 @@ def test_export_shape(log_module):
     log_module.record_bodyweight("84.0", "")
     data = log_module.export_snapshot()
     assert "exported" in data
-    assert "workouts" in data
-    assert "sets" in data
+    assert "sessions" in data
+    assert "lifts" in data
     assert "bodyweight" in data
-    assert len(data["workouts"]) >= 1
-    assert len(data["sets"]) >= 1
+    assert len(data["sessions"]) >= 1
     assert len(data["bodyweight"]) >= 1
 
 
@@ -374,7 +372,7 @@ def test_log_bw_flag_bootstraps_bodyweight_exercise(log_module):
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("pullup", 0, 8, "", "back,biceps", True)
-    mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = 'pullup'").fetchone()
+    mapping = c.execute("SELECT is_bodyweight_only FROM lift WHERE exercise = 'pullup'").fetchone()
     assert mapping["is_bodyweight_only"] == 1
 
 
@@ -404,7 +402,7 @@ def test_log_rejects_negative_weight_and_bad_reps(log_module):
 
 
 def test_rename_moves_muscle_mapping(log_module):
-    """rename moves the lift_muscle_map entry so the new name stays mapped."""
+    """rename moves the lift entry so the new name stays mapped."""
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
@@ -412,9 +410,9 @@ def test_rename_moves_muscle_mapping(log_module):
     data = log_module.rename_exercise("bench", "flat bench")
     assert data["renamed"] == 1
     assert data["map_moved"] is True
-    assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 0
-    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'flat bench'").fetchone()
-    assert row["muscles"] == "chest"
+    assert c.execute("SELECT COUNT(*) n FROM lift WHERE exercise = 'bench'").fetchone()["n"] == 0
+    row = c.execute("SELECT muscle FROM lift_muscle WHERE exercise = 'flat bench'").fetchone()
+    assert row["muscle"] == "chest"
 
 
 def test_stats_single_e1rm_is_weight(log_module):

@@ -1,0 +1,4 @@
+# Generated files are owned by scripts/gen.py, not prettier.
+src/generated/
+src/__tests__/fixtures/
+e2e/fixtures/

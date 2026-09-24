@@ -1,18 +1,16 @@
-import json
 import os
 import re
-from datetime import date, timedelta
+from datetime import date
 
 from .errors import RepsError
 
 from . import db
 from .adherence import parse_anchor
 from .constants import load_constants
-from .db import ROOT, SCHEMA, conn
+from .db import SCHEMA, conn
 from .goals import goal_progress
 from .muscles import _levenshtein
-from .program import (count_bad_weeks, day_movements, read_priorities,
-                      split_day_order)
+from .program import (count_bad_weeks, get_rotation, read_priorities)
 
 
 def run_audit():
@@ -34,7 +32,7 @@ def run_audit():
     # Jumps explained by set/workout notes are skipped.
     sets = c.execute("""
         SELECT s.id, s.exercise, s.weight, s.reps, w.date, s.note AS set_note, w.notes AS workout_notes,
-               CASE WHEN s.reps = 1 THEN s.weight ELSE s.weight * (1 + s.reps / 30.0) END as e1rm
+               e1rm(s.weight, s.reps) as e1rm
         FROM sets s JOIN workouts w ON w.id = s.workout_id
         WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
     """).fetchall()
@@ -48,7 +46,6 @@ def run_audit():
     thresholds = constants.thresholds
     drop_pct = thresholds.progression_drop_pct
     dup_dist = thresholds.duplicate_name_distance
-    stale_hours = thresholds.stale_workout_hours
     vol_weeks = thresholds.volume_window_weeks
     vol_bad = thresholds.volume_bad_weeks
 
@@ -93,15 +90,13 @@ def run_audit():
         if _levenshtein(a, b) <= dup_dist:
             flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= {dup_dist})", "fix": "muscle_rename the duplicate into the canonical name"})
 
-    # Check 7: Stale open workouts
-    stale = c.execute("""
-        SELECT w.id, w.date FROM workouts w
-        WHERE w.status = 'open'
-          AND (date(w.date) < date('now') OR
-               (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', ?))
-    """, (f"-{stale_hours} hours",)).fetchall()
-    for s in stale:
-        flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "session_end with note, or delete the workout if empty"})
+    # Check 7: Stale open workouts (one staleness definition, owned by sessions).
+    from .sessions import staleness as _staleness
+    for w in c.execute("SELECT * FROM workouts WHERE status = 'open'").fetchall():
+        if _staleness(dict(w))["is_stale"]:
+            flags.append({"check": "stale_workout", "severity": "high",
+                          "evidence": f"workout {w['id']} from {w['date']} still open",
+                          "fix": "session_end with note, or delete the workout if empty"})
 
     # Check 5: Goal trajectory divergence (deterministic).
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
@@ -127,26 +122,14 @@ def run_audit():
     # Every week in the window counts: weeks with no logged sets are 0, not
     # absent. Zero and low volume are separate flags; bad weeks are counted
     # across the whole window, a good week in between does not reset anything.
-    today = date.today()
-    week_starts = [today - timedelta(days=today.weekday() + 7 * i) for i in range(vol_weeks - 1, -1, -1)]
-    base = week_starts[0].isoformat()
+    # Bucketing is owned by reps/weeks.py; per-muscle counts by weekly_volume.
+    from .program import weekly_volume as _weekly_volume
+    from .weeks import week_starts as _week_starts
+    starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
     mev_bounds = {m: e.mev for m, e in constants.muscles.items()}
     priorities = read_priorities(c)
     for muscle, mev in mev_bounds.items():
-        rows = c.execute("""
-            SELECT date(w.date) as day, COUNT(*) as sets
-            FROM sets s
-            JOIN workouts w ON w.id = s.workout_id
-            JOIN set_muscles sm ON sm.set_id = s.id
-            WHERE sm.muscle = ? AND date(w.date) >= ?
-            GROUP BY day
-        """, (muscle, base)).fetchall()
-        per_day = {r["day"]: r["sets"] for r in rows}
-        weekly = []
-        for ws in week_starts:
-            we = ws + timedelta(days=7)
-            total = sum(n for d, n in per_day.items() if ws.isoformat() <= d < we.isoformat())
-            weekly.append(total)
+        weekly = _weekly_volume(c, muscle, starts)
         counts = "[" + ", ".join(str(n) for n in weekly) + "]"
         zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
         # A muscle explicitly marked deprioritize is intentionally held back:
@@ -172,61 +155,31 @@ def run_audit():
 
 
 def run_doctor():
-    """Structural check: constants, DB, and dashboard agree. Non-correlated."""
+    """Structural check: constants, DB, and dashboard agree. Non-correlated.
+
+    Referential checks deleted here are subsumed by FKs (each has a test that
+    attempts the violation and expects a Refusal): sets/lift mapping,
+    split/lift mapping, progression/workout linkage, rotation/split linkage.
+    """
     problems = []
     try:
         constants = load_constants()
     except RepsError as e:
         raise RepsError(f"constants_parse: {e}")
-    root = ROOT
-    charts = os.path.join(root, "dashboard", "src", "charts.ts")
-    try:
-        with open(charts) as f:
-            charts_text = f.read()
-        if "constants.json" not in charts_text:
-            problems.append({"check": "dashboard_palette",
-                             "fix": "dashboard/src/charts.ts must derive MC/GROUPS from ../../constants.json"})
-    except OSError:
-        problems.append({"check": "dashboard_palette", "fix": f"{charts} unreadable"})
     c = conn()
-    for check, exercises in (
-            ("sets_mapping", [r["exercise"] for r in c.execute(
-                "SELECT DISTINCT exercise FROM sets WHERE exercise NOT IN (SELECT exercise FROM lift_muscle_map)").fetchall()]),
-            ("split_mapping", sorted({m for d in split_day_order("active", c=c) for m in day_movements(d, c=c)
-                                      if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?",
-                                                       (m,)).fetchone()}))):
-        for ex in exercises:
-            problems.append({"check": check, "fix": f"muscle_map_set for \"{ex}\""})
     known_muscles = set(constants.muscles) | set(constants.untracked)
-    stray = [r["muscle"] for r in c.execute("SELECT DISTINCT muscle FROM set_muscles").fetchall()
+    stray = [r["muscle"] for r in c.execute("SELECT DISTINCT muscle FROM lift_muscle").fetchall()
              if r["muscle"] not in known_muscles]
     for muscle in stray:
         problems.append({"check": "muscle_coverage",
                          "fix": f"logged muscle '{muscle}' is neither tracked nor untracked in constants.json"})
-    rotation_row = c.execute("SELECT value FROM meta WHERE key = 'rotation'").fetchone()
-    try:
-        rotation = json.loads(rotation_row["value"]) if rotation_row else None
-    except ValueError:
-        rotation = None
-    if not isinstance(rotation, list) or not rotation or not all(isinstance(d, str) for d in rotation):
-        problems.append({"check": "rotation",
-                         "fix": "meta.rotation must be a non-empty JSON array of day names"})
-    else:
-        split_days = {r["day"].lower() for r in c.execute("SELECT DISTINCT day FROM splits").fetchall()}
-        for day in rotation:
-            if day.lower() != "rest" and day.lower() not in split_days:
-                problems.append({"check": "rotation",
-                                 "fix": f"rotation day '{day}' matches no splits.day value"})
-    anchor_row = c.execute("SELECT value FROM meta WHERE key = 'rotation_anchor'").fetchone()
+    rotation = get_rotation(c)
+    anchor_row = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
     if anchor_row is not None:
-        _, problem = parse_anchor(anchor_row["value"], rotation)
+        _, problem = parse_anchor({"date": anchor_row["anchor_date"], "index": anchor_row["position"]},
+                                  rotation)
         if problem:
             problems.append({"check": "rotation_anchor", "fix": problem})
-    orphan_prog = c.execute(
-        "SELECT workout_id, exercise FROM progression WHERE workout_id NOT IN (SELECT id FROM workouts)").fetchall()
-    for r in orphan_prog:
-        problems.append({"check": "progression_workout",
-                         "fix": f"progression for '{r['exercise']}' points at missing workout {r['workout_id']}"})
     expected = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", SCHEMA))
     live = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     if live != expected:

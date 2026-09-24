@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { pieChart, pieHit, piePalette, type PieSlice } from '../pieChart';
+  import { plot, pieHitFromPoint, piePalette, type PieSlice } from '../pieChart';
   import { bindHover, hideTip, showTip } from '../tip';
   import { canvasShell, isVisible } from '../lib/canvas';
 
@@ -14,7 +14,7 @@
   let cv: HTMLCanvasElement;
 
   function paint(hover = -1) {
-    if (isVisible(cv)) pieChart(cv, slices, hover);
+    if (isVisible(cv)) plot(cv, slices, hover);
   }
 
   function show(cx: number, cy: number) {
@@ -23,7 +23,7 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const bi = pieHit(cv, slices, cx - r.left, cy - r.top);
+    const bi = pieHitFromPoint(r.width, r.height, slices, cx - r.left, cy - r.top);
     if (bi < 0) {
       hideTip();
       paint();
@@ -45,7 +45,7 @@
 
   function click(ev: MouseEvent) {
     const r = cv.getBoundingClientRect();
-    const bi = pieHit(cv, slices, ev.clientX - r.left, ev.clientY - r.top);
+    const bi = pieHitFromPoint(r.width, r.height, slices, ev.clientX - r.left, ev.clientY - r.top);
     const link = bi >= 0 ? slices[bi].link : null;
     if (link) location.hash = link;
   }

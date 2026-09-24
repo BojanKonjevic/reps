@@ -76,8 +76,8 @@ def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
     exercise = (exercise or "").strip().lower()
     if not exercise:
         raise RepsError("goal exercise is required")
-    if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone():
-        raise RepsError(f"'{exercise}' has no mapping (run muscle_map_set first)")
+    if not c.execute("SELECT exercise FROM lift WHERE exercise = ?", (exercise,)).fetchone():
+        raise RepsError(f"'{exercise}' is not a known lift")
     try:
         target_e1rm = float(target_e1rm)
     except (TypeError, ValueError):
@@ -92,7 +92,7 @@ def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
         raise RepsError("deadline must be in the future")
     if start_e1rm is None:
         top = c.execute(
-            "SELECT CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
+            "SELECT e1rm(weight, reps) AS e1rm "
             "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (exercise,)).fetchone()
         if not top:
             raise RepsError(f"no logged sets for '{exercise}', pass start_e1rm to seed the trajectory")

@@ -30,11 +30,14 @@ def test_maintenance_ops_emit_json(log_module, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("reps.db.DB", fresh)
     c = sqlite3.connect(fresh)
     c.executescript(log_module.SCHEMA)
-    c.execute("INSERT INTO meta (key, value) VALUES ('rotation', '[\"Test\"]')")
-    c.execute(
-        "INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', 'Test', 1, 'bench', 2)")
-    c.execute(
-        "INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES ('bench', 'chest', 0)")
+    c.execute("INSERT INTO schema_version (version) VALUES (2)")
+    c.execute("INSERT INTO lift (exercise, is_bodyweight_only) VALUES ('bench', 0)")
+    c.execute("INSERT INTO lift_muscle (exercise, muscle) VALUES ('bench', 'chest')")
+    c.execute("INSERT INTO split_day (name) VALUES ('Test')")
+    c.execute("INSERT INTO split_slot (variant, day, slot, sets) VALUES ('active', 'Test', 1, 2)")
+    c.execute("INSERT INTO split_slot_lift (slot_id, position, exercise) "
+              "VALUES ((SELECT id FROM split_slot WHERE variant = 'active' AND day = 'Test' AND slot = 1), 0, 'bench')")
+    c.execute("INSERT INTO rotation (position, day) VALUES (0, 'Test')")
     c.commit()
     c.close()
     run(["doctor"])
@@ -42,7 +45,7 @@ def test_maintenance_ops_emit_json(log_module, tmp_path, monkeypatch, capsys):
     run(["dump"])
     assert "dumped" in json.loads(capsys.readouterr().out)
     run(["export"])
-    assert "workouts" in json.loads(capsys.readouterr().out)
+    assert "sessions" in json.loads(capsys.readouterr().out)
 
 
 def test_maintenance_rejects_unknown_ops(capsys):

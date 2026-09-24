@@ -1,5 +1,10 @@
-import { fmtV, fmtD, fmtTick } from './utils';
-import constants from '../../constants.json';
+// SSOT owner: canvas primitives and liftColor hashing. Consumers: every chart.
+// Muscle colors come from snapshot constants via lib/vocab (never here);
+// lift identity maps to color in liftColor only (presentation-only, no domain meaning).
+
+import { fmtV, fmtD, fmtTick } from './lib/format';
+import { icons } from './design/icons';
+import { theme } from './lib/theme';
 
 export const LC: string[] = (() => {
   const arr: string[] = [];
@@ -21,16 +26,6 @@ export function liftColor(name: string): string {
   }
   return LC[(h >>> 0) % LC.length];
 }
-
-export const TC = '#cfc9bc';
-export const GC = '#3a3733';
-export const STARC = '#e6c400';
-export const MC: Record<string, string> = Object.fromEntries(
-  Object.entries((constants as { muscles: Record<string, { color: string }> }).muscles).map(
-    ([muscle, entry]) => [muscle, entry.color]
-  )
-);
-export const GROUPS = Object.keys((constants as { muscles: Record<string, unknown> }).muscles);
 
 export interface ChartContext {
   g: CanvasRenderingContext2D;
@@ -72,35 +67,18 @@ export function trophy(
   r: number,
   color: string
 ) {
+  // Same path data as <Icon name="trophy">, drawn via Path2D on canvas.
   const s = r / 8;
   g.save();
-  g.translate(x, y);
+  g.translate(x - 8 * s, y - 8 * s);
   g.scale(s, s);
-  g.fillStyle = color;
+  const path = new Path2D(icons.trophy);
   g.strokeStyle = color;
+  g.fillStyle = color;
   g.lineWidth = 1.4;
   g.lineCap = 'round';
-  g.beginPath();
-  g.moveTo(-3, -6.5);
-  g.lineTo(3, -6.5);
-  g.lineTo(3, -2.3);
-  g.arc(0, -2.3, 3, 0, Math.PI, false);
-  g.closePath();
-  g.fill();
-  g.beginPath();
-  g.arc(-3.6, -4.2, 1.8, Math.PI * 0.4, Math.PI * 1.4, true);
-  g.stroke();
-  g.beginPath();
-  g.arc(3.6, -4.2, 1.8, Math.PI * 1.6, Math.PI * 0.6, true);
-  g.stroke();
-  g.beginPath();
-  g.moveTo(0, 0.7);
-  g.lineTo(0, 2.8);
-  g.moveTo(-1.8, 4.8);
-  g.lineTo(1.8, 4.8);
-  g.moveTo(-2.6, 6.5);
-  g.lineTo(2.6, 6.5);
-  g.stroke();
+  g.lineJoin = 'round';
+  g.stroke(path);
   g.restore();
 }
 
@@ -110,9 +88,10 @@ export function drawYAxis(
   H: number,
   P: number,
   t: { lo: number; hi: number; step: number },
-  color = GC
+  color = theme.color('line')
 ) {
   const nt = Math.round((t.hi - t.lo) / t.step);
+  const TC = theme.color('ink-dim');
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
     const y = H - P - ((H - P - 18) * i) / nt;
@@ -137,7 +116,7 @@ export function drawXAxisLabels(
   firstDate: string,
   lastDate: string
 ) {
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   putText(g, W, fmtD(firstDate), P, H - 8, 'left');
   putText(g, W, fmtD(lastDate), W - 8, H - 8, 'right');
 }
@@ -151,7 +130,7 @@ export function drawValueLabels(
   lastVal: number,
   lastIsPR: boolean
 ) {
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   putText(g, W, fmtV(firstVal) + ' start', P + 4, py(firstVal) - 12, 'left');
   putText(
     g,
@@ -164,7 +143,7 @@ export function drawValueLabels(
 }
 
 export function drawHoverLine(g: CanvasRenderingContext2D, H: number, P: number, x: number) {
-  g.strokeStyle = TC;
+  g.strokeStyle = theme.color('ink-dim');
   g.globalAlpha = 0.45;
   g.lineWidth = 1;
   g.beginPath();
@@ -182,7 +161,7 @@ export function drawPoint(
   color: string,
   isPR: boolean
 ) {
-  if (isPR) trophy(g, x, y - 14, r, STARC);
+  if (isPR) trophy(g, x, y - 14, r, theme.color('warn'));
   else {
     g.fillStyle = color;
     g.beginPath();
@@ -199,7 +178,7 @@ export function drawHoverPoint(
   color: string,
   isPR: boolean
 ) {
-  if (isPR) trophy(g, x, y - 14, r + 3, STARC);
+  if (isPR) trophy(g, x, y - 14, r + 3, theme.color('warn'));
   else {
     g.fillStyle = color;
     g.beginPath();

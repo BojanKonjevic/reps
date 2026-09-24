@@ -32,7 +32,7 @@ def test_split_show_and_set(log_module):
 
 def test_split_set_rejects_unmapped(log_module):
     log = log_module
-    with pytest.raises(RepsError, match="no mapping"):
+    with pytest.raises(RepsError, match="not a known lift"):
         log.set_split("Upper A", 1, "mystery press", 3)
 
 
@@ -60,8 +60,7 @@ def test_split_diff_and_revert(log_module):
     _seeded(log)
     c = log.conn()
     for r in log.read_split("active"):
-        c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('baseline', ?, ?, ?, ?)",
-                  (r["day"], r["slot"], r["movements"], r["sets"]))
+        log.set_split(r["day"], r["slot"], r["movements"], r["sets"], variant="baseline")
     c.commit()
     log.set_split("Upper A", 1, "bench", 5)
     diff = log.diff_split()
@@ -99,7 +98,7 @@ def test_gate_blocks_unreconciled(log_module):
     _seeded(log)
     log.log_set("fly", 20, 10, "", "chest")
     for ex in ("bench", "row", "fly"):
-        log.set_progression(ex, "hold", "80x5", "flat")
+        log.set_progression(ex, "hold", 80, 5, "flat")
     try:
         log.end_workout("done")
         assert False, "should have refused"
@@ -114,7 +113,7 @@ def test_plan_split_section(log_module):
     log = log_module
     _seeded(log)
     log.set_movement_note("bench", "paused reps")
-    log.set_progression("bench", "hit", "102.5x5", "up")
+    log.set_progression("bench", "hit", 102.5, 5, "up")
     split = log.get_plan("Upper A", False)["split"]
     assert split["day"] == "Upper A"
     bench = split["slots"][0]

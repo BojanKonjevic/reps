@@ -1,23 +1,36 @@
-import { max, min } from 'd3-array';
-import { fit, putText, LC, TC, drawYAxis } from './charts';
-import { linearScale } from './lib/scales';
-import { fmtD } from './utils';
-import { niceTicks } from './utils';
-import { timeRolling } from './utils';
+// SSOT owner: bodyweight geometry. Consumers: BodyweightChart via plot() -> HitMap.
+// Averages and gap flags arrive in the model from the snapshot (Python owns
+// the 7-day window and the gap threshold); this module only draws them.
 
-export function bwline(
-  cv: HTMLCanvasElement,
-  rows: Array<{ date: string; kg: number }>,
-  hover?: number
-) {
+import { max, min } from 'd3-array';
+import { fit, putText, LC, drawYAxis } from './charts';
+import { linearScale } from './lib/scales';
+import { fmtD, niceTicks } from './lib/format';
+import { theme } from './lib/theme';
+import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+
+export interface BwRow {
+  date: string;
+  kg: number;
+  avg7: number | null;
+  gap: boolean;
+}
+
+export function layoutOf(w: number, h: number): ChartLayout {
+  return baseLayout(w, h, 'full');
+}
+
+export function plot(cv: HTMLCanvasElement, rows: BwRow[], hover = -1): HitMap {
   const { g, W, H } = fit(cv);
-  const P = 46;
+  const L = layoutOf(W, H);
+  const P = L.padL;
+  const hit = emptyHit();
   if (!rows.length) {
     g.clearRect(0, 0, W, H);
-    g.fillStyle = TC;
-    g.font = "600 19px 'IBM Plex Sans', sans-serif";
+    g.fillStyle = theme.color('ink-dim');
+    g.font = theme.font(19, 600);
     g.fillText('no weigh ins yet, say your gym weight in chat', P, H / 2);
-    return;
+    return hit;
   }
   const vals = rows.map(r => r.kg);
   let mn = min(vals) ?? 0,
@@ -29,19 +42,15 @@ export function bwline(
   mn = t.lo;
   mx = t.hi;
   g.clearRect(0, 0, W, H);
-  g.font = "600 16px 'IBM Plex Sans', sans-serif";
+  g.font = theme.font(16, 600);
   drawYAxis(g, W, H, P, t);
-  const px = linearScale([0, Math.max(1, rows.length - 1)], [P, W - 8]);
-  const xOf = (i: number) => (rows.length === 1 ? W - 8 : px(i));
+  const px = linearScale([0, Math.max(1, rows.length - 1)], [P, W - L.padR]);
+  const xOf = (i: number) => (rows.length === 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - P, 16]);
   g.strokeStyle = LC[0];
   g.lineWidth = 3;
   g.lineJoin = 'round';
-  const gapDays = (a: string, b: string) =>
-    Math.round(
-      (new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000
-    );
-  const isGap = (i: number) => i > 0 && gapDays(rows[i - 1].date, rows[i].date) > 14;
+  const isGap = (i: number) => i > 0 && rows[i].gap;
   g.beginPath();
   rows.forEach((r, i) => {
     if (i === 0 || isGap(i)) g.moveTo(xOf(i), py(r.kg));
@@ -61,13 +70,13 @@ export function bwline(
   });
   g.stroke();
   g.restore();
-  const roll = timeRolling(rows, 7);
-  g.strokeStyle = '#8a8478';
+  g.strokeStyle = theme.color('ink-faint');
   g.lineWidth = 1.5;
   g.beginPath();
-  roll.forEach((v, i) => {
+  rows.forEach((r, i) => {
+    const v = r.avg7;
     if (v === null) return;
-    if (i === 0 || roll[i - 1] === null) g.moveTo(xOf(i), py(v));
+    if (i === 0 || rows[i - 1].avg7 === null) g.moveTo(xOf(i), py(v));
     else g.lineTo(xOf(i), py(v));
   });
   g.stroke();
@@ -77,19 +86,20 @@ export function bwline(
     g.beginPath();
     g.arc(xOf(i), py(r.kg), 5, 0, 7);
     g.fill();
-    g.fillStyle = TC;
+    hit.points.push({ x: xOf(i), y: py(r.kg), index: i });
+    g.fillStyle = theme.color('ink-dim');
     if (i === 0) putText(g, W, r.kg.toFixed(1), xOf(i) + 8, py(r.kg) - 12, 'left');
     else if (i === rows.length - 1)
       putText(g, W, r.kg.toFixed(1), xOf(i) - 8, py(r.kg) - 12, 'right');
     else putText(g, W, r.kg.toFixed(1), xOf(i), py(r.kg) - 12, 'center');
     g.fillStyle = LC[0];
   });
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   putText(g, W, fmtD(rows[0].date), P, H - 8, 'left');
-  putText(g, W, fmtD(rows[rows.length - 1].date), W - 8, H - 8, 'right');
-  if (hover !== undefined && hover >= 0 && hover < rows.length) {
+  putText(g, W, fmtD(rows[rows.length - 1].date), W - L.padR, H - 8, 'right');
+  if (hover >= 0 && hover < rows.length) {
     const x = xOf(hover);
-    g.strokeStyle = TC;
+    g.strokeStyle = theme.color('ink-dim');
     g.globalAlpha = 0.45;
     g.lineWidth = 1;
     g.beginPath();
@@ -102,4 +112,5 @@ export function bwline(
     g.arc(x, py(rows[hover].kg), 7, 0, 7);
     g.fill();
   }
+  return hit;
 }

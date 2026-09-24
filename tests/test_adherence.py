@@ -33,7 +33,7 @@ def _seed_3day(log):
     log.set_exercise_mapping("squat", "quads")
     log.set_split("Upper A", 1, "bench", 3)
     log.set_split("Lower A", 1, "squat", 3)
-    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_rotation(["Upper A", "Lower A", "rest"])
 
 
 def test_expected_wraparound_and_multi_cycle(log_module):
@@ -49,7 +49,10 @@ def test_expected_wraparound_and_multi_cycle(log_module):
 
 def test_anchor_resolves_first_rotation_index(log_module):
     log = log_module
-    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "bench", 3)
+    log.set_rotation(["Upper A", "Lower A", "rest"])
     out = log.anchor_rotation("2026-09-01", "lower a")
     assert out == {"anchor": {"date": "2026-09-01", "index": 1}, "day": "Lower A"}
     with pytest.raises(RepsError, match="no rotation entry"):
@@ -59,11 +62,9 @@ def test_anchor_resolves_first_rotation_index(log_module):
     with pytest.raises(RepsError, match="YYYY-MM-DD"):
         log.anchor_rotation("yesterday", "Upper A")
     c = log.conn()
-    for bad in ('{"date": "2026-09-01", "index": 1.5}', '{"date": "2026-09-01", "index": true}',
-                '{"date": "2026-09-01", "index": "1"}'):
-        c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'", (bad,))
-        c.commit()
-        assert log.get_anchor(c) is None
+    for bad in ({"date": "2026-09-01", "index": 1.5}, {"date": "2026-09-01", "index": True},
+                {"date": "2026-09-01", "index": "1"}):
+        assert log.parse_anchor(bad, ["Upper A", "Lower A", "rest"])[0] is None
 
 
 def test_status_classifications(log_module):
@@ -113,7 +114,7 @@ def _seed_5day(log):
     log.set_split("U2", 1, "ex_u2", 3)
     log.set_split("L2", 1, "ex_l2", 3)
     log.set_split("U3", 1, "ex_u3", 3)
-    log.set_meta("rotation", json.dumps(["U1", "L1", "U2", "L2", "U3"]))
+    log.set_rotation(["U1", "L1", "U2", "L2", "U3"])
 
 
 def test_wednesday_skip_expected_vs_guess(log_module):
@@ -189,25 +190,20 @@ def test_no_anchor_disables_adherence(log_module):
 def test_doctor_anchor_checks(log_module):
     log = log_module
     c = log.conn()
-    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
     log.set_exercise_mapping("bench", "chest")
     log.set_exercise_mapping("row", "back")
     log.set_split("Upper A", 1, "bench", 3)
     log.set_split("Lower A", 1, "row", 3)
+    log.set_rotation(["Upper A", "Lower A", "rest"])
     log.anchor_rotation("2026-09-01", "Upper A")
     assert log.run_doctor()["ok"] is True
-    c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'",
-              (json.dumps({"date": "2026-09-01", "index": 9}),))
+    with pytest.raises(RepsError, match="matches no rotation entry"):
+        log.anchor_rotation("2026-09-01", "Nope C")
+    c.execute("UPDATE rotation_anchor SET anchor_date = '2999-01-01', position = 0")
     c.commit()
     result = log.run_doctor()
     assert result["ok"] is False
-    assert any(p["check"] == "rotation_anchor" for p in result["problems"])
-    c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'",
-              (json.dumps({"date": "2999-01-01", "index": 0}),))
-    c.commit()
-    result = log.run_doctor()
-    assert result["ok"] is False
-    c.execute("UPDATE meta SET value = 'not json' WHERE key = 'rotation_anchor'")
+    c.execute("UPDATE rotation_anchor SET anchor_date = 'not json', position = 0")
     c.commit()
     result = log.run_doctor()
     assert result["ok"] is False
@@ -240,8 +236,11 @@ def test_open_session_does_not_count_as_trained(log_module):
 def test_invalid_anchor_says_so(log_module):
     log = log_module
     c = log.conn()
-    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
-    c.execute("INSERT INTO meta (key, value) VALUES ('rotation_anchor', 'not json')")
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "bench", 3)
+    log.set_rotation(["Upper A", "Lower A", "rest"])
+    c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, 'not json', 0)")
     c.commit()
     with pytest.raises(RepsError, match="invalid"):
         log.get_rotation_status()

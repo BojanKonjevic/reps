@@ -31,8 +31,8 @@ def _done_workout(c, day, sets):
 
 
 def _judge(c, wid, exercise, verdict):
-    c.execute("INSERT INTO progression (workout_id, exercise, verdict, next_target, direction, note, created) "
-              "VALUES (?, ?, ?, '80x5', 'flat', '', datetime('now'))", (wid, exercise, verdict))
+    c.execute("INSERT INTO progression (workout_id, exercise, verdict, next_weight, next_reps, direction, note, created) "
+              "VALUES (?, ?, ?, 80, 5, 'flat', '', datetime('now'))", (wid, exercise, verdict))
     c.commit()
 
 
@@ -57,7 +57,7 @@ def test_programmed_volume_scales_rotation_to_week(log_module):
     log.set_exercise_mapping("squat", "quads")
     log.set_split("Upper A", 1, "bench", 3)
     log.set_split("Lower A", 1, "squat", 2)
-    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_rotation(["Upper A", "Lower A", "rest"])
     vol = _plan(log)["autoreg"]["program_volume"]
     assert vol["chest"] == round(3 * 7.0 / 3, 1)
     assert vol["quads"] == round(2 * 7.0 / 3, 1)
@@ -154,7 +154,7 @@ def test_apply_trim_records_hold_and_change_then_blocks_held_slot(log_module):
 def test_apply_refuses_below_mev_and_unmapped(log_module):
     log = log_module
     _trim_setup(log)
-    with pytest.raises(RepsError, match="no mapping"):
+    with pytest.raises(RepsError, match="not a known lift"):
         log.apply_autoreg("Upper A", 1, "mystery press", 2, "trying a swap")
     with pytest.raises(RepsError, match="below MEV"):
         log.apply_autoreg("Upper A", 1, "bench", 1, "deep cut")

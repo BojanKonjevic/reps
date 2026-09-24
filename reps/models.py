@@ -23,6 +23,8 @@ hide invalid Reps data.
 
 from typing import Literal, Optional, Union
 
+from .vocab import MarkKind
+
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr, field_validator, model_validator
 
 
@@ -104,6 +106,14 @@ class Thresholds(BaseModel):
     progression_drop_pct: Union[StrictInt, StrictFloat] = Field(lt=0)
     deload_watch_pct: Union[StrictInt, StrictFloat] = -5
     goal_divergence_pct: Union[StrictInt, StrictFloat] = 5
+    stall_window_sessions: StrictInt = 3
+    stall_decline_pct: Union[StrictInt, StrictFloat] = 1.0
+    stall_flat_sessions: StrictInt = 6
+    stall_min_sessions: StrictInt = 4
+    bodyweight_gap_days: StrictInt = 14
+    bodyweight_avg_days: StrictInt = 7
+    recent_notes_count: StrictInt = 6
+    trend_top_lifts: StrictInt = 8
     deload_volume_reduction: list[Union[StrictInt, StrictFloat]] = Field(
         default_factory=lambda: [0.4, 0.6])
 
@@ -135,194 +145,350 @@ class ConstantsModel(BaseModel):
         return self
 
 
-class SnapshotWorkout(BaseModel):
-    model_config = ConfigDict(extra="allow")
 
-    id: StrictInt
+Real = Union[StrictInt, StrictFloat]
+
+STRICT = ConfigDict(extra="forbid")
+
+
+class LiftSession(BaseModel):
+    """One trained date for a lift: top set, its e1RM, PR flag, delta vs prior best."""
+
+    model_config = STRICT
+
     date: StrictStr
-    status: Literal["open", "done", "rest"]
-    notes: StrictStr = ""
-
-
-class SnapshotSet(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    id: StrictInt
     workout_id: StrictInt
-    exercise: StrictStr
-    weight: Union[StrictInt, StrictFloat]
+    weight: Real
     reps: StrictInt
-    note: StrictStr = ""
-    created: StrictStr = ""
-    muscles: StrictStr = ""
+    e1rm: Real
+    is_pr: bool
+    delta_e1rm: Optional[Real]
 
 
-class SnapshotBodyweight(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class LiftBest(BaseModel):
+    model_config = STRICT
+
+    weight: Real
+    reps: StrictInt
+    e1rm: Real
+    date: StrictStr
+
+
+class LiftLast(BaseModel):
+    model_config = STRICT
+
+    weight: Real
+    reps: StrictInt
+    date: StrictStr
+
+
+class LiftProgression(BaseModel):
+    model_config = STRICT
+
+    verdict: Literal["hit", "miss", "hold", "baseline"]
+    next: StrictStr
+    next_weight: Real
+    next_reps: StrictInt
+    direction: Literal["up", "flat", "down"]
+    note: StrictStr
+    next_e1rm: Real
+
+
+class LiftMark(BaseModel):
+    """Structured mark: kind plus payload, no display text (present.ts renders)."""
+
+    model_config = STRICT
+
+    kind: MarkKind
+    payload: dict[str, Union[StrictStr, StrictInt, StrictFloat, bool, None]]
+
+
+class Lift(BaseModel):
+    model_config = STRICT
+
+    exercise: StrictStr
+    muscles: list[StrictStr]
+    notes: list[StrictStr]
+    sessions: list[LiftSession]
+    best: Optional[LiftBest]
+    last: Optional[LiftLast]
+    last_pr_date: Optional[StrictStr]
+    days_since_pr: Optional[StrictInt]
+    progression: Optional[LiftProgression]
+    goal_id: Optional[StrictInt]
+    tags: list[StrictStr]
+    marks: list[LiftMark]
+    rank_default: StrictInt
+    rank_attention: StrictInt
+
+
+class MuscleBands(BaseModel):
+    model_config = STRICT
+
+    mev: Real
+    mav: Optional[list[Real]]
+    mrv: Optional[Real]
+
+
+class MuscleLiftShare(BaseModel):
+    model_config = STRICT
+
+    exercise: StrictStr
+    sets: StrictInt
+    share: StrictFloat
+
+
+class Muscle(BaseModel):
+    model_config = STRICT
+
+    muscle: StrictStr
+    bands: MuscleBands
+    weekly: list[StrictInt]
+    status: StrictStr
+    tier: Literal["priority", "maintain", "deprioritize"]
+    grouped: list[StrictStr]
+    lift_share: list[MuscleLiftShare]
+    trained_weeks: StrictInt
+    avg_recent: Real
+
+
+class SetView(BaseModel):
+    """One set, embedded once, inside its session.
+
+    Short keys: sets are the only unbounded collection and dominate the
+    payload budget (under 1.5 MB for 3 years of daily training).
+    """
+
+    model_config = STRICT
+
+    n: StrictInt
+    w: Real
+    r: StrictInt
+    e: Real
+    pr: bool
+    note: StrictStr
+
+
+class SessionExercise(BaseModel):
+    model_config = STRICT
+
+    exercise: StrictStr
+    deload: bool
+    sets: list[SetView]
+
+
+class SessionView(BaseModel):
+    model_config = STRICT
 
     date: StrictStr
-    kg: Union[StrictInt, StrictFloat]
-    note: StrictStr = ""
+    workout_id: StrictInt
+    status: Literal["open", "done", "rest"]
+    slot_label: Optional[StrictStr]
+    notes: StrictStr
+    exercises: list[SessionExercise]
 
 
-class SnapshotVolumeEntry(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class CalendarHover(BaseModel):
+    model_config = STRICT
 
-    weekly: list[Union[StrictInt, StrictFloat]]
-    mev: Union[StrictInt, StrictFloat]
-    mav: Optional[list[Union[StrictInt, StrictFloat]]] = None
-    mrv: Optional[Union[StrictInt, StrictFloat]] = None
-    freq: Optional[list[Union[StrictInt, StrictFloat]]] = None
-    status: StrictStr
+    lines: list[StrictStr]
 
 
-class SnapshotAnchor(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class CalendarDay(BaseModel):
+    model_config = STRICT
+
+    date: StrictStr
+    kind: Literal["trained", "rest", "missed", "empty"]
+    slot_label: Optional[StrictStr]
+    has_pr: bool
+    break_after_gap: bool
+    adherence_status: Optional[StrictStr]
+    expected: Optional[StrictStr]
+    hover: CalendarHover
+
+
+class VolumeHistory(BaseModel):
+    model_config = STRICT
+
+    week_starts: list[StrictStr]
+    by_muscle: dict[str, list[StrictInt]]
+
+
+class BodyweightPoint(BaseModel):
+    model_config = STRICT
+
+    date: StrictStr
+    kg: Real
+    avg7: Optional[Real]
+    gap_before: Optional[StrictInt]
+    gap: bool
+
+
+class ProgramSlot(BaseModel):
+    model_config = STRICT
+
+    slot: StrictInt
+    moves: list[StrictStr]
+    sets: StrictInt
+    muscles: list[StrictStr]
+    focus: list[StrictStr]
+
+
+class ProgramDay(BaseModel):
+    model_config = STRICT
+
+    day: StrictStr
+    muscles: list[StrictStr]
+    slots: list[ProgramSlot]
+
+
+class ProgramAnchor(BaseModel):
+    model_config = STRICT
 
     date: StrictStr
     index: StrictInt
 
 
-class SnapshotAdherenceDay(BaseModel):
-    """One per-date rotation verdict from classify_date."""
+class ProgramView(BaseModel):
+    model_config = STRICT
 
-    model_config = ConfigDict(extra="allow")
+    rotation: list[StrictStr]
+    anchor: Optional[ProgramAnchor]
+    days: list[ProgramDay]
+
+
+class NextUpRow(BaseModel):
+    model_config = STRICT
+
+    movement: StrictStr
+    last: Optional[LiftLast]
+    target: Optional[StrictStr]
+
+
+class StatusView(BaseModel):
+    """Today and break facts for the now-lines. TS reads, never computes."""
+
+    model_config = STRICT
+
+    open_today: bool
+    rest_today: bool
+    last_trained: Optional[StrictStr]
+    break_days: Optional[StrictInt]
+    on_break: bool
+
+
+class NextUp(BaseModel):
+    model_config = STRICT
+
+    day: Optional[StrictStr]
+    basis: StrictStr
+    rows: list[NextUpRow]
+    empty: Optional[StrictStr]
+
+
+class GoalTop(BaseModel):
+    model_config = STRICT
+
+    weight: Real
+    reps: StrictInt
+
+
+class GoalActual(BaseModel):
+    model_config = STRICT
 
     date: StrictStr
-    expected: StrictStr
-    trained: Optional[StrictStr] = None
-    status: Literal["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]
+    e1rm: Real
 
 
-class SnapshotAdherence(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    anchor: Optional[SnapshotAnchor] = None
-    days: list[SnapshotAdherenceDay] = Field(default_factory=list)
-    drift: bool = False
-    drift_days: Union[StrictInt, StrictFloat] = 0
-    drift_threshold: Union[StrictInt, StrictFloat] = 0
-
-
-class SnapshotSplitRow(BaseModel):
-    """One active-split slot from read_split."""
-
-    model_config = ConfigDict(extra="allow")
-
-    day: StrictStr
-    slot: StrictInt
-    movements: StrictStr
-    sets: StrictInt
-
-
-class SnapshotProgression(BaseModel):
-    """Latest progression verdict per exercise."""
-
-    model_config = ConfigDict(extra="allow")
-
-    verdict: Literal["hit", "miss", "hold", "baseline"]
-    next: StrictStr
-    direction: Literal["up", "flat", "down"]
-    workout_id: StrictInt
-    note: StrictStr = ""
-
-
-class SnapshotGoalActual(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    date: StrictStr
-    e1rm: Union[StrictInt, StrictFloat]
-
-
-class SnapshotGoal(BaseModel):
-    """An active goal with its computed trajectory."""
-
-    model_config = ConfigDict(extra="allow")
+class Goal(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     exercise: StrictStr
-    target_e1rm: Union[StrictInt, StrictFloat]
-    target_desc: StrictStr = ""
+    target_e1rm: Real
+    target_desc: StrictStr
     deadline: StrictStr
-    status: Literal["active", "dropped"] = "active"
-    created: StrictStr = ""
-    checkpoints: list[Union[StrictInt, StrictFloat]] = Field(default_factory=list)
-    completed: StrictInt = 0
-    actuals: list[SnapshotGoalActual] = Field(default_factory=list)
-    consecutive_misses: StrictInt = 0
-    on_track: bool = True
-    remaining: StrictInt = 0
-    slippage: bool = False
-    next_checkpoint: Optional[Union[StrictInt, StrictFloat]] = None
+    status: Literal["active", "dropped", "done"] = "active"
+    created: StrictStr
+    checkpoints: list[Real]
+    completed: StrictInt
+    actuals: list[GoalActual]
+    consecutive_misses: StrictInt
+    on_track: bool
+    remaining: StrictInt
+    slippage: bool
+    next_checkpoint: Optional[Real]
+    percent: Optional[Real]
+    top_by_date: dict[str, GoalTop]
 
 
-class SnapshotPriority(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Priority(BaseModel):
+    model_config = STRICT
 
     tier: Literal["priority", "maintain", "deprioritize"]
-    since: StrictStr = ""
-    until: Optional[StrictStr] = None
+    since: StrictStr
+    until: Optional[StrictStr]
 
 
-class SnapshotDeload(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Deload(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     scope: Literal["lift", "slot"]
     subject: StrictStr
     set_on: StrictStr
-    cleared_on: Optional[StrictStr] = None
+    cleared_on: Optional[StrictStr]
 
 
-class SnapshotRule(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Rule(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     subject: StrictStr
     text: StrictStr
-    start_date: StrictStr = ""
-    expiry: Optional[StrictStr] = None
+    start_date: StrictStr
+    expiry: Optional[StrictStr]
     status: StrictStr = "active"
-    created: StrictStr = ""
-    needs_confirm: bool = False
+    created: StrictStr
+    needs_confirm: bool
 
 
-class SnapshotFlag(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Flag(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     subject: StrictStr
     reason: StrictStr
     created: StrictStr
-    consumed_at: Optional[StrictStr] = None
+    consumed_at: Optional[StrictStr]
 
 
-class SnapshotMapping(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class MappingRow(BaseModel):
+    model_config = STRICT
 
     exercise: StrictStr
     muscles: StrictStr
-    is_bodyweight_only: StrictInt = 0
+    is_bodyweight_only: StrictInt
 
 
-class SnapshotMovementNote(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class MovementNote(BaseModel):
+    model_config = STRICT
 
-    id: StrictInt = 0
+    id: StrictInt
     exercise: StrictStr
     note: StrictStr
-    created: StrictStr = ""
+    created: StrictStr
 
 
-class SnapshotSignal(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Signal(BaseModel):
+    model_config = STRICT
 
     severity: Literal["high", "medium", "low", "info"]
     text: StrictStr
 
 
-class SnapshotAutoregHold(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class AutoregHold(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     day: StrictStr
@@ -330,25 +496,25 @@ class SnapshotAutoregHold(BaseModel):
     action: Literal["trim", "swap", "add"]
     set_on: StrictStr
     hold_until: StrictStr
-    reason: StrictStr = ""
+    reason: StrictStr
 
 
-class SnapshotMissStreak(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class AutoregMissStreak(BaseModel):
+    model_config = STRICT
 
     exercise: StrictStr
     streak: StrictInt
 
 
-class SnapshotDropWatch(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class AutoregDropWatch(BaseModel):
+    model_config = STRICT
 
     exercise: StrictStr
-    drops_pct: list[Union[StrictInt, StrictFloat]]
+    drops_pct: list[Real]
 
 
-class SnapshotAutoregChange(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class AutoregChange(BaseModel):
+    model_config = STRICT
 
     id: StrictInt
     date: StrictStr
@@ -359,52 +525,91 @@ class SnapshotAutoregChange(BaseModel):
     before_sets: StrictInt
     after_movements: StrictStr
     after_sets: StrictInt
-    evidence: StrictStr = ""
-    reverted_on: Optional[StrictStr] = None
+    evidence: StrictStr
+    reverted_on: Optional[StrictStr]
 
 
-class SnapshotAutoreg(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class Autoreg(BaseModel):
+    model_config = STRICT
 
     permitted: bool
-    holds: list[SnapshotAutoregHold] = Field(default_factory=list)
-    miss_streaks: list[SnapshotMissStreak] = Field(default_factory=list)
-    drop_watch: list[SnapshotDropWatch] = Field(default_factory=list)
-    grouped: dict[StrictStr, list[StrictStr]] = Field(default_factory=dict)
-    program_volume: dict[StrictStr, Union[StrictInt, StrictFloat]] = Field(default_factory=dict)
+    holds: list[AutoregHold]
+    miss_streaks: list[AutoregMissStreak]
+    drop_watch: list[AutoregDropWatch]
+    grouped: dict[str, list[StrictStr]]
+    program_volume: dict[str, Real]
+
+
+class AdherenceDay(BaseModel):
+    """One per-date rotation verdict from classify_date."""
+
+    model_config = STRICT
+
+    date: StrictStr
+    expected: StrictStr
+    trained: Optional[StrictStr]
+    status: Literal["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]
+
+
+class AdherenceWeek(BaseModel):
+    model_config = STRICT
+
+    week_start: StrictStr
+    trained: StrictInt
+    expected: StrictInt
+
+
+class Adherence(BaseModel):
+    model_config = STRICT
+
+    anchor: Optional[ProgramAnchor]
+    days: list[AdherenceDay]
+    drift: bool
+    drift_days: Real
+    drift_threshold: Real
+    weeks: list[AdherenceWeek]
+
+
+class RecentNote(BaseModel):
+    model_config = STRICT
+
+    date: StrictStr
+    text: StrictStr
+    hot: bool
 
 
 class SnapshotModel(BaseModel):
-    """Canonical validated form of the synchronized dashboard payload.
+    """Canonical validated form of the synchronized dashboard payload (v2 views).
 
-    Core fact collections are required; forward-evolved sections default
-    so an older payload still parses where the dashboard renders
-    null-safe. Unknown top-level sections are tolerated (extra="allow")
-    so the backend can extend the snapshot without breaking validation.
+    Every field required, extra forbidden: Python always emits everything or
+    fails loudly. The dashboard and worker consume generated schemas only.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = STRICT
 
+    schema_version: StrictInt
     exported: StrictStr
-    workouts: list[SnapshotWorkout]
-    sets: list[SnapshotSet]
-    bodyweight: list[SnapshotBodyweight] = Field(default_factory=list)
-    split_active: list[SnapshotSplitRow] = Field(default_factory=list)
-    rotation: list[StrictStr] = Field(default_factory=list)
-    constants: Optional[ConstantsModel] = None
-    progression: dict[StrictStr, SnapshotProgression] = Field(default_factory=dict)
-    goals: list[SnapshotGoal] = Field(default_factory=list)
-    priority: dict[StrictStr, SnapshotPriority] = Field(default_factory=dict)
-    deload: list[SnapshotDeload] = Field(default_factory=list)
-    rules: list[SnapshotRule] = Field(default_factory=list)
-    flags: list[SnapshotFlag] = Field(default_factory=list)
-    mapping: list[SnapshotMapping] = Field(default_factory=list)
-    movement_notes: list[SnapshotMovementNote] = Field(default_factory=list)
-    adherence: Optional[SnapshotAdherence] = None
-    signals: list[SnapshotSignal] = Field(default_factory=list)
-    autoreg: Optional[SnapshotAutoreg] = None
-    autoreg_changes: list[SnapshotAutoregChange] = Field(default_factory=list)
-    volume: dict[str, SnapshotVolumeEntry] = Field(default_factory=dict)
+    as_of: StrictStr
+    constants: ConstantsModel
+    lifts: list[Lift]
+    muscles: list[Muscle]
+    sessions: list[SessionView]
+    calendar: list[CalendarDay]
+    volume_history: VolumeHistory
+    bodyweight: list[BodyweightPoint]
+    program: ProgramView
+    status: StatusView
+    next_up: NextUp
+    goals: list[Goal]
+    adherence: Optional[Adherence]
+    signals: list[Signal]
+    recent_notes: list[RecentNote]
+    rules: list[Rule]
+    flags: list[Flag]
+    deload: list[Deload]
+    priority: dict[str, Priority]
+    autoreg: Optional[Autoreg]
+    autoreg_changes: list[AutoregChange]
 
 
 class SnapshotValidationError(ValueError):
@@ -426,8 +631,7 @@ def validate_snapshot(payload: dict) -> SnapshotModel:
     """Validate a snapshot candidate against SnapshotModel.
 
     Returns the validated SnapshotModel. Raises SnapshotValidationError
-    with the first defect; unknown sections are tolerated, known shapes
-    are strict.
+    with the first defect.
     """
     from pydantic import ValidationError as _ValidationError
 

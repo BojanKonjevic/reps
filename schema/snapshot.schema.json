@@ -1,0 +1,2476 @@
+{
+  "$defs": {
+    "Adherence": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramAnchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/AdherenceDay"
+          },
+          "title": "Days",
+          "type": "array"
+        },
+        "drift": {
+          "title": "Drift",
+          "type": "boolean"
+        },
+        "drift_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Drift Days"
+        },
+        "drift_threshold": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Drift Threshold"
+        },
+        "weeks": {
+          "items": {
+            "$ref": "#/$defs/AdherenceWeek"
+          },
+          "title": "Weeks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "anchor",
+        "days",
+        "drift",
+        "drift_days",
+        "drift_threshold",
+        "weeks"
+      ],
+      "title": "Adherence",
+      "type": "object"
+    },
+    "AdherenceDay": {
+      "additionalProperties": false,
+      "description": "One per-date rotation verdict from classify_date.",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "string"
+        },
+        "trained": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Trained"
+        },
+        "status": {
+          "enum": [
+            "done",
+            "swapped",
+            "extra",
+            "rest_ok",
+            "rest_logged",
+            "missed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "expected",
+        "trained",
+        "status"
+      ],
+      "title": "AdherenceDay",
+      "type": "object"
+    },
+    "AdherenceWeek": {
+      "additionalProperties": false,
+      "properties": {
+        "week_start": {
+          "title": "Week Start",
+          "type": "string"
+        },
+        "trained": {
+          "title": "Trained",
+          "type": "integer"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week_start",
+        "trained",
+        "expected"
+      ],
+      "title": "AdherenceWeek",
+      "type": "object"
+    },
+    "Autoreg": {
+      "additionalProperties": false,
+      "properties": {
+        "permitted": {
+          "title": "Permitted",
+          "type": "boolean"
+        },
+        "holds": {
+          "items": {
+            "$ref": "#/$defs/AutoregHold"
+          },
+          "title": "Holds",
+          "type": "array"
+        },
+        "miss_streaks": {
+          "items": {
+            "$ref": "#/$defs/AutoregMissStreak"
+          },
+          "title": "Miss Streaks",
+          "type": "array"
+        },
+        "drop_watch": {
+          "items": {
+            "$ref": "#/$defs/AutoregDropWatch"
+          },
+          "title": "Drop Watch",
+          "type": "array"
+        },
+        "grouped": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Grouped",
+          "type": "object"
+        },
+        "program_volume": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Program Volume",
+          "type": "object"
+        }
+      },
+      "required": [
+        "permitted",
+        "holds",
+        "miss_streaks",
+        "drop_watch",
+        "grouped",
+        "program_volume"
+      ],
+      "title": "Autoreg",
+      "type": "object"
+    },
+    "AutoregChange": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "trim",
+            "swap",
+            "add"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        },
+        "before_movements": {
+          "title": "Before Movements",
+          "type": "string"
+        },
+        "before_sets": {
+          "title": "Before Sets",
+          "type": "integer"
+        },
+        "after_movements": {
+          "title": "After Movements",
+          "type": "string"
+        },
+        "after_sets": {
+          "title": "After Sets",
+          "type": "integer"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        },
+        "reverted_on": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reverted On"
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "action",
+        "day",
+        "slot",
+        "before_movements",
+        "before_sets",
+        "after_movements",
+        "after_sets",
+        "evidence",
+        "reverted_on"
+      ],
+      "title": "AutoregChange",
+      "type": "object"
+    },
+    "AutoregDropWatch": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "drops_pct": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Drops Pct",
+          "type": "array"
+        }
+      },
+      "required": [
+        "exercise",
+        "drops_pct"
+      ],
+      "title": "AutoregDropWatch",
+      "type": "object"
+    },
+    "AutoregHold": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "movements": {
+          "title": "Movements",
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "trim",
+            "swap",
+            "add"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "set_on": {
+          "title": "Set On",
+          "type": "string"
+        },
+        "hold_until": {
+          "title": "Hold Until",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "day",
+        "movements",
+        "action",
+        "set_on",
+        "hold_until",
+        "reason"
+      ],
+      "title": "AutoregHold",
+      "type": "object"
+    },
+    "AutoregMissStreak": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "streak": {
+          "title": "Streak",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exercise",
+        "streak"
+      ],
+      "title": "AutoregMissStreak",
+      "type": "object"
+    },
+    "BodyweightPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "kg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Kg"
+        },
+        "avg7": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg7"
+        },
+        "gap_before": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gap Before"
+        },
+        "gap": {
+          "title": "Gap",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "date",
+        "kg",
+        "avg7",
+        "gap_before",
+        "gap"
+      ],
+      "title": "BodyweightPoint",
+      "type": "object"
+    },
+    "CalendarDay": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "trained",
+            "rest",
+            "missed",
+            "empty"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "slot_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Slot Label"
+        },
+        "has_pr": {
+          "title": "Has Pr",
+          "type": "boolean"
+        },
+        "break_after_gap": {
+          "title": "Break After Gap",
+          "type": "boolean"
+        },
+        "adherence_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Adherence Status"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected"
+        },
+        "hover": {
+          "$ref": "#/$defs/CalendarHover"
+        }
+      },
+      "required": [
+        "date",
+        "kind",
+        "slot_label",
+        "has_pr",
+        "break_after_gap",
+        "adherence_status",
+        "expected",
+        "hover"
+      ],
+      "title": "CalendarDay",
+      "type": "object"
+    },
+    "CalendarHover": {
+      "additionalProperties": false,
+      "properties": {
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lines"
+      ],
+      "title": "CalendarHover",
+      "type": "object"
+    },
+    "ConstantsModel": {
+      "additionalProperties": true,
+      "description": "Canonical validated form of constants.json.",
+      "properties": {
+        "version": {
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "muscles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MuscleEntry"
+          },
+          "minProperties": 1,
+          "title": "Muscles",
+          "type": "object"
+        },
+        "untracked": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Untracked",
+          "type": "array"
+        },
+        "rep_bands": {
+          "items": {
+            "$ref": "#/$defs/RepBand"
+          },
+          "minItems": 1,
+          "title": "Rep Bands",
+          "type": "array"
+        },
+        "thresholds": {
+          "$ref": "#/$defs/Thresholds"
+        },
+        "explained_keywords": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Explained Keywords",
+          "type": "array"
+        },
+        "rep_scheme_default": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Rep Scheme Default",
+          "type": "array"
+        }
+      },
+      "required": [
+        "muscles",
+        "rep_bands",
+        "thresholds"
+      ],
+      "title": "ConstantsModel",
+      "type": "object"
+    },
+    "Deload": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "scope": {
+          "enum": [
+            "lift",
+            "slot"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "set_on": {
+          "title": "Set On",
+          "type": "string"
+        },
+        "cleared_on": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cleared On"
+        }
+      },
+      "required": [
+        "id",
+        "scope",
+        "subject",
+        "set_on",
+        "cleared_on"
+      ],
+      "title": "Deload",
+      "type": "object"
+    },
+    "Flag": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "created": {
+          "title": "Created",
+          "type": "string"
+        },
+        "consumed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Consumed At"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "reason",
+        "created",
+        "consumed_at"
+      ],
+      "title": "Flag",
+      "type": "object"
+    },
+    "Goal": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "target_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Target E1Rm"
+        },
+        "target_desc": {
+          "title": "Target Desc",
+          "type": "string"
+        },
+        "deadline": {
+          "title": "Deadline",
+          "type": "string"
+        },
+        "status": {
+          "default": "active",
+          "enum": [
+            "active",
+            "dropped",
+            "done"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "created": {
+          "title": "Created",
+          "type": "string"
+        },
+        "checkpoints": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Checkpoints",
+          "type": "array"
+        },
+        "completed": {
+          "title": "Completed",
+          "type": "integer"
+        },
+        "actuals": {
+          "items": {
+            "$ref": "#/$defs/GoalActual"
+          },
+          "title": "Actuals",
+          "type": "array"
+        },
+        "consecutive_misses": {
+          "title": "Consecutive Misses",
+          "type": "integer"
+        },
+        "on_track": {
+          "title": "On Track",
+          "type": "boolean"
+        },
+        "remaining": {
+          "title": "Remaining",
+          "type": "integer"
+        },
+        "slippage": {
+          "title": "Slippage",
+          "type": "boolean"
+        },
+        "next_checkpoint": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Checkpoint"
+        },
+        "percent": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Percent"
+        },
+        "top_by_date": {
+          "additionalProperties": {
+            "$ref": "#/$defs/GoalTop"
+          },
+          "title": "Top By Date",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "exercise",
+        "target_e1rm",
+        "target_desc",
+        "deadline",
+        "created",
+        "checkpoints",
+        "completed",
+        "actuals",
+        "consecutive_misses",
+        "on_track",
+        "remaining",
+        "slippage",
+        "next_checkpoint",
+        "percent",
+        "top_by_date"
+      ],
+      "title": "Goal",
+      "type": "object"
+    },
+    "GoalActual": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "E1Rm"
+        }
+      },
+      "required": [
+        "date",
+        "e1rm"
+      ],
+      "title": "GoalActual",
+      "type": "object"
+    },
+    "GoalTop": {
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Weight"
+        },
+        "reps": {
+          "title": "Reps",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "weight",
+        "reps"
+      ],
+      "title": "GoalTop",
+      "type": "object"
+    },
+    "Lift": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "muscles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Muscles",
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "sessions": {
+          "items": {
+            "$ref": "#/$defs/LiftSession"
+          },
+          "title": "Sessions",
+          "type": "array"
+        },
+        "best": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiftBest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiftLast"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_pr_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Pr Date"
+        },
+        "days_since_pr": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Days Since Pr"
+        },
+        "progression": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiftProgression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goal_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Goal Id"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "marks": {
+          "items": {
+            "$ref": "#/$defs/LiftMark"
+          },
+          "title": "Marks",
+          "type": "array"
+        },
+        "rank_default": {
+          "title": "Rank Default",
+          "type": "integer"
+        },
+        "rank_attention": {
+          "title": "Rank Attention",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "exercise",
+        "muscles",
+        "notes",
+        "sessions",
+        "best",
+        "last",
+        "last_pr_date",
+        "days_since_pr",
+        "progression",
+        "goal_id",
+        "tags",
+        "marks",
+        "rank_default",
+        "rank_attention"
+      ],
+      "title": "Lift",
+      "type": "object"
+    },
+    "LiftBest": {
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Weight"
+        },
+        "reps": {
+          "title": "Reps",
+          "type": "integer"
+        },
+        "e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "E1Rm"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "weight",
+        "reps",
+        "e1rm",
+        "date"
+      ],
+      "title": "LiftBest",
+      "type": "object"
+    },
+    "LiftLast": {
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Weight"
+        },
+        "reps": {
+          "title": "Reps",
+          "type": "integer"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "weight",
+        "reps",
+        "date"
+      ],
+      "title": "LiftLast",
+      "type": "object"
+    },
+    "LiftMark": {
+      "additionalProperties": false,
+      "description": "Structured mark: kind plus payload, no display text (present.ts renders).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/MarkKind"
+        },
+        "payload": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "payload"
+      ],
+      "title": "LiftMark",
+      "type": "object"
+    },
+    "LiftProgression": {
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {
+          "enum": [
+            "hit",
+            "miss",
+            "hold",
+            "baseline"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "next": {
+          "title": "Next",
+          "type": "string"
+        },
+        "next_weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Next Weight"
+        },
+        "next_reps": {
+          "title": "Next Reps",
+          "type": "integer"
+        },
+        "direction": {
+          "enum": [
+            "up",
+            "flat",
+            "down"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        },
+        "next_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Next E1Rm"
+        }
+      },
+      "required": [
+        "verdict",
+        "next",
+        "next_weight",
+        "next_reps",
+        "direction",
+        "note",
+        "next_e1rm"
+      ],
+      "title": "LiftProgression",
+      "type": "object"
+    },
+    "LiftSession": {
+      "additionalProperties": false,
+      "description": "One trained date for a lift: top set, its e1RM, PR flag, delta vs prior best.",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "workout_id": {
+          "title": "Workout Id",
+          "type": "integer"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Weight"
+        },
+        "reps": {
+          "title": "Reps",
+          "type": "integer"
+        },
+        "e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "E1Rm"
+        },
+        "is_pr": {
+          "title": "Is Pr",
+          "type": "boolean"
+        },
+        "delta_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta E1Rm"
+        }
+      },
+      "required": [
+        "date",
+        "workout_id",
+        "weight",
+        "reps",
+        "e1rm",
+        "is_pr",
+        "delta_e1rm"
+      ],
+      "title": "LiftSession",
+      "type": "object"
+    },
+    "MarkKind": {
+      "enum": [
+        "goal",
+        "stalling",
+        "slipping",
+        "focus",
+        "autoreg",
+        "grouped"
+      ],
+      "title": "MarkKind",
+      "type": "string"
+    },
+    "Muscle": {
+      "additionalProperties": false,
+      "properties": {
+        "muscle": {
+          "title": "Muscle",
+          "type": "string"
+        },
+        "bands": {
+          "$ref": "#/$defs/MuscleBands"
+        },
+        "weekly": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Weekly",
+          "type": "array"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "priority",
+            "maintain",
+            "deprioritize"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "grouped": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Grouped",
+          "type": "array"
+        },
+        "lift_share": {
+          "items": {
+            "$ref": "#/$defs/MuscleLiftShare"
+          },
+          "title": "Lift Share",
+          "type": "array"
+        },
+        "trained_weeks": {
+          "title": "Trained Weeks",
+          "type": "integer"
+        },
+        "avg_recent": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Avg Recent"
+        }
+      },
+      "required": [
+        "muscle",
+        "bands",
+        "weekly",
+        "status",
+        "tier",
+        "grouped",
+        "lift_share",
+        "trained_weeks",
+        "avg_recent"
+      ],
+      "title": "Muscle",
+      "type": "object"
+    },
+    "MuscleBands": {
+      "additionalProperties": false,
+      "properties": {
+        "mev": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Mev"
+        },
+        "mav": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mav"
+        },
+        "mrv": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mrv"
+        }
+      },
+      "required": [
+        "mev",
+        "mav",
+        "mrv"
+      ],
+      "title": "MuscleBands",
+      "type": "object"
+    },
+    "MuscleEntry": {
+      "additionalProperties": true,
+      "description": "Per-muscle dose landmarks. mav/mrv stay optional: some groups\n(e.g. forearms) have no trusted landmarks, plan falls back to mev.",
+      "properties": {
+        "mev": {
+          "minimum": 0,
+          "title": "Mev",
+          "type": "integer"
+        },
+        "mav": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mav"
+        },
+        "mrv": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mrv"
+        },
+        "freq": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Freq",
+          "type": "array"
+        },
+        "tier": {
+          "enum": [
+            "settled",
+            "contested",
+            "opinion"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "color": {
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mev",
+        "freq",
+        "tier",
+        "source",
+        "color"
+      ],
+      "title": "MuscleEntry",
+      "type": "object"
+    },
+    "MuscleLiftShare": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "sets": {
+          "title": "Sets",
+          "type": "integer"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "exercise",
+        "sets",
+        "share"
+      ],
+      "title": "MuscleLiftShare",
+      "type": "object"
+    },
+    "NextUp": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Day"
+        },
+        "basis": {
+          "title": "Basis",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/NextUpRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "empty": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Empty"
+        }
+      },
+      "required": [
+        "day",
+        "basis",
+        "rows",
+        "empty"
+      ],
+      "title": "NextUp",
+      "type": "object"
+    },
+    "NextUpRow": {
+      "additionalProperties": false,
+      "properties": {
+        "movement": {
+          "title": "Movement",
+          "type": "string"
+        },
+        "last": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiftLast"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        }
+      },
+      "required": [
+        "movement",
+        "last",
+        "target"
+      ],
+      "title": "NextUpRow",
+      "type": "object"
+    },
+    "Priority": {
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "enum": [
+            "priority",
+            "maintain",
+            "deprioritize"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "since": {
+          "title": "Since",
+          "type": "string"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Until"
+        }
+      },
+      "required": [
+        "tier",
+        "since",
+        "until"
+      ],
+      "title": "Priority",
+      "type": "object"
+    },
+    "ProgramAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "date",
+        "index"
+      ],
+      "title": "ProgramAnchor",
+      "type": "object"
+    },
+    "ProgramDay": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "muscles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Muscles",
+          "type": "array"
+        },
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/ProgramSlot"
+          },
+          "title": "Slots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "day",
+        "muscles",
+        "slots"
+      ],
+      "title": "ProgramDay",
+      "type": "object"
+    },
+    "ProgramSlot": {
+      "additionalProperties": false,
+      "properties": {
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        },
+        "moves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Moves",
+          "type": "array"
+        },
+        "sets": {
+          "title": "Sets",
+          "type": "integer"
+        },
+        "muscles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Muscles",
+          "type": "array"
+        },
+        "focus": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Focus",
+          "type": "array"
+        }
+      },
+      "required": [
+        "slot",
+        "moves",
+        "sets",
+        "muscles",
+        "focus"
+      ],
+      "title": "ProgramSlot",
+      "type": "object"
+    },
+    "ProgramView": {
+      "additionalProperties": false,
+      "properties": {
+        "rotation": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rotation",
+          "type": "array"
+        },
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramAnchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "days": {
+          "items": {
+            "$ref": "#/$defs/ProgramDay"
+          },
+          "title": "Days",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rotation",
+        "anchor",
+        "days"
+      ],
+      "title": "ProgramView",
+      "type": "object"
+    },
+    "RecentNote": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "hot": {
+          "title": "Hot",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "date",
+        "text",
+        "hot"
+      ],
+      "title": "RecentNote",
+      "type": "object"
+    },
+    "RepBand": {
+      "additionalProperties": true,
+      "description": "One progression jump band. Both fields null is the open-ended\nterminator above the top band; otherwise max_reps ascends and\njump_pct is positive.",
+      "properties": {
+        "max_reps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Reps"
+        },
+        "jump_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Jump Pct"
+        }
+      },
+      "title": "RepBand",
+      "type": "object"
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start_date": {
+          "title": "Start Date",
+          "type": "string"
+        },
+        "expiry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expiry"
+        },
+        "status": {
+          "default": "active",
+          "title": "Status",
+          "type": "string"
+        },
+        "created": {
+          "title": "Created",
+          "type": "string"
+        },
+        "needs_confirm": {
+          "title": "Needs Confirm",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "text",
+        "start_date",
+        "expiry",
+        "created",
+        "needs_confirm"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "SessionExercise": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "deload": {
+          "title": "Deload",
+          "type": "boolean"
+        },
+        "sets": {
+          "items": {
+            "$ref": "#/$defs/SetView"
+          },
+          "title": "Sets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "exercise",
+        "deload",
+        "sets"
+      ],
+      "title": "SessionExercise",
+      "type": "object"
+    },
+    "SessionView": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "workout_id": {
+          "title": "Workout Id",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "done",
+            "rest"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "slot_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Slot Label"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "exercises": {
+          "items": {
+            "$ref": "#/$defs/SessionExercise"
+          },
+          "title": "Exercises",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "workout_id",
+        "status",
+        "slot_label",
+        "notes",
+        "exercises"
+      ],
+      "title": "SessionView",
+      "type": "object"
+    },
+    "SetView": {
+      "additionalProperties": false,
+      "description": "One set, embedded once, inside its session.\n\nShort keys: sets are the only unbounded collection and dominate the\npayload budget (under 1.5 MB for 3 years of daily training).",
+      "properties": {
+        "n": {
+          "title": "N",
+          "type": "integer"
+        },
+        "w": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "W"
+        },
+        "r": {
+          "title": "R",
+          "type": "integer"
+        },
+        "e": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "E"
+        },
+        "pr": {
+          "title": "Pr",
+          "type": "boolean"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "w",
+        "r",
+        "e",
+        "pr",
+        "note"
+      ],
+      "title": "SetView",
+      "type": "object"
+    },
+    "Signal": {
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "text"
+      ],
+      "title": "Signal",
+      "type": "object"
+    },
+    "StatusView": {
+      "additionalProperties": false,
+      "description": "Today and break facts for the now-lines. TS reads, never computes.",
+      "properties": {
+        "open_today": {
+          "title": "Open Today",
+          "type": "boolean"
+        },
+        "rest_today": {
+          "title": "Rest Today",
+          "type": "boolean"
+        },
+        "last_trained": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Trained"
+        },
+        "break_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Break Days"
+        },
+        "on_break": {
+          "title": "On Break",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "open_today",
+        "rest_today",
+        "last_trained",
+        "break_days",
+        "on_break"
+      ],
+      "title": "StatusView",
+      "type": "object"
+    },
+    "Thresholds": {
+      "additionalProperties": true,
+      "description": "Numeric guardrails. Only the invariants the backend enforces are\nconstrained here; keys the code reads opaquely stay permissive.",
+      "properties": {
+        "stale_workout_hours": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Stale Workout Hours"
+        },
+        "stale_workout_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Stale Workout Days"
+        },
+        "break_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Break Days"
+        },
+        "e1rm_warn_ratio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "E1Rm Warn Ratio"
+        },
+        "duplicate_name_distance": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "title": "Duplicate Name Distance"
+        },
+        "volume_window_weeks": {
+          "exclusiveMinimum": 0,
+          "title": "Volume Window Weeks",
+          "type": "integer"
+        },
+        "volume_bad_weeks": {
+          "exclusiveMinimum": 0,
+          "title": "Volume Bad Weeks",
+          "type": "integer"
+        },
+        "ledger_retention_days": {
+          "exclusiveMinimum": 0,
+          "title": "Ledger Retention Days",
+          "type": "integer"
+        },
+        "default_new_slot_sets": {
+          "exclusiveMinimum": 0,
+          "title": "Default New Slot Sets",
+          "type": "integer"
+        },
+        "adherence_drift_days": {
+          "exclusiveMinimum": 0,
+          "title": "Adherence Drift Days",
+          "type": "integer"
+        },
+        "progression_drop_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "lt": 0,
+          "title": "Progression Drop Pct"
+        },
+        "deload_watch_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": -5,
+          "title": "Deload Watch Pct"
+        },
+        "goal_divergence_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 5,
+          "title": "Goal Divergence Pct"
+        },
+        "stall_window_sessions": {
+          "default": 3,
+          "title": "Stall Window Sessions",
+          "type": "integer"
+        },
+        "stall_decline_pct": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": 1.0,
+          "title": "Stall Decline Pct"
+        },
+        "stall_flat_sessions": {
+          "default": 6,
+          "title": "Stall Flat Sessions",
+          "type": "integer"
+        },
+        "stall_min_sessions": {
+          "default": 4,
+          "title": "Stall Min Sessions",
+          "type": "integer"
+        },
+        "bodyweight_gap_days": {
+          "default": 14,
+          "title": "Bodyweight Gap Days",
+          "type": "integer"
+        },
+        "bodyweight_avg_days": {
+          "default": 7,
+          "title": "Bodyweight Avg Days",
+          "type": "integer"
+        },
+        "recent_notes_count": {
+          "default": 6,
+          "title": "Recent Notes Count",
+          "type": "integer"
+        },
+        "trend_top_lifts": {
+          "default": 8,
+          "title": "Trend Top Lifts",
+          "type": "integer"
+        },
+        "deload_volume_reduction": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Deload Volume Reduction",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stale_workout_hours",
+        "stale_workout_days",
+        "break_days",
+        "e1rm_warn_ratio",
+        "duplicate_name_distance",
+        "volume_window_weeks",
+        "volume_bad_weeks",
+        "ledger_retention_days",
+        "default_new_slot_sets",
+        "adherence_drift_days",
+        "progression_drop_pct"
+      ],
+      "title": "Thresholds",
+      "type": "object"
+    },
+    "VolumeHistory": {
+      "additionalProperties": false,
+      "properties": {
+        "week_starts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Week Starts",
+          "type": "array"
+        },
+        "by_muscle": {
+          "additionalProperties": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "title": "By Muscle",
+          "type": "object"
+        }
+      },
+      "required": [
+        "week_starts",
+        "by_muscle"
+      ],
+      "title": "VolumeHistory",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical validated form of the synchronized dashboard payload (v2 views).\n\nEvery field required, extra forbidden: Python always emits everything or\nfails loudly. The dashboard and worker consume generated schemas only.",
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "exported": {
+      "title": "Exported",
+      "type": "string"
+    },
+    "as_of": {
+      "title": "As Of",
+      "type": "string"
+    },
+    "constants": {
+      "$ref": "#/$defs/ConstantsModel"
+    },
+    "lifts": {
+      "items": {
+        "$ref": "#/$defs/Lift"
+      },
+      "title": "Lifts",
+      "type": "array"
+    },
+    "muscles": {
+      "items": {
+        "$ref": "#/$defs/Muscle"
+      },
+      "title": "Muscles",
+      "type": "array"
+    },
+    "sessions": {
+      "items": {
+        "$ref": "#/$defs/SessionView"
+      },
+      "title": "Sessions",
+      "type": "array"
+    },
+    "calendar": {
+      "items": {
+        "$ref": "#/$defs/CalendarDay"
+      },
+      "title": "Calendar",
+      "type": "array"
+    },
+    "volume_history": {
+      "$ref": "#/$defs/VolumeHistory"
+    },
+    "bodyweight": {
+      "items": {
+        "$ref": "#/$defs/BodyweightPoint"
+      },
+      "title": "Bodyweight",
+      "type": "array"
+    },
+    "program": {
+      "$ref": "#/$defs/ProgramView"
+    },
+    "status": {
+      "$ref": "#/$defs/StatusView"
+    },
+    "next_up": {
+      "$ref": "#/$defs/NextUp"
+    },
+    "goals": {
+      "items": {
+        "$ref": "#/$defs/Goal"
+      },
+      "title": "Goals",
+      "type": "array"
+    },
+    "adherence": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Adherence"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/Signal"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "recent_notes": {
+      "items": {
+        "$ref": "#/$defs/RecentNote"
+      },
+      "title": "Recent Notes",
+      "type": "array"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "flags": {
+      "items": {
+        "$ref": "#/$defs/Flag"
+      },
+      "title": "Flags",
+      "type": "array"
+    },
+    "deload": {
+      "items": {
+        "$ref": "#/$defs/Deload"
+      },
+      "title": "Deload",
+      "type": "array"
+    },
+    "priority": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Priority"
+      },
+      "title": "Priority",
+      "type": "object"
+    },
+    "autoreg": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Autoreg"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "autoreg_changes": {
+      "items": {
+        "$ref": "#/$defs/AutoregChange"
+      },
+      "title": "Autoreg Changes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "exported",
+    "as_of",
+    "constants",
+    "lifts",
+    "muscles",
+    "sessions",
+    "calendar",
+    "volume_history",
+    "bodyweight",
+    "program",
+    "status",
+    "next_up",
+    "goals",
+    "adherence",
+    "signals",
+    "recent_notes",
+    "rules",
+    "flags",
+    "deload",
+    "priority",
+    "autoreg",
+    "autoreg_changes"
+  ],
+  "title": "SnapshotModel",
+  "type": "object"
+}

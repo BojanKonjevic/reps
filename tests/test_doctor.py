@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 5: doctor validates constants, DB, and dashboard consistency."""
+"""Doctor validates constants, DB, and dump consistency.
 
-import json
+Referential facts are FKs now: each deleted doctor check has a test below
+that attempts the violation and expects a Refusal.
+"""
 
 import pytest
 from conftest import seed_split
@@ -13,9 +15,7 @@ def test_doctor_healthy(log_module):
     log.start_workout("test")
     log.log_set("bench", 100, 5, "", "chest")
     seed_split(log, "Test", ("bench", 2))
-    c = log.conn()
-    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)", (json.dumps(["Test"]),))
-    c.commit()
+    log.set_rotation(["Test"])
     assert log.run_doctor() == {"ok": True, "muscles": len(log.load_constants().muscles)}
 
 
@@ -28,13 +28,40 @@ def test_doctor_fails_on_bad_constants(log_module, tmp_path, monkeypatch):
         log.run_doctor()
 
 
-def test_doctor_flags_unmapped_split_exercise(log_module):
+def test_fk_sets_exercise(log_module):
+    """Unmapped set insert is refused by the FK (was: sets_mapping doctor check)."""
+    import sqlite3
     log = log_module
     c = log.conn()
-    c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', 'Test', 1, 'mystery press', 2)")
-    c.commit()
-    problems = log.run_doctor()["problems"]
-    assert [p for p in problems if p["check"] == "split_mapping" and "mystery press" in p["fix"]]
+    wid = c.execute("INSERT INTO workouts (date, status, notes) VALUES ('2026-09-01', 'done', '')").lastrowid
+    with pytest.raises(sqlite3.IntegrityError):
+        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) "
+                  "VALUES (?, 'ghost press', 100, 5, '', datetime('now'))", (wid,))
+
+
+def test_fk_split_slot_lift(log_module):
+    """Split slot with unknown lift is refused (was: split_mapping doctor check)."""
+    log = log_module
+    with pytest.raises(RepsError, match="not a known lift"):
+        log.set_split("Test", 1, "mystery press", 2)
+
+
+def test_fk_progression_workout(log_module):
+    """Progression for a missing workout is refused (was: progression_workout check)."""
+    log = log_module
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest")
+    with pytest.raises(RepsError, match="no such workout"):
+        log.set_progression("bench", "hit", 100, 5, "up", workout_id=9999)
+
+
+def test_fk_rotation_day(log_module):
+    """Rotation day outside splits is refused (was: rotation doctor check)."""
+    log = log_module
+    log.set_exercise_mapping("bench", "chest")
+    seed_split(log, "Upper A", ("bench", 2))
+    with pytest.raises(RepsError, match="must exist in splits"):
+        log.set_rotation(["Upper A", "Nope C"])
 
 
 def test_doctor_flags_stray_muscle(log_module):
@@ -42,36 +69,20 @@ def test_doctor_flags_stray_muscle(log_module):
     log.start_workout("test")
     log.log_set("bench", 100, 5, "", "chest")
     c = log.conn()
-    set_id = c.execute("SELECT id FROM sets").fetchone()["id"]
-    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'wings')", (set_id,))
+    c.execute("INSERT INTO lift_muscle (exercise, muscle) VALUES ('bench', 'wings')")
     c.commit()
     assert [p for p in log.run_doctor()["problems"] if p["check"] == "muscle_coverage"]
-
-
-def test_doctor_flags_bad_rotation(log_module):
-    log = log_module
-    c = log.conn()
-    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
-              (json.dumps(["Upper A", "Nope C"]),))
+    c.execute("DELETE FROM lift_muscle WHERE exercise = 'bench' AND muscle = 'wings'")
     c.commit()
-    assert [p for p in log.run_doctor()["problems"] if p["check"] == "rotation"]
+    assert log.run_doctor()["ok"] is True
 
 
-def test_doctor_rotation_edge_cases(log_module):
+def test_doctor_rotation_rest_and_case(log_module):
     log = log_module
     log.set_exercise_mapping("bench", "chest")
     seed_split(log, "Upper A", ("bench", 2))
-    c = log.conn()
-    # rest entries exempt, case-insensitive day match
-    c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)",
-              (json.dumps(["upper a", "rest"]),))
-    c.commit()
+    log.set_rotation(["upper a", "rest"])
     assert log.run_doctor()["ok"] is True
-    for bad in ("[]", "{bad json", json.dumps(["Upper A", 3])):
-        c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('rotation', ?)", (bad,))
-        c.commit()
-        problems = log.run_doctor()["problems"]
-        assert [p for p in problems if p["check"] == "rotation"]
 
 
 def test_doctor_flags_dump_drift(log_module, tmp_path, monkeypatch):

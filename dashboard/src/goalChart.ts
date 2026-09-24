@@ -1,53 +1,40 @@
+// SSOT owner: goal-trajectory geometry. Consumers: GoalChartView via plot() -> HitMap.
+
 import { max, min } from 'd3-array';
-import { fit, putText, TC, GC, drawHoverLine } from './charts';
+import { fit, putText, drawHoverLine } from './charts';
 import { linearScale } from './lib/scales';
-import { fmtV, fmtD, niceTicks } from './utils';
+import { fmtV, fmtD, niceTicks } from './lib/format';
+import { theme } from './lib/theme';
+import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
 
 export interface GoalPoint {
   date: string;
   ev: number;
 }
 
-export function goalHit(
-  cv: HTMLCanvasElement,
-  actuals: GoalPoint[],
-  checkpoints: number[],
-  x: number
-): number {
-  const r = cv.getBoundingClientRect();
-  if (!r.width) return -1;
-  const n = Math.max(actuals.length, checkpoints.length);
-  if (!n) return -1;
-  const P = 40;
-  const pxi = (i: number) => P + (r.width - P - 6) * (n <= 1 ? 1 : i / (n - 1));
-  let bi = -1;
-  let bd = 1e9;
-  for (let i = 0; i < n; i += 1) {
-    const d = Math.abs(pxi(i) - x);
-    if (d < bd) {
-      bd = d;
-      bi = i;
-    }
-  }
-  return bd > 30 ? -1 : bi;
+export interface GoalModel {
+  actuals: GoalPoint[];
+  checkpoints: number[];
+  color: string;
 }
 
-export function goalChart(
-  cv: HTMLCanvasElement,
-  actuals: GoalPoint[],
-  checkpoints: number[],
-  col: string,
-  hover?: number
-) {
+export function layoutOf(w: number, h: number): ChartLayout {
+  return baseLayout(w, h, 'goal');
+}
+
+export function plot(cv: HTMLCanvasElement, model: GoalModel, hover = -1): HitMap {
+  const { actuals, checkpoints, color: col } = model;
   const { g, W, H } = fit(cv);
-  const P = 40;
+  const L = layoutOf(W, H);
+  const P = L.padL;
+  const hit = emptyHit();
   g.clearRect(0, 0, W, H);
-  g.font = "600 15px 'IBM Plex Sans', sans-serif";
+  g.font = theme.font(15, 600);
   const n = Math.max(actuals.length, checkpoints.length);
   if (!n) {
-    g.fillStyle = TC;
+    g.fillStyle = theme.color('ink-dim');
     putText(g, W, 'no trajectory yet', P, H / 2, 'left');
-    return;
+    return hit;
   }
   const all = actuals.map(a => a.ev).concat(checkpoints);
   let mn = min(all) ?? 0;
@@ -65,14 +52,14 @@ export function goalChart(
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
     const y = py(v);
-    g.strokeStyle = GC;
+    g.strokeStyle = theme.color('line');
     g.lineWidth = 1;
     g.beginPath();
     g.moveTo(P, y);
     g.lineTo(W - 6, y);
     g.stroke();
     if (i % 2 === 0 || i === nt) {
-      g.fillStyle = TC;
+      g.fillStyle = theme.color('ink-dim');
       putText(g, W, String(v), 2, y + 4, 'left');
     }
   }
@@ -90,6 +77,7 @@ export function goalChart(
     g.beginPath();
     g.arc(xOf(i), py(a.ev), 3, 0, 7);
     g.fill();
+    hit.points.push({ x: xOf(i), y: py(a.ev), index: i });
   });
   g.strokeStyle = col;
   g.globalAlpha = 0.75;
@@ -111,7 +99,7 @@ export function goalChart(
     g.arc(xOf(i), py(cp), 4, 0, 7);
     g.stroke();
   });
-  if (hover !== undefined && hover >= 0 && hover < n) {
+  if (hover >= 0 && hover < n) {
     const hv = hover < actuals.length ? actuals[hover].ev : checkpoints[hover];
     if (hv !== undefined) {
       const x = xOf(hover);
@@ -122,9 +110,10 @@ export function goalChart(
       g.fill();
     }
   }
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   if (actuals.length) {
     putText(g, W, fmtD(actuals[0].date), P, H - 5, 'left');
     putText(g, W, fmtV(checkpoints[checkpoints.length - 1]) + ' goal', W - 6, H - 5, 'right');
   }
+  return hit;
 }

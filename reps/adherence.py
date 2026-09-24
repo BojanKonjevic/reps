@@ -12,7 +12,8 @@ from .errors import RepsError
 
 from .constants import load_constants
 from .db import conn
-from .program import day_movements, meta_get, parse_rotation, split_day_order
+from .program import get_rotation, parse_rotation, split_day_order
+from .slots import slot_of_session
 
 
 def is_rest_day(name):
@@ -22,13 +23,16 @@ def is_rest_day(name):
 def parse_anchor(raw, rotation):
     """Validate a stored anchor. Returns (anchor, problem): anchor is None
     when missing or invalid, problem is None when valid. Missing (no row)
-    is not a problem, it just disables adherence."""
+    is not a problem, it just disables adherence.
+
+    Accepts the {"date", "index"} dict from the rotation_anchor table or a
+    raw JSON string (input-boundary tolerance)."""
     if not raw:
         return None, None
     malformed = (None, "rotation_anchor must be {\"date\": \"YYYY-MM-DD\", \"index\": <int>} "
-                       "(see rotation anchor)")
+                       "(anchor the rotation again)")
     try:
-        anchor = json.loads(raw)
+        anchor = json.loads(raw) if isinstance(raw, str) else raw
     except ValueError:
         return malformed
     if not isinstance(anchor, dict) or not isinstance(anchor.get("date"), str):
@@ -44,13 +48,15 @@ def parse_anchor(raw, rotation):
         return None, f"rotation_anchor date {day} is in the future"
     if not rotation or index >= len(rotation):
         return None, (f"rotation_anchor index {index} is out of range "
-                       f"for the current rotation (see meta show rotation)")
+                        f"for the current rotation (anchor the rotation again)")
     return {"date": day, "index": index}, None
 
 
 def get_anchor(c):
     """Parsed rotation_anchor or None when missing, corrupt, or out of range."""
-    anchor, _ = parse_anchor(meta_get(c, "rotation_anchor"), parse_rotation(c))
+    row = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    raw = {"date": row["anchor_date"], "index": row["position"]} if row else None
+    anchor, _ = parse_anchor(raw, parse_rotation(c))
     return anchor
 
 
@@ -76,17 +82,14 @@ def match_day(c, trained):
     """Best-matching split day for a trained set. Ties and no-overlap give None.
 
     A tie means the session is ambiguous, so it resolves to swapped downstream
-    instead of crediting one of the tied days as done.
+    instead of crediting one of the tied days as done. One tie rule, owned
+    by reps/slots.py.
     """
+    from .program import parse_active_split_days
     if not trained:
         return None
-    scored = [(len(trained & set(day_movements(d, c=c))), d) for d in split_day_order("active", c=c)]
-    scored.sort(key=lambda s: s[0], reverse=True)
-    if not scored or scored[0][0] == 0:
-        return None
-    if len(scored) > 1 and scored[1][0] == scored[0][0]:
-        return None
-    return scored[0][1]
+    match = slot_of_session(list(trained), parse_active_split_days(c))
+    return match["day"]
 
 
 def classify_date(c, rotation, anchor, day_iso):
@@ -210,13 +213,14 @@ def anchor_rotation(date_str, day):
         raise RepsError("anchor date cannot be in the future")
     rotation = parse_rotation(c)
     if not rotation:
-        raise RepsError("no rotation to anchor (set rotation meta first)")
+        raise RepsError("no rotation to anchor (set the rotation first)")
     match = next((i for i, d in enumerate(rotation) if d.lower() == (day or "").strip().lower()), None)
     if match is None:
         raise RepsError(f"'{day}' matches no rotation entry")
     anchor = {"date": on, "index": match}
-    c.execute("INSERT INTO meta (key, value) VALUES ('rotation_anchor', ?) "
-              "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (json.dumps(anchor),))
+    c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?) "
+              "ON CONFLICT (id) DO UPDATE SET anchor_date = excluded.anchor_date, "
+              "position = excluded.position", (on, match))
     c.commit()
     return {"anchor": anchor, "day": rotation[match]}
 
@@ -230,8 +234,8 @@ def get_rotation_status(from_iso=None, to_iso=None):
     rotation = parse_rotation(c)
     anchor = get_anchor(c)
     if not rotation or anchor is None:
-        if meta_get(c, "rotation_anchor"):
-            raise RepsError("rotation anchor is set but invalid (see doctor)")
+        if c.execute("SELECT 1 FROM rotation_anchor WHERE id = 1").fetchone():
+            raise RepsError("the rotation schedule anchor is set but invalid")
         raise RepsError("rotation adherence needs a rotation and an anchor")
     today = date.today().isoformat()
     try:

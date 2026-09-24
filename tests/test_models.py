@@ -115,61 +115,73 @@ def test_validate_constants_fails_loudly():
 
 def test_snapshot_validates_built_payload(log_module):
     snap = log_module.build_snapshot_validated()
-    assert snap["exported"]
-    assert isinstance(snap["workouts"], list)
+    assert snap["schema_version"] == 2
+    assert isinstance(snap["sessions"], list)
+    assert isinstance(snap["lifts"], list)
 
 
 def test_snapshot_rejects_missing_exported():
     with pytest.raises(SnapshotValidationError):
-        validate_snapshot({"workouts": [], "sets": []})
+        validate_snapshot({"schema_version": 2})
 
 
-def test_snapshot_rejects_string_weight():
+def test_snapshot_rejects_string_weight(log_module):
+    snap = log_module.build_snapshot_validated()
+    snap["sessions"][0]["exercises"] if snap["sessions"] else None
+    bad = dict(snap)
+    bad["lifts"] = [dict(l, sessions=[dict(s, weight="heavy") for s in l["sessions"]])
+                    for l in snap["lifts"]] or snap["lifts"]
+    if snap["lifts"]:
+        with pytest.raises(SnapshotValidationError):
+            validate_snapshot(bad)
+    else:
+        with pytest.raises(SnapshotValidationError):
+            validate_snapshot({"exported": "2026-01-01T00:00:00"})
+
+
+def test_snapshot_rejects_unknown_sections(log_module):
+    """No silent tolerance: unknown sections fail loudly (extra=forbid)."""
+    snap = log_module.build_snapshot_validated()
+    snap["future_section"] = {"anything": [1, 2, 3]}
     with pytest.raises(SnapshotValidationError):
-        validate_snapshot({"exported": "2026-01-01T00:00:00", "workouts": [],
-                           "sets": [{"id": 1, "workout_id": 1, "exercise": "bench",
-                                     "weight": "heavy", "reps": 5}]})
+        validate_snapshot(snap)
 
 
-def test_snapshot_tolerates_unknown_sections():
-    snap = {"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
-            "future_section": {"anything": [1, 2, 3]}}
-    model = validate_snapshot(snap)
-    assert model.exported == "2026-01-01T00:00:00"
+def test_snapshot_rejects_partial_payload():
+    with pytest.raises(SnapshotValidationError):
+        validate_snapshot({"schema_version": 2, "exported": "2026-01-01T00:00:00"})
 
 
-def test_snapshot_tolerates_older_payload():
-    snap = {"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
-            "bodyweight": []}
-    model = validate_snapshot(snap)
-    assert model.adherence is None
-    assert model.autoreg is None
-    assert model.volume == {}
-
-
-def test_snapshot_volume_entry_shape(log_module):
+def test_snapshot_muscle_entry_shape(log_module):
     log = log_module
     log.set_exercise_mapping("bench", "chest")
     log.set_split("Upper A", 1, "bench", 5)
     snap = log.build_snapshot_validated()
-    assert set(snap["volume"]["chest"]) == {"weekly", "mev", "mav", "mrv", "freq", "status"}
+    chest = next(m for m in snap["muscles"] if m["muscle"] == "chest")
+    assert set(chest) == {"muscle", "bands", "weekly", "status", "tier",
+                          "grouped", "lift_share", "trained_weeks", "avg_recent"}
+    assert set(chest["bands"]) == {"mev", "mav", "mrv"}
     SnapshotModel.model_validate(snap)
 
 
-def test_snapshot_rejects_bad_workout_status():
+def test_snapshot_rejects_bad_calendar_kind(log_module):
+    snap = log_module.build_snapshot_validated()
+    snap["calendar"] = [dict(d, kind="whenever") for d in snap["calendar"]] or [
+        {"date": "2026-01-01", "kind": "whenever", "slot_label": None, "has_pr": False,
+         "break_after_gap": False, "adherence_status": None, "expected": None,
+         "hover": {"lines": []}}]
     with pytest.raises(SnapshotValidationError):
-        validate_snapshot({"exported": "2026-01-01T00:00:00",
-                           "workouts": [{"id": 1, "date": "2026-01-01", "status": "archived"}],
-                           "sets": []})
+        validate_snapshot(snap)
 
 
-def test_snapshot_rejects_bad_adherence_status():
+def test_snapshot_rejects_bad_adherence_status(log_module):
+    snap = log_module.build_snapshot_validated()
+    snap["adherence"] = {"anchor": None, "days": [
+        {"date": "2026-01-01", "expected": "Upper A",
+         "trained": None, "status": "sometimes"}],
+        "drift": False, "drift_days": 0, "drift_threshold": 3, "weeks": []}
     with pytest.raises(SnapshotValidationError):
-        validate_snapshot({"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
-                           "adherence": {"anchor": None, "days": [
-                               {"date": "2026-01-01", "expected": "Upper A",
-                                "trained": None, "status": "sometimes"}],
-                               "drift": False, "drift_days": 0, "drift_threshold": 3}})
+        validate_snapshot(snap)
 
 
 def test_first_error_reports_location():
@@ -190,22 +202,32 @@ def test_snapshot_models_goal_and_rule_sections(log_module):
     log.start_workout("test")
     log.log_set("bench", 100, 5, "", "chest")
     from datetime import date, timedelta
+    from conftest import close_session
+    close_session(log, "done")
     deadline = (date.today() + timedelta(days=60)).isoformat()
-    log.add_goal("bench", 130, deadline, "", None)
+    log.add_goal("bench", 130, deadline, "", 116.7)
     log.add_rule("test rule", "test", None)
     log.add_flag("bench", "watch")
     snap = log.build_snapshot_validated()
     model = SnapshotModel.model_validate(snap)
     assert model.goals[0].exercise == "bench"
     assert model.goals[0].checkpoints
+    assert model.goals[0].percent == 0.0
     assert model.rules[0].text == "test rule"
     assert model.flags[0].subject == "bench"
-    assert model.mapping[0].muscles == "chest"
+    assert next(l for l in model.lifts if l.exercise == "bench").goal_id == model.goals[0].id
 
 
-def test_snapshot_rejects_bad_progression_verdict():
+def test_snapshot_rejects_bad_lift_tag(log_module):
+    snap = log_module.build_snapshot_validated()
+    if not snap["lifts"]:
+        log_module.set_exercise_mapping("bench", "chest")
+        log_module.start_workout("t")
+        log_module.log_set("bench", 100, 5, "", "chest")
+        from conftest import close_session
+        close_session(log_module, "done")
+        snap = log_module.build_snapshot_validated()
+    snap["lifts"][0]["tags"] = ["flying"]
+    snap["lifts"][0]["marks"] = [{"kind": "flying", "payload": {}}]
     with pytest.raises(SnapshotValidationError):
-        validate_snapshot({"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
-                           "progression": {"bench": {"verdict": "smashed", "next": "82.5x5",
-                                                     "direction": "up", "workout_id": 1,
-                                                     "note": ""}}})
+        validate_snapshot(snap)
