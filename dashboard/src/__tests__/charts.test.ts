@@ -1,8 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { LC, liftColor } from '../charts';
+import { LC, liftColor, dayColor } from '../charts';
 import { visibleStart, labelIndices } from '../stackedChart';
 import { firstNonZero } from '../lib/chartLayout';
 import { vertical } from '../muscleChart';
+
+describe('dayColor', () => {
+  it('gives every split day its own color', () => {
+    expect(dayColor('U1')).toBe('hsl(12,72%,62%)');
+    expect(dayColor('U2')).toBe('hsl(32,72%,62%)');
+    expect(dayColor('U3')).toBe('hsl(48,72%,62%)');
+    expect(dayColor('U4')).toBe('hsl(348,72%,62%)');
+    expect(dayColor('L1')).toBe('hsl(212,72%,62%)');
+    expect(dayColor('L2')).toBe('hsl(168,72%,62%)');
+    expect(new Set(['U1', 'U2', 'U3', 'U4', 'L1', 'L2'].map(dayColor)).size).toBe(6);
+  });
+  it('rests gray and unknown names fall back to liftColor', () => {
+    expect(dayColor('rest')).toBe('hsl(0,0%,50%)');
+    expect(dayColor('mystery day')).toBe(liftColor('mystery day'));
+  });
+});
 
 describe('liftColor', () => {
   it('is stable per exercise name', () => {

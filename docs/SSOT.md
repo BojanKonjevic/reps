@@ -52,6 +52,7 @@
 | Icons                                | `design/icons.ts`                                                         | `<Icon>`, canvas `Path2D`                        | T1/T2 | G8                 |
 | Routes                               | `routes.ts`                                                               | builders + parser                                | T1/T2 | G7                 |
 | Chart geometry                       | per-chart `layoutOf`                                                      | `HitMap`                                         | T1    | tests              |
+| Split-day colors                       | `dashboard/src/charts.ts` `dayColor`                                      | session chart dots + legend                      | T2    | tests              |
 | Clock                                | `snapshot.as_of` (classification), `lib/clock.ts` (highlight only)        |                                                  | T2    | G9                 |
 | Test data                            | `tests/scenarios.py`                                                      | generated fixtures                               | T2    | G3                 |
 | Doc values                           | `constants.json` via markers                                              | `sync_docs.py`                                   | T2    | G4                 |

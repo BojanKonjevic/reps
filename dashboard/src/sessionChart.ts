@@ -1,6 +1,6 @@
 // SSOT owner: session-length chart geometry. Consumers: SessionLengthChart via plot() -> HitMap.
 // Durations and day labels arrive in the model (Python owns the first-to-last-set
-// span); day identity maps to color in liftColor, reused, never redefined here.
+// span); day colors arrive per point, resolved by the component in dayColor.
 
 import { max, min } from 'd3-array';
 import { fit, putText, drawYAxis } from './charts';

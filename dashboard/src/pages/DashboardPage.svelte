@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { liftColor } from '../charts';
+  import { dayColor, liftColor } from '../charts';
   import { fmtD, fmtMin, fmtV } from '../lib/format';
   import {
     verdictClass,
@@ -96,7 +96,7 @@
   const goals = $derived(snap.goals);
   const spans = $derived(sessionSpans(snap.sessions));
   const sessPoints = $derived(
-    spans.map(s => ({ date: s.date, minutes: s.minutes, day: s.day, color: liftColor(s.day) }))
+    spans.map(s => ({ date: s.date, minutes: s.minutes, day: s.day, color: dayColor(s.day) }))
   );
   const sessAvgs = $derived(dayAvgs(spans));
   const progLifts = $derived(
@@ -301,7 +301,7 @@
           <div class="pielegend" id="sessLenLegend">
             {#each sessAvgs as a}
               <div class="row">
-                <span class="sw" style:background={liftColor(a.day)}></span>
+                <span class="sw" style:background={dayColor(a.day)}></span>
                 <a href={href.program()}>{a.day}</a>
                 <span class="meta">avg {fmtMin(a.avg)} · {a.n} session{a.n === 1 ? '' : 's'}</span>
               </div>

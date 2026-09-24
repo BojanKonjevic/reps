@@ -1,6 +1,7 @@
-// SSOT owner: canvas primitives and liftColor hashing. Consumers: every chart.
+// SSOT owner: canvas primitives and identity-to-color hashing. Consumers: every chart.
 // Muscle colors come from snapshot constants via lib/vocab (never here);
-// lift identity maps to color in liftColor only (presentation-only, no domain meaning).
+// lift identity maps to color in liftColor only, split-day identity in
+// dayColor only (both presentation-only, no domain meaning).
 
 import { fmtV, fmtD, fmtTick } from './lib/format';
 import { icons } from './design/icons';
@@ -25,6 +26,39 @@ export function liftColor(name: string): string {
     h = Math.imul(h, 16777619);
   }
   return LC[(h >>> 0) % LC.length];
+}
+
+// Split-day colors read as families: U-days run warm, L-days cool, numbered
+// variants step through distinct hues inside the family so U1 vs U3 (or U1
+// vs L1) is obvious without sharing one color. Same 72%/62% as LC so both
+// sit naturally on the dark theme. Day names are user data, so this derives
+// from the name instead of a token; anything unrecognized falls back to
+// liftColor.
+const DAY_HUES: Record<string, number[]> = {
+  u: [12, 32, 48, 348],
+  l: [212, 168],
+};
+
+export function dayColor(name: string): string {
+  const key = (name || '').trim().toLowerCase();
+  if (key === 'rest') return 'hsl(0,0%,50%)';
+  let cut = key.length;
+  while (cut > 0) {
+    const ch = key.charAt(cut - 1);
+    if (ch < '0' || ch > '9') break;
+    cut -= 1;
+  }
+  const letters = key.slice(0, cut).trim();
+  let alpha = letters.length > 0;
+  for (const ch of letters) {
+    if (ch < 'a' || ch > 'z') alpha = false;
+  }
+  if (alpha && DAY_HUES[letters]) {
+    const hues = DAY_HUES[letters];
+    const n = cut < key.length ? parseInt(key.slice(cut), 10) : 1;
+    return 'hsl(' + hues[(Math.max(1, n) - 1) % hues.length] + ',72%,62%)';
+  }
+  return liftColor(name);
 }
 
 export interface ChartContext {
