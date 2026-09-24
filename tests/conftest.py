@@ -7,10 +7,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import reps
 import reps.db
+import reps.memory
 
 
 @pytest.fixture
-def tmp_db(monkeypatch):
+def tmp_db(monkeypatch, tmp_path):
     """Create a temporary SQLite DB for each test."""
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -18,6 +19,10 @@ def tmp_db(monkeypatch):
     # Domain modules read the DB path global at call time, so pointing the
     # live global at the tmp DB is enough (undone automatically on teardown).
     monkeypatch.setattr(reps.db, "DB", path)
+    # Memory writeback (clear_deload) must never touch the real docs/MEMORY.md.
+    mem = tmp_path / "MEMORY.md"
+    mem.write_text("# memory\n\n## State\n\n## Other\n")
+    monkeypatch.setattr(reps.memory, "MEMORY_FILE", str(mem))
     yield path
     try:
         os.unlink(path)

@@ -207,3 +207,35 @@ def test_payload_budget(log_module):
     snap = log.export_snapshot()
     size = len(json.dumps(snap))
     assert size < 1_500_000, f"snapshot payload {size} exceeds 1.5 MB budget"
+
+
+def test_session_deload_uses_historical_state(log_module):
+    """A session trained under a since-cleared deload still reads deload."""
+    from datetime import date, timedelta
+    log = log_module
+    c = log.conn()
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    d0 = (date.today() - timedelta(days=6)).isoformat()
+    d1 = (date.today() - timedelta(days=2)).isoformat()
+    log.set_deload("lift", "bench")
+    c.execute("UPDATE deload_state SET set_on = ?", (d0,))
+    c.commit()
+    log.start_workout("old")
+    log.log_set("bench", 60, 5, "", "chest")
+    wid = log.open_workout(c)["id"]
+    log.set_progression("bench", "hold", 100, 5, "flat", "deload")
+    close_session(log, "deload session")
+    c.execute("UPDATE workouts SET date = ? WHERE id = ?", (d1, wid))
+    c.commit()
+    log.clear_deload()
+    c.execute("UPDATE deload_state SET cleared_on = ?", (date.today().isoformat(),))
+    c.commit()
+    log.start_workout("new")
+    log.log_set("bench", 100, 5, "", "chest")
+    wid2 = log.open_workout(c)["id"]
+    log.set_progression("bench", "baseline", 102.5, 5, "flat")
+    close_session(log, "new session")
+    sessions = {s["date"]: s for s in log.export_snapshot()["sessions"]}
+    assert sessions[d1]["exercises"][0]["deload"] is True
+    assert sessions[date.today().isoformat()]["exercises"][0]["deload"] is False

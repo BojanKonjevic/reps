@@ -162,8 +162,10 @@ def muscles_view(c, constants, priorities, autoreg, volume, starts):
     return out
 
 
-def sessions_view(c, days, deloads, flags):
+def sessions_view(c, days, flags):
     out = []
+    history = [dict(r) for r in
+               c.execute("SELECT scope, subject, set_on, cleared_on FROM deload_state").fetchall()]
     for w in c.execute("SELECT * FROM workouts ORDER BY date, id").fetchall():
         rows = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         ex_order: list[str] = []
@@ -174,6 +176,9 @@ def sessions_view(c, days, deloads, flags):
                 ex_order.append(s["exercise"])
         match = slot_of_session(ex_order, days)
         exercises = []
+        at_date = [d for d in history
+                   if d["set_on"] <= w["date"]
+                   and (d["cleared_on"] is None or d["cleared_on"] > w["date"])]
         for n0, ex in enumerate(ex_order):
             sets = []
             for i, s in enumerate(by_ex[ex], 1):
@@ -182,7 +187,7 @@ def sessions_view(c, days, deloads, flags):
                              "e": round(ev, 1), "pr": bool(flags.get(s["id"], False)),
                              "note": s["note"]})
             exercises.append({"exercise": ex,
-                              "deload": bool(deload_covers(deloads, ex, days)),
+                              "deload": bool(deload_covers(at_date, ex, days)),
                               "sets": sets})
         out.append({"date": w["date"], "workout_id": w["id"], "status": w["status"],
                     "slot_label": match["day"], "notes": w["notes"], "exercises": exercises})
@@ -429,9 +434,8 @@ def build_views(c):
     volume = volume_block(c)
     starts = week_starts(constants.thresholds.volume_window_weeks)
     days = parse_active_split_days(c)
-    deloads = active_deloads(c)
     flags = _pr_flags(c)
-    sessions = sessions_view(c, days, deloads, flags)
+    sessions = sessions_view(c, days, flags)
     break_threshold = constants.thresholds.break_days + 1
     goals = goals_view(c, prog)
     snap = {
