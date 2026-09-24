@@ -38,13 +38,16 @@ class Fix:
         return f"call `{self.tool}`"
 
 
-@dataclass(frozen=True)
+@dataclass
 class Refusal(RepsError):
     """A structured refusal: machine-readable code, human message, optional fix."""
 
     code: str = ""
     message: str = ""
     fix: Fix | None = None
+
+    def __post_init__(self) -> None:
+        Exception.__init__(self, self.message or self.code)
 
     def __str__(self) -> str:
         base = self.message or self.code
