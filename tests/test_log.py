@@ -14,7 +14,7 @@ def test_log_fails_without_open_workout(log_module):
     c = log_module.conn()
     try:
         log_module.log_set("bench", 100, 5, "", "chest")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "no open workout" in str(e).lower()
 
@@ -28,7 +28,7 @@ def test_update_rejects_invalid_fields(log_module):
     set_id = sets[0]["id"]
     try:
         log_module.update_set(set_id, "invalid_field", "value")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "field must be one of" in str(e).lower()
 
@@ -93,7 +93,7 @@ def test_update_workout_rejects_bad_status(log_module):
     wid = workouts[0]["id"]
     try:
         log_module.update_workout(str(wid), "status", "invalid")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "status must be open, done or rest" in str(e).lower()
 
@@ -106,7 +106,7 @@ def test_update_workout_validates_date_format(log_module):
     wid = workouts[0]["id"]
     try:
         log_module.update_workout(str(wid), "date", "not-a-date")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError:
         pass
 
@@ -346,7 +346,7 @@ def test_update_weight_rejects_empty(log_module):
     set_id = sets[0]["id"]
     try:
         log_module.update_set(set_id, "weight", "")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "weight cannot be empty" in str(e).lower()
 
@@ -385,7 +385,7 @@ def test_log_zero_weight_rejected_without_bw_flag(log_module):
     log_module.log_set("bench", 100, 5, "", "chest")
     try:
         log_module.log_set("bench", 0, 5, "", "chest")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "zero weight not allowed" in str(e).lower()
 
@@ -397,7 +397,7 @@ def test_log_rejects_negative_weight_and_bad_reps(log_module):
     for w, r in [(-5, 5), (100, 0), (100, -3)]:
         try:
             log_module.log_set("bench", w, r, "", "chest")
-            assert False, "should have exited"
+            assert False, "should have refused"
         except RepsError:
             pass
     assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 0

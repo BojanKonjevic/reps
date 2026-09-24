@@ -21,8 +21,8 @@ from .program import (active_deloads, parse_rotation, read_priorities,
 
 
 def build_snapshot(c=None):
-    """Full dashboard payload. Worker ignores unknown fields, so the CLI can
-    extend this without breaking the page. Missing tables never fail: a fresh
+    """Full dashboard payload. Worker ignores unknown fields, so the domain
+    can extend this without breaking the page. Missing tables never fail: a fresh
     DB exports history plus empty forward sections."""
     c = c or conn()
     workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]

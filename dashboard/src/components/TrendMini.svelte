@@ -71,9 +71,6 @@
   });
 
   $effect(() => {
-    days;
-    vals;
-    color;
     paint();
   });
 </script>

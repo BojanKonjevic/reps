@@ -44,7 +44,9 @@ Phrases that switch modes, each documented where it lives:
 
 MCP is the sole normal interface; code changes serve it, never a second one:
 
-- Run the MCP server locally with `python -m reps.mcp` (stdio). New agent-facing capability means a thin tool in `reps/mcp/` calling a domain operation directly, never new business logic in the handler and never a shell command.
-- Domain truth lives in `reps/` behind plain functions, validated by Pydantic models in `reps/models.py`; the dashboard validates the same snapshot with matching schemas on its side. Details in `docs/ARCHITECTURE.md`.
+- Run the MCP server locally with `python -m reps.mcp` (stdio). Discover capabilities through tool names and their schemas; results carry `ok` plus `data`, refusals carry `ok: false` plus `error`. Never operate Reps through shell commands, and never parse process output.
+- New agent-facing capability means a domain function first (in the owning module under `reps/`, returning data and raising `RepsError` on refusal), then a thin tool in `reps/mcp/` calling it directly with a descriptive docstring (`Literal` for closed vocabularies). Never new business logic in the handler and never a shell command.
+- Tests for both layers: domain behavior in `tests/` (pytest, direct calls, `pytest.raises(RepsError)` for refusals), MCP exposure in `tests/test_mcp.py` (through `call_tool`/`list_tool_names`). `tests/test_architecture.py` pins the boundaries; keep it passing.
+- Domain truth lives in `reps/` behind plain functions, validated by Pydantic models in `reps/models.py`; the dashboard validates the same snapshot with matching schemas on its side. Docs teach when and why to call things, MCP schemas declare what to call with. Details in `docs/ARCHITECTURE.md`.
 - Verify with `uv run --with pytest --with pydantic --with "mcp>=2" --no-project pytest tests/ -q` (system python has no pytest, never `python -m pytest` directly), plus `pre-commit run --all-files` before reporting done. Dashboard: `npm run test` for unit, `npx playwright test` for e2e, from `dashboard/`; deploy with `npm run deploy` from `dashboard/` after any frontend change and verify live.
 - `log.py` stays four maintenance ops (doctor, dump, restore, export). Do not grow it back into an application interface, and do not add Click, Typer, argparse wrappers, or any other command framework.

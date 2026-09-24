@@ -59,7 +59,7 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
     # This should fail - bench is not a bodyweight exercise
     try:
         log.log_set("bench", 0, 5, "", "chest")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "zero weight not allowed" in str(e).lower()
 
@@ -424,7 +424,7 @@ def test_parse_mev_reads_constants(audit_db):
 
 
 def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
-    """Unparseable constants.json exits instead of falling back silently."""
+    """Unparseable constants.json refuses instead of falling back silently."""
     import json as _json
     log, _ = audit_db
     p = tmp_path / "constants.json"
@@ -435,7 +435,7 @@ def test_load_constants_fails_loud_on_bad_json(audit_db, tmp_path, monkeypatch):
 
 
 def test_load_constants_fails_on_empty_muscles(audit_db, tmp_path, monkeypatch):
-    """A constants file with an empty muscles map exits instead of warning."""
+    """A constants file with an empty muscles map refuses instead of warning."""
     import json as _json
     import reps.constants
     log, _ = audit_db

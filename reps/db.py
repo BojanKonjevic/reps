@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
--- meta has no CLI: plan reads last_compacted, the compaction flow writes it.
+-- meta has no dedicated writer: plan reads last_compacted, the compaction flow writes it.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
 CREATE TABLE IF NOT EXISTS splits (
   id INTEGER PRIMARY KEY,

@@ -67,8 +67,6 @@
   });
 
   $effect(() => {
-    slices;
-    sets;
     paint();
   });
 </script>

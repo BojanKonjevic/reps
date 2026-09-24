@@ -29,10 +29,10 @@ def test_rest_repeat_without_note_reports_noop(log_module):
 
 
 def test_rest_rejects_bad_date_cleanly(log_module):
-    """Direct calls with garbage dates exit cleanly, no traceback."""
+    """Direct calls with garbage dates refuse cleanly, no traceback."""
     try:
         log_module.mark_rest("not-a-date", "sore")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "date must be yyyy-mm-dd" in str(e).lower()
 
@@ -55,7 +55,7 @@ def test_rest_refused_with_open_workout(log_module):
     log_module.start_workout("test")
     try:
         log_module.mark_rest(date.today().isoformat(), "tired")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "open workout" in str(e).lower()
 
@@ -67,7 +67,7 @@ def test_rest_refused_when_trained_today(log_module):
     close_session(log_module, "done")
     try:
         log_module.mark_rest(date.today().isoformat(), "tired")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "already trained" in str(e).lower()
 
@@ -77,7 +77,7 @@ def test_rest_refused_for_future_date(log_module):
     future = (date.today() + timedelta(days=1)).isoformat()
     try:
         log_module.mark_rest(future, "planned")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "future" in str(e).lower()
 
@@ -117,7 +117,7 @@ def test_update_workout_to_rest_guards(log_module):
     wid2 = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
     try:
         log_module.update_workout(str(wid2), "status", "rest")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "has sets" in str(e).lower()
 
@@ -169,7 +169,7 @@ def test_update_workout_to_rest_refuses_duplicate_rest_row(log_module):
     wid = c.execute("SELECT id FROM workouts WHERE status = 'done'").fetchone()["id"]
     try:
         log_module.update_workout(str(wid), "status", "rest")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "already has a rest row" in str(e).lower()
     assert c.execute("SELECT COUNT(*) n FROM workouts WHERE status = 'rest'").fetchone()["n"] == 1

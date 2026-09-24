@@ -74,8 +74,6 @@
   });
 
   $effect(() => {
-    labels;
-    weeks;
     paint();
   });
 </script>

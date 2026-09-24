@@ -48,7 +48,6 @@
   });
 
   $effect(() => {
-    rows;
     paint();
   });
 </script>

@@ -76,9 +76,6 @@
   });
 
   $effect(() => {
-    actuals;
-    checkpoints;
-    exercise;
     paint();
   });
 </script>

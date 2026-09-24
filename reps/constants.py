@@ -15,8 +15,8 @@ CONSTANTS_FILE = os.environ.get("REPS_CONSTANTS", os.path.join(ROOT, "constants.
 def validate_constants(raw, source):
     """Validate a parsed constants candidate against ConstantsModel.
 
-    Exits loudly on any defect. Returns the raw mapping unchanged; it is
-    for validating write candidates (see constants_set), not a read path.
+    Raises RepsError on any defect. Returns the raw mapping unchanged; it is
+    for validating write candidates (see set_constant), not a read path.
     All reads go through load_constants(), which returns the model.
     """
     try:

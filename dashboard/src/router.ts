@@ -1,5 +1,5 @@
-// Hash router. Routes mirror the legacy controller exactly so links,
-// bookmarks, and e2e hooks keep working: #/ dashboard, #/s/<date>,
+// Hash router. Routes are the dashboard's addressable views, kept stable so
+// links, bookmarks, and e2e hooks keep working: #/ dashboard, #/s/<date>,
 // #/l/<lift>, #/m/<muscle>, #/program, #/lifts, #/muscles.
 
 export type View =

@@ -53,7 +53,7 @@ def test_log_refuses_muscle_override(log_module):
     log_module.log_set("bench", 100, 5, "", "chest")
     try:
         log_module.log_set("bench", 100, 5, "", "back")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "authoritative" in str(e).lower()
 
@@ -66,19 +66,19 @@ def test_log_clean_sets_have_no_warnings_key(log_module):
 
 
 def test_update_rejects_missing_set(log_module):
-    """Updating a nonexistent set exits instead of reporting success."""
+    """Updating a nonexistent set refuses instead of reporting success."""
     try:
         log_module.update_set("9999", "note", "x")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "no such set" in str(e).lower()
 
 
 def test_update_rejects_garbage_id(log_module):
-    """Non-numeric ids exit cleanly, no traceback."""
+    """Non-numeric ids refuse cleanly, no traceback."""
     try:
         log_module.update_set("abc", "note", "x")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "no such set" in str(e).lower()
 
@@ -102,7 +102,7 @@ def test_update_workout_rejects_future_date(log_module):
     future = (date.today() + timedelta(days=1)).isoformat()
     try:
         log_module.update_workout(str(wid), "date", future)
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "future" in str(e).lower()
 
@@ -115,7 +115,7 @@ def test_update_workout_rejects_second_open(log_module):
     c.commit()
     try:
         log_module.update_workout(str(cur.lastrowid), "status", "open")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "already open" in str(e).lower()
 
@@ -125,17 +125,17 @@ def test_restore_refuses_open_workout(log_module):
     log_module.start_workout("test")
     try:
         log_module.restore_sql()
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "still open" in str(e).lower()
 
 
 def test_weigh_rejects_absurd_values(log_module):
-    """Bodyweight typos exit instead of polluting the chart."""
+    """Bodyweight typos refuse instead of polluting the chart."""
     for bad in ("842", "10"):
         try:
             log_module.record_bodyweight(bad, "")
-            assert False, "should have exited"
+            assert False, "should have refused"
         except RepsError as e:
             assert "implausible" in str(e).lower()
 
@@ -182,7 +182,7 @@ def _dump_sql_for_db(db_path):
 
 
 def test_restore_poisoned_dump_leaves_live_db_untouched(log_module, tmp_db):
-    """A malformed dump exits cleanly with all tables and rows intact."""
+    """A malformed dump refuses cleanly with all tables and rows intact."""
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
@@ -195,7 +195,7 @@ def test_restore_poisoned_dump_leaves_live_db_untouched(log_module, tmp_db):
         f.write("\n".join(lines))
     try:
         log_module.restore_sql()
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "live DB untouched" in str(e)
     tables = [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
@@ -228,7 +228,7 @@ def test_rename_refuses_conflicting_mapping(log_module):
     close_session(log_module, "done")
     try:
         log_module.rename_exercise("bp", "press")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "already maps to" in str(e)
     row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'press'").fetchone()
@@ -237,14 +237,14 @@ def test_rename_refuses_conflicting_mapping(log_module):
 
 
 def test_rename_refuses_identical_names(log_module):
-    """Renaming onto itself exits instead of deleting the mapping."""
+    """Renaming onto itself refuses instead of deleting the mapping."""
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
     try:
         log_module.rename_exercise("bench", "bench")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "identical" in str(e).lower()
     assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 1
@@ -270,21 +270,21 @@ def test_update_rejects_muscles_field(log_module):
     set_id = c.execute("SELECT id FROM sets").fetchone()["id"]
     try:
         log_module.update_set(set_id, "muscles", "back")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "muscle_map_set" in str(e).lower()
     assert [r["muscle"] for r in c.execute("SELECT muscle FROM set_muscles").fetchall()] == ["chest"]
 
 
 def test_retag_rejects_empty_muscles(log_module):
-    """Empty muscles on retag exits, mapping untouched."""
+    """Empty muscles on retag refuses, mapping untouched."""
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
     try:
         log_module.set_exercise_mapping("bench", " , ")
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "cannot be empty" in str(e).lower()
     row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()
@@ -292,7 +292,7 @@ def test_retag_rejects_empty_muscles(log_module):
 
 
 def test_bad_numeric_inputs_exit_cleanly(log_module):
-    """Every numeric/date conversion exits with a message, never a traceback."""
+    """Every numeric/date conversion refuses with a message, never a traceback."""
     c = log_module.conn()
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
@@ -313,13 +313,13 @@ def test_bad_numeric_inputs_exit_cleanly(log_module):
     for fn, args, needle in cases:
         try:
             fn(*args)
-            assert False, f"should have exited: {fn.__name__}{args}"
+            assert False, f"should have refused: {fn.__name__}{args}"
         except RepsError as e:
             assert needle in str(e), f"{fn.__name__}: {e}"
 
 
 def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
-    """A syntactically valid but incomplete dump exits with the live DB intact."""
+    """A syntactically valid but incomplete dump refuses with the live DB intact."""
     import sqlite3
     c = log_module.conn()
     log_module.start_workout("test")
@@ -334,7 +334,7 @@ def test_restore_truncated_valid_dump_refused(log_module, tmp_db):
         f.write(schema + ";\n")
     try:
         log_module.restore_sql()
-        assert False, "should have exited"
+        assert False, "should have refused"
     except RepsError as e:
         assert "missing tables" in str(e)
     c2 = log_module.conn()

@@ -52,10 +52,6 @@
   });
 
   $effect(() => {
-    labels;
-    counts;
-    bands;
-    color;
     paint();
   });
 </script>

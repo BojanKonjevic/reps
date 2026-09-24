@@ -95,9 +95,6 @@
   });
 
   $effect(() => {
-    pts;
-    exercise;
-    futureEv;
     paint();
   });
 </script>

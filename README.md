@@ -42,4 +42,4 @@ Every session ends with a `data: <date>` commit of `workouts.sql`. If the local 
 
 ## Tests
 
-Python: `uv run --with pytest --with pydantic --with "mcp>=2" --no-project pytest tests/ -q` (system python has no pytest, never `python -m pytest` directly). Dashboard: `npm run test` for unit, `npx playwright test` for e2e, from `dashboard/`.
+Python: `uv run --with pytest --with pydantic --with "mcp>=2" --no-project pytest tests/ -q` (system python has no pytest, never `python -m pytest` directly). Dashboard needs Node 22 or newer (`engines` in `dashboard/package.json`, same version CI uses): `npm run test` for unit, `npx playwright test` for e2e, from `dashboard/`.
