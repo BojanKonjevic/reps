@@ -100,8 +100,8 @@ test.describe('Rich snapshot sections', () => {
   test('muscles page shows volume status and grouped badges', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.goto('#/muscles');
-    const chest = page.locator('#musGrid .card', { hasText: 'chest' });
-    await expect(chest).toContainText('below MEV');
+    const side = page.locator('#musGrid .card', { hasText: 'side delts' });
+    await expect(side).toContainText('below MEV');
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     const below = rich.muscles.filter(m => m.status === 'below_mev').length;
     await expect(page.locator('#musGrid .card')).toHaveCount(below);

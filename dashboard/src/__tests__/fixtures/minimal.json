@@ -330,7 +330,7 @@
         0,
         1
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [

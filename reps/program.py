@@ -266,27 +266,50 @@ def weekly_volume(c, muscle, week_starts):
     return out
 
 
+def trim_leading_zeros(weekly):
+    """Drop pre-history zero weeks before the first logged sets for a muscle.
+
+    Weeks before anything was ever logged are absent, not skipped: counting
+    them as bad weeks flags every muscle below MEV on a fresh log. Zeros
+    after the first nonzero week stay, a skipped week is information. An
+    all-zero window is returned whole, a never-trained muscle still flags.
+    """
+    for i, n in enumerate(weekly):
+        if n > 0:
+            return weekly[i:]
+    return weekly
+
+
 def count_bad_weeks(weekly, mev):
-    """Zero and low week counts over the whole window (audit check 8 rule)."""
+    """Zero and low week counts over the trained span (audit check 8 rule)."""
     if mev == 0:
         # MEV 0 means no direct work is required (covered indirectly),
         # so zero-set weeks meet the floor and never flag.
         return (0, 0)
-    return (sum(1 for n in weekly if n == 0),
-            sum(1 for n in weekly if 0 < n < mev))
+    trimmed = trim_leading_zeros(weekly)
+    return (sum(1 for n in trimmed if n == 0),
+            sum(1 for n in trimmed if 0 < n < mev))
+
+
+def recent_average(weekly, k=4):
+    """Mean over the last k trained-span weeks (pre-history zeros excluded)."""
+    trimmed = trim_leading_zeros(weekly)
+    recent = trimmed[-k:] if len(trimmed) >= k else trimmed
+    return sum(recent) / len(recent) if recent else 0
 
 
 def classify_volume(weekly, mev, mrv, vol_bad):
     """Shared volume classifier for plan status and audit flags.
 
     Below-MEV mirrors audit check 8 exactly (zero or low weeks counted over
-    the whole window); above-MRV uses the recent-4-week average.
+    the trained span, pre-history excluded); above-MRV uses the recent-4-week
+    average over the same span. Meeting MEV exactly (n == mev) is in range,
+    only strictly-below weeks count as low.
     """
     zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
     if zero_weeks >= vol_bad or low_weeks >= vol_bad:
         return "below_mev"
-    recent = weekly[-4:] if len(weekly) >= 4 else weekly
-    avg = sum(recent) / len(recent) if recent else 0
+    avg = recent_average(weekly)
     if mrv is not None and avg > mrv:
         return "above_mrv"
     return "in_range"

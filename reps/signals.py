@@ -13,7 +13,7 @@ from .constants import load_constants
 from .db import conn
 from .goals import goal_progress
 from .program import (active_deloads, classify_volume, count_bad_weeks,
-                      weekly_volume)
+                      recent_average, weekly_volume)
 from .sessions import break_threshold, last_done
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
@@ -54,8 +54,7 @@ def build_signals(c=None):
                                 "text": f"{muscle}: under MEV in {low_weeks} of last {vol_weeks} "
                                         f"weeks (MEV {entry.mev})"})
             elif status == "above_mrv":
-                recent = weekly[-4:] if len(weekly) >= 4 else weekly
-                avg = sum(recent) / len(recent) if recent else 0
+                avg = recent_average(weekly)
                 out.append({"severity": "medium",
                             "text": f"{muscle}: averaging {avg:.1f}/wk over MRV {entry.mrv}"})
 

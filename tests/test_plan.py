@@ -60,7 +60,32 @@ def test_plan_volume_weekly_counts(log_module):
     assert len(weekly) == 8
     assert weekly[-1] == 3
     assert weekly[-2] == 5
-    assert bundle["volume"]["chest"]["status"] == "below_mev"
+    # Two low weeks inside the trained span do not reach the 4-week bar.
+    assert bundle["volume"]["chest"]["status"] == "in_range"
+
+
+def test_classify_volume_meeting_mev_is_in_range():
+    """8 sets at MEV 8 after pre-history zeros is in range, not below."""
+    from reps.program import classify_volume
+    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 8], 8, 25, 4) == "in_range"
+
+
+def test_classify_volume_never_trained_is_below():
+    """An all-zero window keeps the whole span and flags below MEV."""
+    from reps.program import classify_volume
+    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 0], 8, 25, 4) == "below_mev"
+
+
+def test_classify_volume_idle_after_first_session_is_below():
+    """Zeros after the first logged week count: 4 idle weeks flag."""
+    from reps.program import classify_volume
+    assert classify_volume([0, 0, 0, 8, 0, 0, 0, 0], 8, 25, 4) == "below_mev"
+
+
+def test_recent_average_ignores_pre_history():
+    """The MRV average runs over the trained span, not the whole window."""
+    from reps.program import recent_average
+    assert recent_average([0, 0, 0, 0, 0, 0, 0, 30]) == 30
 
 
 def test_plan_stale_open_workout(log_module):

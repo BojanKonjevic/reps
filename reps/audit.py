@@ -119,10 +119,12 @@ def run_audit():
                           "fix": f"extend the deadline or compress jumps, never silently"})
 
     # Check 8: Volume vs MEV, rolling window from constants (current week + back).
-    # Every week in the window counts: weeks with no logged sets are 0, not
-    # absent. Zero and low volume are separate flags; bad weeks are counted
-    # across the whole window, a good week in between does not reset anything.
-    # Bucketing is owned by reps/weeks.py; per-muscle counts by weekly_volume.
+    # Weeks before the first logged sets for a muscle are pre-history, not
+    # absences; zeros after that count. Zero and low volume are separate
+    # flags; bad weeks are counted over the trained span, a good week in
+    # between does not reset anything. A muscle never trained keeps the whole
+    # window and flags. Bucketing is owned by reps/weeks.py; per-muscle
+    # counts by weekly_volume; the pre-history trim by trim_leading_zeros.
     from .program import weekly_volume as _weekly_volume
     from .weeks import week_starts as _week_starts
     starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]

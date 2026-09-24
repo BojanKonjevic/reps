@@ -335,9 +335,9 @@ def _chest_volume_flags(log, check):
 
 
 def test_audit_volume_zero(audit_db):
-    """check 8: 4 of last 8 weeks at zero sets fires volume_zero, high."""
+    """check 8: 4 zero weeks inside the trained span fires volume_zero, high."""
     log, c = audit_db
-    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 7: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"
@@ -509,7 +509,7 @@ def test_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
     """check 8: a deprioritize muscle still flags, one severity lower, annotated."""
     log, c = audit_db
     log.set_priority("chest", "deprioritize", None)
-    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 7: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "medium"
@@ -519,7 +519,7 @@ def test_audit_downgrades_deprioritized_volume(audit_db, tmp_path, monkeypatch):
 def test_audit_no_downgrade_without_priority_entry(audit_db, tmp_path, monkeypatch):
     """check 8: without a priority entry the same data flags at full severity."""
     log, c = audit_db
-    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 3: 8})
+    _seed_muscle_weeks(c, "chest", {0: 8, 1: 8, 2: 8, 7: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"

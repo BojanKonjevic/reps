@@ -364,7 +364,7 @@
         2,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [
@@ -1203,10 +1203,6 @@
     {
       "severity": "high",
       "text": "biceps: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "chest: 0 sets in 6 of last 8 weeks (MEV 8)"
     },
     {
       "severity": "high",
