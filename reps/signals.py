@@ -14,6 +14,7 @@ from .db import conn
 from .goals import goal_progress
 from .program import (active_deloads, classify_volume, count_bad_weeks,
                       weekly_volume)
+from .sessions import break_threshold, last_done
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 
@@ -87,13 +88,10 @@ def build_signals(c=None):
     for d in active_deloads(c):
         out.append({"severity": "info", "text": f"deloading {d['scope']} {d['subject']}"})
 
-    last_done = c.execute(
-        "SELECT date FROM workouts WHERE status = 'done' "
-        "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = workouts.id) "
-        "ORDER BY date DESC, id DESC LIMIT 1").fetchone()
-    if last_done:
-        gap = (today - date.fromisoformat(last_done["date"])).days
-        if gap >= thresholds.break_days + 1:
+    last = last_done(c)
+    if last:
+        gap = (today - date.fromisoformat(last["date"])).days
+        if gap >= break_threshold():
             out.append({"severity": "medium",
                         "text": f"{gap}d since last session, no PR attempts until back"})
 

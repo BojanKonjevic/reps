@@ -26,7 +26,7 @@
   function heldSet(): Set<string> {
     const out = new Set<string>();
     for (const h of holds) {
-      for (const m of h.movements.split('/')) {
+      for (const m of h.moves) {
         const t = m.trim().toLowerCase();
         if (t) out.add(t);
       }
@@ -38,7 +38,7 @@
     const out = new Set<string>();
     for (const ch of changes) {
       if (ch.reverted_on) continue;
-      for (const m of ch.after_movements.split('/')) {
+      for (const m of ch.after_moves) {
         const t = m.trim().toLowerCase();
         if (t) out.add(t);
       }
@@ -58,7 +58,7 @@
     const low = ex.toLowerCase();
     for (const ch of changes) {
       if (ch.reverted_on) continue;
-      const moves = ch.after_movements.split('/').map(m => m.trim().toLowerCase());
+      const moves = ch.after_moves.map(m => m.trim().toLowerCase());
       if (moves.includes(low)) return ch;
     }
     return null;
@@ -119,7 +119,7 @@
   function marksFor(t: string): Mark[] {
     const marks: Mark[] = [];
     holds
-      .filter(hh => hh.movements.split('/').some(m => m.trim().toLowerCase() === t.toLowerCase()))
+      .filter(hh => hh.moves.some(m => m.trim().toLowerCase() === t.toLowerCase()))
       .forEach(hh =>
         marks.push({
           text:

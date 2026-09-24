@@ -11,6 +11,7 @@ export interface Ticks {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function parseDate(dstr: string): Date {
+  // Parse-only; never reads the viewer clock (see lib/clock.ts for now-reads).
   return new Date(dstr + 'T12:00:00');
 }
 
@@ -26,6 +27,14 @@ export function fmtD(dstr: string): string {
 export function fmtTick(v: number, step: number): string {
   const dec = step >= 1 ? 0 : Math.min(2, -Math.floor(Math.log10(step) + 1e-9));
   return v.toFixed(dec);
+}
+
+export function fmtHoverDate(dstr: string): string {
+  return parseDate(dstr).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 export function fmtLong(dstr: string): string {

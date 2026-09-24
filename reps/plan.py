@@ -10,7 +10,7 @@ from .program import (active_deloads, compaction_due, get_rotation,
                     priority_needs_confirm, read_priorities, read_split,
                     rules_with_confirm, volume_block, lift_muscles_csv)
 from .progression import latest as latest_progression
-from .sessions import last_done, staleness
+from .sessions import break_threshold, last_done, staleness
 from .slots import next_slot, slot_of_session
 
 
@@ -30,7 +30,7 @@ def get_plan(slot=None, verbose=False):
     last = last_done(c)
     last_session = last["date"] if last else None
     gap_days = (today - date.fromisoformat(last_session)).days if last_session else None
-    on_break = gap_days is not None and gap_days >= thresholds.break_days + 1
+    on_break = gap_days is not None and gap_days >= break_threshold()
 
     days = parse_active_split_days(c)
     rotation = get_rotation(c)
@@ -119,9 +119,10 @@ def get_plan(slot=None, verbose=False):
     split_day = slot or slot_guess.get("day")
     split_section = None
     if split_day and read_split("active", split_day, c=c):
+        from .program import slot_rows as _slot_rows
         slots = []
-        for r in read_split("active", split_day, c=c):
-            moves = parse_movements(r["movements"])
+        for r in _slot_rows(c, "active", split_day):
+            moves = r["moves"]
             entry = {"slot": r["slot"], "movements": moves, "sets": r["sets"],
                      "progression": {m: progression.get(m) for m in moves},
                      "flags": [f for f in unconsumed if f["subject"] in moves],

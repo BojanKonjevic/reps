@@ -85,10 +85,13 @@ def check_g2() -> None:
 
 def check_g12() -> None:
     """No string-splitting of DB columns; no TEXT muscles/movements columns."""
-    for ln in rg(r'\.split\("(,|/)"\)', ["reps"]):
+    for ln in rg(r"""\.split\(("(,|/)")|'(,|/)'\)""", ["reps", "dashboard/src"],
+                 ["!**/__tests__/**", "!**/generated/**", "!**/fixtures/**"]):
         if "sanctioned:" in ln:
             continue
-        fail("G12", f"DB column string-split in reps/: {ln} (use WS3 normalized tables)")
+        if "dashboard/src/routes.ts" in ln:
+            continue  # sanctioned: routes.ts owns URL parsing, never DB columns
+        fail("G12", f"DB column string-split: {ln} (use WS3 normalized tables)")
     for ln in rg(r"TEXT.*(muscles|movements)", ["reps/db.py"]):
         fail("G12", f"denormalized TEXT column: {ln} (use lift_muscle / split_slot_lift)")
 

@@ -236,6 +236,13 @@
           "title": "Before Movements",
           "type": "string"
         },
+        "before_moves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Before Moves",
+          "type": "array"
+        },
         "before_sets": {
           "title": "Before Sets",
           "type": "integer"
@@ -243,6 +250,13 @@
         "after_movements": {
           "title": "After Movements",
           "type": "string"
+        },
+        "after_moves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "After Moves",
+          "type": "array"
         },
         "after_sets": {
           "title": "After Sets",
@@ -271,8 +285,10 @@
         "day",
         "slot",
         "before_movements",
+        "before_moves",
         "before_sets",
         "after_movements",
+        "after_moves",
         "after_sets",
         "evidence",
         "reverted_on"
@@ -324,6 +340,13 @@
           "title": "Movements",
           "type": "string"
         },
+        "moves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Moves",
+          "type": "array"
+        },
         "action": {
           "$ref": "#/$defs/AutoregAction"
         },
@@ -344,6 +367,7 @@
         "id",
         "day",
         "movements",
+        "moves",
         "action",
         "set_on",
         "hold_until",

@@ -4,6 +4,7 @@ from .constants import clean_muscles, load_constants
 from .db import conn, open_workout
 from .e1rm import e1rm as e1rm_of
 from .errors import Fix, GateItem, RepsError
+from .vocab import WorkoutStatus, values
 from .muscles import _levenshtein, attach_muscles, best_e1rm
 from .program import (active_deloads, best_split_day, consume_session_flags,
                       day_movements, deload_covers, ensure_lift,
@@ -47,6 +48,15 @@ def last_done(c):
         "SELECT w.date, w.id FROM workouts w WHERE w.status = 'done' "
         "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = w.id) "
         "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
+
+
+def break_threshold() -> int:
+    """Days since the last done session that counts as a break (V11 owner).
+
+    Plan, signals, and the snapshot status all compare against this;
+    the dashboard reads the emitted break facts, never the threshold.
+    """
+    return load_constants().thresholds.break_days + 1
 
 
 def session_prs(workout_id):
@@ -466,7 +476,7 @@ def update_workout(workout_id, field, value):
             raise RepsError("date must be YYYY-MM-DD")
         if date.fromisoformat(value) > date.today():
             raise RepsError("workout date cannot be in the future")
-    if field == "status" and value not in ("open", "done", "rest"):
+    if field == "status" and value not in values(WorkoutStatus):
         raise RepsError("status must be open, done or rest")
     c = conn()
     if field == "status" and value == "open":

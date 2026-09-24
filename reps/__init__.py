@@ -50,7 +50,7 @@ from .program import (active_deloads, add_flag, add_rule, best_split_day,
                       reconcile_split, rename_lift, revert_split,
                       rule_status_rows, rules_with_confirm, set_compaction,
                       set_deload, set_lift_muscles, set_priority, set_rotation,
-                      set_split, show_rotation, split_all_movements,
+                      set_split, show_rotation, slot_rows, split_all_movements,
                       split_day_order, volume_block)
 from .progression import (format_target, get_progression, latest as latest_progression,
                           set_progression, top_e1rm_by_date)
@@ -68,6 +68,7 @@ from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
                     RuleStatus, SplitVariant, Verdict, VolumeStatus, WorkoutStatus)
 from .weeks import monday_of, week_start_of, week_starts, weekly_counts
 from .signals import SEVERITY_ORDER, build_signals
+from .sessions import break_threshold
 from .snapshot import build_views
 from .sync import (build_snapshot, build_snapshot_validated, dump_sql,
                    export_snapshot, push_snapshot, restore_sql)
@@ -85,7 +86,7 @@ __all__ = [
     "autoreg_active_holds", "autoreg_block", "autoreg_drop_watch",
     "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted",
     "best_e1rm", "best_split_day", "build_checkpoints", "build_signals",
-    "build_snapshot", "build_snapshot_validated", "build_views", "canon_muscle_name",
+    "build_snapshot", "build_snapshot_validated", "build_views", "break_threshold", "canon_muscle_name",
     "check_constants", "check_end_gate", "classify_date", "clean_muscles",
     "clear_deload", "clear_priority", "confirm_rule", "consume_flag",
     "consume_session_flags", "day_movements", "delete_set", "delete_workout",
@@ -114,7 +115,7 @@ __all__ = [
     "rules_with_confirm", "run_audit", "run_doctor", "session_prs",
     "set_compaction", "set_constant", "set_deload", "set_exercise_mapping",
     "set_lift_muscles", "set_movement_note", "set_priority", "set_progression",
-    "set_rotation", "set_split", "show_rotation", "slot_of_session",
+    "set_rotation", "set_split", "show_rotation", "slot_of_session", "slot_rows",
     "split_all_movements", "split_day_order", "staleness", "start_workout",
     "status_range", "top_e1rm_by_date", "tracked_muscles", "update_set",
     "update_workout", "validate_constants", "validate_snapshot",

@@ -2032,7 +2032,10 @@
         "action": "trim",
         "set_on": "2026-09-24",
         "hold_until": "2026-10-02",
-        "reason": "two misses"
+        "reason": "two misses",
+        "moves": [
+          "bench"
+        ]
       }
     ],
     "miss_streaks": [],
@@ -2066,7 +2069,13 @@
       "after_movements": "bench",
       "after_sets": 2,
       "evidence": "two misses",
-      "reverted_on": null
+      "reverted_on": null,
+      "before_moves": [
+        "bench"
+      ],
+      "after_moves": [
+        "bench"
+      ]
     }
   ]
 }

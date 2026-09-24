@@ -15,7 +15,7 @@ from .program import (active_deloads, deload_covers, get_rotation,
                       read_split, rules_with_confirm, volume_block)
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
-from .sessions import last_done
+from .sessions import break_threshold, last_done
 from .signals import build_signals
 from .slots import next_slot, slot_of_session
 from .trends import is_slipping, is_stalling
@@ -281,8 +281,9 @@ def bodyweight_view(c, avg_days, gap_days):
 
 def program_view(c, rotation, anchor, priorities):
     focus = {m for m, p in priorities.items() if p.get("tier") == "priority"}
+    from .program import slot_rows as _slot_rows
     day_rows: dict = {}
-    for r in read_split("active", c=c):
+    for r in _slot_rows(c, "active"):
         day_rows.setdefault(r["day"], []).append(r)
     order = [d for d in rotation if d in day_rows] + sorted(d for d in day_rows if d not in rotation)
     days = []
@@ -290,8 +291,7 @@ def program_view(c, rotation, anchor, priorities):
         slots = []
         seen: list[str] = []
         for r in sorted(day_rows[day], key=lambda x: x["slot"]):
-            from .program import parse_movements
-            moves = parse_movements(r["movements"])
+            moves = r["moves"]
             uniq: list[str] = []
             for m in moves:
                 csv = lift_muscles_csv(c, m) or ""
@@ -414,6 +414,13 @@ def recent_notes_view(c, count):
     return out
 
 
+def _split_moves(text):
+    # History rows (autoreg holds/changes) store the slot content as an
+    # immutable TEXT fact; the live relation owner is split_slot_lift.
+    # Splitting here is a sanctioned read-model projection for the snapshot.
+    return [m.strip().lower() for m in text.split("/") if m.strip()]  # sanctioned: history read-model split
+
+
 def build_views(c):
     """Assemble the full v2 snapshot payload (unvalidated)."""
     constants = load_constants()
@@ -436,7 +443,7 @@ def build_views(c):
     days = parse_active_split_days(c)
     flags = _pr_flags(c)
     sessions = sessions_view(c, days, flags)
-    break_threshold = constants.thresholds.break_days + 1
+    gap_threshold = break_threshold()
     goals = goals_view(c, prog)
     snap = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
@@ -446,8 +453,8 @@ def build_views(c):
         "lifts": lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities),
         "muscles": muscles_view(c, constants, priorities, autoreg, volume, starts),
         "sessions": sessions,
-        "calendar": calendar_view(c, sessions, as_of, rotation, anchor, break_threshold),
-        "status": status_view(sessions, as_of, break_threshold),
+        "calendar": calendar_view(c, sessions, as_of, rotation, anchor, gap_threshold),
+        "status": status_view(sessions, as_of, gap_threshold),
         "volume_history": {"week_starts": starts,
                            "by_muscle": {m: volume[m]["weekly"] for m in volume}},
         "bodyweight": bodyweight_view(c, constants.thresholds.bodyweight_avg_days,
@@ -463,8 +470,12 @@ def build_views(c):
                   c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()],
         "deload": [dict(r) for r in active_deloads(c)],
         "priority": priorities,
-        "autoreg": autoreg,
-        "autoreg_changes": [dict(r) for r in c.execute(
+        "autoreg": {**autoreg, "holds": [
+            {**h, "moves": _split_moves(h["movements"])} for h in autoreg.get("holds", [])]},
+        "autoreg_changes": [{
+            **dict(r),
+            "before_moves": _split_moves(r["before_movements"]),
+            "after_moves": _split_moves(r["after_movements"])} for r in c.execute(
             "SELECT id, date, action, day, slot, before_movements, before_sets, "
             "after_movements, after_sets, evidence, reverted_on FROM autoreg_changes "
             "ORDER BY id DESC LIMIT 20").fetchall()],

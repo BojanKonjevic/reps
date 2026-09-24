@@ -497,6 +497,7 @@ class AutoregHold(BaseModel):
     id: StrictInt
     day: StrictStr
     movements: StrictStr
+    moves: list[StrictStr]
     action: AutoregAction
     set_on: StrictStr
     hold_until: StrictStr
@@ -526,8 +527,10 @@ class AutoregChange(BaseModel):
     day: StrictStr
     slot: StrictInt
     before_movements: StrictStr
+    before_moves: list[StrictStr]
     before_sets: StrictInt
     after_movements: StrictStr
+    after_moves: list[StrictStr]
     after_sets: StrictInt
     evidence: StrictStr
     reverted_on: Optional[StrictStr]

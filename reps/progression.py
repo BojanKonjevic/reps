@@ -5,6 +5,7 @@ from datetime import datetime
 from .errors import RepsError
 
 from .db import conn, open_workout
+from .vocab import Direction, Verdict, values
 
 
 def top_e1rm_by_date(c, exercise):
@@ -28,9 +29,9 @@ def format_target(weight, reps):
 
 
 def set_progression(exercise, verdict, next_weight, next_reps, direction, note="", workout_id=None):
-    if verdict not in ("hit", "miss", "hold", "baseline"):
+    if verdict not in values(Verdict):
         raise RepsError("verdict must be one of hit miss hold baseline")
-    if direction not in ("up", "flat", "down"):
+    if direction not in values(Direction):
         raise RepsError("direction must be one of up flat down")
     try:
         next_weight = float(next_weight)
@@ -82,14 +83,14 @@ def set_progression(exercise, verdict, next_weight, next_reps, direction, note="
 def get_progression(exercise=None):
     c = conn()
     if exercise:
-        rows = c.execute("SELECT * FROM progression WHERE exercise = ? ORDER BY workout_id DESC", (exercise.strip().lower(),)).fetchall()
+        rows = [dict(r) for r in c.execute(
+            "SELECT * FROM progression WHERE exercise = ? ORDER BY workout_id DESC",
+            (exercise.strip().lower(),)).fetchall()]
     else:
-        rows = c.execute(
-            "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression GROUP BY exercise) "
-            "l ON l.exercise = p.exercise AND l.m = p.workout_id ORDER BY p.exercise").fetchall()
+        rows = [dict(r) for r in latest(c).values()]
+        rows.sort(key=lambda r: r["exercise"])
     out = []
-    for r in rows:
-        d = dict(r)
+    for d in rows:
         d["next"] = format_target(d["next_weight"], d["next_reps"])
         out.append(d)
     return out

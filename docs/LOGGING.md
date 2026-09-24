@@ -81,8 +81,8 @@ Short and conversational, but every claim grounded in numbers just pulled: PRs h
 Plus, when they trigger, each in one line:
 
 - Trajectory rewrite: if a goal trajectory changed this session, state what changed (old versus new numbers for the upcoming sessions), why (which logged result caused it), and which neighboring sessions shifted. Silence when the plan survived intact.
-- Deload watch: per `constants` deload_watch_pct, two consecutive same-slot drops flag that one more like this triggers a reactive deload per SCIENCE.md. Rare by design. When the flag condition is met again with no recovery in between, run `program_deload_set` instead of only narrating it in chat.
-- Stall note: if a main lift has no PR in 3 same slot sessions, say so.
+- Deload watch: two consecutive drops at the `thresholds.deload_watch_pct` threshold flag that one more like this triggers a reactive deload per SCIENCE.md. Slot-blind by decision in `reps/trends.py`: a PR in any slot is progress, so the flag never contradicts the line. Rare by design. When the flag condition is met again with no recovery in between, run `program_deload_set` instead of only narrating it in chat.
+- Stall note: if a main lift has no PR across the last `thresholds.stall_window_sessions` sessions (slot-blind, same decision), say so.
 
 ## Memory writeback
 

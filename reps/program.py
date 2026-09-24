@@ -6,6 +6,7 @@ import sqlite3
 from datetime import date, datetime
 
 from .errors import RepsError
+from .vocab import AutoregAction, DeloadScope, PriorityTier, SplitVariant, values
 
 from .constants import canon_muscle_name, load_constants
 from .db import conn, open_workout, placeholders
@@ -110,6 +111,27 @@ def _slot_moves(c, slot_id):
         "SELECT exercise FROM split_slot_lift WHERE slot_id = ? ORDER BY position", (slot_id,)).fetchall()]
 
 
+def slot_rows(c, variant="active", day=None):
+    """Split slots with moves straight from split_slot_lift, no string form.
+
+    Internal callers use this; the `"a / b"` movements string exists only as
+    the read-model shape `read_split` returns to MCP/snapshot consumers.
+    """
+    q = ("SELECT s.day, s.slot, s.sets, l.exercise FROM split_slot s "
+         "JOIN split_slot_lift l ON l.slot_id = s.id WHERE s.variant = ?")
+    args: list = [variant]
+    if day is not None:
+        q += " AND s.day = ?"
+        args.append(day)
+    q += " ORDER BY s.day, s.slot, l.position"
+    grouped: dict = {}
+    for r in c.execute(q, args).fetchall():
+        key = (r["day"], r["slot"])
+        grouped.setdefault(key, {"day": r["day"], "slot": r["slot"],
+                                 "sets": r["sets"], "moves": []})["moves"].append(r["exercise"])
+    return [grouped[k] for k in sorted(grouped)]
+
+
 def split_day_order(variant="active", c=None):
     """Day names in rotation order (rest entries excluded)."""
     c = c or conn()
@@ -141,9 +163,8 @@ def read_split(variant="active", day=None, c=None):
 def parse_active_split_days(c=None):
     """Active split as {day: [movement, ...]} with alternates flattened."""
     days = {}
-    for r in read_split("active", c=c):
-        moves = days.setdefault(r["day"], [])
-        moves.extend(parse_movements(r["movements"]))
+    for r in slot_rows(c or conn(), "active"):
+        days.setdefault(r["day"], []).extend(r["moves"])
     return days
 
 
@@ -360,7 +381,7 @@ def priority_needs_confirm(c):
 
 def set_priority(muscle, tier, until=None):
     muscle = muscle.strip().lower()
-    if tier not in ("priority", "maintain", "deprioritize"):
+    if tier not in values(PriorityTier):
         raise RepsError("tier must be one of priority maintain deprioritize")
     constants = load_constants()
     known = set(constants.muscles) | set(constants.untracked)
@@ -396,7 +417,7 @@ def list_priorities():
 
 
 def set_deload(scope, subject):
-    if scope not in ("lift", "slot"):
+    if scope not in values(DeloadScope):
         raise RepsError("scope must be lift or slot")
     if not subject:
         raise RepsError("deload subject is required")
@@ -451,15 +472,15 @@ def deload_covers(deloads, exercise, day_moves):
 
 def split_all_movements(variant="active", c=None):
     moves = set()
-    for r in read_split(variant, c=c):
-        moves.update(parse_movements(r["movements"]))
+    for r in slot_rows(c or conn(), variant):
+        moves.update(r["moves"])
     return moves
 
 
 def day_movements(day, variant="active", c=None):
     moves = []
-    for r in read_split(variant, day, c=c):
-        moves.extend(parse_movements(r["movements"]))
+    for r in slot_rows(c or conn(), variant, day):
+        moves.extend(r["moves"])
     return moves
 
 
@@ -483,7 +504,7 @@ def best_split_day(trained, c=None):
 
 def get_split(day=None, variant="active"):
     c = conn()
-    if variant not in ("active", "baseline"):
+    if variant not in values(SplitVariant):
         raise RepsError("variant must be active or baseline")
     if day and not read_split(variant, day, c=c):
         raise RepsError(f"no {variant} split day '{day}'")
@@ -512,7 +533,7 @@ def _write_slot(c, variant, day, slot, moves, sets):
 
 def set_split(day, slot, movements, sets, variant="active"):
     c = conn()
-    if variant not in ("active", "baseline"):
+    if variant not in values(SplitVariant):
         raise RepsError("variant must be active or baseline")
     try:
         slot = int(slot)

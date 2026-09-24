@@ -55,6 +55,7 @@
 | Test data                            | `tests/scenarios.py`                                                      | generated fixtures                               | T2    | G3                 |
 | Doc values                           | `constants.json` via markers                                              | `sync_docs.py`                                   | T2    | G4                 |
 | Tool names                           | MCP registry                                                              | `Fix(tool=...)`, doc lint                        | T2    | G5                 |
+| MCP call-shape literals              | `reps/mcp/server.py` (`SetField`, `WorkoutField`)                         | tool inputSchema                                  | T2    | tests              |
 | Dependencies                         | `pyproject.toml` + `uv.lock`; `dashboard/package.json` + `pnpm-lock.yaml` | scripts                                          | T2    | G14, G15           |
 | Verify commands                      | `scripts/verify.sh`                                                       | CI, pre-commit, docs                             | T2    | G15                |
 
@@ -146,4 +147,5 @@ Anything not in this list is a violation. Extending the list requires editing th
 5. **Playwright screenshot baselines and lockfiles.**
 6. **The muscle-name seam:** `constants.json` owns the taxonomy, `lift_muscle.muscle` is a plain column validated at write and by `doctor`. A single named seam.
 7. **`liftColor` hashing** as the single place lift identity maps to a color (presentation-only, no domain meaning).
+9. **MCP call-shape literals** (`SetField`, `WorkoutField` in `reps/mcp/server.py`): field names of MCP call payloads, not domain facts. They mirror tool signatures by construction (changing a signature breaks its own tool); domain vocabularies stay in `reps/vocab.py`.
 8. **Gate catalogs and their tests naming banned identifiers** (`scripts/ssot_check.py`, `dashboard/src/__tests__/ssot.test.ts`). Naming a banned pattern to forbid it is enforcement, not a second mechanism: the gate itself fails the build on real drift, and the name cannot drift because it is a string, not a computation. Section 7 verification commands exclude these enforcement files (plus generated artifacts and test fixtures).

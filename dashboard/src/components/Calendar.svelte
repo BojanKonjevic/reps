@@ -3,7 +3,7 @@
   import type { CalendarDay } from '../generated/snapshot';
   import { viewToday } from '../lib/clock';
   import { theme } from '../lib/theme';
-  import { parseDate } from '../lib/format';
+  import { fmtHoverDate } from '../lib/format';
   import { href } from '../routes';
   import Icon from './Icon.svelte';
 
@@ -113,11 +113,7 @@
     const info = byDate[key];
     const lines = info?.hover.lines.length ? info.hover.lines : ['tap to open'];
     const title =
-      parseDate(key).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      }) +
+      fmtHoverDate(key) +
       (info?.slot_label ? ' ' + info.slot_label : '') +
       (info?.has_pr ? '  PR' : '');
     showTip(
