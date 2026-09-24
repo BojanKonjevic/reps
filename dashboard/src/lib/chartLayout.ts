@@ -73,3 +73,24 @@ export function nearestPoint(hit: HitMap, x: number, maxDx: number): HitPoint | 
   }
   return best;
 }
+
+// First index holding a nonzero value, or -1 when all are zero. Charts trim
+// leading all-zero weeks so a fresh log starts at the first session;
+// interior zeros stay, a skipped week is information.
+export function firstNonZero(values: number[]): number {
+  for (let i = 0; i < values.length; i += 1) if (values[i] > 0) return i;
+  return -1;
+}
+
+// Evenly spaced x-axis ticks, at most maxLabels, never forcing a colliding
+// last tick (the previous tick already anchors the right edge).
+export function labelIndices(n: number, maxLabels = 4): number[] {
+  if (n <= 0) return [];
+  if (n <= maxLabels) return Array.from({ length: n }, (_, i) => i);
+  const step = Math.ceil(n / maxLabels);
+  const out: number[] = [];
+  for (let i = 0; i < n; i += step) out.push(i);
+  const last = n - 1;
+  if (out[out.length - 1] !== last && last - out[out.length - 1] >= step) out.push(last);
+  return out;
+}

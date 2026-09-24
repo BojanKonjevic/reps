@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LC, liftColor } from '../charts';
 import { visibleStart, labelIndices } from '../stackedChart';
+import { firstNonZero } from '../lib/chartLayout';
 import { vertical } from '../muscleChart';
 
 describe('liftColor', () => {
@@ -52,5 +53,14 @@ describe('muscle mini vertical geometry', () => {
   });
   it('keeps roomier margins on the full page chart', () => {
     expect(vertical(330).area).toBe(268);
+  });
+});
+
+describe('firstNonZero', () => {
+  it('skips leading zeros but keeps interior ones after the start', () => {
+    expect(firstNonZero([0, 0, 3, 0, 4])).toBe(2);
+  });
+  it('returns -1 when nothing was ever logged', () => {
+    expect(firstNonZero([0, 0, 0])).toBe(-1);
   });
 });

@@ -5,7 +5,14 @@ import { fit, putText, drawHoverLine } from './charts';
 import { linearScale } from './lib/scales';
 import { niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  firstNonZero,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface MuscleBands {
   mev: number;
@@ -57,7 +64,10 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   const t = niceTicks(0, mx, compact ? 2 : 3);
   mx = t.hi;
   const n = counts.length;
-  const bw = (W - P - L.padR) / n;
+  const found = firstNonZero(counts);
+  const start = found === -1 ? Math.max(0, n - 1) : found;
+  const nv = n - start;
+  const bw = (W - P - L.padR) / Math.max(1, nv);
   const py = linearScale([0, mx], [H - V.padB, V.top]);
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
@@ -95,43 +105,52 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   };
   line(bands.mev, theme.color('warn'), [6, 4]);
   if (bands.mrv !== null && bands.mrv !== undefined) line(bands.mrv, theme.color('bad'), [6, 4]);
-  const pxi = (i: number) => P + i * bw + bw / 2;
+  const pxi = (i: number) => P + (i - start) * bw + bw / 2;
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';
   g.beginPath();
+  let begun = false;
   counts.forEach((c, i) => {
-    if (i === 0) g.moveTo(pxi(i), py(c));
-    else g.lineTo(pxi(i), py(c));
+    if (i < start) return;
+    if (!begun) {
+      g.moveTo(pxi(i), py(c));
+      begun = true;
+    } else g.lineTo(pxi(i), py(c));
   });
   g.stroke();
   counts.forEach((c, i) => {
+    if (i < start) return;
     g.fillStyle = color;
     g.beginPath();
     g.arc(pxi(i), py(c), hover === i ? 5 : 2.5, 0, 7);
     g.fill();
     hit.points.push({ x: pxi(i), y: py(c), index: i });
   });
-  hit.bars = counts.map((c, i) => ({
-    x: P + i * bw,
-    y: 0,
-    w: bw,
-    h: H,
-    index: i,
-  }));
+  hit.bars = counts
+    .map((c, i) => ({
+      x: P + (i - start) * bw,
+      y: 0,
+      w: bw,
+      h: H,
+      index: i,
+    }))
+    .filter(b => b.index >= start);
   const li = counts.length - 1;
   if (li >= 0 && !compact) {
     g.fillStyle = color;
     putText(g, W, String(counts[li]), pxi(li) + 8, py(counts[li]) - 10, 'left');
   }
   g.fillStyle = theme.color('ink-dim');
-  const step = compact ? Math.max(1, n - 1) : Math.ceil(n / 6);
+  const showLabel = compact
+    ? new Set([start, n - 1])
+    : new Set(labelIndices(nv).map(k => k + start));
   counts.forEach((c, i) => {
-    if (i === 0 || i === n - 1 || i % step === 0)
-      putText(g, W, labels[i], P + i * bw + bw / 2, H - 8, 'center');
+    if (i < start) return;
+    if (showLabel.has(i)) putText(g, W, labels[i], P + (i - start) * bw + bw / 2, H - 8, 'center');
   });
-  if (hover >= 0 && hover < n) {
-    drawHoverLine(g, H - V.padB + P, P, P + hover * bw + bw / 2);
+  if (hover >= start && hover < n) {
+    drawHoverLine(g, H - V.padB + P, P, P + (hover - start) * bw + bw / 2);
   }
   return hit;
 }

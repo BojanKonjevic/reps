@@ -6,7 +6,16 @@ import { fit, putText } from './charts';
 import { linearScale } from './lib/scales';
 import { fmtTick, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  firstNonZero,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
+
+export { firstNonZero, labelIndices };
 
 export interface StackedModel {
   labels: string[];
@@ -25,22 +34,9 @@ export function layoutOf(w: number, h: number): ChartLayout {
 }
 
 export function visibleStart(weeks: Array<Record<string, number>>, groups: string[]): number {
-  for (let i = 0; i < weeks.length; i += 1) {
-    const total = groups.reduce((a, k) => a + (weeks[i][k] || 0), 0);
-    if (total > 0) return i;
-  }
-  return Math.max(0, weeks.length - 1);
-}
-
-export function labelIndices(n: number, maxLabels = 4): number[] {
-  if (n <= 0) return [];
-  if (n <= maxLabels) return Array.from({ length: n }, (_, i) => i);
-  const step = Math.ceil(n / maxLabels);
-  const out: number[] = [];
-  for (let i = 0; i < n; i += step) out.push(i);
-  const last = n - 1;
-  if (out[out.length - 1] !== last && last - out[out.length - 1] >= step) out.push(last);
-  return out;
+  const totals = weeks.map(w => groups.reduce((a, k) => a + (w[k] || 0), 0));
+  const s = firstNonZero(totals);
+  return s === -1 ? Math.max(0, weeks.length - 1) : s;
 }
 
 interface Layout {
