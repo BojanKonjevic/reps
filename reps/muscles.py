@@ -7,7 +7,8 @@ from .errors import RepsError
 from .constants import clean_muscles
 from .db import conn
 from .e1rm import e1rm as e1rm_of
-from .program import (ensure_lift, lift_is_bodyweight_only, lift_muscles_csv,
+from .program import (ensure_lift, lift_is_bodyweight_only, lift_muscles,
+                      lift_muscles_csv,
                       merge_lifts, rename_lift, set_lift_muscles)
 
 
@@ -94,7 +95,7 @@ def set_exercise_mapping(exercise, muscles, bodyweight=False):
     muscles = clean_muscles(muscles)
     if not muscles:
         raise RepsError("muscles cannot be empty, pass at least one group")
-    existing = lift_muscles_csv(c, exercise)
+    existing = lift_muscles(c, exercise)
     is_bw = lift_is_bodyweight_only(c, exercise) if existing is not None else False
     if bodyweight:
         is_bw = True
@@ -110,10 +111,10 @@ def rename_exercise(old, new):
     new = new.strip().lower()
     if old == new:
         raise RepsError("old and new exercise names are identical, nothing to rename")
-    old_m = lift_muscles_csv(c, old)
-    new_m = lift_muscles_csv(c, new)
-    if old_m and new_m and set(old_m.split(",")) != set(new_m.split(",")):  # sanctioned: validated read-model compare
-        raise RepsError(f"'{new}' already maps to {new_m}, not {old_m}; retag one of them first, then rename")
+    old_m = lift_muscles(c, old)
+    new_m = lift_muscles(c, new)
+    if old_m and new_m and set(old_m) != set(new_m):
+        raise RepsError(f"'{new}' already maps to {','.join(new_m)}, not {','.join(old_m)}; retag one of them first, then rename")
     if new_m is not None and old_m is None:
         renamed = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old)).rowcount
         c.commit()

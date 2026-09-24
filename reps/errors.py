@@ -23,19 +23,23 @@ class RepsError(Exception):
 class Fix:
     """A validated tool reference: the fix for a refusal.
 
-    `tool` must name a registered MCP tool; `args` are its arguments.
+    `tool` must name a registered MCP tool; `args` are its arguments;
+    `detail` is free human text appended after the rendered call.
     Renders as "call `tool` with ..." from the real name, never prose
     that invents a command syntax.
     """
 
     tool: str
     args: dict = field(default_factory=dict)
+    detail: str = ""
 
     def render(self) -> str:
         if self.args:
-            detail = ", ".join(f"{k} {v!r}" for k, v in self.args.items())
-            return f"call `{self.tool}` with {detail}"
-        return f"call `{self.tool}`"
+            rendered = f"call `{self.tool}` with " + ", ".join(
+                f"{k} {v!r}" for k, v in self.args.items())
+        else:
+            rendered = f"call `{self.tool}`"
+        return f"{rendered} {self.detail}".rstrip() if self.detail else rendered
 
 
 @dataclass

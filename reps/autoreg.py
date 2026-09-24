@@ -5,7 +5,7 @@ from .errors import RepsError
 from .constants import load_constants
 from .db import conn
 from .progression import top_e1rm_by_date
-from .program import (lift_muscles_csv, mev_floor_warnings, muscles_for_movements,
+from .program import (lift_muscles, mev_floor_warnings, muscles_for_movements,
                       parse_movements, programmed_weekly_volume,
                       read_split, rule_status_rows, split_day_order)
 from .trends import is_slipping
@@ -66,10 +66,7 @@ def autoreg_grouped(c, flagged):
     """Flagged lifts sharing a muscle with 2+ members each, via lift_muscle."""
     groups: dict = {}
     for ex in flagged:
-        csv = lift_muscles_csv(c, ex)
-        if not csv:
-            continue
-        for mu in csv.split(","):  # sanctioned: validated read-model split
+        for mu in lift_muscles(c, ex) or []:
             groups.setdefault(mu, set()).add(ex)
     return {mu: sorted(members) for mu, members in sorted(groups.items()) if len(members) >= 2}
 
@@ -124,7 +121,7 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
     if not (evidence or "").strip():
         raise RepsError("evidence is required")
     for move in parse_movements(to_movements):
-        if lift_muscles_csv(c, move) is None:
+        if lift_muscles(c, move) is None:
             raise RepsError(f"'{move}' is not a known lift, split unchanged")
     held = c.execute("SELECT * FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                      (day, cur["movements"], today)).fetchone()

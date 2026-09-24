@@ -8,7 +8,7 @@ from .vocab import WorkoutStatus, values
 from .muscles import _levenshtein, attach_muscles, best_e1rm
 from .program import (active_deloads, best_split_day, consume_session_flags,
                       day_movements, deload_covers, ensure_lift,
-                      lift_is_bodyweight_only, lift_muscles_csv,
+                      lift_is_bodyweight_only, lift_muscles,
                       parse_active_split_days, set_lift_muscles,
                       split_all_movements, split_day_order)
 from .records import personal_records
@@ -124,7 +124,7 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         raise RepsError("reps must be a positive integer")
     muscles = clean_muscles(muscles)
 
-    mapping = lift_muscles_csv(c, exercise)
+    mapping = lift_muscles(c, exercise)
     if weight == 0:
         if bodyweight:
             pass
@@ -137,7 +137,7 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         ensure_lift(c, exercise)
         set_lift_muscles(c, exercise, muscles, 1 if bodyweight else 0)
     elif not muscles:
-        muscles = mapping
+        muscles = ",".join(mapping)
 
     constants = load_constants()
     warn_ratio = constants.thresholds.e1rm_warn_ratio
@@ -159,8 +159,10 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
             prev_e1rm = e1rm_of(prev["weight"], prev["reps"])
             if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
                 warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
-    if mapping and muscles and set(muscles.split(",")) != set(mapping.split(",")):  # sanctioned: input-boundary vs read-model compare
-        raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping}); "
+    # muscles arrives as an MCP comma string (split once, at the input boundary);
+    # mapping is already a list from lift_muscles().
+    if mapping and muscles and set(muscles.split(",")) != set(mapping):  # sanctioned: input-boundary parse
+        raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({','.join(mapping)}); "
                         f"the mapping is authoritative, log a genuine variation under its own exercise name "
                         f"or change it everywhere with muscle_map_set")
 
@@ -199,7 +201,7 @@ def update_set(set_id, field, value):
         raise RepsError("no such set")
     if field == "exercise":
         value = value.strip().lower()
-        if lift_muscles_csv(c, value) is None:
+        if lift_muscles(c, value) is None:
             raise RepsError(f"exercise '{value}' is not a known lift")
     if field == "weight":
         if value == "":
@@ -384,11 +386,10 @@ def end_gate_items(c, w, note):
     judged = {r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
     for ex in sorted(set(trained) - judged):
-        item = GateItem(f"missing progression: {ex}",
-                        Fix("progression_set", {"exercise": ex}))
-        d = item.as_dict()
-        d["fix"] = f"progression_set for \"{ex}\" with verdict and next target"
-        outstanding.append(d)
+        outstanding.append(GateItem(
+            f"missing progression: {ex}",
+            Fix("progression_set", {"exercise": ex},
+                detail="with verdict and next target")).as_dict())
     known = split_all_movements("active", c=c)
     unreconciled = sorted(set(trained) - known)
     if unreconciled:
@@ -399,11 +400,10 @@ def end_gate_items(c, w, note):
         anchor = next((ex for ex in reversed(performed) if ex in day_movements(day, c=c)), None)
         after = f" after \"{anchor}\"" if anchor else ""
         for ex in unreconciled:
-            item = GateItem(f"unreconciled slot: {ex} (not in any active split day)",
-                            Fix("program_split_reconcile", {"day": day}))
-            d = item.as_dict()
-            d["fix"] = f"program_split_reconcile on \"{day}\"{after}"
-            outstanding.append(d)
+            outstanding.append(GateItem(
+                f"unreconciled slot: {ex} (not in any active split day)",
+                Fix("program_split_reconcile", {"day": day},
+                    detail=f"on {day!r}{after}")).as_dict())
     deloads = active_deloads(c)
     if deloads:
         day_moves = parse_active_split_days(c)

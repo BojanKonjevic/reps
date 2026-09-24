@@ -30,13 +30,25 @@ def ensure_lift(c, exercise):
               (exercise,))
 
 
-def lift_muscles_csv(c, exercise):
-    """Comma-joined mapped muscles, or None when unmapped."""
+def lift_muscles(c, exercise) -> list[str] | None:
+    """Mapped muscles as a list, or None when unmapped. Single owner query."""
     rows = c.execute("SELECT muscle FROM lift_muscle WHERE exercise = ? ORDER BY muscle",
                      (exercise,)).fetchall()
     if not rows:
         return None
-    return ",".join(r["muscle"] for r in rows)
+    return [r["muscle"] for r in rows]
+
+
+def lift_muscles_csv(c, exercise):
+    """Comma-joined mapped muscles, or None when unmapped.
+
+    String form exists only for string boundaries (MCP mapping responses).
+    Internal consumers use lift_muscles() and never round-trip through this.
+    """
+    muscles = lift_muscles(c, exercise)
+    if muscles is None:
+        return None
+    return ",".join(muscles)
 
 
 def set_lift_muscles(c, exercise, muscles_csv, is_bodyweight_only=0):
@@ -72,13 +84,13 @@ def merge_lifts(c, old, new):
 
     Refuses when the muscle sets conflict (retag one of them first).
     """
-    old_m = lift_muscles_csv(c, old)
-    new_m = lift_muscles_csv(c, new)
+    old_m = lift_muscles(c, old)
+    new_m = lift_muscles(c, new)
     if old_m is None:
         raise RepsError(f"no lift '{old}'")
     if new_m is None:
         raise RepsError(f"no lift '{new}'")
-    if set(old_m.split(",")) != set(new_m.split(",")):  # sanctioned: validated read-model compare
+    if set(old_m) != set(new_m):
         raise RepsError(f"'{new}' maps to {new_m}, not {old_m}; retag one of them first, then merge")
     moved = c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = ?", (old,)).fetchone()["n"]
     for table, col in [("sets", "exercise"), ("goals", "exercise"), ("movement_note", "exercise")]:
@@ -547,7 +559,7 @@ def set_split(day, slot, movements, sets, variant="active"):
         raise RepsError("movements cannot be empty")
     moves = parse_movements(movements)
     for move in moves:
-        if lift_muscles_csv(c, move) is None:
+        if lift_muscles(c, move) is None:
             raise RepsError(f"'{move}' is not a known lift, split unchanged")
     before = read_split(variant, day, c=c)
     before_moves = next((r["movements"] for r in before if r["slot"] == slot), None)
@@ -578,21 +590,21 @@ def move_split(day, exercise, to_slot):
         to_slot = int(to_slot)
     except (TypeError, ValueError):
         raise RepsError("slot must be an integer")
-    rows = read_split("active", day, c=c)
+    rows = slot_rows(c, "active", day)
     if not rows:
         raise RepsError(f"no active split day '{day}'")
-    origin = next((r for r in rows if exercise in parse_movements(r["movements"])), None)
+    origin = next((r for r in rows if exercise in r["moves"]), None)
     if not origin:
         raise RepsError(f"'{exercise}' is not in {day}")
-    if len(parse_movements(origin["movements"])) > 1:
-        raise RepsError(f"'{exercise}' shares slot {origin['slot']} ({origin['movements']}); "
+    if len(origin["moves"]) > 1:
+        raise RepsError(f"'{exercise}' shares slot {origin['slot']} ({' / '.join(origin['moves'])}); "
                        f"use set_split to rearrange interchangeable pairs explicitly")
     carry_sets = origin["sets"]
     remaining = []
     for r in rows:
-        kept = [m for m in (m.strip() for m in r["movements"].split("/")) if m.lower() != exercise]  # sanctioned: read-model re-split
+        kept = [m for m in r["moves"] if m != exercise]
         if kept:
-            remaining.append({"moves": parse_movements(" / ".join(kept)), "sets": r["sets"]})
+            remaining.append({"moves": kept, "sets": r["sets"]})
     to_slot = max(1, min(to_slot, len(remaining) + 1))
     remaining.insert(to_slot - 1, {"moves": [exercise], "sets": carry_sets})
     c.execute("DELETE FROM split_slot WHERE variant = 'active' AND day = ?", (day,))
@@ -618,9 +630,9 @@ def reconcile_split(day, after=None):
     new = [ex for ex in trained if ex not in known]
     if not new:
         return {"reconciled": day, "added": []}
-    rows = read_split("active", day, c=c)
+    rows = slot_rows(c, "active", day)
     if after:
-        anchor = next((r for r in rows if after.strip().lower() in parse_movements(r["movements"])), None)
+        anchor = next((r for r in rows if after.strip().lower() in r["moves"]), None)
         if not anchor:
             raise RepsError(f"'{after}' is not in {day}")
         insert_at = anchor["slot"] + 1
@@ -672,9 +684,7 @@ def consume_session_flags(c, workout_id):
         "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (workout_id,)).fetchall()}
     muscles = set()
     for ex in trained:
-        csv = lift_muscles_csv(c, ex)
-        if csv:
-            muscles.update(csv.split(","))  # sanctioned: validated read-model split
+        muscles.update(lift_muscles(c, ex) or [])
     subjects = trained | muscles
     if not subjects:
         return 0
@@ -796,10 +806,7 @@ def programmed_weekly_volume(c, split_rows=None):
     rows = split_rows if split_rows is not None else read_split("active", c=c)
     for r in rows:
         for move in parse_movements(r["movements"]):
-            csv = lift_muscles_csv(c, move)
-            if not csv:
-                continue
-            for mu in csv.split(","):  # sanctioned: validated read-model split
+            for mu in lift_muscles(c, move) or []:
                 if mu in totals:
                     totals[mu] += r["sets"]
     cycle = get_rotation(c)
@@ -811,9 +818,7 @@ def muscles_for_movements(c, text):
     """Tracked and untracked mapped muscles for a movements cell."""
     out = set()
     for move in parse_movements(text):
-        csv = lift_muscles_csv(c, move)
-        if csv:
-            out.update(csv.split(","))  # sanctioned: validated read-model split
+        out.update(lift_muscles(c, move) or [])
     return out
 
 

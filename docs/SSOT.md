@@ -45,6 +45,7 @@
 | Thresholds                           | `constants.json`                                                          | `load_constants()`, snapshot, doc markers        | T1/T2 | G2, G4, G17        |
 | Enums                                | `reps/vocab.py`                                                           | SQL `CHECK`, Pydantic, MCP schema, generated Zod | T1    | G3                 |
 | Lift registry, mapping, alternates   | `lift`, `lift_muscle`, `split_slot_lift`                                  | FKs                                              | T1    | G12                |
+| Autoreg history movements            | `autoreg_holds`/`autoreg_changes` TEXT (immutable point-in-time record)   | snapshot `moves`/`before_moves`/`after_moves` arrays | T2    | tests              |
 | Snapshot shape                       | `reps/models.py`                                                          | generated `snapshot.ts`, blank, fixtures         | T2    | G3, G11            |
 | Snapshot views                       | `reps/snapshot.py`                                                        | `sync.build_snapshot`, dashboard views           | T1    | tests              |
 | Colors, fonts                        | `design/tokens.css`                                                       | `theme.ts` for canvas                            | T1/T2 | G6                 |

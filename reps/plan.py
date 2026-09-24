@@ -8,7 +8,7 @@ from .goals import goal_progress
 from .program import (active_deloads, compaction_due, get_rotation,
                     parse_active_split_days, parse_movements,
                     priority_needs_confirm, read_priorities, read_split,
-                    rules_with_confirm, volume_block, lift_muscles_csv)
+                    rules_with_confirm, volume_block, lift_muscles)
 from .progression import latest as latest_progression
 from .sessions import break_threshold, last_done, staleness
 from .slots import next_slot, slot_of_session
@@ -130,9 +130,9 @@ def get_plan(slot=None, verbose=False):
             for m in moves:
                 entry["notes"].extend(n["note"] for n in c.execute(
                     "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (m,)).fetchall())
-                csv = lift_muscles_csv(c, m)
-                if csv:
-                    entry["muscles"].extend(mu for mu in csv.split(",") if mu not in entry["muscles"])  # sanctioned: validated read-model split
+                for mu in lift_muscles(c, m) or []:
+                    if mu not in entry["muscles"]:
+                        entry["muscles"].append(mu)
             slots.append(entry)
         split_section = {"day": split_day, "slots": slots}
 

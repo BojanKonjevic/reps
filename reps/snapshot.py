@@ -11,7 +11,7 @@ from .constants import load_constants
 from .models import SNAPSHOT_SCHEMA_VERSION
 from .e1rm import e1rm
 from .program import (active_deloads, deload_covers, get_rotation,
-                      lift_muscles_csv, parse_active_split_days, read_priorities,
+                      lift_muscles, parse_active_split_days, read_priorities,
                       read_split, rules_with_confirm, volume_block)
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
@@ -71,8 +71,7 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
         best_ev = e1rm(best_row["weight"], best_row["reps"])
         last_row = hist[-1]
         last_pr = next((s["date"] for s in reversed(hist) if pr.get(s["id"])), None)
-        csv = lift_muscles_csv(c, ex) or ""
-        muscles = [m for m in csv.split(",") if m]  # sanctioned: validated read-model split
+        muscles = lift_muscles(c, ex) or []
         notes = [n["note"] for n in c.execute(
             "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (ex,)).fetchall()]
         p = prog.get(ex)
@@ -294,9 +293,8 @@ def program_view(c, rotation, anchor, priorities):
             moves = r["moves"]
             uniq: list[str] = []
             for m in moves:
-                csv = lift_muscles_csv(c, m) or ""
-                for mu in csv.split(","):  # sanctioned: validated read-model split
-                    if mu and mu not in uniq:
+                for mu in lift_muscles(c, m) or []:
+                    if mu not in uniq:
                         uniq.append(mu)
             slots.append({"slot": r["slot"], "moves": moves, "sets": r["sets"],
                           "muscles": uniq, "focus": [m for m in uniq if m in focus]})
