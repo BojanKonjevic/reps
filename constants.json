@@ -140,7 +140,15 @@
     "e1rm_warn_ratio": 1.5,
     "duplicate_name_distance": 2,
     "goal_divergence_pct": 5,
-    "default_new_slot_sets": 2
+    "default_new_slot_sets": 2,
+    "stall_window_sessions": 3,
+    "stall_decline_pct": 1.0,
+    "stall_flat_sessions": 6,
+    "stall_min_sessions": 4,
+    "bodyweight_gap_days": 14,
+    "bodyweight_avg_days": 7,
+    "recent_notes_count": 6,
+    "trend_top_lifts": 8
   },
   "explained_keywords": ["deload", "return", "program change", "injury", "technique", "sick", "travel"],
   "rep_scheme_default": [3, 8]

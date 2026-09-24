@@ -49,7 +49,7 @@ def test_goal_add_rejects_past_deadline_and_unknown_lift(log_module):
     _seeded(log)
     with pytest.raises(RepsError, match="future"):
         log.add_goal("bench", 130, "2020-01-01", "", None)
-    with pytest.raises(RepsError, match="no mapping"):
+    with pytest.raises(RepsError, match="not a known lift"):
         log.add_goal("mystery press", 130, _deadline(), "", 100)
 
 
@@ -84,7 +84,7 @@ def test_goal_divergence_flags_in_audit(log_module):
         cur2 = c.execute(
             "INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))",
             (cur.lastrowid, weight))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
+        pass
         c.commit()
     flags = log.run_audit()["flags"]
     assert [f for f in flags if f["check"] == "goal_divergence"]
@@ -95,7 +95,7 @@ def test_goal_slippage_when_frequency_too_low(log_module):
     _seeded(log)
     log.add_goal("bench", 130, _deadline(60), "", None)
     c = log.conn()
-    c.execute("DELETE FROM splits WHERE variant = 'active' AND day = 'Upper A'")
+    c.execute("DELETE FROM split_slot WHERE variant = 'active' AND day = 'Upper A'")
     c.commit()
     rows = _out(log.get_goal, 1)
     assert rows[0]["slippage"] is True

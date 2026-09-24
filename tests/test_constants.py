@@ -31,18 +31,27 @@ def test_constants_thresholds_complete():
         assert key in raw["thresholds"], key
 
 
+def _rg(*args):
+    import subprocess
+    r = subprocess.run(["rg", *args], capture_output=True, text=True, cwd=ROOT)
+    assert r.returncode in (0, 1), f"rg failed: {r.stderr}"
+    return r.stdout.strip()
+
+
 def test_dashboard_derives_from_constants():
-    with open(CHARTS) as f:
-        text = f.read()
-    assert "constants.json" in text
-    assert "#ffa726" not in text, "MC literals must be derived, not hardcoded"
+    out = _rg("-l", "constants.json", "dashboard/src",
+              "--glob", "!**/__tests__/**", "--glob", "!**/fixtures/**",
+              "--glob", "!**/generated/**")
+    assert out == "", f"dashboard reads constants via snapshot only, found: {out}"
 
 
-def test_dashboard_volume_test_derives_blank():
-    with open(VOLUME_TEST) as f:
-        text = f.read()
-    assert "GROUPS" in text
-    assert "forearms: 0" not in text, "blank() must derive from GROUPS, not a literal"
+def test_generated_snapshot_types_are_the_only_ones():
+    import subprocess
+    out = _rg("-n", "(interface Snap\\w*|type Snap\\w*\\s*=)",
+                "dashboard/src", "--glob", "!**/generated/**",
+                "--glob", "!**/__tests__/**")
+    lines = [ln for ln in out.splitlines() if "import " not in ln]
+    assert lines == [], f"hand-written snapshot types found: {lines}"
 
 
 def test_science_has_no_numeric_tables():

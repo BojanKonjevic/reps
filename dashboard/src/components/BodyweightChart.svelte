@@ -1,25 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { bwline } from '../bwChart';
+  import { plot, type BwRow } from '../bwChart';
   import { bindHover, hideTip, showTip } from '../tip';
+  import { nearestPoint, emptyHit, type HitMap } from '../lib/chartLayout';
   import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
-    rows: Array<{ date: string; kg: number }>;
+    rows: BwRow[];
   }
 
   let { rows }: Props = $props();
 
   let cv: HTMLCanvasElement;
-
-  function sliceIdx(x: number, cw: number, n: number): number {
-    if (n <= 1) return 0;
-    const i = Math.round((x - 46) / ((cw - 46 - 8) / (n - 1)));
-    return Math.min(n - 1, Math.max(0, i));
-  }
+  let hit: HitMap = emptyHit();
 
   function paint(hover = -1) {
-    if (isVisible(cv)) bwline(cv, rows, hover);
+    if (isVisible(cv)) hit = plot(cv, rows, hover);
   }
 
   function show(cx: number, cy: number) {
@@ -28,9 +24,25 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const idx = sliceIdx(cx - r.left, r.width, rows.length);
-    paint(idx);
-    showTip(rows[idx].date, [[null, rows[idx].kg.toFixed(1) + ' kg']], cx, cy);
+    const p = nearestPoint(hit, cx - r.left, 30);
+    if (!p) {
+      hideTip();
+      paint();
+      return;
+    }
+    paint(p.index);
+    const row = rows[p.index];
+    showTip(
+      row.date,
+      [
+        [
+          null,
+          row.kg.toFixed(1) + ' kg' + (row.avg7 !== null ? ' · avg ' + row.avg7.toFixed(1) : ''),
+        ],
+      ],
+      cx,
+      cy
+    );
   }
 
   canvasShell(() => paint());

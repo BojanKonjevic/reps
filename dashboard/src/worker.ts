@@ -1,27 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
+import BLANK from './generated/blank.json';
+import { SCHEMA_VERSION, SNAPSHOT_SCHEMA_VERSION } from './generated/version';
 
 interface Env {
   SNAPSHOTS: R2Bucket;
   SYNC_SECRET: string;
 }
-
-const BLANK = {
-  note: 'no sync yet, run sync_push after a session',
-  workouts: [],
-  sets: [],
-  bodyweight: [],
-  split_active: [],
-  rotation: [],
-  constants: null,
-  progression: {},
-  goals: [],
-  priority: {},
-  deload: [],
-  rules: [],
-  flags: [],
-  mapping: [],
-  movement_notes: [],
-};
 
 // Optimistic concurrency: the snapshot ETag is the quoted `exported`
 // timestamp of the stored payload. A PUT made from a stale pull carries a
@@ -36,6 +20,16 @@ function etagFor(body: string): string | null {
     }
   } catch {
     // not JSON or no exported field: no ETag
+  }
+  return null;
+}
+
+function schemaOf(body: string): number | null {
+  try {
+    const data = JSON.parse(body) as { schema_version?: unknown };
+    if (data && typeof data.schema_version === 'number') return data.schema_version;
+  } catch {
+    // not JSON: no version
   }
   return null;
 }
@@ -56,6 +50,19 @@ export default {
         JSON.parse(raw);
       } catch {
         return Response.json({ error: 'not json' }, { status: 400 });
+      }
+      if (schemaOf(raw) !== SNAPSHOT_SCHEMA_VERSION) {
+        return Response.json(
+          {
+            error:
+              'schema v' +
+              schemaOf(raw) +
+              ' != worker v' +
+              SNAPSHOT_SCHEMA_VERSION +
+              ' (resync needed)',
+          },
+          { status: 409 }
+        );
       }
       const current = await env.SNAPSHOTS.get('snapshot.json');
       if (current) {
@@ -93,3 +100,5 @@ export default {
     return new Response('not found', { status: 404 });
   },
 };
+
+export { SCHEMA_VERSION };

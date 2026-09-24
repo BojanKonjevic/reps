@@ -102,7 +102,7 @@ def clean_muscles(value):
         vocab = set(load_constants().muscles) | set(load_constants().untracked)
     except RepsError:
         vocab = set()
-    for p in value.split(","):
+    for p in value.split(","):  # sanctioned: input-boundary parse of a validated arg
         m = p.strip().lower()
         if not m:
             continue

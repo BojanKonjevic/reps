@@ -1,0 +1,2081 @@
+{
+  "schema_version": 2,
+  "exported": "2026-09-24T12:00:00",
+  "as_of": "2026-09-24",
+  "constants": {
+    "version": 1,
+    "muscles": {
+      "chest": {
+        "mev": 8,
+        "mav": [
+          14,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017 meta, RP synthesis",
+        "color": "#ffa726"
+      },
+      "back": {
+        "mev": 10,
+        "mav": [
+          14,
+          22
+        ],
+        "mrv": 28,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, Israetel RP",
+        "color": "#66bb6a"
+      },
+      "front delts": {
+        "mev": 0,
+        "mav": [
+          4,
+          12
+        ],
+        "mrv": 12,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "opinion",
+        "source": "RP front delts guide, no direct RCT dose-response",
+        "color": "#e6c400"
+      },
+      "side delts": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 22,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, Helms 2019",
+        "color": "#9ccc65"
+      },
+      "rear delts": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          2,
+          4
+        ],
+        "tier": "opinion",
+        "source": "RP rear delts guide, practitioner synthesis",
+        "color": "#ffab91"
+      },
+      "biceps": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#42a5f5"
+      },
+      "triceps": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#ef5350"
+      },
+      "quads": {
+        "mev": 8,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#ab47bc"
+      },
+      "hamstrings": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "contested",
+        "source": "Less direct data, extrapolated",
+        "color": "#26c6da"
+      },
+      "glutes": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "contested",
+        "source": "Few direct studies, RP",
+        "color": "#ec407a"
+      },
+      "adductors": {
+        "mev": 4,
+        "mav": [
+          4,
+          8
+        ],
+        "mrv": 12,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "opinion",
+        "source": "No direct landmarks, extrapolated",
+        "color": "#5c6bc0"
+      },
+      "abs": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          3,
+          4
+        ],
+        "tier": "contested",
+        "source": "Limited hypertrophy data",
+        "color": "#b0bec5"
+      },
+      "forearms": {
+        "mev": 6,
+        "mav": null,
+        "mrv": null,
+        "freq": [
+          3,
+          3
+        ],
+        "tier": "opinion",
+        "source": "No trusted landmarks, plan uses ~6/week",
+        "color": "#8d6e63"
+      }
+    },
+    "untracked": [
+      "neck",
+      "calves",
+      "traps"
+    ],
+    "rep_bands": [
+      {
+        "max_reps": 6,
+        "jump_pct": 4.0
+      },
+      {
+        "max_reps": 10,
+        "jump_pct": 5.0
+      },
+      {
+        "max_reps": 15,
+        "jump_pct": 8.0
+      },
+      {
+        "max_reps": null,
+        "jump_pct": null
+      }
+    ],
+    "thresholds": {
+      "stale_workout_hours": 8,
+      "stale_workout_days": 1,
+      "break_days": 4,
+      "e1rm_warn_ratio": 1.5,
+      "duplicate_name_distance": 2,
+      "volume_window_weeks": 8,
+      "volume_bad_weeks": 4,
+      "ledger_retention_days": 7,
+      "default_new_slot_sets": 2,
+      "adherence_drift_days": 3,
+      "progression_drop_pct": -50,
+      "deload_watch_pct": -5,
+      "goal_divergence_pct": 5,
+      "stall_window_sessions": 3,
+      "stall_decline_pct": 1.0,
+      "stall_flat_sessions": 6,
+      "stall_min_sessions": 4,
+      "bodyweight_gap_days": 14,
+      "bodyweight_avg_days": 7,
+      "recent_notes_count": 6,
+      "trend_top_lifts": 8,
+      "deload_volume_reduction": [
+        0.4,
+        0.6
+      ]
+    },
+    "explained_keywords": [
+      "deload",
+      "return",
+      "program change",
+      "injury",
+      "technique",
+      "sick",
+      "travel"
+    ],
+    "rep_scheme_default": [
+      3,
+      8
+    ]
+  },
+  "lifts": [
+    {
+      "exercise": "bench",
+      "muscles": [
+        "chest"
+      ],
+      "notes": [
+        "touch low"
+      ],
+      "sessions": [
+        {
+          "date": "2026-09-04",
+          "workout_id": 1,
+          "weight": 95.0,
+          "reps": 5,
+          "e1rm": 110.8,
+          "is_pr": false,
+          "delta_e1rm": null
+        },
+        {
+          "date": "2026-09-11",
+          "workout_id": 3,
+          "weight": 97.5,
+          "reps": 5,
+          "e1rm": 113.8,
+          "is_pr": true,
+          "delta_e1rm": 3.0
+        },
+        {
+          "date": "2026-09-18",
+          "workout_id": 5,
+          "weight": 100.0,
+          "reps": 5,
+          "e1rm": 116.7,
+          "is_pr": true,
+          "delta_e1rm": 2.9
+        }
+      ],
+      "best": {
+        "weight": 100.0,
+        "reps": 5,
+        "e1rm": 116.7,
+        "date": "2026-09-18"
+      },
+      "last": {
+        "weight": 100.0,
+        "reps": 5,
+        "date": "2026-09-18"
+      },
+      "last_pr_date": "2026-09-18",
+      "days_since_pr": 6,
+      "progression": {
+        "verdict": "hit",
+        "next": "102.5x5",
+        "next_weight": 102.5,
+        "next_reps": 5,
+        "next_e1rm": 119.6,
+        "direction": "flat",
+        "note": ""
+      },
+      "goal_id": 1,
+      "tags": [
+        "goal",
+        "focus"
+      ],
+      "marks": [
+        {
+          "kind": "goal",
+          "payload": {
+            "goal_id": 1
+          }
+        },
+        {
+          "kind": "focus",
+          "payload": {
+            "muscles": "chest"
+          }
+        }
+      ],
+      "rank_default": 0,
+      "rank_attention": 0
+    },
+    {
+      "exercise": "row",
+      "muscles": [
+        "back"
+      ],
+      "notes": [],
+      "sessions": [
+        {
+          "date": "2026-09-07",
+          "workout_id": 2,
+          "weight": 80.0,
+          "reps": 5,
+          "e1rm": 93.3,
+          "is_pr": false,
+          "delta_e1rm": null
+        },
+        {
+          "date": "2026-09-14",
+          "workout_id": 4,
+          "weight": 82.5,
+          "reps": 5,
+          "e1rm": 96.2,
+          "is_pr": true,
+          "delta_e1rm": 2.9
+        },
+        {
+          "date": "2026-09-21",
+          "workout_id": 6,
+          "weight": 85.0,
+          "reps": 5,
+          "e1rm": 99.2,
+          "is_pr": true,
+          "delta_e1rm": 3.0
+        }
+      ],
+      "best": {
+        "weight": 85.0,
+        "reps": 5,
+        "e1rm": 99.2,
+        "date": "2026-09-21"
+      },
+      "last": {
+        "weight": 85.0,
+        "reps": 5,
+        "date": "2026-09-21"
+      },
+      "last_pr_date": "2026-09-21",
+      "days_since_pr": 3,
+      "progression": {
+        "verdict": "hit",
+        "next": "87.5x5",
+        "next_weight": 87.5,
+        "next_reps": 5,
+        "next_e1rm": 102.1,
+        "direction": "flat",
+        "note": ""
+      },
+      "goal_id": null,
+      "tags": [],
+      "marks": [],
+      "rank_default": 1,
+      "rank_attention": 1
+    }
+  ],
+  "muscles": [
+    {
+      "muscle": "chest",
+      "bands": {
+        "mev": 8,
+        "mav": [
+          14,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "priority",
+      "grouped": [],
+      "lift_share": [
+        {
+          "exercise": "bench",
+          "sets": 3,
+          "share": 1.0
+        }
+      ],
+      "trained_weeks": 3,
+      "avg_recent": 0.8
+    },
+    {
+      "muscle": "back",
+      "bands": {
+        "mev": 10,
+        "mav": [
+          14,
+          22
+        ],
+        "mrv": 28
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [
+        {
+          "exercise": "row",
+          "sets": 3,
+          "share": 1.0
+        }
+      ],
+      "trained_weeks": 3,
+      "avg_recent": 0.8
+    },
+    {
+      "muscle": "front delts",
+      "bands": {
+        "mev": 0,
+        "mav": [
+          4,
+          12
+        ],
+        "mrv": 12
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "in_range",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "side delts",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 22
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "rear delts",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "biceps",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "triceps",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "quads",
+      "bands": {
+        "mev": 8,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "hamstrings",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "glutes",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "adductors",
+      "bands": {
+        "mev": 4,
+        "mav": [
+          4,
+          8
+        ],
+        "mrv": 12
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "abs",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "forearms",
+      "bands": {
+        "mev": 6,
+        "mav": null,
+        "mrv": null
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    }
+  ],
+  "sessions": [
+    {
+      "date": "2026-09-04",
+      "workout_id": 1,
+      "status": "done",
+      "slot_label": "Upper A",
+      "notes": "scenario 20d ago scenario 20d ago",
+      "exercises": [
+        {
+          "exercise": "bench",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 95.0,
+              "r": 5,
+              "e": 110.8,
+              "pr": false,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-09-07",
+      "workout_id": 2,
+      "status": "done",
+      "slot_label": "Upper B",
+      "notes": "scenario 17d ago scenario 17d ago",
+      "exercises": [
+        {
+          "exercise": "row",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 80.0,
+              "r": 5,
+              "e": 93.3,
+              "pr": false,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-09-11",
+      "workout_id": 3,
+      "status": "done",
+      "slot_label": "Upper A",
+      "notes": "scenario 13d ago scenario 13d ago",
+      "exercises": [
+        {
+          "exercise": "bench",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 97.5,
+              "r": 5,
+              "e": 113.8,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "workout_id": 4,
+      "status": "done",
+      "slot_label": "Upper B",
+      "notes": "scenario 10d ago scenario 10d ago",
+      "exercises": [
+        {
+          "exercise": "row",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 82.5,
+              "r": 5,
+              "e": 96.2,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-09-18",
+      "workout_id": 5,
+      "status": "done",
+      "slot_label": "Upper A",
+      "notes": "scenario 6d ago scenario 6d ago",
+      "exercises": [
+        {
+          "exercise": "bench",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 100.0,
+              "r": 5,
+              "e": 116.7,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-09-21",
+      "workout_id": 6,
+      "status": "done",
+      "slot_label": "Upper B",
+      "notes": "scenario 3d ago scenario 3d ago",
+      "exercises": [
+        {
+          "exercise": "row",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 85.0,
+              "r": 5,
+              "e": 99.2,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "calendar": [
+    {
+      "date": "2026-09-04",
+      "kind": "trained",
+      "slot_label": "Upper A",
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "done",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "bench 95x5"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-05",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "expected Upper B, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-06",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "rest",
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-07",
+      "kind": "trained",
+      "slot_label": "Upper B",
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "swapped",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "row 80x5"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-08",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "expected Upper B, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-09",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "rest",
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-10",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "expected Upper A, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-11",
+      "kind": "trained",
+      "slot_label": "Upper A",
+      "has_pr": true,
+      "break_after_gap": false,
+      "adherence_status": "swapped",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "bench 97.5x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-12",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "rest",
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-13",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "expected Upper A, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-14",
+      "kind": "trained",
+      "slot_label": "Upper B",
+      "has_pr": true,
+      "break_after_gap": false,
+      "adherence_status": "done",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "row 82.5x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-15",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "rest",
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-16",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "expected Upper A, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-17",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "expected Upper B, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-18",
+      "kind": "trained",
+      "slot_label": "Upper A",
+      "has_pr": true,
+      "break_after_gap": false,
+      "adherence_status": "extra",
+      "expected": "rest",
+      "hover": {
+        "lines": [
+          "bench 100x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-19",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "expected Upper A, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-20",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "expected Upper B, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-21",
+      "kind": "trained",
+      "slot_label": "Upper B",
+      "has_pr": true,
+      "break_after_gap": false,
+      "adherence_status": "extra",
+      "expected": "rest",
+      "hover": {
+        "lines": [
+          "row 85x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "expected Upper A, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "kind": "missed",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "missed",
+      "expected": "Upper B",
+      "hover": {
+        "lines": [
+          "expected Upper B, nothing logged"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-24",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "rest",
+      "hover": {
+        "lines": []
+      }
+    }
+  ],
+  "status": {
+    "open_today": false,
+    "rest_today": false,
+    "last_trained": "2026-09-21",
+    "break_days": null,
+    "on_break": false
+  },
+  "volume_history": {
+    "week_starts": [
+      "2026-08-03",
+      "2026-08-10",
+      "2026-08-17",
+      "2026-08-24",
+      "2026-08-31",
+      "2026-09-07",
+      "2026-09-14",
+      "2026-09-21"
+    ],
+    "by_muscle": {
+      "chest": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "back": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ],
+      "front delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "side delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rear delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "biceps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "triceps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "quads": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "hamstrings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "glutes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "adductors": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "abs": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forearms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "bodyweight": [
+    {
+      "date": "2026-09-24",
+      "kg": 84.0,
+      "avg7": 84.0,
+      "gap_before": null,
+      "gap": false
+    }
+  ],
+  "program": {
+    "rotation": [
+      "Upper A",
+      "Upper B",
+      "rest"
+    ],
+    "anchor": {
+      "date": "2026-09-04",
+      "index": 0
+    },
+    "days": [
+      {
+        "day": "Upper A",
+        "muscles": [
+          "chest"
+        ],
+        "slots": [
+          {
+            "slot": 1,
+            "moves": [
+              "bench"
+            ],
+            "sets": 2,
+            "muscles": [
+              "chest"
+            ],
+            "focus": [
+              "chest"
+            ]
+          },
+          {
+            "slot": 2,
+            "moves": [
+              "incline"
+            ],
+            "sets": 4,
+            "muscles": [
+              "chest"
+            ],
+            "focus": [
+              "chest"
+            ]
+          }
+        ]
+      },
+      {
+        "day": "Upper B",
+        "muscles": [
+          "back"
+        ],
+        "slots": [
+          {
+            "slot": 1,
+            "moves": [
+              "row"
+            ],
+            "sets": 3,
+            "muscles": [
+              "back"
+            ],
+            "focus": []
+          }
+        ]
+      }
+    ]
+  },
+  "next_up": {
+    "day": "Upper A",
+    "basis": "last trained Upper B, rotation Upper B->Upper A (rest day sits between)",
+    "rows": [
+      {
+        "movement": "bench",
+        "last": {
+          "weight": 100.0,
+          "reps": 5,
+          "date": "2026-09-18"
+        },
+        "target": "102.5x5"
+      },
+      {
+        "movement": "incline",
+        "last": null,
+        "target": null
+      }
+    ],
+    "empty": null
+  },
+  "goals": [
+    {
+      "id": 1,
+      "exercise": "bench",
+      "target_e1rm": 130.0,
+      "target_desc": "",
+      "deadline": "2026-11-23",
+      "status": "active",
+      "created": "2026-09-24T12:00:00",
+      "checkpoints": [
+        116.7,
+        117.4,
+        118.1,
+        118.8,
+        119.5,
+        120.2,
+        120.9,
+        121.6,
+        122.3,
+        123.0,
+        123.7,
+        124.4,
+        125.1,
+        125.8,
+        126.5,
+        127.2,
+        127.9,
+        128.6,
+        129.3,
+        130.0
+      ],
+      "completed": 1,
+      "actuals": [
+        {
+          "date": "2026-09-18",
+          "e1rm": 116.7
+        }
+      ],
+      "consecutive_misses": 0,
+      "on_track": true,
+      "remaining": 19,
+      "slippage": false,
+      "next_checkpoint": 117.4,
+      "percent": 0.0,
+      "top_by_date": {
+        "2026-09-04": {
+          "weight": 95.0,
+          "reps": 5
+        },
+        "2026-09-11": {
+          "weight": 97.5,
+          "reps": 5
+        },
+        "2026-09-18": {
+          "weight": 100.0,
+          "reps": 5
+        }
+      }
+    }
+  ],
+  "adherence": {
+    "anchor": {
+      "date": "2026-09-04",
+      "index": 0
+    },
+    "days": [
+      {
+        "date": "2026-07-31",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-01",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-02",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-03",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-04",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-05",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-06",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-07",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-08",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-09",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-10",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-11",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-12",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-13",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-14",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-15",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-16",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-17",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-18",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-19",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-20",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-21",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-22",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-23",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-24",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-25",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-26",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-27",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-28",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-08-29",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-30",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-08-31",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-01",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-02",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-03",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-04",
+        "expected": "Upper A",
+        "trained": "Upper A",
+        "status": "done"
+      },
+      {
+        "date": "2026-09-05",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-06",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-07",
+        "expected": "Upper A",
+        "trained": "Upper B",
+        "status": "swapped"
+      },
+      {
+        "date": "2026-09-08",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-09",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-10",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-11",
+        "expected": "Upper B",
+        "trained": "Upper A",
+        "status": "swapped"
+      },
+      {
+        "date": "2026-09-12",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-13",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-14",
+        "expected": "Upper B",
+        "trained": "Upper B",
+        "status": "done"
+      },
+      {
+        "date": "2026-09-15",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      },
+      {
+        "date": "2026-09-16",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-17",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-18",
+        "expected": "rest",
+        "trained": "Upper A",
+        "status": "extra"
+      },
+      {
+        "date": "2026-09-19",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-20",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-21",
+        "expected": "rest",
+        "trained": "Upper B",
+        "status": "extra"
+      },
+      {
+        "date": "2026-09-22",
+        "expected": "Upper A",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-23",
+        "expected": "Upper B",
+        "trained": null,
+        "status": "missed"
+      },
+      {
+        "date": "2026-09-24",
+        "expected": "rest",
+        "trained": null,
+        "status": "rest_ok"
+      }
+    ],
+    "drift": true,
+    "drift_days": 10,
+    "drift_threshold": 3,
+    "weeks": [
+      {
+        "week_start": "2026-07-27",
+        "trained": 0,
+        "expected": 2
+      },
+      {
+        "week_start": "2026-08-03",
+        "trained": 0,
+        "expected": 5
+      },
+      {
+        "week_start": "2026-08-10",
+        "trained": 0,
+        "expected": 4
+      },
+      {
+        "week_start": "2026-08-17",
+        "trained": 0,
+        "expected": 5
+      },
+      {
+        "week_start": "2026-08-24",
+        "trained": 0,
+        "expected": 5
+      },
+      {
+        "week_start": "2026-08-31",
+        "trained": 1,
+        "expected": 4
+      },
+      {
+        "week_start": "2026-09-07",
+        "trained": 2,
+        "expected": 5
+      },
+      {
+        "week_start": "2026-09-14",
+        "trained": 1,
+        "expected": 5
+      },
+      {
+        "week_start": "2026-09-21",
+        "trained": 0,
+        "expected": 2
+      }
+    ]
+  },
+  "signals": [
+    {
+      "severity": "high",
+      "text": "abs: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "adductors: 0 sets in 8 of last 8 weeks (MEV 4)"
+    },
+    {
+      "severity": "high",
+      "text": "back: 0 sets in 5 of last 8 weeks (MEV 10)"
+    },
+    {
+      "severity": "high",
+      "text": "biceps: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "chest: 0 sets in 5 of last 8 weeks (MEV 8)"
+    },
+    {
+      "severity": "high",
+      "text": "forearms: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "glutes: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "hamstrings: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "quads: 0 sets in 8 of last 8 weeks (MEV 8)"
+    },
+    {
+      "severity": "high",
+      "text": "rear delts: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "side delts: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "triceps: 0 sets in 8 of last 8 weeks (MEV 6)"
+    },
+    {
+      "severity": "medium",
+      "text": "adherence drift: 10 non-done days, consider re-anchoring the rotation"
+    }
+  ],
+  "recent_notes": [
+    {
+      "date": "2026-09-04",
+      "text": "Sep 4: scenario 20d ago scenario 20d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-07",
+      "text": "Sep 7: scenario 17d ago scenario 17d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-11",
+      "text": "Sep 11: scenario 13d ago scenario 13d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-14",
+      "text": "Sep 14: scenario 10d ago scenario 10d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Sep 18: scenario 6d ago scenario 6d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-21",
+      "text": "Sep 21: scenario 3d ago scenario 3d ago",
+      "hot": false
+    }
+  ],
+  "rules": [
+    {
+      "id": 1,
+      "subject": "schedule",
+      "text": "train before work",
+      "start_date": "2026-09-24",
+      "expiry": null,
+      "status": "active",
+      "created": "2026-09-24T12:00:00",
+      "needs_confirm": false
+    },
+    {
+      "id": 2,
+      "subject": "autoreg",
+      "text": "autoreg standing permission",
+      "start_date": "2026-09-24",
+      "expiry": null,
+      "status": "active",
+      "created": "2026-09-24T12:00:00",
+      "needs_confirm": false
+    }
+  ],
+  "flags": [
+    {
+      "id": 1,
+      "subject": "bench",
+      "reason": "watch depth",
+      "created": "2026-09-24T12:00:00",
+      "consumed_at": null
+    }
+  ],
+  "deload": [],
+  "priority": {
+    "chest": {
+      "tier": "priority",
+      "since": "2026-09-24",
+      "until": null
+    }
+  },
+  "autoreg": {
+    "permitted": true,
+    "holds": [
+      {
+        "id": 1,
+        "day": "Upper A",
+        "movements": "bench",
+        "action": "trim",
+        "set_on": "2026-09-24",
+        "hold_until": "2026-10-02",
+        "reason": "two misses",
+        "moves": [
+          "bench"
+        ]
+      }
+    ],
+    "miss_streaks": [],
+    "drop_watch": [],
+    "grouped": {},
+    "program_volume": {
+      "chest": 14.0,
+      "back": 7.0,
+      "front delts": 0.0,
+      "side delts": 0.0,
+      "rear delts": 0.0,
+      "biceps": 0.0,
+      "triceps": 0.0,
+      "quads": 0.0,
+      "hamstrings": 0.0,
+      "glutes": 0.0,
+      "adductors": 0.0,
+      "abs": 0.0,
+      "forearms": 0.0
+    }
+  },
+  "autoreg_changes": [
+    {
+      "id": 1,
+      "date": "2026-09-24",
+      "action": "trim",
+      "day": "Upper A",
+      "slot": 1,
+      "before_movements": "bench",
+      "before_sets": 3,
+      "after_movements": "bench",
+      "after_sets": 2,
+      "evidence": "two misses",
+      "reverted_on": null,
+      "before_moves": [
+        "bench"
+      ],
+      "after_moves": [
+        "bench"
+      ]
+    }
+  ]
+}

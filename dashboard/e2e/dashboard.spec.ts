@@ -1,29 +1,22 @@
+
 import { test, expect, Page } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-// Frozen clock so the calendar/today highlight is identical on every run.
-const BASE_TIME = new Date('2026-09-17T12:00:00Z');
+const dir = dirname(fileURLToPath(import.meta.url));
+function fixture(name: string) {
+  return JSON.parse(readFileSync(join(dir, 'fixtures', name + '.json'), 'utf8'));
+}
+const rich = fixture('rich');
+const brk = fixture('break');
 
-const MOCK_SNAPSHOT = {
-  exported: '2026-09-17T12:00:00',
-  workouts: [
-    { id: 1, date: '2026-09-10', status: 'done', notes: 'push day' },
-    { id: 2, date: '2026-09-14', status: 'done', notes: 'pull day' },
-  ],
-  sets: [
-    { id: 1, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 5, note: '', created: '2026-09-10T18:00:00', muscles: 'chest' },
-    { id: 2, workout_id: 1, exercise: 'flat barbell bench press', weight: 90, reps: 4, note: '', created: '2026-09-10T18:05:00', muscles: 'chest' },
-    { id: 3, workout_id: 1, exercise: 'overhead press', weight: 42.5, reps: 7, note: '', created: '2026-09-10T18:15:00', muscles: 'front delts' },
-    { id: 4, workout_id: 2, exercise: 'flat barbell bench press', weight: 92.5, reps: 5, note: '', created: '2026-09-14T18:00:00', muscles: 'chest' },
-    { id: 5, workout_id: 2, exercise: 'straight bar pulldown', weight: 70, reps: 8, note: '', created: '2026-09-14T18:10:00', muscles: 'back' },
-  ],
-  bodyweight: [
-    { id: 1, date: '2026-09-13', kg: 84.2, note: 'fasted' },
-    { id: 2, date: '2026-09-14', kg: 84.0, note: 'fasted' },
-  ],
-};
+type Snap = typeof rich;
 
-async function gotoDashboard(page: Page, snapshot: unknown = MOCK_SNAPSHOT) {
-  await page.clock.install({ time: BASE_TIME });
+// Viewer clock follows the fixture: relative values render against as_of,
+// so freezing the clock there keeps calendar highlights deterministic.
+async function gotoFixture(page: Page, snapshot: unknown, asOf: string) {
+  await page.clock.install({ time: new Date(asOf + 'T12:00:00Z') });
   await page.route('**/snapshot', r =>
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot) })
   );
@@ -31,24 +24,29 @@ async function gotoDashboard(page: Page, snapshot: unknown = MOCK_SNAPSHOT) {
   await page.waitForLoadState('networkidle');
 }
 
+const sessionsOf = (s: Snap) => {
+  const n = s.sessions.filter(x => x.status !== 'rest').length;
+  return `${n} session${n === 1 ? '' : 's'}`;
+};
+
 test.describe('Dashboard', () => {
   test('loads and shows dashboard title', async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoFixture(page, rich, rich.as_of);
     await expect(page.locator('#viewDash h1')).toContainText('Training dashboard');
   });
 
   test('renders sessions, calendar and best sets', async ({ page }) => {
-    await gotoDashboard(page);
-    await expect(page.locator('#sub')).toContainText('2 sessions');
-    // Both trained days are links in the calendar.
-    await expect(page.locator('.cal a.cd.t')).toHaveCount(2);
-    // Best-sets table lists the bench PR (92.5x5 beats 90x5).
-    await expect(page.locator('#prs')).toContainText('flat barbell bench press');
-    await expect(page.locator('#prs')).toContainText('92.5 x 5');
+    await gotoFixture(page, rich, rich.as_of);
+    await expect(page.locator('#sub')).toContainText(`${sessionsOf(rich)}`);
+    const lastMonth = rich.calendar[rich.calendar.length - 1].date.slice(0, 7);
+    const trained = rich.calendar.filter(d => d.kind === 'trained' && d.date.startsWith(lastMonth));
+    await expect(page.locator('.cal a.cd.t')).toHaveCount(trained.length);
+    await expect(page.locator('#prs')).toContainText('bench');
+    await expect(page.locator('#prs')).toContainText('100 x 5');
   });
 
   test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoFixture(page, rich, rich.as_of);
     await page.locator('#trendGrid .mini a').first().click();
     await expect(page.locator('#viewLift')).toBeVisible();
     // Resize while the dash is hidden: the debounced render must not bake a
@@ -66,17 +64,8 @@ test.describe('Dashboard', () => {
   });
 
   test('rest days show distinctly and are not counted as sessions', async ({ page }) => {
-    await gotoDashboard(page, {
-      ...MOCK_SNAPSHOT,
-      workouts: [
-        ...MOCK_SNAPSHOT.workouts,
-        { id: 3, date: '2026-09-12', status: 'rest', notes: 'sore legs' },
-      ],
-    });
-    // Rest is not a session.
-    await expect(page.locator('#sub')).toContainText('2 sessions');
-    await expect(page.locator('.cal a.cd.t')).toHaveCount(2);
-    // ...but it is tracked, clearly different from absence.
+    await gotoFixture(page, brk, brk.as_of);
+    await expect(page.locator('#sub')).toContainText(`${sessionsOf(brk)}`);
     await expect(page.locator('.cal a.cd.r')).toHaveCount(1);
     await page.locator('.cal a.cd.r').click();
     await expect(page.locator('#viewSession')).toBeVisible();
@@ -86,8 +75,8 @@ test.describe('Dashboard', () => {
 
   test('dashboard visual regression - desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop snapshot only on chromium');
-    await gotoDashboard(page);
-    await expect(page.locator('#sub')).toContainText('2 sessions');
+    await gotoFixture(page, rich, rich.as_of);
+    await expect(page.locator('#sub')).toContainText(`${sessionsOf(rich)}`);
     // Ratio-based: macOS (Core Text) and Linux (FreeType) rasterize the same
     // font bytes slightly differently, so pixel-perfect cross-OS matching is
     // impossible. 5% still catches any real layout breakage by an order of
@@ -100,8 +89,8 @@ test.describe('Dashboard', () => {
 
   test('dashboard visual regression - mobile', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile snapshot only on mobile');
-    await gotoDashboard(page);
-    await expect(page.locator('#sub')).toContainText('2 sessions');
+    await gotoFixture(page, rich, rich.as_of);
+    await expect(page.locator('#sub')).toContainText(`${sessionsOf(rich)}`);
     await expect(page).toHaveScreenshot('dashboard-mobile.png', {
       maxDiffPixelRatio: 0.05,
       threshold: 0.2,

@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { muscleChart, muscleHit, type MuscleBands } from '../muscleChart';
+  import { plot, type MuscleModel } from '../muscleChart';
   import { bindHover, hideTip, showTip } from '../tip';
+  import { nearestPoint, emptyHit, type HitMap } from '../lib/chartLayout';
   import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     id?: string;
     labels: string[];
     counts: number[];
-    bands: MuscleBands;
+    bands: MuscleModel['bands'];
     color: string;
     height?: string;
   }
@@ -16,9 +17,12 @@
   let { id = undefined, labels, counts, bands, color, height = undefined }: Props = $props();
 
   let cv: HTMLCanvasElement;
+  let hit: HitMap = emptyHit();
+
+  const model: MuscleModel = $derived({ labels, counts, bands, color });
 
   function paint(hover = -1) {
-    if (isVisible(cv)) muscleChart(cv, labels, counts, bands, color, hover);
+    if (isVisible(cv)) hit = plot(cv, model, hover);
   }
 
   function show(cx: number, cy: number) {
@@ -27,14 +31,14 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const bi = muscleHit(cv, counts.length, cx - r.left);
-    if (bi < 0) {
+    const p = nearestPoint(hit, cx - r.left, 30);
+    if (!p) {
       hideTip();
       paint();
       return;
     }
-    paint(bi);
-    showTip(labels[bi], [[color, counts[bi] + ' sets (MEV ' + bands.mev + ')']], cx, cy);
+    paint(p.index);
+    showTip(labels[p.index], [[color, counts[p.index] + ' sets (MEV ' + bands.mev + ')']], cx, cy);
   }
 
   canvasShell(() => paint());

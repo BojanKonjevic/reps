@@ -1,0 +1,37 @@
+/* SSOT owner: colors, fonts, radii. Consumers: app.css via var(), canvas via lib/theme.ts. */
+
+:root {
+  --bg: #080807;
+  --bg-soft: #171514;
+  --bg-card: #232120;
+  --bg-hover: #2b2926;
+  --ink: #f0ede6;
+  --ink-dim: #cfc9bc;
+  --ink-mute: #b0aca2;
+  --ink-faint: #8a8478;
+  --line: #3a3733;
+  --line-soft: #6b655a;
+  --good: #7fd67f;
+  --good-deep: #3d9a42;
+  --good-bright: #4cb052;
+  --bad: #f09090;
+  --bad-deep: #8a2c2c;
+  --warn: #e6c400;
+  --warn-soft: #f0d060;
+  --warn-pale: #ffe45e;
+  --accent: #f2a35e;
+  --accent-deep: #d97355;
+  --accent-rust: #a34a32;
+  --link: #42a5f5;
+  --overlay-dim: rgba(0, 0, 0, 0.18);
+  --overlay-line: rgba(127, 122, 110, 0.16);
+  --overlay-warn: rgba(230, 196, 0, 0.05);
+  --overlay-card: rgba(255, 255, 255, 0.9);
+  --overlay-tick: rgba(255, 255, 255, 0.1);
+  --overlay-tick-strong: rgba(255, 255, 255, 0.35);
+  --font-serif: 'IBM Plex Serif', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 10px;
+  --radius-small: 6px;
+}

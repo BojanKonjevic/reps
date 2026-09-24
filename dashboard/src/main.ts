@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
+import './design/tokens.css';
 import './app.css';
 
 // Explicit font load before first paint AND first canvas draw:

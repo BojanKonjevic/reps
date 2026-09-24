@@ -2,11 +2,87 @@ from datetime import date, datetime
 
 from .constants import clean_muscles, load_constants
 from .db import conn, open_workout
-from .errors import RepsError
-from .muscles import _levenshtein, attach_muscles, best_e1rm, e1rm_of
+from .e1rm import e1rm as e1rm_of
+from .errors import Fix, GateItem, RepsError
+from .vocab import WorkoutStatus, values
+from .muscles import _levenshtein, attach_muscles, best_e1rm
 from .program import (active_deloads, best_split_day, consume_session_flags,
-                      day_movements, deload_covers, parse_active_split_days,
+                      day_movements, deload_covers, ensure_lift,
+                      lift_is_bodyweight_only, lift_muscles_csv,
+                      parse_active_split_days, set_lift_muscles,
                       split_all_movements, split_day_order)
+from .records import personal_records
+
+
+def staleness(workout, today=None):
+    """One stale-workout computation for plan, audit, and start.
+
+    Assembly: threshold reads live here so the three callers cannot drift.
+    Returns {"is_stale", "age_days", "last_set_created"}.
+    """
+    from .db import conn as _conn
+    today = today or date.today()
+    c = _conn()
+    try:
+        age_days = (today - date.fromisoformat(workout["date"])).days
+    except ValueError:
+        age_days = 0
+    last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1",
+                     (workout["id"],)).fetchone()
+    last_created = last["created"] if last else None
+    thresholds = load_constants().thresholds
+    gap_over = False
+    if last_created:
+        try:
+            gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds.stale_workout_hours * 3600
+        except ValueError:
+            gap_over = False
+    return {"is_stale": workout["date"] != today.isoformat()
+            or age_days >= thresholds.stale_workout_days or gap_over,
+            "age_days": age_days, "last_set_created": last_created}
+
+
+def last_done(c):
+    """Most recent done session carrying sets (replaces every inline copy)."""
+    return c.execute(
+        "SELECT w.date, w.id FROM workouts w WHERE w.status = 'done' "
+        "AND EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = w.id) "
+        "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
+
+
+def break_threshold() -> int:
+    """Days since the last done session that counts as a break (V11 owner).
+
+    Plan, signals, and the snapshot status all compare against this;
+    the dashboard reads the emitted break facts, never the threshold.
+    """
+    return load_constants().thresholds.break_days + 1
+
+
+def session_prs(workout_id):
+    """Computed PR flags per set in a workout (replaces hand-reasoned reports)."""
+    c = conn()
+    try:
+        workout_id = int(workout_id)
+    except (TypeError, ValueError):
+        raise RepsError("no such workout")
+    w = c.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
+    if not w:
+        raise RepsError("no such workout")
+    out = []
+    for ex in c.execute("SELECT DISTINCT exercise FROM sets WHERE workout_id = ?",
+                        (workout_id,)).fetchall():
+        exercise = ex["exercise"]
+        hist = c.execute(
+            "SELECT s.id, s.weight, s.reps, s.created, w.date FROM sets s "
+            "JOIN workouts w ON w.id = s.workout_id "
+            "WHERE s.exercise = ? AND (w.status = 'done' OR w.id = ?) "
+            "ORDER BY s.created, s.id", (exercise, workout_id)).fetchall()
+        flags = personal_records([dict(r) for r in hist])
+        for r in c.execute("SELECT id FROM sets WHERE workout_id = ? AND exercise = ?",
+                           (workout_id, exercise)).fetchall():
+            out.append({"set_id": r["id"], "exercise": exercise, "is_pr": flags.get(r["id"], False)})
+    return {"workout_id": workout_id, "prs": sorted(out, key=lambda e: e["set_id"])}
 
 
 def start_workout(note):
@@ -48,22 +124,20 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         raise RepsError("reps must be a positive integer")
     muscles = clean_muscles(muscles)
 
-    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
+    mapping = lift_muscles_csv(c, exercise)
     if weight == 0:
         if bodyweight:
             pass
-        elif not mapping or mapping["is_bodyweight_only"] != 1:
+        elif not mapping or not lift_is_bodyweight_only(c, exercise):
             raise RepsError(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise, add bw flag for bodyweight moves)")
 
-    if not mapping:
+    if mapping is None:
         if not muscles:
             raise RepsError(f"muscles required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
-        c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-                  (exercise, muscles, 1 if bodyweight else 0))
+        ensure_lift(c, exercise)
+        set_lift_muscles(c, exercise, muscles, 1 if bodyweight else 0)
     elif not muscles:
-        muscles = mapping["muscles"]
-    elif bodyweight and mapping["is_bodyweight_only"] != 1:
-        c.execute("UPDATE lift_muscle_map SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
+        muscles = mapping
 
     constants = load_constants()
     warn_ratio = constants.thresholds.e1rm_warn_ratio
@@ -85,10 +159,15 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
             prev_e1rm = e1rm_of(prev["weight"], prev["reps"])
             if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
                 warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
-    if mapping and muscles and set(muscles.split(",")) != set(mapping["muscles"].split(",")):
-        raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping['muscles']}); "
+    if mapping and muscles and set(muscles.split(",")) != set(mapping.split(",")):  # sanctioned: input-boundary vs read-model compare
+        raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping}); "
                         f"the mapping is authoritative, log a genuine variation under its own exercise name "
                         f"or change it everywhere with muscle_map_set")
+
+    # Refusals above leave the lift untouched: the bodyweight flag flips only
+    # on the validated write path below.
+    if mapping is not None and bodyweight and not lift_is_bodyweight_only(c, exercise):
+        c.execute("UPDATE lift SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -97,9 +176,6 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         (wid, exercise, weight, reps, note, created),
     )
     set_id = cur.lastrowid
-    # Populate set_muscles junction table
-    for muscle in muscles.split(","):
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     c.commit()
     out = {"set_id": set_id, "workout_id": wid}
     if warnings:
@@ -123,6 +199,8 @@ def update_set(set_id, field, value):
         raise RepsError("no such set")
     if field == "exercise":
         value = value.strip().lower()
+        if lift_muscles_csv(c, value) is None:
+            raise RepsError(f"exercise '{value}' is not a known lift")
     if field == "weight":
         if value == "":
             raise RepsError("weight cannot be empty, pass a number or delete the set")
@@ -134,8 +212,7 @@ def update_set(set_id, field, value):
             raise RepsError("weight cannot be negative")
         # Validate zero-weight against exercise type
         if value == 0:
-            mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (existing["exercise"],)).fetchone()
-            if not mapping or mapping["is_bodyweight_only"] != 1:
+            if not lift_is_bodyweight_only(c, existing["exercise"]):
                 raise RepsError(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         try:
@@ -144,13 +221,6 @@ def update_set(set_id, field, value):
             raise RepsError("reps must be an integer")
         if value <= 0:
             raise RepsError("reps must be a positive integer")
-    if field == "exercise":
-        mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
-        if not mapping:
-            raise RepsError(f"exercise '{value}' has no mapping (run muscle_map_set first)")
-        c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
-        for muscle in mapping["muscles"].split(","):
-            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
     warnings = []
     if field in ("weight", "reps"):
         new_weight = value if field == "weight" else existing["weight"]
@@ -269,7 +339,7 @@ def get_stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
     out = {"workouts": len([w for w in workouts if w["status"] != "rest"]), "by_exercise": {}}
-    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
+    rows = c.execute("SELECT exercise, COUNT(*) n, MAX(e1rm(weight, reps)) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
 
     for r in rows:
         out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
@@ -293,23 +363,32 @@ def record_bodyweight(kg, note):
 
 
 def end_gate_items(c, w, note):
-    """Preconditions for closing a workout. Returns list of {item, fix}."""
+    """Preconditions for closing a workout. Returns list of {item, fix, ...}.
+
+    Fixes travel as typed Fix(tool, args) verified against the MCP registry
+    (tests/test_docs.py); the human "fix" string is rendered from the real
+    tool name, never invented prose.
+    """
     outstanding = []
     missing = c.execute("""
         SELECT s.id, s.exercise FROM sets s
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        LEFT JOIN set_muscle sm ON sm.set_id = s.id
         WHERE s.workout_id = ? AND sm.muscle IS NULL
     """, (w["id"],)).fetchall()
     for m in missing:
-        outstanding.append({"item": f"set {m['id']} ({m['exercise']}) has no muscles",
-                            "fix": f"muscle_map_set for \"{m['exercise']}\"", "hard": True})
+        outstanding.append(GateItem(
+            f"set {m['id']} ({m['exercise']}) has no muscles",
+            Fix("muscle_map_set", {"exercise": m["exercise"]}), hard=True).as_dict())
     trained = [r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM sets WHERE workout_id = ?", (w["id"],)).fetchall()]
     judged = {r["exercise"] for r in c.execute(
         "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
     for ex in sorted(set(trained) - judged):
-        outstanding.append({"item": f"missing progression: {ex}",
-                            "fix": f"progression_set for \"{ex}\" with verdict and next target"})
+        item = GateItem(f"missing progression: {ex}",
+                        Fix("progression_set", {"exercise": ex}))
+        d = item.as_dict()
+        d["fix"] = f"progression_set for \"{ex}\" with verdict and next target"
+        outstanding.append(d)
     known = split_all_movements("active", c=c)
     unreconciled = sorted(set(trained) - known)
     if unreconciled:
@@ -320,8 +399,11 @@ def end_gate_items(c, w, note):
         anchor = next((ex for ex in reversed(performed) if ex in day_movements(day, c=c)), None)
         after = f" after \"{anchor}\"" if anchor else ""
         for ex in unreconciled:
-            outstanding.append({"item": f"unreconciled slot: {ex} (not in any active split day)",
-                                "fix": f"program_split_reconcile on \"{day}\"{after}"})
+            item = GateItem(f"unreconciled slot: {ex} (not in any active split day)",
+                            Fix("program_split_reconcile", {"day": day}))
+            d = item.as_dict()
+            d["fix"] = f"program_split_reconcile on \"{day}\"{after}"
+            outstanding.append(d)
     deloads = active_deloads(c)
     if deloads:
         day_moves = parse_active_split_days(c)
@@ -394,7 +476,7 @@ def update_workout(workout_id, field, value):
             raise RepsError("date must be YYYY-MM-DD")
         if date.fromisoformat(value) > date.today():
             raise RepsError("workout date cannot be in the future")
-    if field == "status" and value not in ("open", "done", "rest"):
+    if field == "status" and value not in values(WorkoutStatus):
         raise RepsError("status must be open, done or rest")
     c = conn()
     if field == "status" and value == "open":
@@ -502,7 +584,7 @@ def get_context(n):
     best = []
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         top = c.execute(
-            "SELECT weight, reps, CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
+            "SELECT weight, reps, e1rm(weight, reps) AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
         ).fetchone()
         last = c.execute(
             "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)

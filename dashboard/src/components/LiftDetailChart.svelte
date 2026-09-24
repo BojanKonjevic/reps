@@ -1,37 +1,27 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getLiftPts, liftChart, type LiftPoint } from '../liftChart';
+  import { plot, type LiftModel, type LiftPoint } from '../liftChart';
   import { bindHover, hideTip, showTip } from '../tip';
+  import { nearestPoint, emptyHit, type HitMap } from '../lib/chartLayout';
   import { canvasShell, isVisible } from '../lib/canvas';
+  import { href } from '../routes';
 
   interface Props {
     pts: LiftPoint[];
-    exercise: string;
+    color: string;
     futureEv?: number | null;
+    asOf: string;
   }
 
-  let { pts, exercise, futureEv = null }: Props = $props();
+  let { pts, color, futureEv = null, asOf }: Props = $props();
 
   let cv: HTMLCanvasElement;
+  let hit: HitMap = emptyHit();
+
+  const model: LiftModel = $derived({ pts, color, futureEv, asOf });
 
   function paint(hover = -1) {
-    if (isVisible(cv)) liftChart(cv, pts, exercise, hover, futureEv);
-  }
-
-  function near(ev: MouseEvent): { x: number; y: number; date: string } | null {
-    const r = cv.getBoundingClientRect();
-    const x = ev.clientX - r.left;
-    const y = ev.clientY - r.top;
-    let best: { x: number; y: number; date: string } | null = null;
-    let bd = 1e9;
-    for (const p of getLiftPts()) {
-      const d = Math.abs(p.x - x) + Math.abs(p.y - y);
-      if (d < bd) {
-        bd = d;
-        best = p;
-      }
-    }
-    return bd < 34 ? best : null;
+    if (isVisible(cv)) hit = plot(cv, model, hover);
   }
 
   function show(cx: number, cy: number) {
@@ -40,27 +30,18 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const x = cx - r.left;
-    let bi = -1;
-    let bd = 1e9;
-    getLiftPts().forEach((p, i) => {
-      const d = Math.abs(p.x - x);
-      if (d < bd) {
-        bd = d;
-        bi = i;
-      }
-    });
-    if (bi < 0 || bd > 40) {
+    const p = nearestPoint(hit, cx - r.left, 40);
+    if (!p) {
       hideTip();
       paint();
       cv.style.cursor = 'default';
       return;
     }
-    paint(bi);
-    const p = pts[bi];
+    paint(p.index);
+    const pt = pts[p.index];
     showTip(
-      p.date,
-      [[null, p.w + ' x ' + p.r + ' (e1RM ' + p.ev.toFixed(1) + ')' + (p.pr ? ' PR' : '')]],
+      pt.date,
+      [[null, pt.w + ' x ' + pt.r + ' (e1RM ' + pt.ev.toFixed(1) + ')' + (pt.pr ? ' PR' : '')]],
       cx,
       cy
     );
@@ -68,8 +49,9 @@
   }
 
   function click(ev: MouseEvent) {
-    const p = near(ev);
-    if (p) location.hash = '#/s/' + p.date;
+    const r = cv.getBoundingClientRect();
+    const p = nearestPoint(hit, ev.clientX - r.left, 34);
+    if (p) location.hash = href.session(pts[p.index].date);
   }
 
   canvasShell(() => paint());
@@ -77,10 +59,6 @@
   onMount(() => {
     bindHover(cv, show);
     cv.addEventListener('click', click);
-    const mouse = (ev: MouseEvent) => {
-      cv.style.cursor = near(ev) ? 'pointer' : 'default';
-    };
-    cv.addEventListener('mousemove', mouse);
     const leave = () => {
       hideTip();
       paint();
@@ -89,7 +67,6 @@
     cv.addEventListener('mouseleave', leave);
     return () => {
       cv.removeEventListener('click', click);
-      cv.removeEventListener('mousemove', mouse);
       cv.removeEventListener('mouseleave', leave);
     };
   });

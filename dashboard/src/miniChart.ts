@@ -1,26 +1,36 @@
-import { max, min } from 'd3-array';
-import { fit, putText, TC, GC, drawYAxis } from './charts';
-import { linearScale } from './lib/scales';
-import { fmtV, fmtD } from './utils';
-import { niceTicks } from './utils';
+// SSOT owner: mini-trend geometry. Consumers: TrendMini via plot() -> HitMap.
 
-export function mini(
-  cv: HTMLCanvasElement,
-  days: string[],
-  vals: (number | null)[],
-  col: string,
-  hover?: number
-) {
+import { max, min } from 'd3-array';
+import { fit, putText, drawYAxis } from './charts';
+import { linearScale } from './lib/scales';
+import { fmtV, fmtD, niceTicks } from './lib/format';
+import { theme } from './lib/theme';
+import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+
+export interface MiniModel {
+  days: string[];
+  vals: Array<number | null>;
+  color: string;
+}
+
+export function layoutOf(w: number, h: number): ChartLayout {
+  return baseLayout(w, h, 'mini');
+}
+
+export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMap {
+  const { days, vals, color } = model;
   const { g, W, H } = fit(cv);
-  const P = 30;
+  const L = layoutOf(W, H);
+  const P = L.padL;
+  const hit = emptyHit();
   g.clearRect(0, 0, W, H);
-  g.font = "600 15px 'IBM Plex Sans', sans-serif";
-  const pts = [];
+  g.font = theme.font(15, 600);
+  const pts: number[] = [];
   for (let i = 0; i < vals.length; i += 1) if (vals[i] !== null) pts.push(i);
   if (!pts.length) {
-    g.fillStyle = TC;
+    g.fillStyle = theme.color('ink-dim');
     putText(g, W, 'no data', P, H / 2, 'left');
-    return;
+    return hit;
   }
   const raw = pts.map(pi => vals[pi]!);
   let mn = min(raw) ?? 0;
@@ -33,11 +43,11 @@ export function mini(
   mn = t.lo;
   mx = t.hi;
   const n = vals.length;
-  const px = linearScale([0, Math.max(1, n - 1)], [P, W - 6]);
-  const xOf = (i: number) => (n <= 1 ? W - 6 : px(i));
+  const px = linearScale([0, Math.max(1, n - 1)], [P, W - L.padR]);
+  const xOf = (i: number) => (n <= 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - 15, 6]);
   drawYAxis(g, W, H, P, t);
-  g.strokeStyle = col;
+  g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';
   g.beginPath();
@@ -46,19 +56,20 @@ export function mini(
     else g.lineTo(xOf(pi), py(vals[pi]!));
   });
   g.stroke();
-  g.fillStyle = col;
+  g.fillStyle = color;
   pts.forEach(pi => {
     g.beginPath();
     g.arc(xOf(pi), py(vals[pi]!), 2.5, 0, 7);
     g.fill();
+    hit.points.push({ x: xOf(pi), y: py(vals[pi]!), index: pi });
   });
   const li = pts[pts.length - 1];
-  g.fillStyle = col;
+  g.fillStyle = color;
   if (li > n / 2) putText(g, W, fmtV(vals[li]!), xOf(li) - 8, py(vals[li]!) - 10, 'right');
   else putText(g, W, fmtV(vals[li]!), xOf(li) + 8, py(vals[li]!) - 10, 'left');
-  if (hover !== undefined && hover >= 0 && hover < n && vals[hover] !== null) {
+  if (hover >= 0 && hover < n && vals[hover] !== null) {
     const x = xOf(hover);
-    g.strokeStyle = TC;
+    g.strokeStyle = theme.color('ink-dim');
     g.globalAlpha = 0.45;
     g.lineWidth = 1;
     g.beginPath();
@@ -66,14 +77,15 @@ export function mini(
     g.lineTo(x, H - 15);
     g.stroke();
     g.globalAlpha = 1;
-    g.fillStyle = col;
+    g.fillStyle = color;
     g.beginPath();
     g.arc(x, py(vals[hover]!), 5, 0, 7);
     g.fill();
   }
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   if (days.length > 1) {
     putText(g, W, fmtD(days[0]), P, H - 5, 'left');
-    putText(g, W, fmtD(days[days.length - 1]), W - 6, H - 5, 'right');
+    putText(g, W, fmtD(days[days.length - 1]), W - L.padR, H - 5, 'right');
   }
+  return hit;
 }

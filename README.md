@@ -1,5 +1,7 @@
 # reps
 
+Single source of truth is documented in `docs/SSOT.md`: every fact has exactly one owner.
+
 Chat first training log. You talk, the agent stores every set in local SQLite through MCP tools.
 
 ## Why this exists
@@ -20,7 +22,7 @@ You never touch the machinery yourself. The MCP tools are the agent's vocabulary
 
 ## How it works
 
-Three layers, each doing one job.
+Module ownership lives in `docs/ARCHITECTURE.md`; fact ownership lives in `docs/SSOT.md`. The one-line version:
 
 **The database holds facts.** The `reps/` package (`sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, plus `db`, `constants`, `muscles`, `memory`, `progression`, `models`) stores workouts, sets with weight, reps, muscles and notes, bodyweight, plus program state: splits, mappings, progression, flags, priorities, deloads, rules, goals. The agent reaches it through typed MCP tools in `reps/mcp/`, never through a shell command language. Derivable numbers (ledger, volume, e1RM, slot guess) are computed on read by `plan`, never stored. Non-negotiable rules fail loudly at the point of violation (the `end` gate, mapping authority, loud `constants.json`). The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
 
@@ -30,7 +32,7 @@ Three layers, each doing one job.
 
 ## Repo map
 
-- `reps/`, the backend: `sessions` (logging, the `end` gate), `program` (splits, rules, flags, priorities, deloads), `plan` (the `plan` bundle), `goals`, `autoreg`, `adherence` (rotation anchor and status), `signals` (coach-notes sentences for the dashboard), `audit` (audit_data, doctor), `sync` (sync_push, dump, restore, export), `models` (Pydantic validation), `mcp` (the agent interface), plus `db`, `constants`, `muscles`, `memory`, `progression`.
+- `reps/`, the backend (module list in `docs/ARCHITECTURE.md`).
 - `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `ARCHITECTURE.md` (code map), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
 - `AGENTS.md`, the agent map. `constants.json`, the evidence numbers.
 - `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
@@ -42,4 +44,4 @@ Every session ends with a `data: <date>` commit of `workouts.sql`. If the local 
 
 ## Tests
 
-Python: `uv run --with pytest --with pydantic --with "mcp>=2" --no-project pytest tests/ -q` (system python has no pytest, never `python -m pytest` directly). Dashboard needs Node 22 or newer (`engines` in `dashboard/package.json`, same version CI uses): `npm run test` for unit, `npx playwright test` for e2e, from `dashboard/`.
+Python: `scripts/test-py.sh`. Dashboard needs Node 22 or newer (`engines` in `dashboard/package.json`, same version CI uses): `pnpm --dir dashboard run test` for unit, `pnpm --dir dashboard exec playwright test` for e2e. Full check: `scripts/verify.sh`.

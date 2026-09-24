@@ -145,7 +145,7 @@ def test_end_reports_sets_and_next(log_module):
     log_module.start_workout("test")
     log_module.log_set("bench", 100, 5, "", "chest")
     log_module.set_split("Test", 1, "bench", 2)
-    log_module.set_progression("bench", "baseline", "80x5", "flat")
+    log_module.set_progression("bench", "baseline", 80, 5, "flat")
     out = log_module.end_workout("done")
     assert out["sets"] == 1
     assert "sync" in out["next"]
@@ -156,13 +156,14 @@ def test_audit_flags_steep_drop(log_module):
     c = log_module.conn()
     from datetime import timedelta as td
     base = date.today() - td(days=9)
+    from conftest import seed_lift as _seed0
+    _seed0(c, "bench", "chest")
     for offset, weight in [(0, 100), (3, 30)]:
         d = (base + td(days=offset)).isoformat()
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
         wid = cur.lastrowid
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, weight))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
     flags = log_module.run_audit()["flags"]
     drops = [f for f in flags if f["check"] == "progression_drop"]
@@ -231,8 +232,8 @@ def test_rename_refuses_conflicting_mapping(log_module):
         assert False, "should have refused"
     except RepsError as e:
         assert "already maps to" in str(e)
-    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'press'").fetchone()
-    assert row["muscles"] == "chest,front delts"
+    row = c.execute("SELECT GROUP_CONCAT(muscle, ',') m FROM (SELECT muscle FROM lift_muscle WHERE exercise = 'press' ORDER BY muscle)").fetchone()
+    assert row["m"] == "chest,front delts"
     assert c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = 'bp'").fetchone()["n"] == 1
 
 
@@ -247,7 +248,7 @@ def test_rename_refuses_identical_names(log_module):
         assert False, "should have refused"
     except RepsError as e:
         assert "identical" in str(e).lower()
-    assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 1
+    assert c.execute("SELECT COUNT(*) n FROM lift WHERE exercise = 'bench'").fetchone()["n"] == 1
 
 
 def test_rename_same_mapping_merges(log_module):
@@ -273,7 +274,7 @@ def test_update_rejects_muscles_field(log_module):
         assert False, "should have refused"
     except RepsError as e:
         assert "muscle_map_set" in str(e).lower()
-    assert [r["muscle"] for r in c.execute("SELECT muscle FROM set_muscles").fetchall()] == ["chest"]
+    assert [r["muscle"] for r in c.execute("SELECT muscle FROM set_muscle").fetchall()] == ["chest"]
 
 
 def test_retag_rejects_empty_muscles(log_module):
@@ -287,8 +288,8 @@ def test_retag_rejects_empty_muscles(log_module):
         assert False, "should have refused"
     except RepsError as e:
         assert "cannot be empty" in str(e).lower()
-    row = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()
-    assert row["muscles"] == "chest"
+    row = c.execute("SELECT muscle FROM lift_muscle WHERE exercise = 'bench'").fetchone()
+    assert row["muscle"] == "chest"
 
 
 def test_bad_numeric_inputs_exit_cleanly(log_module):

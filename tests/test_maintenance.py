@@ -30,11 +30,14 @@ def test_maintenance_ops_emit_json(log_module, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("reps.db.DB", fresh)
     c = sqlite3.connect(fresh)
     c.executescript(log_module.SCHEMA)
-    c.execute("INSERT INTO meta (key, value) VALUES ('rotation', '[\"Test\"]')")
-    c.execute(
-        "INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', 'Test', 1, 'bench', 2)")
-    c.execute(
-        "INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES ('bench', 'chest', 0)")
+    c.execute("INSERT INTO schema_version (version) VALUES (?)", (log_module.SCHEMA_VERSION,))
+    c.execute("INSERT INTO lift (exercise, is_bodyweight_only) VALUES ('bench', 0)")
+    c.execute("INSERT INTO lift_muscle (exercise, muscle) VALUES ('bench', 'chest')")
+    c.execute("INSERT INTO split_day (name) VALUES ('Test')")
+    c.execute("INSERT INTO split_slot (variant, day, slot, sets) VALUES ('active', 'Test', 1, 2)")
+    c.execute("INSERT INTO split_slot_lift (slot_id, position, exercise) "
+              "VALUES ((SELECT id FROM split_slot WHERE variant = 'active' AND day = 'Test' AND slot = 1), 0, 'bench')")
+    c.execute("INSERT INTO rotation (position, day) VALUES (0, 'Test')")
     c.commit()
     c.close()
     run(["doctor"])
@@ -42,7 +45,7 @@ def test_maintenance_ops_emit_json(log_module, tmp_path, monkeypatch, capsys):
     run(["dump"])
     assert "dumped" in json.loads(capsys.readouterr().out)
     run(["export"])
-    assert "workouts" in json.loads(capsys.readouterr().out)
+    assert "sessions" in json.loads(capsys.readouterr().out)
 
 
 def test_maintenance_rejects_unknown_ops(capsys):
@@ -76,3 +79,22 @@ def test_domain_refusal_is_not_a_process_exit():
     err = RepsError("no open workout")
     assert str(err) == "no open workout"
     assert not isinstance(err, SystemExit)
+
+
+def test_conn_refuses_legacy_v1_db(tmp_path, monkeypatch):
+    """A v1 database is refused before any v2 table is created (no auto-migrate)."""
+    import sqlite3
+    legacy = str(tmp_path / "legacy.db")
+    c = sqlite3.connect(legacy)
+    c.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    c.execute("CREATE TABLE workouts (id INTEGER PRIMARY KEY, date TEXT NOT NULL)")
+    c.commit()
+    c.close()
+    monkeypatch.setattr("reps.db.DB", legacy)
+    import pytest
+    with pytest.raises(RuntimeError, match="legacy v1"):
+        log_module_conn = __import__("reps").conn()
+    live = {r[0] for r in sqlite3.connect(legacy).execute(
+        "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    assert "schema_version" not in live
+    assert "lift" not in live

@@ -1,9 +1,8 @@
+// SSOT owner: lift-detail chart geometry. Consumers: LiftDetailChart via plot() -> HitMap.
+
 import {
   fit,
   putText,
-  liftColor,
-  TC,
-  GC,
   drawYAxis,
   drawXAxisLabels,
   drawHoverLine,
@@ -12,8 +11,9 @@ import {
   drawLine,
 } from './charts';
 import { linearScale, padDomain, timeScale, valueExtent } from './lib/scales';
-import { fmtV, fmtD } from './utils';
-import { niceTicks } from './utils';
+import { fmtV, niceTicks, parseDate } from './lib/format';
+import { theme } from './lib/theme';
+import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
 
 export interface LiftPoint {
   date: string;
@@ -23,30 +23,34 @@ export interface LiftPoint {
   pr: boolean;
 }
 
-let LIFTPTS: Array<{ x: number; y: number; date: string }> = [];
+export interface LiftModel {
+  pts: LiftPoint[];
+  color: string;
+  futureEv?: number | null;
+  asOf: string;
+}
 
-export function liftChart(
-  cv: HTMLCanvasElement,
-  pts: LiftPoint[],
-  ex: string,
-  hover?: number,
-  futureEv?: number | null
-) {
+export function layoutOf(w: number, h: number): ChartLayout {
+  return baseLayout(w, h, 'full');
+}
+
+export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMap {
+  const { pts, color, futureEv, asOf } = model;
   const { g, W, H } = fit(cv);
-  const P = 46;
+  const L = layoutOf(W, H);
+  const P = L.padL;
+  const hit = emptyHit();
   g.clearRect(0, 0, W, H);
-  g.font = "600 16px 'IBM Plex Sans', sans-serif";
-  LIFTPTS = [];
+  g.font = theme.font(16, 600);
   if (!pts.length) {
-    g.fillStyle = TC;
+    g.fillStyle = theme.color('ink-dim');
     putText(g, W, 'no sets logged for this lift yet', P, H / 2, 'left');
-    return;
+    return hit;
   }
   const d0 = pts[0].date;
-  const todayS = new Date().toISOString().slice(0, 10);
-  const d1 = pts[pts.length - 1].date > todayS ? pts[pts.length - 1].date : todayS;
-  const xScale = timeScale([d0, d1], [P, W - 8]);
-  const xOf = (dt: string) => xScale(new Date(dt + 'T12:00:00'));
+  const d1 = pts[pts.length - 1].date > asOf ? pts[pts.length - 1].date : asOf;
+  const xScale = timeScale([d0, d1], [P, W - L.padR]);
+  const xOf = (dt: string) => xScale(parseDate(dt));
   const ext = valueExtent(
     pts.map(p => p.ev).concat(futureEv !== undefined && futureEv !== null ? [futureEv] : [])
   ) || [0, 1];
@@ -60,9 +64,8 @@ export function liftChart(
   drawYAxis(g, W, H, P, t);
   drawXAxisLabels(g, W, H, P, pts[0].date, pts[pts.length - 1].date);
   const showFuture = futureEv !== undefined && futureEv !== null && pts.length > 0;
-  const col = liftColor(ex);
   const linePts = pts.map(p => ({ x: xOf(p.date), y: py(p.ev) }));
-  g.fillStyle = TC;
+  g.fillStyle = theme.color('ink-dim');
   const fy0 = showFuture ? py(futureEv as number) : null;
   if (fy0 === null || Math.abs(py(pts[0].ev) - fy0) > 18)
     putText(g, W, fmtV(pts[0].ev) + ' start', linePts[0].x + 8, py(pts[0].ev) - 12, 'left');
@@ -71,22 +74,22 @@ export function liftChart(
       g,
       W,
       fmtV(pts[pts.length - 1].ev) + ' now',
-      W - 8,
+      W - L.padR,
       py(pts[pts.length - 1].ev) - 12,
       'right'
     );
-  drawLine(g, linePts, col);
-  pts.forEach(p => {
+  drawLine(g, linePts, color);
+  pts.forEach((p, i) => {
     const x = xOf(p.date),
       y = py(p.ev);
-    LIFTPTS.push({ x, y, date: p.date });
-    drawPoint(g, x, y, 4, col, false);
+    hit.points.push({ x, y, index: i });
+    drawPoint(g, x, y, 4, color, false);
   });
   if (futureEv !== undefined && futureEv !== null && pts.length) {
     const fx = Math.min(xOf(pts[pts.length - 1].date) + 26, W - 14);
     const fy = py(futureEv);
     g.save();
-    g.strokeStyle = col;
+    g.strokeStyle = color;
     g.globalAlpha = 0.85;
     g.setLineDash([4, 3]);
     g.lineWidth = 2;
@@ -96,7 +99,7 @@ export function liftChart(
     g.stroke();
     g.restore();
     g.save();
-    g.strokeStyle = col;
+    g.strokeStyle = color;
     g.lineWidth = 2;
     const s = 6;
     g.beginPath();
@@ -107,18 +110,15 @@ export function liftChart(
     g.closePath();
     g.stroke();
     g.restore();
-    g.fillStyle = TC;
+    g.fillStyle = theme.color('ink-dim');
     if (fx < W / 2) putText(g, W, fmtV(futureEv) + ' next', fx + 12, fy - 10, 'left');
     else putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
   }
-  if (hover !== undefined && hover >= 0 && hover < pts.length) {
+  if (hover >= 0 && hover < pts.length) {
     const p = pts[hover];
     const x = xOf(p.date);
     drawHoverLine(g, H, P, x);
-    drawHoverPoint(g, x, py(p.ev), 6, col, false);
+    drawHoverPoint(g, x, py(p.ev), 6, color, false);
   }
-}
-
-export function getLiftPts(): Array<{ x: number; y: number; date: string }> {
-  return LIFTPTS;
+  return hit;
 }

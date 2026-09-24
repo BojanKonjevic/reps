@@ -32,11 +32,12 @@ from reps.errors import RepsError
 
 mcp = MCPServer("reps")
 
-Verdict = Literal["hit", "miss", "hold", "baseline"]
-Direction = Literal["up", "flat", "down"]
-Tier = Literal["priority", "maintain", "deprioritize"]
-Scope = Literal["lift", "slot"]
-Variant = Literal["active", "baseline"]
+# Closed vocabularies come from reps/vocab.py (the single owner), so tool
+# inputSchema enumerates the legal values without a second definition.
+# SetField/WorkoutField stay local: they describe MCP call shapes, not domain facts.
+from reps.vocab import (DeloadScope as Scope,
+                        Direction, PriorityTier as Tier, SplitVariant as Variant,
+                        Verdict)
 SetField = Literal["weight", "reps", "exercise", "note"]
 WorkoutField = Literal["notes", "date", "status"]
 
@@ -260,6 +261,16 @@ def session_stats() -> dict:
 
 
 @mcp.tool()
+def session_prs(workout_id: int) -> dict:
+    """Computed PR flags per set in a workout (first set per lift is baseline, never a PR).
+
+    Args:
+        workout_id: Workout to report on.
+    """
+    return call_domain(_sessions.session_prs, workout_id)
+
+
+@mcp.tool()
 def session_context(limit: int = 3) -> dict:
     """Canonical lift names plus recent context for disambiguation.
 
@@ -314,6 +325,17 @@ def muscle_rename(old: str, new: str) -> dict:
         new: Canonical surviving name.
     """
     return call_domain(_muscles.rename_exercise, old, new)
+
+
+@mcp.tool()
+def muscle_merge(old: str, new: str) -> dict:
+    """Merge one lift into an existing lift, refusing on conflicting muscle sets.
+
+    Args:
+        old: Lift name to merge away.
+        new: Existing lift surviving the merge.
+    """
+    return call_domain(_muscles.merge_exercises, old, new)
 
 
 # === plan ===
@@ -507,24 +529,37 @@ def program_flag_consume(flag_id: int) -> dict:
 
 
 @mcp.tool()
-def program_meta_show(key: str = "") -> dict:
-    """Rotation state and compaction markers.
-
-    Args:
-        key: Optional single key.
-    """
-    return call_domain(_program.get_meta, key or None)
+def program_rotation_show() -> dict:
+    """Rotation order (day names, "rest" for rest entries)."""
+    return call_domain(_program.show_rotation)
 
 
 @mcp.tool()
-def program_meta_set(key: str, value: str) -> dict:
-    """Write a meta key (rotation order, last_compacted). Never hand-count rotation dates.
+def program_rotation_set(days: list[str]) -> dict:
+    """Replace the rotation order. Days must exist as split days; "rest" for rest entries.
 
     Args:
-        key: One of rotation, last_compacted, compaction_postponed_until.
-        value: New value (rotation takes a JSON day array).
+        days: Ordered day names ("rest" allowed).
     """
-    return call_domain(_program.set_meta, key, value)
+    return call_domain(_program.set_rotation, days)
+
+
+@mcp.tool()
+def program_compaction_show() -> dict:
+    """Compaction markers (last compacted, postponed until)."""
+    return call_domain(_program.get_compaction)
+
+
+@mcp.tool()
+def program_compaction_set(last_compacted: str = "", postponed_until: str = "") -> dict:
+    """Write compaction markers with typed args.
+
+    Args:
+        last_compacted: "never" or "Mon D YYYY", empty leaves unchanged.
+        postponed_until: YYYY-MM-DD, empty leaves unchanged.
+    """
+    return call_domain(_program.set_compaction,
+                       last_compacted or None, postponed_until or None)
 
 
 @mcp.tool()
@@ -553,19 +588,21 @@ def program_rotation_status(from_date: str = "", to_date: str = "") -> dict:
 
 
 @mcp.tool()
-def progression_set(exercise: str, verdict: Verdict, next_target: str, direction: Direction,
+def progression_set(exercise: str, verdict: Verdict, next_weight: float, next_reps: int,
+                    direction: Direction,
                     note: str = "", workout_id: Optional[int] = None) -> dict:
     """Judge one lift for the session just trained (every trained lift gets one at end).
 
     Args:
         exercise: Lift name.
         verdict: One of hit, miss, hold, baseline.
-        next_target: Weight x reps for next time, e.g. 82.5x5 (reps required).
+        next_weight: Target weight next time.
+        next_reps: Target reps next time.
         direction: One of up, flat, down.
         note: Optional note.
         workout_id: Defaults to the open workout; pass an id to backfill a closed one.
     """
-    return call_domain(_progression.set_progression, exercise, verdict, next_target,
+    return call_domain(_progression.set_progression, exercise, verdict, next_weight, next_reps,
                direction, note, workout_id)
 
 

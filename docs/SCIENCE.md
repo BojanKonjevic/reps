@@ -8,7 +8,7 @@ Last reviewed: Sep 18 2026
 
 Numbers live in `constants.json` (single source of truth, edited via the `constants_set` tool on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
 
-Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is 4–12 sets/week across 2–4 sessions (RP via LiftVault 2024).
+Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is <!--const muscles.front delts.mav-->[4, 12]<!--/const--> sets/week across 2–4 sessions (RP via LiftVault 2024).
 
 Rear delts: MEV 6 direct sets/week for intermediate-advanced lifters (RP). MRV scales with sessions: ~18 at 2x, ~25 at 3x, ~30 at 4x, up to ~35 at 5–6x (RP). Maintenance needs no direct work while back pulling continues.
 
@@ -59,8 +59,8 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 
 | Guidance                                                                                 | Tier      | Source                                    |
 | ---------------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
-| Deload every 4–8 weeks (reduce volume 40–60%, intensity same)                            | Contested | Practitioner consensus, little direct RCT |
-| Reactive deload: when performance drops 5%+ across 2 sessions                            | Opinion   | RP, Helms autoregulation                  |
+| Deload every 4–8 weeks (reduce volume <!--const thresholds.deload_volume_reduction|pctrange-->40-60%<!--/const-->, intensity same)                            | Contested | Practitioner consensus, little direct RCT |
+| Reactive deload: when performance drops <!--const thresholds.deload_watch_pct|pctabs-->5%<!--/const-->+ across 2 sessions                            | Opinion   | RP, Helms autoregulation                  |
 | Passive rest after U2 and after U4 (2 per 8-day rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
 | No evidence for "deload week" vs "deload session" superiority                            | Opinion   | Unstudied                                 |
 
@@ -77,7 +77,7 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 ## Personal deviations
 
 - Sep 20 2026: 8-day rotation U1, L1, U2, rest, U3, L2, U4, rest (uppers every 2 days, lowers every 4), Opinion
-- Sep 20 2026: side delts 4x per 8 days (~3.5x/week), 16 sets per 8 days (14 weekly) across cable/machine/dumbbell pool, inside MAV 12-18, Opinion
+- Sep 20 2026: side delts 4x per 8 days (~3.5x/week), 16 sets per 8 days (14 weekly) across cable/machine/dumbbell pool, inside MAV <!--const muscles.side delts.mav-->[12, 18]<!--/const-->, Opinion
 - Sep 20 2026: not training calves, not as important for aesthetics, Opinion
 - Sep 18 2026: delts tracked as front/side/rear heads; front MEV 0 via pressing volume, rear MEV 6 direct, Opinion
 - Sep 18 2026: adductors tracked at ~4 direct sets/week across 2 exposures plus leg press/hack squat indirect work, Opinion

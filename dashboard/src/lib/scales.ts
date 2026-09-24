@@ -1,8 +1,9 @@
 import { extent, max } from 'd3-array';
 import { scaleLinear, scaleTime } from 'd3-scale';
+import { parseDate } from './format';
 
 // Canonical chart mathematics. D3 owns scales, domains, and extents;
-// Reps owns rendering, ticks (niceTicks in utils, with its 2.5 steps),
+// Reps owns rendering, ticks (niceTicks in lib/format, with its 2.5 steps),
 // and every product-specific visual. Pixel math matches the previous
 // hand-rolled lerps exactly: d3 linear interpolation is the same
 // arithmetic, now under a recognizable name.
@@ -33,7 +34,7 @@ export function linearScale(domain: Domain, range: [number, number]) {
 }
 
 export function timeScale(dates: string[], range: [number, number]) {
-  const ts = dates.map(d => new Date(d + 'T12:00:00').getTime());
+  const ts = dates.map(d => parseDate(d).getTime());
   const [lo, hi] = extent(ts) as [number, number];
   const span = Math.max(1, hi - lo);
   return scaleTime()

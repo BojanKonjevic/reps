@@ -1,20 +1,17 @@
 <script lang="ts">
   import { hideTip, showTip } from '../tip';
-  import type { Snapshot } from '../schemas/snapshot';
+  import type { CalendarDay } from '../generated/snapshot';
+  import { viewToday } from '../lib/clock';
+  import { theme } from '../lib/theme';
+  import { fmtHoverDate } from '../lib/format';
+  import { href } from '../routes';
+  import Icon from './Icon.svelte';
 
   interface Props {
-    snap: Snapshot;
-    prDates: Set<string>;
-    prIds: Set<number>;
-    slotOfDate: Record<string, string>;
-    dayDetail: Record<string, string[]>;
-    restDates: Record<string, boolean>;
-    missed: Record<string, string>;
-    breakDays: number;
+    days: CalendarDay[];
   }
 
-  let { snap, prDates, prIds, slotOfDate, dayDetail, restDates, missed, breakDays }: Props =
-    $props();
+  let { days }: Props = $props();
 
   const MONTHS = [
     'January',
@@ -31,26 +28,25 @@
     'December',
   ];
 
-  const lastW = $derived(
-    snap.workouts.length
-      ? snap.workouts
-          .map(w => w.date)
-          .sort()
-          .pop()!
-      : new Date().toISOString().slice(0, 10)
-  );
+  const byDate = $derived.by(() => {
+    const m: Record<string, CalendarDay> = {};
+    for (const d of days) m[d.date] = d;
+    return m;
+  });
+
+  const lastDay = $derived(days.length ? days[days.length - 1].date : viewToday());
   let viewY = $state(0);
   let viewM = $state(0);
   let init = $state(false);
   $effect(() => {
     if (!init) {
-      viewY = parseInt(lastW.slice(0, 4), 10);
-      viewM = parseInt(lastW.slice(5, 7), 10) - 1;
+      viewY = parseInt(lastDay.slice(0, 4), 10);
+      viewM = parseInt(lastDay.slice(5, 7), 10) - 1;
       init = true;
     }
   });
 
-  const todayS = new Date().toISOString().slice(0, 10);
+  const todayS = viewToday();
 
   interface Cell {
     key: string;
@@ -61,50 +57,20 @@
     pr: boolean;
   }
 
-  const wByDate = $derived.by(() => {
-    const m: Record<string, typeof snap.workouts> = {};
-    for (const w of snap.workouts) (m[w.date] = m[w.date] || []).push(w);
-    return m;
-  });
-
-  const sByDate = $derived.by(() => {
-    const wid2date: Record<number, string> = {};
-    for (const w of snap.workouts) wid2date[w.id] = w.date;
-    const m: Record<string, typeof snap.sets> = {};
-    for (const s of snap.sets) {
-      const d = wid2date[s.workout_id] || s.created.slice(0, 10);
-      (m[d] = m[d] || []).push(s);
-    }
-    return m;
-  });
-
-  const breakDates = $derived.by(() => {
-    const trainedDates = Object.keys(sByDate).sort();
-    const out: Record<string, boolean> = {};
-    for (let i = 1; i < trainedDates.length; i += 1) {
-      const gap = Math.round(
-        (new Date(trainedDates[i] + 'T12:00:00').getTime() -
-          new Date(trainedDates[i - 1] + 'T12:00:00').getTime()) /
-          86400000
-      );
-      if (gap >= breakDays) out[trainedDates[i]] = true;
-    }
-    return out;
-  });
-
   const cells = $derived.by((): Array<Cell | null> => {
     const first = new Date(viewY, viewM, 1);
     let lead = first.getDay() - 1;
     if (lead < 0) lead = 6;
     const out: Array<Cell | null> = [];
     for (let i = 0; i < lead; i += 1) out.push(null);
-    const days = new Date(viewY, viewM + 1, 0).getDate();
-    for (let d = 1; d <= days; d += 1) {
+    const monthDays = new Date(viewY, viewM + 1, 0).getDate();
+    for (let d = 1; d <= monthDays; d += 1) {
       const key =
         viewY + '-' + String(viewM + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-      const trained = !!(dayDetail[key] && dayDetail[key].length > 0);
-      const rested = !trained && !!restDates[key];
-      const isMissed = !trained && !rested && !!missed[key] && key <= todayS;
+      const info = byDate[key];
+      const trained = info?.kind === 'trained';
+      const rested = info?.kind === 'rest';
+      const isMissed = info?.kind === 'missed' && key <= todayS;
       out.push({
         key,
         day: d,
@@ -115,10 +81,10 @@
           (isMissed ? ' m' : '') +
           (key === todayS ? ' today' : '') +
           (key > todayS ? ' fut' : '') +
-          (breakDates[key] ? ' brk' : ''),
+          (info?.break_after_gap ? ' brk' : ''),
         link: trained || rested,
-        title: isMissed ? 'missed: expected ' + missed[key] : '',
-        pr: prDates.has(key),
+        title: isMissed ? 'missed: expected ' + (info?.expected || '') : '',
+        pr: info?.has_pr || false,
       });
     }
     return out;
@@ -142,68 +108,36 @@
     }
   }
 
-  function hoverDay(key: string, isPR: boolean, ev: MouseEvent) {
+  function hoverDay(key: string, ev: MouseEvent) {
     hideTip();
-    const sets = sByDate[key] || [];
-    const order: string[] = [];
-    const byEx: Record<string, typeof sets> = {};
-    sets.forEach(s => {
-      (byEx[s.exercise] = byEx[s.exercise] || []).push(s);
-      if (!order.includes(s.exercise)) order.push(s.exercise);
-    });
-    const rows: Array<[string | null, string]> = [];
-    order.slice(0, 6).forEach(ex => {
-      const g = byEx[ex];
-      const top = g.slice().sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
-      const hasPR = g.some(s => prIds.has(s.id));
-      rows.push([
-        hasPR ? '#e6c400' : null,
-        ex + ' ' + g.length + ' x ' + top.weight + 'x' + top.reps + (hasPR ? ' PR' : ''),
-      ]);
-    });
-    if (order.length > 6) rows.push([null, '+' + (order.length - 6) + ' more lifts']);
-    const wnotes = (wByDate[key] || []).map(w => w.notes).filter(n => n);
-    if (wnotes.length && rows.length < 7) {
-      const n = wnotes.join(' / ');
-      rows.push([null, n.length > 90 ? n.slice(0, 90) + '...' : n]);
-    }
+    const info = byDate[key];
+    const lines = info?.hover.lines.length ? info.hover.lines : ['tap to open'];
     const title =
-      new Date(key + 'T12:00:00').toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      }) +
-      (slotOfDate[key] ? ' ' + slotOfDate[key] : '') +
-      (isPR ? '  PR' : '');
-    showTip(title, rows.length ? rows : [[null, 'tap to open']], ev.clientX, ev.clientY);
+      fmtHoverDate(key) +
+      (info?.slot_label ? ' ' + info.slot_label : '') +
+      (info?.has_pr ? '  PR' : '');
+    showTip(
+      title,
+      lines.map(
+        l =>
+          [info?.has_pr && l.includes('(PR)') ? theme.color('warn') : null, l] as [
+            string | null,
+            string,
+          ]
+      ),
+      ev.clientX,
+      ev.clientY
+    );
   }
 </script>
 
 <div class="calhead">
   <button id="calPrev" type="button" aria-label="Previous month" onclick={prev}>
-    <svg viewBox="0 0 16 16" width="18" height="18">
-      <path
-        d="M10 3 L5 8 L10 13"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
+    <Icon name="chevronLeft" size={18} />
   </button>
   <b id="calTitle">{MONTHS[viewM]} {viewY}</b>
   <button id="calNext" type="button" aria-label="Next month" onclick={next}>
-    <svg viewBox="0 0 16 16" width="18" height="18">
-      <path
-        d="M6 3 L11 8 L6 13"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
+    <Icon name="chevronRight" size={18} />
   </button>
 </div>
 <div class="cal" id="cal">
@@ -215,27 +149,14 @@
       <div></div>
     {:else if c.link}
       <a
-        href="#/s/{c.key}"
+        href={href.session(c.key)}
         class={c.cls}
         title={c.title || undefined}
-        onmousemove={ev => hoverDay(c.key, c.pr, ev)}
+        onmousemove={ev => hoverDay(c.key, ev)}
         onmouseleave={hideTip}
         onclick={hideTip}
         >{c.day}{#if c.pr}<span class="prt" title="personal record"
-            ><svg viewBox="0 0 16 16"
-              ><path d="M5 1.5h6v4.2a3 3 0 0 1-6 0V1.5z" fill="currentColor" /><path
-                d="M5 2.5H3.2a2.8 2.8 0 0 0 2.9 3.6M11 2.5h1.8a2.8 2.8 0 0 1-2.9 3.6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-              /><path
-                d="M8 8.7v2.1M6.2 12.8h3.6M5.4 14.5h5.2"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-              /></svg
-            ></span
+            ><Icon name="trophy" size={14} /></span
           >{/if}</a
       >
     {:else}

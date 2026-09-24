@@ -44,7 +44,7 @@ def test_session_lifecycle_through_mcp(log_module):
     hist = call("session_history", {"exercise": "bench"})
     assert hist["ok"] is True and hist["data"][0]["exercise"] == "bench"
     assert call("progression_set", {"exercise": "bench", "verdict": "baseline",
-                                   "next_target": "82.5x5", "direction": "flat"})["ok"] is True
+                                   "next_weight": 82.5, "next_reps": 5, "direction": "flat"})["ok"] is True
     log.set_split("Upper A", 1, "bench", 5)
     assert call("program_split_reconcile", {"day": "Upper A"})["ok"] is True
     ended = call("session_end", {"note": "mcp done"})
@@ -58,7 +58,7 @@ def test_refusals_surface_as_errors(log_module):
     assert "no open workout" in bad["error"]
     assert call("session_delete_set", {"set_id": 999999})["ok"] is False
     missing = call("progression_set", {"exercise": "bench", "verdict": "hit",
-                                       "next_target": "82.5x5", "direction": "up"})
+                                       "next_weight": 82.5, "next_reps": 5, "direction": "up"})
     assert missing["ok"] is False
     assert "no open workout" in missing["error"]
 
@@ -68,10 +68,10 @@ def test_closed_vocabularies_reject_at_the_schema(log_module):
     import pytest
     with pytest.raises(Exception, match="verdict"):
         call("progression_set", {"exercise": "bench", "verdict": "smashed",
-                                 "next_target": "82.5x5", "direction": "up"})
+                                 "next_weight": 82.5, "next_reps": 5, "direction": "up"})
     with pytest.raises(Exception, match="direction"):
         call("progression_set", {"exercise": "bench", "verdict": "hit",
-                                 "next_target": "82.5x5", "direction": "sideways"})
+                                 "next_weight": 82.5, "next_reps": 5, "direction": "sideways"})
     with pytest.raises(Exception, match="tier"):
         call("program_priority_set", {"muscle": "chest", "tier": "urgent"})
     with pytest.raises(Exception, match="scope"):
@@ -92,6 +92,7 @@ def test_read_tools_share_domain_logic(log_module):
 
 
 def test_program_tools_through_mcp(log_module):
+    log = log_module
     assert call("program_priority_set", {"muscle": "chest", "tier": "priority"})["ok"] is True
     assert call("program_priority_list", {})["ok"] is True
     assert call("program_priority_clear", {"muscle": "chest"})["ok"] is True
@@ -102,11 +103,14 @@ def test_program_tools_through_mcp(log_module):
     assert call("program_rule_confirm", {"rule_id": rid, "archive": True})["ok"] is True
     assert call("program_flag_add", {"subject": "bench", "reason": "mcp"})["ok"] is True
     assert call("program_flag_list", {})["ok"] is True
-    assert call("program_meta_set", {"key": "rotation",
-                                        "value": json.dumps(["Upper A", "rest"])})["ok"] is True
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    assert call("program_rotation_set", {"days": ["Upper A", "rest"]})["ok"] is True
+    assert call("program_rotation_show", {})["ok"] is True
+    assert call("program_compaction_set", {"postponed_until": "2026-12-01"})["ok"] is True
+    assert call("program_compaction_show", {})["ok"] is True
     assert call("program_rotation_anchor", {"date": "2026-09-01", "day": "Upper A"})["ok"] is True
     assert call("program_rotation_status", {})["ok"] is True
-    assert call("program_meta_show", {})["ok"] is True
 
 
 def test_constants_and_snapshot_through_mcp(log_module):
@@ -114,6 +118,6 @@ def test_constants_and_snapshot_through_mcp(log_module):
     chest = call("constants_show", {"key": "muscles.chest"})
     assert chest["ok"] is True and chest["data"]["mev"] == 8
     snap = call("snapshot_export", {})
-    assert snap["ok"] is True and "workouts" in snap["data"]
+    assert snap["ok"] is True and "sessions" in snap["data"]
     from reps.models import SnapshotModel
     SnapshotModel.model_validate(snap["data"])

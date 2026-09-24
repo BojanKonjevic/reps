@@ -52,9 +52,10 @@ export function pruneHidden(known: string[]) {
   persist();
 }
 
-// First visit hides everything past the top 8; afterwards the saved picks rule.
-export function defaultHide(names: string[]) {
-  if (!ui.hiddenTouched) names.slice(8).forEach(n => ui.hidden.add(n));
+// First visit hides everything past the default visible cutoff from
+// snapshot constants (trend_top_lifts); afterwards the saved picks rule.
+export function defaultHide(names: string[], cutoff = 8) {
+  if (!ui.hiddenTouched) names.slice(cutoff).forEach(n => ui.hidden.add(n));
   persist();
 }
 

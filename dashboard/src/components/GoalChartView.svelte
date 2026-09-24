@@ -1,26 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goalChart, goalHit } from '../goalChart';
+  import { plot, type GoalModel } from '../goalChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { fmtD, fmtV } from '../utils';
-  import { liftColor } from '../charts';
+  import { fmtD, fmtV } from '../lib/format';
+  import { nearestPoint, emptyHit, type HitMap } from '../lib/chartLayout';
   import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     id?: string;
     actuals: Array<{ date: string; ev: number }>;
     checkpoints: number[];
-    exercise: string;
+    color: string;
     tops?: Record<string, { w: number; r: number }>;
   }
 
-  let { id = undefined, actuals, checkpoints, exercise, tops = {} }: Props = $props();
+  let { id = undefined, actuals, checkpoints, color, tops = {} }: Props = $props();
 
   let cv: HTMLCanvasElement;
-  const col = $derived(liftColor(exercise));
+  let hit: HitMap = emptyHit();
+
+  const model: GoalModel = $derived({ actuals, checkpoints, color });
 
   function paint(hover = -1) {
-    if (isVisible(cv)) goalChart(cv, actuals, checkpoints, col, hover);
+    if (isVisible(cv)) hit = plot(cv, model, hover);
   }
 
   function show(cx: number, cy: number) {
@@ -29,12 +31,13 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const bi = goalHit(cv, actuals, checkpoints, cx - r.left);
-    if (bi < 0) {
+    const p = nearestPoint(hit, cx - r.left, 30);
+    if (!p) {
       hideTip();
       paint();
       return;
     }
+    const bi = p.index;
     paint(bi);
     if (bi < actuals.length) {
       const a = actuals[bi];
@@ -45,7 +48,7 @@
       showTip(
         fmtD(a.date),
         [
-          [col, logged],
+          [color, logged],
           [null, 'plan ' + fmtV(checkpoints[bi])],
         ],
         cx,
@@ -54,7 +57,7 @@
     } else {
       showTip(
         'session ' + (bi + 1) + ' (plan)',
-        [[col, 'target e1RM ' + fmtV(checkpoints[bi])]],
+        [[color, 'target e1RM ' + fmtV(checkpoints[bi])]],
         cx,
         cy
       );

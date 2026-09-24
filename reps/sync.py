@@ -7,112 +7,17 @@ import urllib.request
 from datetime import datetime
 
 from . import db
-from .adherence import adherence_snapshot
-from .autoreg import autoreg_block
-from .constants import load_constants
+from .db import SCHEMA, conn
 from .errors import RepsError
 from .models import validate_snapshot
-from .signals import build_signals
-from .db import SCHEMA, conn
-from .goals import goal_progress
-from .muscles import attach_muscles
-from .program import (active_deloads, parse_rotation, read_priorities,
-                    read_split, rules_with_confirm, volume_block)
+from .snapshot import build_views
 
 
 def build_snapshot(c=None):
-    """Full dashboard payload. Worker ignores unknown fields, so the domain
-    can extend this without breaking the page. Missing tables never fail: a fresh
-    DB exports history plus empty forward sections."""
+    """Full dashboard payload (v2 views). A build failure fails loudly:
+    missing tables never default, the snapshot always validates or raises."""
     c = c or conn()
-    workouts = [dict(r) for r in c.execute("SELECT * FROM workouts ORDER BY id").fetchall()]
-    sets = attach_muscles(c, c.execute("SELECT * FROM sets ORDER BY id").fetchall())
-    bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
-    try:
-        constants = load_constants().model_dump()
-    except RepsError:
-        constants = None
-    try:
-        split_active = read_split("active", c=c)
-    except sqlite3.Error:
-        split_active = []
-    try:
-        rotation = parse_rotation(c)
-    except sqlite3.Error:
-        rotation = []
-    try:
-        progression = {r["exercise"]: {"verdict": r["verdict"], "next": r["next_target"],
-                                       "direction": r["direction"], "workout_id": r["workout_id"],
-                                       "note": r["note"]}
-                       for r in c.execute(
-                           "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
-                           "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
-    except sqlite3.Error:
-        progression = {}
-    goals = []
-    try:
-        for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall():
-            entry = dict(g)
-            try:
-                entry.update(goal_progress(c, dict(g)))
-            except (sqlite3.Error, RepsError):
-                pass
-            goals.append(entry)
-    except sqlite3.Error:
-        goals = []
-    try:
-        priority = read_priorities(c)
-    except sqlite3.Error:
-        priority = {}
-    try:
-        deload = [dict(r) for r in active_deloads(c)]
-    except sqlite3.Error:
-        deload = []
-    try:
-        rules = rules_with_confirm(c)
-    except sqlite3.Error:
-        rules = []
-    try:
-        flags = [dict(r) for r in c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()]
-    except sqlite3.Error:
-        flags = []
-    try:
-        mapping = [dict(r) for r in c.execute("SELECT * FROM lift_muscle_map ORDER BY exercise").fetchall()]
-    except sqlite3.Error:
-        mapping = []
-    try:
-        movement_notes = [dict(r) for r in c.execute("SELECT * FROM movement_notes ORDER BY exercise, id").fetchall()]
-    except sqlite3.Error:
-        movement_notes = []
-    try:
-        adherence = adherence_snapshot(c)
-    except (sqlite3.Error, RepsError):
-        adherence = None
-    try:
-        signals = build_signals(c)
-    except (sqlite3.Error, RepsError):
-        signals = []
-    try:
-        autoreg = autoreg_block(c)
-    except (sqlite3.Error, RepsError):
-        autoreg = None
-    try:
-        changes = [dict(r) for r in c.execute(
-            "SELECT id, date, action, day, slot, before_movements, before_sets, "
-            "after_movements, after_sets, evidence, reverted_on FROM autoreg_changes "
-            "ORDER BY id DESC LIMIT 20").fetchall()]
-    except sqlite3.Error:
-        changes = []
-    try:
-        volume = volume_block(c)
-    except (sqlite3.Error, RepsError):
-        volume = {}
-    return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
-            "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
-            "progression": progression, "goals": goals, "priority": priority, "deload": deload,
-            "rules": rules, "flags": flags, "mapping": mapping, "movement_notes": movement_notes,
-            "adherence": adherence, "signals": signals, "autoreg": autoreg,
-            "autoreg_changes": changes, "volume": volume}
+    return build_views(c)
 
 
 def build_snapshot_validated(c=None) -> dict:

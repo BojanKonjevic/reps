@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchSnapshot } from '../queries/snapshot';
-
-const MINIMAL = {
-  exported: '2026-09-17T12:00:00',
-  workouts: [{ id: 1, date: '2026-09-10', status: 'done', notes: '' }],
-  sets: [],
-};
+import rich from './fixtures/rich.json';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -15,12 +10,11 @@ describe('fetchSnapshot', () => {
   it('returns the validated snapshot', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: true, json: async () => MINIMAL }) as Response)
+      vi.fn(async () => ({ ok: true, json: async () => rich }) as Response)
     );
     const snap = await fetchSnapshot();
-    expect(snap.exported).toBe('2026-09-17T12:00:00');
-    expect(snap.workouts).toHaveLength(1);
-    expect(snap.sets).toEqual([]);
+    expect(snap.schema_version).toBe(2);
+    expect(snap.sessions.length).toBeGreaterThan(0);
   });
 
   it('fails explicitly on HTTP errors', async () => {
@@ -31,11 +25,13 @@ describe('fetchSnapshot', () => {
     await expect(fetchSnapshot()).rejects.toThrow('snapshot fetch failed: 404');
   });
 
-  it('fails explicitly on malformed payloads instead of returning JSON', async () => {
+  it('fails explicitly on schema mismatch (resync needed)', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: true, json: async () => ({ workouts: [] }) }) as Response)
+      vi.fn(
+        async () => ({ ok: true, json: async () => ({ ...rich, schema_version: 99 }) }) as Response
+      )
     );
-    await expect(fetchSnapshot()).rejects.toThrow();
+    await expect(fetchSnapshot()).rejects.toThrow('resync needed');
   });
 });

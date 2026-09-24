@@ -12,7 +12,7 @@ import pytest
 
 from datetime import date
 
-from conftest import close_session
+from conftest import close_session, seed_lift
 from reps.errors import RepsError
 
 
@@ -40,12 +40,13 @@ def test_audit_missing_muscle_tags(audit_db):
     log.log_set("bench", 100, 5, "", "chest")
     # Insert directly to bypass validation for audit test (no junction rows)
     wid = c.execute("SELECT id FROM workouts WHERE status = 'open'").fetchone()["id"]
+    seed_lift(c, "squat", None)
     c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'squat', 150, 5, '', datetime('now'))", (wid,))
     c.commit()
 
     missing = c.execute("""
         SELECT s.id, s.exercise FROM sets s
-        LEFT JOIN set_muscles sm ON sm.set_id = s.id
+        LEFT JOIN set_muscle sm ON sm.set_id = s.id
         WHERE sm.muscle IS NULL
     """).fetchall()
     assert len(missing) == 1
@@ -64,8 +65,7 @@ def test_audit_zero_weight_non_bodyweight(audit_db):
         assert "zero weight not allowed" in str(e).lower()
 
     # Set up pullup as bodyweight exercise
-    c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-              ("pullup", "back,biceps", 1))
+    seed_lift(c, "pullup", "back,biceps", bodyweight_only=1)
     c.commit()
 
     # This should work - pullup is bodyweight
@@ -78,12 +78,12 @@ def test_audit_stale_open_workout(audit_db):
     log, c = audit_db
 
     # Create a workout from yesterday
+    seed_lift(c, "bench", "chest")
     d_yesterday = (date.today() - timedelta(days=1)).isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', 'stale')", (d_yesterday,))
     c.commit()
     wid = cur.lastrowid
     cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
-    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
 
     # Also create a fresh open workout
@@ -145,6 +145,7 @@ def test_audit_progression_jumps(audit_db):
     log, c = audit_db
 
     # Create sessions with normal progression on different days
+    seed_lift(c, "bench", "chest")
     base = date.today() - timedelta(days=20)
     for i, w in enumerate([100, 102.5, 105, 107.5, 110]):  # ~2.5% jumps
         d = (base + timedelta(days=i*3)).isoformat()
@@ -152,7 +153,6 @@ def test_audit_progression_jumps(audit_db):
         c.commit()
         wid = cur.lastrowid
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, w))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
 
     # Add an implausible jump (20%) on a later date
@@ -161,7 +161,6 @@ def test_audit_progression_jumps(audit_db):
     c.commit()
     wid = cur.lastrowid
     cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 132, 5, '', datetime('now'))", (wid,))
-    c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
 
     # Check for jumps > 1% (intermediate compound bound from SCIENCE.md)
@@ -201,6 +200,8 @@ def test_audit_volume_below_mev(audit_db):
     log, c = audit_db
 
     # Add data across 5 weeks with low chest volume
+    seed_lift(c, "bench", "chest")
+    seed_lift(c, "fly", "chest")
     base = date.today() - timedelta(weeks=6)
     for week in range(5):
         d = (base + timedelta(weeks=week)).isoformat()
@@ -209,14 +210,13 @@ def test_audit_volume_below_mev(audit_db):
         wid = cur.lastrowid
         for ex, wt, rp in [("bench", 100, 5), ("fly", 20, 10)]:
             cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, ?, ?, ?, '', datetime('now'))", (wid, ex, wt, rp))
-            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
 
     # Compute weekly chest sets
     weeks = c.execute("""
         SELECT strftime('%Y-%W', w.date) as week, COUNT(*) as sets
         FROM sets s JOIN workouts w ON w.id = s.workout_id
-        JOIN set_muscles sm ON sm.set_id = s.id
+        JOIN set_muscle sm ON sm.set_id = s.id
         WHERE sm.muscle = 'chest'
         GROUP BY week ORDER BY week
     """).fetchall()
@@ -232,6 +232,7 @@ def test_audit_volume_below_mev(audit_db):
 def _seed_jump(c, second_notes):
     """Two done workouts 3 days apart: bench 100x5 then 130x5 (~30% e1RM jump)."""
     from datetime import date, timedelta
+    seed_lift(c, "bench", "chest")
     base = date.today() - timedelta(days=9)
     for offset, weight, notes in [(0, 100, ""), (3, 130, second_notes)]:
         d = (base + timedelta(days=offset)).isoformat()
@@ -239,7 +240,6 @@ def _seed_jump(c, second_notes):
         c.commit()
         wid = cur.lastrowid
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, 5, '', datetime('now'))", (wid, weight))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
 
 
@@ -268,6 +268,7 @@ def test_audit_skips_explained_jump(audit_db):
 def _seed_progression(c, first, second):
     """Two done workouts 3 days apart with given (weight, reps) bench sets."""
     from datetime import date, timedelta
+    seed_lift(c, "bench", "chest")
     base = date.today() - timedelta(days=9)
     for offset, (weight, reps) in [(0, first), (3, second)]:
         d = (base + timedelta(days=offset)).isoformat()
@@ -275,7 +276,6 @@ def _seed_progression(c, first, second):
         c.commit()
         wid = cur.lastrowid
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', ?, ?, '', datetime('now'))", (wid, weight, reps))
-        c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
 
 
@@ -317,6 +317,7 @@ def test_audit_flags_single_to_double(audit_db):
 def _seed_muscle_weeks(c, muscle, week_sets):
     """One done workout (Wednesday) per listed week: {weeks_ago: set_count}."""
     from datetime import date, timedelta
+    seed_lift(c, "bench", muscle)
     monday = date.today() - timedelta(days=date.today().weekday())
     for ago, nsets in week_sets.items():
         d = (monday - timedelta(weeks=ago) + timedelta(days=2)).isoformat()
@@ -325,7 +326,6 @@ def _seed_muscle_weeks(c, muscle, week_sets):
         wid = cur.lastrowid
         for _ in range(nsets):
             cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
-            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (cur2.lastrowid, muscle))
         c.commit()
 
 
@@ -453,7 +453,7 @@ def test_doctor_flags_deleted_tracked_muscle(audit_db):
     log, c = audit_db
     log.start_workout("test")
     log.log_set("bench", 100, 5, "", "chest")
-    c.execute("DELETE FROM lift_muscle_map WHERE exercise = 'bench'")
+    c.execute("DELETE FROM lift_muscle WHERE exercise = 'bench'")
     import json as _json
     import reps.constants
     full = _json.loads(open(reps.constants.CONSTANTS_FILE).read())

@@ -1,18 +1,23 @@
 from datetime import datetime
 
+import sqlite3
+
 from .errors import RepsError
 
 from .constants import clean_muscles
 from .db import conn
+from .e1rm import e1rm as e1rm_of
+from .program import (ensure_lift, lift_is_bodyweight_only, lift_muscles_csv,
+                      merge_lifts, rename_lift, set_lift_muscles)
 
 
 def attach_muscles(c, sets):
-    """Attach a sorted comma 'muscles' string to set dicts from the junction table."""
+    """Attach a sorted comma 'muscles' string to set dicts via the set_muscle view."""
     ids = [s["id"] for s in sets]
     if not ids:
         return [dict(s) for s in sets]
     rows = c.execute(
-        "SELECT set_id, muscle FROM set_muscles WHERE set_id IN (%s) ORDER BY set_id, muscle"
+        "SELECT set_id, muscle FROM set_muscle WHERE set_id IN (%s) ORDER BY set_id, muscle"
         % ",".join("?" * len(ids)),
         ids,
     ).fetchall()
@@ -27,24 +32,13 @@ def attach_muscles(c, sets):
     return out
 
 
-def e1rm_of(weight, reps):
-    if reps == 1:
-        return weight
-    return weight * (1 + reps / 30.0)
-
-
 def best_e1rm(c, exercise, exclude_set=None):
-    sql = "SELECT weight, reps FROM sets WHERE exercise = ?"
-    args = [exercise]
-    if exclude_set is not None:
-        sql += " AND id != ?"
-        args.append(exclude_set)
-    best = 0.0
-    for r in c.execute(sql, args).fetchall():
-        v = e1rm_of(r["weight"], r["reps"])
-        if v > best:
-            best = v
-    return best
+    row = c.execute(
+        "SELECT MAX(e1rm(weight, reps)) AS best FROM sets WHERE exercise = ?"
+        + (" AND id != ?" if exclude_set is not None else ""),
+        [exercise] + ([exclude_set] if exclude_set is not None else []),
+    ).fetchone()
+    return row["best"] or 0.0
 
 
 def _levenshtein(a, b):
@@ -68,15 +62,16 @@ def get_mapping(exercise=None):
     c = conn()
     if exercise:
         exercise = exercise.strip().lower()
-        mapping = c.execute("SELECT * FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
-        if not mapping:
-            raise RepsError(f"'{exercise}' has no mapping (run muscle_map_set first)")
+        csv = lift_muscles_csv(c, exercise)
+        if csv is None:
+            raise RepsError(f"'{exercise}' is not a known lift")
         notes = [r["note"] for r in c.execute(
-            "SELECT note FROM movement_notes WHERE exercise = ? ORDER BY id", (exercise,)).fetchall()]
-        return {"exercise": exercise, "muscles": mapping["muscles"],
-                "is_bodyweight_only": mapping["is_bodyweight_only"], "notes": notes}
-    rows = c.execute("SELECT exercise, muscles FROM lift_muscle_map ORDER BY exercise").fetchall()
-    return [dict(r) for r in rows]
+            "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (exercise,)).fetchall()]
+        return {"exercise": exercise, "muscles": csv,
+                "is_bodyweight_only": 1 if lift_is_bodyweight_only(c, exercise) else 0,
+                "notes": notes}
+    rows = c.execute("SELECT exercise FROM lift ORDER BY exercise").fetchall()
+    return [{"exercise": r["exercise"], "muscles": lift_muscles_csv(c, r["exercise"])} for r in rows]
 
 
 def set_movement_note(exercise, text):
@@ -84,8 +79,11 @@ def set_movement_note(exercise, text):
         raise RepsError("note text is required")
     c = conn()
     created = datetime.now().isoformat(timespec="seconds")
-    cur = c.execute("INSERT INTO movement_notes (exercise, note, created) VALUES (?, ?, ?)",
-                    (exercise.strip().lower(), text, created))
+    try:
+        cur = c.execute("INSERT INTO movement_note (exercise, note, created) VALUES (?, ?, ?)",
+                        (exercise.strip().lower(), text, created))
+    except sqlite3.IntegrityError:
+        raise RepsError(f"'{exercise.strip().lower()}' is not a known lift")
     c.commit()
     return {"note_id": cur.lastrowid, "exercise": exercise.strip().lower()}
 
@@ -96,21 +94,14 @@ def set_exercise_mapping(exercise, muscles, bodyweight=False):
     muscles = clean_muscles(muscles)
     if not muscles:
         raise RepsError("muscles cannot be empty, pass at least one group")
-    existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
-    is_bw = existing["is_bodyweight_only"] if existing else 0
+    existing = lift_muscles_csv(c, exercise)
+    is_bw = lift_is_bodyweight_only(c, exercise) if existing is not None else False
     if bodyweight:
-        is_bw = 1
-    c.execute("DELETE FROM set_muscles WHERE set_id IN (SELECT id FROM sets WHERE exercise = ?)", (exercise,))
-    updated = 0
-    for set_row in c.execute("SELECT id FROM sets WHERE exercise = ?", (exercise,)).fetchall():
-        set_id = set_row["id"]
-        for muscle in muscles.split(","):
-            c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
-        updated += 1
-    c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-              (exercise, muscles, is_bw))
+        is_bw = True
+    set_lift_muscles(c, exercise, muscles, 1 if is_bw else 0)
+    updated = c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = ?", (exercise,)).fetchone()["n"]
     c.commit()
-    return {"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": is_bw}
+    return {"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": 1 if is_bw else 0}
 
 
 def rename_exercise(old, new):
@@ -119,18 +110,28 @@ def rename_exercise(old, new):
     new = new.strip().lower()
     if old == new:
         raise RepsError("old and new exercise names are identical, nothing to rename")
-    mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
-    target = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (new,)).fetchone()
-    if mapping and target and set(mapping["muscles"].split(",")) != set(target["muscles"].split(",")):
-        raise RepsError(f"'{new}' already maps to {target['muscles']}, not {mapping['muscles']}; retag one of them first, then rename")
-    cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old))
-    renamed = cur.rowcount
-    map_moved = False
-    if mapping:
-        is_bw = mapping["is_bodyweight_only"] or (target["is_bodyweight_only"] if target else 0)
-        c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
-                  (new, mapping["muscles"], is_bw))
-        c.execute("DELETE FROM lift_muscle_map WHERE exercise = ?", (old,))
-        map_moved = True
+    old_m = lift_muscles_csv(c, old)
+    new_m = lift_muscles_csv(c, new)
+    if old_m and new_m and set(old_m.split(",")) != set(new_m.split(",")):  # sanctioned: validated read-model compare
+        raise RepsError(f"'{new}' already maps to {new_m}, not {old_m}; retag one of them first, then rename")
+    if new_m is not None and old_m is None:
+        renamed = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old)).rowcount
+        c.commit()
+        return {"renamed": renamed, "map_moved": False}
+    if new_m is not None:
+        out = merge_lifts(c, old, new)
+        c.commit()
+        return {"renamed": out["moved"], "map_moved": True, "merged": True}
+    renamed = c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = ?", (old,)).fetchone()["n"]
+    rename_lift(c, old, new)
     c.commit()
-    return {"renamed": renamed, "map_moved": map_moved}
+    return {"renamed": renamed, "map_moved": old_m is not None}
+
+
+def merge_exercises(old, new):
+    """Merge one lift into an existing lift (refuses on conflicting muscle sets)."""
+    from .program import merge_lifts as _merge
+    c = conn()
+    out = _merge(c, old.strip().lower(), new.strip().lower())
+    c.commit()
+    return out

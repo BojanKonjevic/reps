@@ -1,6 +1,7 @@
-// Hash router. Routes are the dashboard's addressable views, kept stable so
-// links, bookmarks, and e2e hooks keep working: #/ dashboard, #/s/<date>,
-// #/l/<lift>, #/m/<muscle>, #/program, #/lifts, #/muscles.
+// SSOT owner: hash routing view mapping. Consumers: App via router.svelte.
+// Address parsing lives in routes.ts; this module only maps routes to views.
+
+import { parse, isDate, type Route } from './routes';
 
 export type View =
   | { name: 'dash' }
@@ -11,31 +12,18 @@ export type View =
   | { name: 'lifts' }
   | { name: 'muscles' };
 
-export function isDate(s: string): boolean {
-  if (!s || s.length !== 10 || s.charAt(4) !== '-' || s.charAt(7) !== '-') return false;
-  for (let i = 0; i < 10; i += 1) {
-    if (i === 4 || i === 7) continue;
-    const c = s.charAt(i);
-    if (c < '0' || c > '9') return false;
-  }
-  return true;
-}
+export { isDate };
 
 export function parseHash(hash: string): View {
-  const h = hash || '';
-  if (h.startsWith('#/s/')) {
-    const ds = h.slice(4, 14);
-    if (isDate(ds)) return { name: 'sess', date: ds };
-  } else if (h.startsWith('#/l/')) {
-    return { name: 'lift', exercise: decodeURIComponent(h.slice(4)) };
-  } else if (h.startsWith('#/m/')) {
-    return { name: 'muscle', muscle: decodeURIComponent(h.slice(4)) };
-  } else if (h === '#/program') {
-    return { name: 'prog' };
-  } else if (h === '#/lifts') {
-    return { name: 'lifts' };
-  } else if (h === '#/muscles') {
-    return { name: 'muscles' };
+  const r: Route = parse(hash || '');
+  if (r.name === 'lift') return { name: 'lift', exercise: r.exercise };
+  if (r.name === 'session') {
+    if (isDate(r.date)) return { name: 'sess', date: r.date };
+    return { name: 'dash' };
   }
+  if (r.name === 'muscle') return { name: 'muscle', muscle: r.muscle };
+  if (r.name === 'program') return { name: 'prog' };
+  if (r.name === 'lifts') return { name: 'lifts' };
+  if (r.name === 'muscles') return { name: 'muscles' };
   return { name: 'dash' };
 }

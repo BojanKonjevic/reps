@@ -1,24 +1,34 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { stacked, stackedHit, type StackedHit } from '../stackedChart';
+  import { plot, stackedHitFromMap, type StackedModel, type StackedHover } from '../stackedChart';
   import { bindHover, hideTip, showTip } from '../tip';
-  import { MC } from '../charts';
+  import { emptyHit, type HitMap } from '../lib/chartLayout';
   import { canvasShell, isVisible } from '../lib/canvas';
 
   interface Props {
     labels: string[];
     weeks: Array<Record<string, number>>;
+    groups: string[];
+    colors: Record<string, string>;
     mevOf: (muscle: string) => number;
     onSelect?: (muscle: string) => void;
   }
 
-  let { labels, weeks, mevOf, onSelect }: Props = $props();
+  let { labels, weeks, groups, colors, mevOf, onSelect }: Props = $props();
 
   let cv: HTMLCanvasElement;
-  let hover: StackedHit | null = $state(null);
+  let hover: StackedHover | null = $state(null);
+  let hit: HitMap = emptyHit();
+
+  const model: StackedModel = $derived({ labels, weeks, groups, colors });
 
   function paint() {
-    if (isVisible(cv)) stacked(cv, labels, weeks, hover);
+    if (isVisible(cv)) hit = plot(cv, model, hover);
+  }
+
+  function point(ev: MouseEvent): StackedHover | null {
+    const r = cv.getBoundingClientRect();
+    return stackedHitFromMap(hit, ev.clientX - r.left, ev.clientY - r.top);
   }
 
   function show(cx: number, cy: number) {
@@ -27,22 +37,22 @@
       return;
     }
     const r = cv.getBoundingClientRect();
-    const hit = stackedHit(cv, labels, weeks, cx - r.left, cy - r.top);
-    if (!hit) {
+    const h = stackedHitFromMap(hit, cx - r.left, cy - r.top);
+    if (!h) {
       hideTip();
       hover = null;
       paint();
       return;
     }
-    hover = hit;
+    hover = h;
     paint();
-    const mev = mevOf(labels[hit.wi]);
+    const mev = mevOf(h.g);
     showTip(
-      labels[hit.wi],
+      labels[h.wi],
       [
         [
-          MC[hit.g],
-          hit.g + ' ' + weeks[hit.wi][hit.g] + ' sets' + (mev > 0 ? ' (MEV ' + mev + ')' : ''),
+          colors[h.g],
+          h.g + ' ' + weeks[h.wi][h.g] + ' sets' + (mev > 0 ? ' (MEV ' + mev + ')' : ''),
         ],
       ],
       cx,
@@ -51,9 +61,8 @@
   }
 
   function click(ev: MouseEvent) {
-    const r = cv.getBoundingClientRect();
-    const hit = stackedHit(cv, labels, weeks, ev.clientX - r.left, ev.clientY - r.top);
-    if (hit && onSelect) onSelect(hit.g);
+    const h = point(ev);
+    if (h && onSelect) onSelect(h.g);
   }
 
   canvasShell(() => paint());
