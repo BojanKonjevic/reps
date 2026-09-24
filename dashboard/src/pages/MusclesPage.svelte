@@ -158,7 +158,6 @@
                     mrv: entry?.bands.mrv ?? null,
                   }}
                   color={vocab.colors[m] || ''}
-                  height="120px"
                 />
               </div>
             </div>

@@ -24,11 +24,23 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
+// Vertical geometry: list-page minis (H < 170) use mini-like margins so the
+// plot fills the canvas the way TrendMini does; the full-page chart keeps
+// roomier margins. Pure, so unit tests can pin the plot height.
+export function vertical(H: number): { padL: number; padB: number; top: number; area: number } {
+  const compact = H < 170;
+  const padL = compact ? 30 : 46;
+  const padB = compact ? 24 : 46;
+  const top = compact ? 8 : 16;
+  return { padL, padB, top, area: H - padB - top };
+}
+
 export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): HitMap {
   const { labels, counts, bands, color } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
-  const P = L.padL;
+  const V = vertical(H);
+  const P = V.padL;
   const hit = emptyHit();
   g.clearRect(0, 0, W, H);
   // Compact mode for list-page minis: fewer ticks, smaller type, sparse
@@ -46,8 +58,7 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   mx = t.hi;
   const n = counts.length;
   const bw = (W - P - L.padR) / n;
-  const area = H - P - 42;
-  const py = linearScale([0, mx], [H - P, H - P - area]);
+  const py = linearScale([0, mx], [H - V.padB, V.top]);
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {
     const v = parseFloat((t.lo + i * t.step).toPrecision(12));
@@ -120,7 +131,7 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
       putText(g, W, labels[i], P + i * bw + bw / 2, H - 8, 'center');
   });
   if (hover >= 0 && hover < n) {
-    drawHoverLine(g, H, P, P + hover * bw + bw / 2);
+    drawHoverLine(g, H - V.padB + P, P, P + hover * bw + bw / 2);
   }
   return hit;
 }

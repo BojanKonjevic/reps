@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LC, liftColor } from '../charts';
 import { visibleStart, labelIndices } from '../stackedChart';
+import { vertical } from '../muscleChart';
 
 describe('liftColor', () => {
   it('is stable per exercise name', () => {
@@ -42,5 +43,14 @@ describe('stacked volume labels', () => {
   it('never forces a colliding last label', () => {
     expect(labelIndices(8)).toEqual([0, 2, 4, 6]);
     expect(labelIndices(6)).toEqual([0, 2, 4]);
+  });
+});
+
+describe('muscle mini vertical geometry', () => {
+  it('fills a 140px list canvas like the movement minis', () => {
+    expect(vertical(140).area).toBe(108);
+  });
+  it('keeps roomier margins on the full page chart', () => {
+    expect(vertical(330).area).toBe(268);
   });
 });
