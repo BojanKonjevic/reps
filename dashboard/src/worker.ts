@@ -6,7 +6,7 @@ interface Env {
 }
 
 const BLANK = {
-  note: 'no sync yet, run sync from the CLI after a session',
+  note: 'no sync yet, run sync_push after a session',
   workouts: [],
   sets: [],
   bodyweight: [],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 3: splits, movement notes, and rules live in SQLite with CLI writers."""
+"""Phase 3: splits, movement notes, and rules live in SQLite with domain writers."""
 
 import pytest
 from conftest import close_session, seed_split
