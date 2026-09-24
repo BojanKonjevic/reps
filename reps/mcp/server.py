@@ -3,19 +3,17 @@
 MCP is the sole normal way to operate Reps. These tools are thin adapters:
 each handler translates structured MCP inputs into one existing Reps
 domain operation and returns its result. No business logic lives here;
-invariants are enforced once, in the domain modules.
+invariants are enforced once, in the domain modules. Domain refusals
+(RepsError) become error results; anything else propagates as a tool error.
 
 Result contract: every tool returns a dict with "ok" true/false.
-- ok true with JSON output: {"ok": true, "data": <parsed payload>}
-- ok true with prose output: {"ok": true, "output": <text>}
-- failure (domain refused, e.g. bad id or invariant): {"ok": false,
-  "error": <reason>, "output": <partial output>}
+- ok true with structured output: {"ok": true, "data": <payload>}
+- failure (domain refused): {"ok": false, "error": <reason>}
 """
 
-import io
 import json
-from contextlib import redirect_stdout
-from typing import Optional
+from collections.abc import Callable
+from typing import Any, Literal, Optional
 
 from mcp.server import MCPServer
 
@@ -30,8 +28,30 @@ from reps import program as _program
 from reps import progression as _progression
 from reps import sessions as _sessions
 from reps import sync as _sync
+from reps.errors import RepsError
 
 mcp = MCPServer("reps")
+
+Verdict = Literal["hit", "miss", "hold", "baseline"]
+Direction = Literal["up", "flat", "down"]
+Tier = Literal["priority", "maintain", "deprioritize"]
+Scope = Literal["lift", "slot"]
+Variant = Literal["active", "baseline"]
+SetField = Literal["weight", "reps", "exercise", "note"]
+WorkoutField = Literal["notes", "date", "status"]
+
+
+def call_domain(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Call one domain operation and shape its return into the result contract.
+
+    This translates values and domain exceptions only; it never parses
+    output text, because domain functions return data directly.
+    """
+    try:
+        result = fn(*args, **kwargs)
+    except RepsError as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "data": result}
 
 
 async def list_tool_names() -> list[str]:
@@ -39,50 +59,21 @@ async def list_tool_names() -> list[str]:
     return [t.name for t in await mcp.list_tools()]
 
 
-def _payload_from_text(texts: list[str]):
-    """Parse the JSON text content of a tool result, or return raw text."""
-    text = "".join(texts)
-    try:
-        return json.loads(text)
-    except ValueError:
-        return {"output": text}
-
-
 async def call_tool(name: str, arguments: dict) -> dict:
     """Invoke one tool through the MCP interface and return its structured result."""
     result = await mcp.call_tool(name, arguments)
+    texts = [b.text for b in getattr(result, "content", []) if hasattr(b, "text")]
+    if getattr(result, "isError", False):
+        return {"ok": False, "error": "".join(texts)}
     structs = getattr(result, "structured_content", None)
     if isinstance(structs, dict) and structs:
         return structs
-    texts = [b.text for b in getattr(result, "content", []) if hasattr(b, "text")]
     if texts:
-        return _payload_from_text(texts)
-    return {}
-
-
-def run_domain(fn, *args, **kwargs) -> dict:
-    """Invoke one domain operation, capturing its printed result.
-
-    Domain functions print JSON or prose and signal refusal via
-    SystemExit. This adapter converts that convention into the MCP
-    result contract without reimplementing any domain behavior.
-    """
-    buf = io.StringIO()
-    try:
-        with redirect_stdout(buf):
-            fn(*args, **kwargs)
-    except SystemExit as e:
-        reason = e.code if isinstance(e.code, str) and e.code else "refused"
-        return {"ok": False, "error": reason, "output": buf.getvalue()}
-    except Exception as e:  # unexpected bug, never a domain refusal
-        return {"ok": False, "error": f"{type(e).__name__}: {e}", "output": buf.getvalue()}
-    text = buf.getvalue()
-    if text.strip():
         try:
-            return {"ok": True, "data": json.loads(text)}
+            return json.loads("".join(texts))
         except ValueError:
-            return {"ok": True, "output": text}
-    return {"ok": True, "output": ""}
+            return {"ok": True, "output": "".join(texts)}
+    return {"ok": True, "data": None}
 
 
 # === sessions ===
@@ -95,7 +86,7 @@ def session_start(note: str = "") -> dict:
     Args:
         note: Optional opening note for the session.
     """
-    return run_domain(_sessions.start, note)
+    return call_domain(_sessions.start_workout, note)
 
 
 @mcp.tool()
@@ -111,11 +102,11 @@ def session_log_set(exercise: str, weight: float, reps: int, note: str = "",
         muscles: Comma list for first use of a movement, recorded forever.
         bodyweight: True only for true bodyweight-only moves logged at 0.
     """
-    return run_domain(_sessions.log, exercise, weight, reps, note, muscles, bodyweight)
+    return call_domain(_sessions.log_set, exercise, weight, reps, note, muscles, bodyweight)
 
 
 @mcp.tool()
-def session_update_set(set_id: int, field: str, value: str) -> dict:
+def session_update_set(set_id: int, field: SetField, value: str) -> dict:
     """Correct one set by id.
 
     Args:
@@ -123,19 +114,19 @@ def session_update_set(set_id: int, field: str, value: str) -> dict:
         field: One of weight, reps, exercise, note.
         value: New value.
     """
-    return run_domain(_sessions.update, set_id, field, value)
+    return call_domain(_sessions.update_set, set_id, field, value)
 
 
 @mcp.tool()
-def session_update_workout(workout_id: int, field: str, value: str) -> dict:
-    """Correct one workout by id (fields: notes, date, status).
+def session_update_workout(workout_id: int, field: WorkoutField, value: str) -> dict:
+    """Correct one workout by id.
 
     Args:
         workout_id: Exact workout id.
         field: One of notes, date, status.
         value: New value.
     """
-    return run_domain(_sessions.update_workout, workout_id, field, value)
+    return call_domain(_sessions.update_workout, workout_id, field, value)
 
 
 @mcp.tool()
@@ -145,7 +136,7 @@ def session_delete_set(set_id: int) -> dict:
     Args:
         set_id: Exact set id.
     """
-    return run_domain(_sessions.delete_set, set_id)
+    return call_domain(_sessions.delete_set, set_id)
 
 
 @mcp.tool()
@@ -155,7 +146,7 @@ def session_delete_workout(workout_id: int) -> dict:
     Args:
         workout_id: Exact workout id.
     """
-    return run_domain(_sessions.delete_workout, workout_id)
+    return call_domain(_sessions.delete_workout, workout_id)
 
 
 @mcp.tool()
@@ -167,7 +158,7 @@ def session_end(note: str = "", force: str = "") -> dict:
         note: Short session summary (feel, sleep, pain, what moved well).
         force: Reason to skip writeback items, recorded in the workout note. Never skips missing muscles.
     """
-    return run_domain(_sessions.end, note, force or None)
+    return call_domain(_sessions.end_workout, note, force or None)
 
 
 @mcp.tool()
@@ -177,7 +168,7 @@ def session_check(note: str = "") -> dict:
     Args:
         note: Draft end note to check against the gate.
     """
-    return run_domain(_sessions.check, note)
+    return call_domain(_sessions.check_end_gate, note)
 
 
 @mcp.tool()
@@ -188,7 +179,7 @@ def session_rest(day: str, note: str = "") -> dict:
         day: Date yyyy-mm-dd. Backfill allowed, future refused.
         note: Optional rest note.
     """
-    return run_domain(_sessions.rest, day, note)
+    return call_domain(_sessions.mark_rest, day, note)
 
 
 @mcp.tool()
@@ -199,19 +190,19 @@ def session_weigh(kg: float, note: str = "") -> dict:
         kg: Bodyweight in kg.
         note: Optional note.
     """
-    return run_domain(_sessions.weigh, kg, note)
+    return call_domain(_sessions.record_bodyweight, kg, note)
 
 
 @mcp.tool()
 def session_today() -> dict:
     """Ground truth for the open workout and today's sets."""
-    return run_domain(_sessions.today)
+    return call_domain(_sessions.get_today)
 
 
 @mcp.tool()
 def session_exercises() -> dict:
     """Every known exercise name for canonical-name checks before logging."""
-    return run_domain(_sessions.exercises)
+    return call_domain(_sessions.list_exercises)
 
 
 @mcp.tool()
@@ -222,7 +213,7 @@ def session_history(exercise: str, limit: int = 50) -> dict:
         exercise: Canonical lift name.
         limit: Max rows.
     """
-    return run_domain(_sessions.history, exercise, limit)
+    return call_domain(_sessions.get_history, exercise, limit)
 
 
 @mcp.tool()
@@ -232,7 +223,7 @@ def session_get(day: str) -> dict:
     Args:
         day: Date yyyy-mm-dd.
     """
-    return run_domain(_sessions.session, day)
+    return call_domain(_sessions.get_session, day)
 
 
 @mcp.tool()
@@ -243,7 +234,7 @@ def session_range(from_date: str, to_date: str) -> dict:
         from_date: Start yyyy-mm-dd.
         to_date: End yyyy-mm-dd.
     """
-    return run_domain(_sessions.session_range, from_date, to_date)
+    return call_domain(_sessions.get_session_range, from_date, to_date)
 
 
 @mcp.tool()
@@ -253,19 +244,19 @@ def session_notes(limit: int = 200) -> dict:
     Args:
         limit: Max rows.
     """
-    return run_domain(_sessions.notes, limit)
+    return call_domain(_sessions.get_notes, limit)
 
 
 @mcp.tool()
 def session_calendar() -> dict:
     """Workout calendar with PR days and rotation verdicts."""
-    return run_domain(_sessions.calendar)
+    return call_domain(_sessions.get_calendar)
 
 
 @mcp.tool()
 def session_stats() -> dict:
     """Aggregate training numbers."""
-    return run_domain(_sessions.stats)
+    return call_domain(_sessions.get_stats)
 
 
 @mcp.tool()
@@ -275,7 +266,7 @@ def session_context(limit: int = 3) -> dict:
     Args:
         limit: Sessions of context.
     """
-    return run_domain(_sessions.context, limit)
+    return call_domain(_sessions.get_context, limit)
 
 
 # === muscles ===
@@ -288,7 +279,7 @@ def muscle_map_show(exercise: str = "") -> dict:
     Args:
         exercise: Lift name, or empty for the full map.
     """
-    return run_domain(_muscles.map_show, exercise or None)
+    return call_domain(_muscles.get_mapping, exercise or None)
 
 
 @mcp.tool()
@@ -300,7 +291,7 @@ def muscle_map_set(exercise: str, muscles: str, bodyweight: bool = False) -> dic
         muscles: Comma list of tracked groups.
         bodyweight: True for bodyweight-only moves.
     """
-    return run_domain(_muscles.retag, exercise, muscles, bodyweight)
+    return call_domain(_muscles.set_exercise_mapping, exercise, muscles, bodyweight)
 
 
 @mcp.tool()
@@ -311,7 +302,7 @@ def muscle_map_note(exercise: str, text: str) -> dict:
         exercise: Lift name.
         text: Setup fact.
     """
-    return run_domain(_muscles.map_note, exercise, text)
+    return call_domain(_muscles.set_movement_note, exercise, text)
 
 
 @mcp.tool()
@@ -322,7 +313,7 @@ def muscle_rename(old: str, new: str) -> dict:
         old: Existing name to merge away.
         new: Canonical surviving name.
     """
-    return run_domain(_muscles.rename, old, new)
+    return call_domain(_muscles.rename_exercise, old, new)
 
 
 # === plan ===
@@ -336,28 +327,28 @@ def plan(slot: str = "", verbose: bool = False) -> dict:
 
     Args:
         slot: Override the slot guess with an explicit day.
-        verbose: Include the full ledger detail.
+        verbose: Include human-readable highlights alongside the bundle.
     """
-    return run_domain(_plan.plan, slot or None, verbose)
+    return call_domain(_plan.get_plan, slot or None, verbose)
 
 
 # === program ===
 
 
 @mcp.tool()
-def program_split_show(day: str = "", variant: str = "active") -> dict:
+def program_split_show(day: str = "", variant: Variant = "active") -> dict:
     """Read the program. Active is the exact program planned from; baseline is reference only.
 
     Args:
         day: Optional single day.
         variant: active or baseline.
     """
-    return run_domain(_program.split_show, day or None, variant)
+    return call_domain(_program.get_split, day or None, variant)
 
 
 @mcp.tool()
 def program_split_set(day: str, slot: int, movements: str, sets: int,
-                      variant: str = "active") -> dict:
+                      variant: Variant = "active") -> dict:
     """Routine active-split update (one-off swaps add the alternate here, never a rewrite).
 
     Args:
@@ -367,7 +358,7 @@ def program_split_set(day: str, slot: int, movements: str, sets: int,
         sets: Working set count.
         variant: active normally, baseline only for explicit major program changes.
     """
-    return run_domain(_program.split_set, day, slot, movements, sets, variant)
+    return call_domain(_program.set_split, day, slot, movements, sets, variant)
 
 
 @mcp.tool()
@@ -379,7 +370,7 @@ def program_split_move(day: str, exercise: str, to_slot: int) -> dict:
         exercise: Exercise to move.
         to_slot: Destination slot number.
     """
-    return run_domain(_program.split_move, day, exercise, to_slot)
+    return call_domain(_program.move_split, day, exercise, to_slot)
 
 
 @mcp.tool()
@@ -390,13 +381,13 @@ def program_split_reconcile(day: str, after: str = "") -> dict:
         day: Split day name.
         after: Optional exercise to insert after.
     """
-    return run_domain(_program.split_reconcile, day, after or None)
+    return call_domain(_program.reconcile_split, day, after or None)
 
 
 @mcp.tool()
 def program_split_diff() -> dict:
     """Active versus baseline divergence."""
-    return run_domain(_program.split_diff)
+    return call_domain(_program.diff_split)
 
 
 @mcp.tool()
@@ -406,11 +397,11 @@ def program_split_revert(day: str = "") -> dict:
     Args:
         day: Optional single day, or empty for the whole program.
     """
-    return run_domain(_program.split_revert, day or None)
+    return call_domain(_program.revert_split, day or None)
 
 
 @mcp.tool()
-def program_priority_set(muscle: str, tier: str, until: str = "") -> dict:
+def program_priority_set(muscle: str, tier: Tier, until: str = "") -> dict:
     """Bring a muscle up or down: tier breaks ties for slack volume.
 
     Args:
@@ -418,7 +409,7 @@ def program_priority_set(muscle: str, tier: str, until: str = "") -> dict:
         tier: One of priority, maintain, deprioritize.
         until: Optional expiry date.
     """
-    return run_domain(_program.priority_set, muscle, tier, until or None)
+    return call_domain(_program.set_priority, muscle, tier, until or None)
 
 
 @mcp.tool()
@@ -428,30 +419,30 @@ def program_priority_clear(muscle: str) -> dict:
     Args:
         muscle: Tracked muscle.
     """
-    return run_domain(_program.priority_clear, muscle)
+    return call_domain(_program.clear_priority, muscle)
 
 
 @mcp.tool()
 def program_priority_list() -> dict:
     """Current muscle priority tiers."""
-    return run_domain(_program.priority_list)
+    return call_domain(_program.list_priorities)
 
 
 @mcp.tool()
-def program_deload_set(scope: str, subject: str) -> dict:
+def program_deload_set(scope: Scope, subject: str) -> dict:
     """Mark a lift or slot as deloaded (volume down per SCIENCE.md, trajectory resumes next session).
 
     Args:
         scope: One of lift, slot.
         subject: Lift or slot name.
     """
-    return run_domain(_program.deload_set, scope, subject)
+    return call_domain(_program.set_deload, scope, subject)
 
 
 @mcp.tool()
 def program_deload_clear() -> dict:
     """Clear deload state after the deload session ends (appends the dated state line)."""
-    return run_domain(_program.deload_clear)
+    return call_domain(_program.clear_deload)
 
 
 @mcp.tool()
@@ -463,7 +454,7 @@ def program_rule_add(text: str, subject: str = "", expires: str = "") -> dict:
         subject: Optional subject the rule governs.
         expires: Optional expiry date.
     """
-    return run_domain(_program.rule_add, text, subject or None, expires or None)
+    return call_domain(_program.add_rule, text, subject or None, expires or None)
 
 
 @mcp.tool()
@@ -473,7 +464,7 @@ def program_rule_list(expiring_within: Optional[int] = None) -> dict:
     Args:
         expiring_within: Optional day window for the needs-confirm slice.
     """
-    return run_domain(_program.rule_list, expiring_within)
+    return call_domain(_program.list_rules, expiring_within)
 
 
 @mcp.tool()
@@ -485,7 +476,7 @@ def program_rule_confirm(rule_id: int, extend: str = "", archive: bool = False) 
         extend: New expiry date for reactivation.
         archive: Archive instead of extending.
     """
-    return run_domain(_program.rule_confirm, rule_id, extend or None, archive)
+    return call_domain(_program.confirm_rule, rule_id, extend or None, archive)
 
 
 @mcp.tool()
@@ -496,13 +487,13 @@ def program_flag_add(subject: str, reason: str) -> dict:
         subject: Exercise or muscle.
         reason: Why it is flagged.
     """
-    return run_domain(_program.flag_add, subject, reason)
+    return call_domain(_program.add_flag, subject, reason)
 
 
 @mcp.tool()
 def program_flag_list() -> dict:
     """Open flags."""
-    return run_domain(_program.flag_list)
+    return call_domain(_program.list_flags)
 
 
 @mcp.tool()
@@ -512,7 +503,7 @@ def program_flag_consume(flag_id: int) -> dict:
     Args:
         flag_id: Exact flag id.
     """
-    return run_domain(_program.flag_consume, flag_id)
+    return call_domain(_program.consume_flag, flag_id)
 
 
 @mcp.tool()
@@ -522,7 +513,7 @@ def program_meta_show(key: str = "") -> dict:
     Args:
         key: Optional single key.
     """
-    return run_domain(_program.meta_show, key or None)
+    return call_domain(_program.get_meta, key or None)
 
 
 @mcp.tool()
@@ -533,7 +524,7 @@ def program_meta_set(key: str, value: str) -> dict:
         key: One of rotation, last_compacted, compaction_postponed_until.
         value: New value (rotation takes a JSON day array).
     """
-    return run_domain(_program.meta_set, key, value)
+    return call_domain(_program.set_meta, key, value)
 
 
 @mcp.tool()
@@ -544,7 +535,7 @@ def program_rotation_anchor(date: str, day: str) -> dict:
         date: Anchor date yyyy-mm-dd.
         day: Rotation day trained that date.
     """
-    return run_domain(_adherence.rotation_anchor, date, day)
+    return call_domain(_adherence.anchor_rotation, date, day)
 
 
 @mcp.tool()
@@ -555,14 +546,14 @@ def program_rotation_status(from_date: str = "", to_date: str = "") -> dict:
         from_date: Start yyyy-mm-dd, defaults to the volume window.
         to_date: End yyyy-mm-dd, defaults to today.
     """
-    return run_domain(_adherence.rotation_status, from_date or None, to_date or None)
+    return call_domain(_adherence.get_rotation_status, from_date or None, to_date or None)
 
 
 # === progression and goals ===
 
 
 @mcp.tool()
-def progression_set(exercise: str, verdict: str, next_target: str, direction: str,
+def progression_set(exercise: str, verdict: Verdict, next_target: str, direction: Direction,
                     note: str = "", workout_id: Optional[int] = None) -> dict:
     """Judge one lift for the session just trained (every trained lift gets one at end).
 
@@ -574,8 +565,8 @@ def progression_set(exercise: str, verdict: str, next_target: str, direction: st
         note: Optional note.
         workout_id: Defaults to the open workout; pass an id to backfill a closed one.
     """
-    return run_domain(_progression.progression_set, exercise, verdict, next_target,
-                direction, note, workout_id)
+    return call_domain(_progression.set_progression, exercise, verdict, next_target,
+               direction, note, workout_id)
 
 
 @mcp.tool()
@@ -585,7 +576,7 @@ def progression_show(exercise: str = "") -> dict:
     Args:
         exercise: Optional lift name.
     """
-    return run_domain(_progression.progression_show, exercise or None)
+    return call_domain(_progression.get_progression, exercise or None)
 
 
 @mcp.tool()
@@ -600,7 +591,7 @@ def goal_add(exercise: str, target_e1rm: float, deadline: str, desc: str = "",
         desc: Optional description.
         start_e1rm: Optional starting e1RM (defaults to current best).
     """
-    return run_domain(_goals.goal_add, exercise, target_e1rm, deadline, desc, start_e1rm)
+    return call_domain(_goals.add_goal, exercise, target_e1rm, deadline, desc, start_e1rm)
 
 
 @mcp.tool()
@@ -610,7 +601,7 @@ def goal_show(goal_id: str = "") -> dict:
     Args:
         goal_id: Optional single goal id.
     """
-    return run_domain(_goals.goal_show, goal_id or None)
+    return call_domain(_goals.get_goal, goal_id or None)
 
 
 @mcp.tool()
@@ -620,7 +611,7 @@ def goal_rewrite(goal_id: int) -> dict:
     Args:
         goal_id: Exact goal id.
     """
-    return run_domain(_goals.goal_rewrite, goal_id)
+    return call_domain(_goals.rewrite_goal, goal_id)
 
 
 @mcp.tool()
@@ -630,7 +621,7 @@ def goal_drop(goal_id: int) -> dict:
     Args:
         goal_id: Exact goal id.
     """
-    return run_domain(_goals.goal_drop, goal_id)
+    return call_domain(_goals.drop_goal, goal_id)
 
 
 # === autoreg ===
@@ -651,14 +642,14 @@ def autoreg_apply(day: str, slot: int, to_movements: str, to_sets: int,
         evidence: Quoted reason for the change.
         from_movements: Expected current movements (concurrent-edit guard).
     """
-    return run_domain(_autoreg.autoreg_apply, day, slot, to_movements, to_sets,
-                evidence, from_movements or None)
+    return call_domain(_autoreg.apply_autoreg, day, slot, to_movements, to_sets,
+               evidence, from_movements or None)
 
 
 @mcp.tool()
 def autoreg_log() -> dict:
     """Autonomous change ledger."""
-    return run_domain(_autoreg.autoreg_log)
+    return call_domain(_autoreg.list_autoreg_changes)
 
 
 @mcp.tool()
@@ -668,7 +659,7 @@ def autoreg_revert(change_id: int) -> dict:
     Args:
         change_id: Exact autoreg change id.
     """
-    return run_domain(_autoreg.autoreg_revert, change_id)
+    return call_domain(_autoreg.revert_autoreg_change, change_id)
 
 
 # === analysis and configuration ===
@@ -677,13 +668,13 @@ def autoreg_revert(change_id: int) -> dict:
 @mcp.tool()
 def audit_data() -> dict:
     """Full data quality check per docs/AUDIT.md."""
-    return run_domain(_audit.audit)
+    return call_domain(_audit.run_audit)
 
 
 @mcp.tool()
 def doctor() -> dict:
     """Validate constants, DB, dashboard, and dump consistency."""
-    return run_domain(_audit.doctor)
+    return call_domain(_audit.run_doctor)
 
 
 @mcp.tool()
@@ -694,13 +685,13 @@ def constants_show(key: str = "") -> dict:
     Args:
         key: Optional dotted key (e.g. muscles.chest, thresholds).
     """
-    return run_domain(_constants.constants_show, key or None)
+    return call_domain(_constants.get_constants, key or None)
 
 
 @mcp.tool()
 def constants_validate() -> dict:
     """Validate constants.json structurally."""
-    return run_domain(_constants.constants_validate)
+    return call_domain(_constants.check_constants)
 
 
 @mcp.tool()
@@ -711,7 +702,7 @@ def constants_set(key: str, value: str) -> dict:
         key: Dotted key to set.
         value: JSON-encoded new value (a JSON string holds a plain string).
     """
-    return run_domain(_constants.constants_set, key, value)
+    return call_domain(_constants.set_constant, key, value)
 
 
 # === snapshot and sync ===
@@ -722,7 +713,7 @@ def snapshot_export() -> dict:
     """Full validated dashboard payload (history plus program and forward state).
     For the dashboard file only, never pulled in bulk into chat.
     """
-    return run_domain(_sync.export)
+    return call_domain(_sync.export_snapshot)
 
 
 @mcp.tool()
@@ -733,13 +724,13 @@ def sync_push(force: bool = False) -> dict:
     Args:
         force: Overwrite deliberately after reconciling a 412.
     """
-    return run_domain(_sync.sync, force)
+    return call_domain(_sync.push_snapshot, force)
 
 
 @mcp.tool()
 def maintenance_dump() -> dict:
     """Re-write workouts.sql from the live DB without syncing (recovery and drift fixes)."""
-    return run_domain(_sync.dump)
+    return call_domain(_sync.dump_sql)
 
 
 @mcp.tool()
@@ -750,4 +741,4 @@ def maintenance_restore(force: bool = False) -> dict:
     Args:
         force: Restore despite an open workout.
     """
-    return run_domain(_sync.restore, force)
+    return call_domain(_sync.restore_sql, force)

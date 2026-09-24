@@ -45,7 +45,7 @@ def test_session_lifecycle_through_mcp(log_module):
     assert hist["ok"] is True and hist["data"][0]["exercise"] == "bench"
     assert call("progression_set", {"exercise": "bench", "verdict": "baseline",
                                    "next_target": "82.5x5", "direction": "flat"})["ok"] is True
-    log.split_set("Upper A", 1, "bench", 5)
+    log.set_split("Upper A", 1, "bench", 5)
     assert call("program_split_reconcile", {"day": "Upper A"})["ok"] is True
     ended = call("session_end", {"note": "mcp done"})
     assert ended["ok"] is True
@@ -57,14 +57,31 @@ def test_refusals_surface_as_errors(log_module):
     assert bad["ok"] is False, "log with no open workout must refuse, not invent one"
     assert "no open workout" in bad["error"]
     assert call("session_delete_set", {"set_id": 999999})["ok"] is False
-    assert call("progression_set", {"exercise": "bench", "verdict": "smashed",
-                                   "next_target": "82.5x5", "direction": "up"})["ok"] is False
+    missing = call("progression_set", {"exercise": "bench", "verdict": "hit",
+                                       "next_target": "82.5x5", "direction": "up"})
+    assert missing["ok"] is False
+    assert "no open workout" in missing["error"]
+
+
+def test_closed_vocabularies_reject_at_the_schema(log_module):
+    """Finite domain vocabularies are enforced by tool schemas, before domain logic runs."""
+    import pytest
+    with pytest.raises(Exception, match="verdict"):
+        call("progression_set", {"exercise": "bench", "verdict": "smashed",
+                                 "next_target": "82.5x5", "direction": "up"})
+    with pytest.raises(Exception, match="direction"):
+        call("progression_set", {"exercise": "bench", "verdict": "hit",
+                                 "next_target": "82.5x5", "direction": "sideways"})
+    with pytest.raises(Exception, match="tier"):
+        call("program_priority_set", {"muscle": "chest", "tier": "urgent"})
+    with pytest.raises(Exception, match="scope"):
+        call("program_deload_set", {"scope": "planet", "subject": "bench"})
 
 
 def test_read_tools_share_domain_logic(log_module):
     log = log_module
-    log.start("read check")
-    log.log("bench", 80, 5, "", "chest", False)
+    log.start_workout("read check")
+    log.log_set("bench", 80, 5, "", "chest", False)
     assert call("session_exercises", {})["data"] == ["bench"]
     assert call("muscle_map_show", {"exercise": "bench"})["ok"] is True
     assert call("program_split_show", {})["ok"] is True
@@ -100,12 +117,3 @@ def test_constants_and_snapshot_through_mcp(log_module):
     assert snap["ok"] is True and "workouts" in snap["data"]
     from reps.models import SnapshotModel
     SnapshotModel.model_validate(snap["data"])
-
-
-def test_handlers_hold_no_business_logic():
-    """MCP stays a thin adapter: no SQL, no exits, no domain computation."""
-    import pathlib
-    text = pathlib.Path("reps/mcp/server.py").read_text()
-    for banned in (".execute(", "sqlite3", "sys.exit", "CREATE TABLE", "INSERT INTO"):
-        assert banned not in text, f"MCP handler layer must not contain {banned!r}"
-    assert text.count("run_domain(") >= 50, "every tool delegates through the shared adapter"

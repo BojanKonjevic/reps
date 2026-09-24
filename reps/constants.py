@@ -1,6 +1,7 @@
 import json
 import os
-import sys
+
+from .errors import RepsError
 
 from pydantic import ValidationError
 
@@ -21,7 +22,7 @@ def validate_constants(raw, source):
     try:
         ConstantsModel.model_validate(raw)
     except ValidationError as e:
-        sys.exit(f"constants invalid at {source}: {first_error(e)}")
+        raise RepsError(f"constants invalid at {source}: {first_error(e)}")
     return raw
 
 
@@ -36,11 +37,11 @@ def load_constants() -> ConstantsModel:
         with open(CONSTANTS_FILE, 'r') as f:
             raw = json.load(f)
     except (OSError, ValueError) as e:
-        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
+        raise RepsError(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
     try:
         return ConstantsModel.model_validate(raw)
     except ValidationError as e:
-        sys.exit(f"constants invalid at {CONSTANTS_FILE}: {first_error(e)}")
+        raise RepsError(f"constants invalid at {CONSTANTS_FILE}: {first_error(e)}")
 
 
 def parse_mev_from_science():
@@ -99,7 +100,7 @@ def clean_muscles(value):
     out = []
     try:
         vocab = set(load_constants().muscles) | set(load_constants().untracked)
-    except SystemExit:
+    except RepsError:
         vocab = set()
     for p in value.split(","):
         m = p.strip().lower()
@@ -113,27 +114,26 @@ def clean_muscles(value):
     return ",".join(out)
 
 
-def constants_show(key=None):
+def get_constants(key=None):
     constants = load_constants().model_dump()
     if not key:
-        print(json.dumps(constants, indent=2))
-        return
+        return constants
     parts = key.split(".")
     node = constants
     for part in parts:
         if isinstance(node, dict) and part in node:
             node = node[part]
         else:
-            sys.exit(f"constants key '{key}' not found")
-    print(json.dumps(node, indent=2))
+            raise RepsError(f"constants key '{key}' not found")
+    return node
 
 
-def constants_validate():
+def check_constants():
     load_constants()
-    print(json.dumps({"valid": True, "file": CONSTANTS_FILE}))
+    return {"valid": True, "file": CONSTANTS_FILE}
 
 
-def constants_set(key, value):
+def set_constant(key, value):
     try:
         parsed = json.loads(value)
     except ValueError:
@@ -142,15 +142,15 @@ def constants_set(key, value):
         with open(CONSTANTS_FILE, 'r') as f:
             raw = json.load(f)
     except (OSError, ValueError) as e:
-        sys.exit(f"constants.json unreadable at {CONSTANTS_FILE} ({e})")
+        raise RepsError(f"constants.json unreadable at {CONSTANTS_FILE} ({e})")
     parts = key.split(".")
     node = raw
     for part in parts[:-1]:
         if not isinstance(node, dict) or part not in node:
-            sys.exit(f"constants key '{key}' not found")
+            raise RepsError(f"constants key '{key}' not found")
         node = node[part]
     if not isinstance(node, dict) or parts[-1] not in node:
-        sys.exit(f"constants key '{key}' not found")
+        raise RepsError(f"constants key '{key}' not found")
     node[parts[-1]] = parsed
     validate_constants(raw, f"candidate for {key}")
     import tempfile
@@ -166,4 +166,4 @@ def constants_set(key, value):
         except OSError:
             pass
     load_constants()
-    print(json.dumps({"set": key, "value": parsed}))
+    return {"set": key, "value": parsed}

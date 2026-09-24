@@ -48,21 +48,21 @@ def close_session(log, note="done"):
         judged = {r["exercise"] for r in c.execute(
             "SELECT DISTINCT exercise FROM progression WHERE workout_id = ?", (w["id"],)).fetchall()}
         for ex in sorted(trained - judged):
-            log.progression_set(ex, "baseline", "80x5", "flat")
+            log.set_progression(ex, "baseline", "80x5", "flat")
         new = sorted(set(trained) - log.split_all_movements("active"))
         if new:
             days = log.split_day_order("active")
             day = log.best_split_day(trained) or (days[0] if days else None)
             if day is None:
                 for i, ex in enumerate(sorted(trained), 1):
-                    log.split_set("Test", i, ex, 2)
+                    log.set_split("Test", i, ex, 2)
             else:
-                log.split_reconcile(day)
-    return log.end(note)
+                log.reconcile_split(day)
+    return log.end_workout(note)
 
 
 def seed_split(log, day, *movesets):
     """Seed an active split day: seed_split(log, 'Upper A', ('bench', 3), ('row', 2)).
     Exercises must already have mappings (log a set or map set first)."""
     for i, (move, sets) in enumerate(movesets, 1):
-        log.split_set(day, i, move, sets)
+        log.set_split(day, i, move, sets)

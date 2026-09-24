@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
 """Phase 1: plan command computes ledger, volume, staleness, slot guess."""
 
-import io
-import json
-import sys
-from contextlib import redirect_stdout
 from datetime import date, timedelta
 
 
 def _plan(log, *args):
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        if args:
-            log.plan(*args)
-        else:
-            log.plan()
-    return buf.getvalue()
+    if args:
+        return log.get_plan(*args)
+    return log.get_plan()
 
 
 def test_plan_empty_db_shape(log_module):
     log = log_module
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert set(bundle) == {"today", "slot_guess", "split", "goals", "rules", "volume", "ledger", "lifts",
                            "progression", "flags", "priority", "deload", "autoreg", "adherence", "compaction"}
     assert bundle["today"] == {"open": False, "workout": None, "rest": False, "stale": None,
@@ -34,10 +26,10 @@ def test_plan_empty_db_shape(log_module):
 
 def test_plan_ledger_and_lifts(log_module):
     log = log_module
-    log.start("test")
-    log.log("bench", 100, 5, "", "chest,front delts")
-    log.log("bench", 100, 6, "", "chest,front delts")
-    bundle = json.loads(_plan(log))
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest,front delts")
+    log.log_set("bench", 100, 6, "", "chest,front delts")
+    bundle = _plan(log)
     assert bundle["ledger"]["chest"]["sets"] == 2
     assert bundle["ledger"]["chest"]["sessions"] == 1
     assert bundle["ledger"]["chest"]["last_hit"] == date.today().isoformat()
@@ -62,7 +54,7 @@ def test_plan_volume_weekly_counts(log_module):
                 (cur.lastrowid,))
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     weekly = bundle["volume"]["chest"]["weekly"]
     assert len(weekly) == 8
     assert weekly[-1] == 3
@@ -76,7 +68,7 @@ def test_plan_stale_open_workout(log_module):
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', 'stale')", (yesterday,))
     c.commit()
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert bundle["today"]["stale"]["is_stale"] is True
     assert bundle["today"]["stale"]["age_days"] == 1
 
@@ -92,7 +84,7 @@ def test_plan_break_flag(log_module):
         (cur.lastrowid,))
     c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert bundle["today"]["gap_days"] == 5
     assert bundle["today"]["break"] is True
 
@@ -118,7 +110,7 @@ def test_plan_slot_guess_follows_rotation(log_module):
             (cur.lastrowid, ex))
         c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
     c.commit()
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert bundle["slot_guess"]["day"] == "Lower A"
     assert "Upper A" in bundle["slot_guess"]["basis"]
     assert bundle["split"]["day"] == "Lower A"
@@ -128,9 +120,9 @@ def test_plan_slot_guess_follows_rotation(log_module):
 def test_plan_explicit_slot_and_verbose(log_module):
     import datetime as _dt
     log = log_module
-    log.meta_set("compaction_postponed_until", (_dt.date.today() + _dt.timedelta(days=30)).isoformat())
-    out = _plan(log, "Upper B", True)
+    log.set_meta("compaction_postponed_until", (_dt.date.today() + _dt.timedelta(days=30)).isoformat())
+    out = "\n".join(_plan(log, "Upper B", True)["lines"])
     assert "slot guess: Upper B" in out
     assert "compaction due" not in out
-    bundle = json.loads(_plan(log, "Upper B", False))
+    bundle = _plan(log, "Upper B", False)
     assert bundle["slot_guess"] == {"day": "Upper B", "basis": "explicit slot", "confidence": "high"}

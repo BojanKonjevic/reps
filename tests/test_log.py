@@ -1,46 +1,35 @@
 #!/usr/bin/env python3
 """pytest suite for log.py - deterministic tests only."""
 
-import json
-import sys
-import io
 from datetime import date, timedelta
 
+import pytest
+
 from conftest import close_session
-
-
-def capture_stdout(fn, *args, **kwargs):
-    """Capture stdout from a function call."""
-    old_stdout = sys.stdout
-    sys.stdout = io.StringIO()
-    try:
-        fn(*args, **kwargs)
-        return sys.stdout.getvalue()
-    finally:
-        sys.stdout = old_stdout
+from reps.errors import RepsError
 
 
 def test_log_fails_without_open_workout(log_module):
     """log should fail cleanly when no workout is open, never auto-create."""
     c = log_module.conn()
     try:
-        log_module.log("bench", 100, 5, "", "chest")
+        log_module.log_set("bench", 100, 5, "", "chest")
         assert False, "should have exited"
-    except SystemExit as e:
+    except RepsError as e:
         assert "no open workout" in str(e).lower()
 
 
 def test_update_rejects_invalid_fields(log_module):
     """update should reject fields outside allowed set."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     try:
-        log_module.update(set_id, "invalid_field", "value")
+        log_module.update_set(set_id, "invalid_field", "value")
         assert False, "should have exited"
-    except SystemExit as e:
+    except RepsError as e:
         assert "field must be one of" in str(e).lower()
 
 
@@ -56,13 +45,12 @@ def test_muscle_cleaning_normalizes(log_module):
 def test_delete_set_returns_accurate_payload_and_removes(log_module):
     """delete-set returns was payload and actually removes row."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
-    log_module.log("squat", 150, 5, "", "quads,glutes")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    log_module.log_set("squat", 150, 5, "", "quads,glutes")
     sets = c.execute("SELECT * FROM sets ORDER BY id").fetchall()
     set_id = sets[0]["id"]
-    output = capture_stdout(log_module.delete_set, str(set_id))
-    data = json.loads(output)
+    data = log_module.delete_set(str(set_id))
     assert data["deleted"] == set_id
     assert "was" in data
     assert data["was"]["exercise"] == "bench"
@@ -75,13 +63,12 @@ def test_delete_set_returns_accurate_payload_and_removes(log_module):
 def test_delete_workout_returns_accurate_payload_and_removes(log_module):
     """delete-workout returns was payload and removes workout + sets."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
-    log_module.log("squat", 150, 5, "", "quads,glutes")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    log_module.log_set("squat", 150, 5, "", "quads,glutes")
     workouts = c.execute("SELECT * FROM workouts").fetchall()
     workout_id = workouts[0]["id"]
-    output = capture_stdout(log_module.delete_workout, str(workout_id))
-    data = json.loads(output)
+    data = log_module.delete_workout(str(workout_id))
     assert data["deleted_workout"] == workout_id
     assert data["deleted_sets"] == 2
     w_count = c.execute("SELECT COUNT(*) n FROM workouts").fetchone()["n"]
@@ -92,8 +79,7 @@ def test_delete_workout_returns_accurate_payload_and_removes(log_module):
 
 def test_weigh_produces_correct_payload(log_module):
     """weigh produces correctly shaped payload."""
-    output = capture_stdout(log_module.weigh, "84.5", "fasted")
-    data = json.loads(output)
+    data = log_module.record_bodyweight("84.5", "fasted")
     assert "weigh_id" in data
     assert data["kg"] == 84.5
     assert data["date"].count("-") == 2
@@ -102,26 +88,26 @@ def test_weigh_produces_correct_payload(log_module):
 def test_update_workout_rejects_bad_status(log_module):
     """update-workout rejects invalid status values."""
     c = log_module.conn()
-    log_module.start("test")
+    log_module.start_workout("test")
     workouts = c.execute("SELECT id FROM workouts").fetchall()
     wid = workouts[0]["id"]
     try:
         log_module.update_workout(str(wid), "status", "invalid")
         assert False, "should have exited"
-    except SystemExit as e:
+    except RepsError as e:
         assert "status must be open, done or rest" in str(e).lower()
 
 
 def test_update_workout_validates_date_format(log_module):
     """update-workout validates date format."""
     c = log_module.conn()
-    log_module.start("test")
+    log_module.start_workout("test")
     workouts = c.execute("SELECT id FROM workouts").fetchall()
     wid = workouts[0]["id"]
     try:
         log_module.update_workout(str(wid), "date", "not-a-date")
         assert False, "should have exited"
-    except SystemExit:
+    except RepsError:
         pass
 
 
@@ -129,11 +115,10 @@ def test_context_returns_correct_scope(log_module):
     """context returns last N workouts with correct structure."""
     c = log_module.conn()
     for i in range(5):
-        log_module.start(f"workout {i}")
-        log_module.log("bench", 100 + i * 5, 5, "", "chest")
+        log_module.start_workout(f"workout {i}")
+        log_module.log_set("bench", 100 + i * 5, 5, "", "chest")
         close_session(log_module, "done")
-    output = capture_stdout(log_module.context, "3")
-    data = json.loads(output)
+    data = log_module.get_context("3")
     assert len(data["recent"]) == 3
     assert "lifts" in data
     assert "workouts_total" in data
@@ -145,12 +130,11 @@ def test_context_returns_correct_scope(log_module):
 def test_session_returns_correct_workout_ids(log_module):
     """session returns workouts for the given date with correct IDs."""
     c = log_module.conn()
-    log_module.start("push day")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("push day")
+    log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
     today = date.today().isoformat()
-    output = capture_stdout(log_module.session, today)
-    data = json.loads(output)
+    data = log_module.get_session(today)
     assert data["date"] == today
     assert len(data["workouts"]) == 1
     assert data["workouts"][0]["workout"]["notes"] == "push day done"
@@ -171,8 +155,7 @@ def test_range_returns_correct_date_bounds(log_module):
         cur2 = c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, note, created) VALUES (?, 'bench', 100, 5, '', datetime('now'))", (wid,))
         c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, 'chest')", (cur2.lastrowid,))
         c.commit()
-    output = capture_stdout(log_module.session_range, d1, d2)
-    data = json.loads(output)
+    data = log_module.get_session_range(d1, d2)
     assert data["from"] == d1
     assert data["to"] == d2
     assert len(data["workouts"]) == 2
@@ -185,11 +168,11 @@ def test_range_returns_correct_date_bounds(log_module):
 def test_map_set_retags_everywhere(log_module):
     """map set changes the mapping and all of the exercise's sets."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
-    log_module.retag("bench", " chest , back , CHEST ")
+    log_module.set_exercise_mapping("bench", " chest , back , CHEST ")
     updated = c.execute("SELECT muscle FROM set_muscles WHERE set_id = ? ORDER BY muscle", (set_id,)).fetchall()
     assert [r["muscle"] for r in updated] == ["back", "chest"]
 
@@ -197,15 +180,15 @@ def test_map_set_retags_everywhere(log_module):
 def test_update_exercise_normalizes_case(log_module):
     """update with exercise field normalizes to lowercase."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     # Add mapping for target exercise first
     c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               ("incline bench", "chest,triceps", 0))
     c.commit()
-    log_module.update(set_id, "exercise", "Incline Bench")
+    log_module.update_set(set_id, "exercise", "Incline Bench")
     updated = c.execute("SELECT exercise FROM sets WHERE id = ?", (set_id,)).fetchone()
     assert updated["exercise"] == "incline bench"
 
@@ -213,14 +196,13 @@ def test_update_exercise_normalizes_case(log_module):
 def test_rename_updates_all_matching_exercises(log_module):
     """rename updates all sets with matching exercise name."""
     c = log_module.conn()
-    log_module.start("day 1")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("day 1")
+    log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
-    log_module.start("day 2")
-    log_module.log("bench", 105, 5, "", "chest")
+    log_module.start_workout("day 2")
+    log_module.log_set("bench", 105, 5, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.rename, "bench", "flat bench")
-    data = json.loads(output)
+    data = log_module.rename_exercise("bench", "flat bench")
     assert data["renamed"] == 2
     exercises = [r["exercise"] for r in c.execute("SELECT exercise FROM sets").fetchall()]
     assert all(e == "flat bench" for e in exercises)
@@ -229,14 +211,13 @@ def test_rename_updates_all_matching_exercises(log_module):
 def test_retag_updates_all_matching_exercises(log_module):
     """retag updates muscles for all sets of an exercise."""
     c = log_module.conn()
-    log_module.start("day 1")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("day 1")
+    log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
-    log_module.start("day 2")
-    log_module.log("bench", 105, 5, "", "chest")
+    log_module.start_workout("day 2")
+    log_module.log_set("bench", 105, 5, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.retag, "bench", "chest,triceps")
-    data = json.loads(output)
+    data = log_module.set_exercise_mapping("bench", "chest,triceps")
     assert data["updated"] == 2
     for r in c.execute("SELECT id FROM sets").fetchall():
         muscles = sorted(x["muscle"] for x in c.execute("SELECT muscle FROM set_muscles WHERE set_id = ?", (r["id"],)).fetchall())
@@ -246,8 +227,8 @@ def test_retag_updates_all_matching_exercises(log_module):
 def test_start_reuses_open_workout(log_module):
     """start returns existing open workout instead of creating new."""
     c = log_module.conn()
-    out1 = json.loads(capture_stdout(log_module.start, "first"))
-    out2 = json.loads(capture_stdout(log_module.start, "second"))
+    out1 = log_module.start_workout("first")
+    out2 = log_module.start_workout("second")
     assert out1["workout_id"] == out2["workout_id"]
     assert out1["reused"] is False
     assert out2["reused"] is True
@@ -256,8 +237,8 @@ def test_start_reuses_open_workout(log_module):
 def test_log_strips_exercise_name(log_module):
     """log normalizes exercise name to lowercase stripped."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("  Incline Bench  ", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("  Incline Bench  ", 100, 5, "", "chest")
     ex = c.execute("SELECT exercise FROM sets").fetchone()["exercise"]
     assert ex == "incline bench"
 
@@ -265,13 +246,12 @@ def test_log_strips_exercise_name(log_module):
 def test_stats_returns_correct_shape(log_module):
     """stats returns workouts count and per-exercise aggregates."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
-    log_module.log("bench", 105, 5, "", "chest")
-    log_module.log("squat", 150, 5, "", "quads,glutes")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    log_module.log_set("bench", 105, 5, "", "chest")
+    log_module.log_set("squat", 150, 5, "", "quads,glutes")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.stats)
-    data = json.loads(output)
+    data = log_module.get_stats()
     assert data["workouts"] == 1
     assert data["by_exercise"]["bench"]["sets"] == 2
     assert data["by_exercise"]["bench"]["max_weight"] == 105
@@ -283,11 +263,10 @@ def test_history_returns_correct_exercise_sets(log_module):
     """history returns sets for specific exercise, limited correctly."""
     c = log_module.conn()
     for i in range(10):
-        log_module.start(f"w{i}")
-        log_module.log("bench", 100 + i, 5, "", "chest")
+        log_module.start_workout(f"w{i}")
+        log_module.log_set("bench", 100 + i, 5, "", "chest")
         close_session(log_module, "done")
-    output = capture_stdout(log_module.history, "bench", "3")
-    data = json.loads(output)
+    data = log_module.get_history("bench", "3")
     assert len(data) == 3
     assert data[0]["weight"] == 109
     assert data[2]["weight"] == 107
@@ -296,12 +275,11 @@ def test_history_returns_correct_exercise_sets(log_module):
 def test_end_closes_workout(log_module):
     """end sets status to done and adds note."""
     c = log_module.conn()
-    log_module.start("initial note")
-    log_module.log("bench", 100, 5, "", "chest")
-    log_module.split_set("Test", 1, "bench", 2)
-    log_module.progression_set("bench", "baseline", "80x5", "flat")
-    output = capture_stdout(log_module.end, "final note")
-    data = json.loads(output)
+    log_module.start_workout("initial note")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    log_module.set_split("Test", 1, "bench", 2)
+    log_module.set_progression("bench", "baseline", "80x5", "flat")
+    data = log_module.end_workout("final note")
     assert "closed" in data
     w = c.execute("SELECT * FROM workouts WHERE id = ?", (data["closed"],)).fetchone()
     assert w["status"] == "done"
@@ -319,8 +297,7 @@ def test_calendar_returns_gaps(log_module):
     for d in [d0, d1, d2]:
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
-    output = capture_stdout(log_module.calendar)
-    data = json.loads(output)
+    data = log_module.get_calendar()
     dates = [d["date"] for d in data["dates"]]
     assert len(dates) == 3
     today_entry = next(d for d in data["dates"] if d["date"] == d2)
@@ -330,14 +307,13 @@ def test_calendar_returns_gaps(log_module):
 def test_notes_returns_only_nonempty(log_module):
     """notes only returns workouts/sets with non-empty notes."""
     c = log_module.conn()
-    log_module.start("has note")
-    log_module.log("bench", 100, 5, "set note", "chest")
+    log_module.start_workout("has note")
+    log_module.log_set("bench", 100, 5, "set note", "chest")
     close_session(log_module, "end note")
-    log_module.start("")
-    log_module.log("squat", 150, 5, "", "quads")
+    log_module.start_workout("")
+    log_module.log_set("squat", 150, 5, "", "quads")
     close_session(log_module, "")
-    output = capture_stdout(log_module.notes, "10")
-    data = json.loads(output)
+    data = log_module.get_notes("10")
     assert len(data["workout_notes"]) == 1
     assert data["workout_notes"][0]["notes"] == "has note end note"
     assert len(data["set_notes"]) == 1
@@ -347,12 +323,11 @@ def test_notes_returns_only_nonempty(log_module):
 def test_export_shape(log_module):
     """export returns correctly shaped payload with all tables."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
-    log_module.weigh("84.0", "")
-    output = capture_stdout(log_module.export)
-    data = json.loads(output)
+    log_module.record_bodyweight("84.0", "")
+    data = log_module.export_snapshot()
     assert "exported" in data
     assert "workouts" in data
     assert "sets" in data
@@ -365,41 +340,40 @@ def test_export_shape(log_module):
 def test_update_weight_rejects_empty(log_module):
     """update weight rejects empty value."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
     try:
-        log_module.update(set_id, "weight", "")
+        log_module.update_set(set_id, "weight", "")
         assert False, "should have exited"
-    except SystemExit as e:
+    except RepsError as e:
         assert "weight cannot be empty" in str(e).lower()
 
 
 def test_update_reps_converts_to_int(log_module):
     """update reps converts string to int."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     sets = c.execute("SELECT id FROM sets").fetchall()
     set_id = sets[0]["id"]
-    log_module.update(set_id, "reps", "8")
+    log_module.update_set(set_id, "reps", "8")
     updated = c.execute("SELECT reps FROM sets WHERE id = ?", (set_id,)).fetchone()
     assert updated["reps"] == 8
 
 
 def test_today_returns_open_false_when_none(log_module):
     """today returns open: false when no workout open."""
-    output = capture_stdout(log_module.today)
-    data = json.loads(output)
+    data = log_module.get_today()
     assert data["open"] is False
 
 
 def test_log_bw_flag_bootstraps_bodyweight_exercise(log_module):
     """log with bw flag allows zero weight on a brand new exercise."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("pullup", 0, 8, "", "back,biceps", True)
+    log_module.start_workout("test")
+    log_module.log_set("pullup", 0, 8, "", "back,biceps", True)
     mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = 'pullup'").fetchone()
     assert mapping["is_bodyweight_only"] == 1
 
@@ -407,24 +381,24 @@ def test_log_bw_flag_bootstraps_bodyweight_exercise(log_module):
 def test_log_zero_weight_rejected_without_bw_flag(log_module):
     """zero weight on a mapped non bodyweight lift fails even with muscles given."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     try:
-        log_module.log("bench", 0, 5, "", "chest")
+        log_module.log_set("bench", 0, 5, "", "chest")
         assert False, "should have exited"
-    except SystemExit as e:
+    except RepsError as e:
         assert "zero weight not allowed" in str(e).lower()
 
 
 def test_log_rejects_negative_weight_and_bad_reps(log_module):
     """negative weight and non positive reps never reach the db."""
     c = log_module.conn()
-    log_module.start("test")
+    log_module.start_workout("test")
     for w, r in [(-5, 5), (100, 0), (100, -3)]:
         try:
-            log_module.log("bench", w, r, "", "chest")
+            log_module.log_set("bench", w, r, "", "chest")
             assert False, "should have exited"
-        except SystemExit:
+        except RepsError:
             pass
     assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 0
 
@@ -432,11 +406,10 @@ def test_log_rejects_negative_weight_and_bad_reps(log_module):
 def test_rename_moves_muscle_mapping(log_module):
     """rename moves the lift_muscle_map entry so the new name stays mapped."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.rename, "bench", "flat bench")
-    data = json.loads(output)
+    data = log_module.rename_exercise("bench", "flat bench")
     assert data["renamed"] == 1
     assert data["map_moved"] is True
     assert c.execute("SELECT COUNT(*) n FROM lift_muscle_map WHERE exercise = 'bench'").fetchone()["n"] == 0
@@ -447,23 +420,21 @@ def test_rename_moves_muscle_mapping(log_module):
 def test_stats_single_e1rm_is_weight(log_module):
     """A true single reports e1RM equal to its weight, not the formula value."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 1, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 1, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.stats)
-    data = json.loads(output)
+    data = log_module.get_stats()
     assert data["by_exercise"]["bench"]["max_e1rm"] == 100
 
 
 def test_context_single_beats_lower_formula_e1rm(log_module):
     """Context top set uses the singles exception when ranking."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 1, "", "chest")
-    log_module.log("bench", 80, 5, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 1, "", "chest")
+    log_module.log_set("bench", 80, 5, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.context, "3")
-    data = json.loads(output)
+    data = log_module.get_context("3")
     bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
     assert bench["max_e1rm"] == 100
     assert bench["max_weight"] == 100
@@ -472,12 +443,11 @@ def test_context_single_beats_lower_formula_e1rm(log_module):
 def test_context_reports_max_e1rm(log_module):
     """context lifts report max e1RM, not just max top weight."""
     c = log_module.conn()
-    log_module.start("test")
-    log_module.log("bench", 100, 10, "", "chest")
-    log_module.log("bench", 105, 1, "", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 10, "", "chest")
+    log_module.log_set("bench", 105, 1, "", "chest")
     close_session(log_module, "done")
-    output = capture_stdout(log_module.context, "3")
-    data = json.loads(output)
+    data = log_module.get_context("3")
     bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
     assert bench["max_e1rm"] == round(100 * (1 + 10 / 30.0), 1)
     assert bench["max_weight"] == 100

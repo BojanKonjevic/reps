@@ -6,8 +6,9 @@ the rotation array plus one stored anchor, no new tables.
 """
 
 import json
-import sys
 from datetime import date, timedelta
+
+from .errors import RepsError
 
 from .constants import load_constants
 from .db import conn
@@ -195,7 +196,7 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
             "missed": [{"date": e["date"], "day": e["expected"]} for e in missed]}
 
 
-def rotation_anchor(date_str, day):
+def anchor_rotation(date_str, day):
     """Pin the rotation schedule: on <date> the rotation was at <day>.
 
     Day resolves to the first matching rotation index (case-insensitive).
@@ -204,23 +205,23 @@ def rotation_anchor(date_str, day):
     try:
         on = date.fromisoformat((date_str or "").strip()).isoformat()
     except ValueError:
-        sys.exit("anchor date must be YYYY-MM-DD")
+        raise RepsError("anchor date must be YYYY-MM-DD")
     if date.fromisoformat(on) > date.today():
-        sys.exit("anchor date cannot be in the future")
+        raise RepsError("anchor date cannot be in the future")
     rotation = parse_rotation(c)
     if not rotation:
-        sys.exit("no rotation to anchor (meta set rotation '<json array>' first)")
+        raise RepsError("no rotation to anchor (set rotation meta first)")
     match = next((i for i, d in enumerate(rotation) if d.lower() == (day or "").strip().lower()), None)
     if match is None:
-        sys.exit(f"'{day}' matches no rotation entry (see meta show rotation)")
+        raise RepsError(f"'{day}' matches no rotation entry")
     anchor = {"date": on, "index": match}
     c.execute("INSERT INTO meta (key, value) VALUES ('rotation_anchor', ?) "
               "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (json.dumps(anchor),))
     c.commit()
-    print(json.dumps({"anchor": anchor, "day": rotation[match]}))
+    return {"anchor": anchor, "day": rotation[match]}
 
 
-def rotation_status(from_iso=None, to_iso=None):
+def get_rotation_status(from_iso=None, to_iso=None):
     """Adherence verdicts per date over a range (default: last 14 days).
 
     Entries stop at today: future dates have nothing to classify.
@@ -230,17 +231,16 @@ def rotation_status(from_iso=None, to_iso=None):
     anchor = get_anchor(c)
     if not rotation or anchor is None:
         if meta_get(c, "rotation_anchor"):
-            sys.exit("rotation anchor is set but invalid (see doctor)")
-        sys.exit("rotation adherence needs a rotation and an anchor (rotation anchor <date> <day>)")
+            raise RepsError("rotation anchor is set but invalid (see doctor)")
+        raise RepsError("rotation adherence needs a rotation and an anchor")
     today = date.today().isoformat()
     try:
         to_iso = date.fromisoformat(to_iso).isoformat() if to_iso else today
         from_iso = date.fromisoformat(from_iso).isoformat() if from_iso else \
             (date.fromisoformat(to_iso) - timedelta(days=13)).isoformat()
     except ValueError:
-        sys.exit("status dates must be YYYY-MM-DD")
+        raise RepsError("status dates must be YYYY-MM-DD")
     to_iso = min(to_iso, today)
     if from_iso > to_iso:
-        print(json.dumps([]))
-        return
-    print(json.dumps(status_range(c, rotation, anchor, from_iso, to_iso), indent=2))
+        return []
+    return status_range(c, rotation, anchor, from_iso, to_iso)

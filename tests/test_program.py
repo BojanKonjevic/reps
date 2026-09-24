@@ -1,26 +1,16 @@
 #!/usr/bin/env python3
 """Phase 3: splits, movement notes, and rules live in SQLite with CLI writers."""
 
-import io
-import json
-from contextlib import redirect_stdout
-
 import pytest
 from conftest import close_session, seed_split
-
-
-def _out(fn, *args):
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        fn(*args)
-    return buf.getvalue()
+from reps.errors import RepsError
 
 
 def _seeded(log):
-    log.start("test")
-    log.log("bench", 100, 5, "", "chest")
-    log.log("row", 90, 8, "", "back")
-    log.retag("squat", "quads,glutes")
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest")
+    log.log_set("row", 90, 8, "", "back")
+    log.set_exercise_mapping("squat", "quads,glutes")
     seed_split(log, "Upper A", ("bench", 3), ("row", 2))
     seed_split(log, "Lower A", ("squat", 3))
 
@@ -28,28 +18,30 @@ def _seeded(log):
 def test_split_show_and_set(log_module):
     log = log_module
     _seeded(log)
-    out = _out(log.split_show, "Upper A", "active")
-    assert "1. bench x3" in out and "2. row x2" in out
+    shown = log.get_split("Upper A", "active")
+    assert shown["variant"] == "active"
+    assert [(r["slot"], r["movements"], r["sets"]) for r in shown["days"][0]["slots"]] == [
+        (1, "bench", 3), (2, "row", 2)]
     rows = log.read_split("active", "Upper A")
     assert [(r["slot"], r["movements"], r["sets"]) for r in rows] == [(1, "bench", 3), (2, "row", 2)]
-    log.retag("pulldown", "back")
-    log.split_set("Upper A", 2, "row / pulldown", 3)
+    log.set_exercise_mapping("pulldown", "back")
+    log.set_split("Upper A", 2, "row / pulldown", 3)
     assert log.read_split("active", "Upper A")[1] == {"day": "Upper A", "slot": 2,
                                                      "movements": "row / pulldown", "sets": 3}
 
 
 def test_split_set_rejects_unmapped(log_module):
     log = log_module
-    with pytest.raises(SystemExit, match="no mapping"):
-        log.split_set("Upper A", 1, "mystery press", 3)
+    with pytest.raises(RepsError, match="no mapping"):
+        log.set_split("Upper A", 1, "mystery press", 3)
 
 
 def test_split_move_reorders(log_module):
     log = log_module
     _seeded(log)
-    log.retag("fly", "chest")
-    log.split_set("Upper A", 3, "fly", 2)
-    log.split_move("Upper A", "fly", 1)
+    log.set_exercise_mapping("fly", "chest")
+    log.set_split("Upper A", 3, "fly", 2)
+    log.move_split("Upper A", "fly", 1)
     rows = log.read_split("active", "Upper A")
     assert [(r["slot"], r["movements"]) for r in rows] == [(1, "fly"), (2, "bench"), (3, "row")]
 
@@ -57,8 +49,8 @@ def test_split_move_reorders(log_module):
 def test_split_reconcile_appends_new(log_module):
     log = log_module
     _seeded(log)
-    log.log("fly", 20, 10, "", "chest")
-    log.split_reconcile("Upper A")
+    log.log_set("fly", 20, 10, "", "chest")
+    log.reconcile_split("Upper A")
     rows = log.read_split("active", "Upper A")
     assert rows[-1] == {"day": "Upper A", "slot": 3, "movements": "fly", "sets": 2}
 
@@ -71,70 +63,59 @@ def test_split_diff_and_revert(log_module):
         c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('baseline', ?, ?, ?, ?)",
                   (r["day"], r["slot"], r["movements"], r["sets"]))
     c.commit()
-    log.split_set("Upper A", 1, "bench", 5)
-    diff = _out(log.split_diff)
-    assert "Upper A" in diff and "baseline" in diff
-    log.split_revert("Upper A")
+    log.set_split("Upper A", 1, "bench", 5)
+    diff = log.diff_split()
+    assert diff["matches"] is False
+    assert any("Upper A" in line and "baseline" in line for line in diff["lines"])
+    log.revert_split("Upper A")
     assert log.read_split("active", "Upper A")[0]["sets"] == 3
 
 
 def test_map_show_set_note(log_module):
     log = log_module
-    log.retag("bench", "chest,front delts")
-    shown = json.loads(_out(log.map_show, "bench"))
+    log.set_exercise_mapping("bench", "chest,front delts")
+    shown = log.get_mapping("bench")
     assert shown["muscles"] == "chest,front delts"
-    log.map_note("bench", "paused reps")
-    assert json.loads(_out(log.map_show, "bench"))["notes"] == ["paused reps"]
-    log.retag("dip", "triceps", True)
-    assert json.loads(_out(log.map_show, "dip"))["is_bodyweight_only"] == 1
+    log.set_movement_note("bench", "paused reps")
+    assert log.get_mapping("bench")["notes"] == ["paused reps"]
+    log.set_exercise_mapping("dip", "triceps", True)
+    assert log.get_mapping("dip")["is_bodyweight_only"] == 1
 
 
 def test_rule_lifecycle(log_module):
     log = log_module
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.rule_add("straps always", "straps/grip", None)
-    assert json.loads(buf.getvalue())["rule_id"] == 1
-    rows = json.loads(_out(log.rule_list, None))
+    assert log.add_rule("straps always", "straps/grip", None)["rule_id"] == 1
+    rows = log.list_rules(None)
     assert rows[0]["needs_confirm"] is False
-    log.rule_confirm(1, "2026-09-21", False)
-    rows = json.loads(_out(log.rule_list, 7))
+    log.confirm_rule(1, "2026-09-21", False)
+    rows = log.list_rules(7)
     assert rows[0]["expiry"] == "2026-09-21" and rows[0]["needs_confirm"] is True
-    log.rule_confirm(1, None, True)
-    assert json.loads(_out(log.rule_list, None)) == []
+    log.confirm_rule(1, None, True)
+    assert log.list_rules(None) == []
 
 
 def test_gate_blocks_unreconciled(log_module):
     log = log_module
     _seeded(log)
-    log.log("fly", 20, 10, "", "chest")
+    log.log_set("fly", 20, 10, "", "chest")
     for ex in ("bench", "row", "fly"):
-        log.progression_set(ex, "hold", "80x5", "flat")
-    buf = io.StringIO()
+        log.set_progression(ex, "hold", "80x5", "flat")
     try:
-        with redirect_stdout(buf):
-            log.end("done")
-        assert False, "should have exited"
-    except SystemExit as e:
-        assert e.code == 1
-    assert "unreconciled slot: fly" in buf.getvalue()
-    assert "program_split_reconcile" in buf.getvalue()
-    log.split_reconcile("Upper A")
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.end("done")
-    assert json.loads(buf.getvalue())["sets"] == 3
+        log.end_workout("done")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "unreconciled slot: fly" in str(e)
+        assert "program_split_reconcile" in str(e)
+    log.reconcile_split("Upper A")
+    assert log.end_workout("done")["sets"] == 3
 
 
 def test_plan_split_section(log_module):
     log = log_module
     _seeded(log)
-    log.map_note("bench", "paused reps")
-    log.progression_set("bench", "hit", "102.5x5", "up")
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.plan("Upper A", False)
-    split = json.loads(buf.getvalue())["split"]
+    log.set_movement_note("bench", "paused reps")
+    log.set_progression("bench", "hit", "102.5x5", "up")
+    split = log.get_plan("Upper A", False)["split"]
     assert split["day"] == "Upper A"
     bench = split["slots"][0]
     assert bench["movements"] == ["bench"] and bench["sets"] == 3

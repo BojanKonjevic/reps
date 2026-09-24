@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """Coach notes: deterministic warning sentences, worst first."""
 
-import io
-import json
-from contextlib import redirect_stdout
 from datetime import date, timedelta
 
 
 def _signals(log):
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.export()
-    return json.loads(buf.getvalue())["signals"]
+    return log.export_snapshot()["signals"]
 
 
 def _done(c, day, *exercises):
@@ -32,7 +26,7 @@ def _judge(c, wid, exercise, verdict):
 def test_thin_history_reports_info_only(log_module):
     log = log_module
     c = log.conn()
-    log.retag("bench", "chest")
+    log.set_exercise_mapping("bench", "chest")
     _done(c, date.today().isoformat(), "bench")
     signals = _signals(log)
     assert len(signals) == 1
@@ -43,7 +37,7 @@ def test_thin_history_reports_info_only(log_module):
 def test_volume_miss_and_streak_ordering(log_module):
     log = log_module
     c = log.conn()
-    log.retag("bench", "chest")
+    log.set_exercise_mapping("bench", "chest")
     for weeks_ago in range(8):
         day = (date.today() - timedelta(weeks=weeks_ago) - timedelta(days=date.today().weekday())).isoformat()
         _done(c, day, "bench")
@@ -58,8 +52,8 @@ def test_volume_miss_and_streak_ordering(log_module):
 def test_miss_streak_and_break_lines(log_module):
     log = log_module
     c = log.conn()
-    log.retag("bench", "chest")
-    log.retag("row", "back")
+    log.set_exercise_mapping("bench", "chest")
+    log.set_exercise_mapping("row", "back")
     d1 = (date.today() - timedelta(days=10)).isoformat()
     d2 = (date.today() - timedelta(days=9)).isoformat()
     for d in (d1, d2):

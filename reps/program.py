@@ -1,7 +1,8 @@
 import json
 import sqlite3
-import sys
 from datetime import date, datetime
+
+from .errors import RepsError
 
 from .constants import canon_muscle_name, load_constants
 from .db import conn, open_workout, placeholders
@@ -151,40 +152,39 @@ def compaction_due():
     return {"due": date.today() > first and last_date < first, "last": last}
 
 
-def meta_show(key=None):
+def get_meta(key=None):
     c = conn()
     if key:
-        print(json.dumps({key: meta_get(c, key)}))
-        return
-    print(json.dumps({r["key"]: r["value"] for r in c.execute("SELECT key, value FROM meta ORDER BY key")}, indent=2))
+        return {key: meta_get(c, key)}
+    return {r["key"]: r["value"] for r in c.execute("SELECT key, value FROM meta ORDER BY key")}
 
 
-def meta_set(key, value):
+def set_meta(key, value):
     if key not in ("last_compacted", "compaction_postponed_until", "rotation"):
-        sys.exit("meta key must be one of last_compacted compaction_postponed_until rotation")
+        raise RepsError("meta key must be one of last_compacted compaction_postponed_until rotation")
     if key == "last_compacted" and value not in ("never", ""):
         try:
             datetime.strptime(value, "%b %d %Y")
         except ValueError:
-            sys.exit('last_compacted must be "never" or "Mon D YYYY" (e.g. Oct 1 2026)')
+            raise RepsError('last_compacted must be "never" or "Mon D YYYY" (e.g. Oct 1 2026)')
     if key == "compaction_postponed_until":
         try:
             value = date.fromisoformat(value).isoformat()
         except ValueError:
-            sys.exit("compaction_postponed_until must be YYYY-MM-DD")
+            raise RepsError("compaction_postponed_until must be YYYY-MM-DD")
     if key == "rotation":
         try:
             parsed = json.loads(value)
         except ValueError:
-            sys.exit("rotation must be a JSON array")
+            raise RepsError("rotation must be a JSON array")
         if not isinstance(parsed, list) or not parsed:
-            sys.exit("rotation must be a non-empty JSON array")
+            raise RepsError("rotation must be a non-empty JSON array")
         value = json.dumps(parsed)
     c = conn()
     c.execute("INSERT INTO meta (key, value) VALUES (?, ?) "
               "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, value))
     c.commit()
-    print(json.dumps({"meta": key, "value": value}))
+    return {"meta": key, "value": value}
 
 
 def read_priorities(c):
@@ -207,71 +207,70 @@ def priority_needs_confirm(c):
     return out
 
 
-def priority_set(muscle, tier, until=None):
+def set_priority(muscle, tier, until=None):
     muscle = muscle.strip().lower()
     if tier not in ("priority", "maintain", "deprioritize"):
-        sys.exit("tier must be one of priority maintain deprioritize")
+        raise RepsError("tier must be one of priority maintain deprioritize")
     constants = load_constants()
     known = set(constants.muscles) | set(constants.untracked)
     hit = canon_muscle_name(muscle, known)
     if hit is not None:
         muscle = hit
     if muscle not in constants.muscles:
-        sys.exit(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.untracked)})")
+        raise RepsError(f"'{muscle}' is not a tracked muscle (untracked: {', '.join(constants.untracked)})")
     if until is not None:
         try:
             until = date.fromisoformat(until).isoformat()
         except ValueError:
-            sys.exit("until must be YYYY-MM-DD")
+            raise RepsError("until must be YYYY-MM-DD")
     c = conn()
     c.execute("INSERT INTO priority (muscle, tier, since, until) VALUES (?, ?, ?, ?) "
               "ON CONFLICT (muscle) DO UPDATE SET tier = excluded.tier, since = excluded.since, until = excluded.until",
               (muscle, tier, date.today().isoformat(), until))
     c.commit()
-    print(json.dumps({"priority": muscle, "tier": tier, "until": until}))
+    return {"priority": muscle, "tier": tier, "until": until}
 
 
-def priority_clear(muscle):
+def clear_priority(muscle):
     c = conn()
     cur = c.execute("DELETE FROM priority WHERE muscle = ?", (muscle.strip().lower(),))
     c.commit()
-    print(json.dumps({"cleared": muscle.strip().lower(), "rows": cur.rowcount}))
+    return {"cleared": muscle.strip().lower(), "rows": cur.rowcount}
 
 
-def priority_list():
+def list_priorities():
     c = conn()
     rows = c.execute("SELECT * FROM priority ORDER BY muscle").fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
+    return [dict(r) for r in rows]
 
 
-def deload_set(scope, subject):
+def set_deload(scope, subject):
     if scope not in ("lift", "slot"):
-        sys.exit("scope must be lift or slot (quote multi-word names)")
+        raise RepsError("scope must be lift or slot")
     if not subject:
-        sys.exit("deload subject is required")
+        raise RepsError("deload subject is required")
     c = conn()
     today = date.today().isoformat()
     if scope == "lift":
         subject = subject.strip().lower()
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (subject,)).fetchone():
-            sys.exit(f"'{subject}' has no mapping (run muscle_map_set first)")
+            raise RepsError(f"'{subject}' has no mapping (run muscle_map_set first)")
     else:
         match = next((d for d in split_day_order("active", c=c) if d.lower() == subject.strip().lower()), None)
         if not match:
-            sys.exit(f"no active split day '{subject.strip()}' (see split show)")
+            raise RepsError(f"no active split day '{subject.strip()}'")
         subject = match
     existing = c.execute("SELECT id FROM deload_state WHERE scope = ? AND subject = ? AND cleared_on IS NULL",
                          (scope, subject)).fetchone()
     if existing:
-        print(json.dumps({"deload_id": existing["id"], "scope": scope, "subject": subject, "reused": True}))
-        return
+        return {"deload_id": existing["id"], "scope": scope, "subject": subject, "reused": True}
     cur = c.execute("INSERT INTO deload_state (scope, subject, set_on, cleared_on) VALUES (?, ?, ?, NULL)",
                     (scope, subject, today))
     c.commit()
-    print(json.dumps({"deload_id": cur.lastrowid, "scope": scope, "subject": subject}))
+    return {"deload_id": cur.lastrowid, "scope": scope, "subject": subject}
 
 
-def deload_clear():
+def clear_deload():
     # Prose first: if the State write fails, the DB is untouched and a retry
     # is safe. A markdown edit must never break a DB command halfway.
     c = conn()
@@ -281,7 +280,7 @@ def deload_clear():
         append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
     c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
     c.commit()
-    print(json.dumps({"cleared": len(rows)}))
+    return {"cleared": len(rows)}
 
 
 def active_deloads(c):
@@ -323,37 +322,34 @@ def best_split_day(trained, c=None):
     return best_day
 
 
-def split_show(day=None, variant="active"):
+def get_split(day=None, variant="active"):
     c = conn()
     if variant not in ("active", "baseline"):
-        sys.exit("variant must be active or baseline")
+        raise RepsError("variant must be active or baseline")
     if day and not read_split(variant, day, c=c):
-        sys.exit(f"no {variant} split day '{day}'")
-    lines = []
-    for d in ([day] if day else split_day_order(variant, c=c)):
-        lines.append(f"### {d}")
-        for r in read_split(variant, d, c=c):
-            lines.append(f"{r['slot']}. {r['movements']} x{r['sets']}")
-    print("\n".join(lines))
+        raise RepsError(f"no {variant} split day '{day}'")
+    days = [day] if day else split_day_order(variant, c=c)
+    return {"variant": variant,
+            "days": [{"day": d, "slots": read_split(variant, d, c=c)} for d in days]}
 
 
-def split_set(day, slot, movements, sets, variant="active"):
+def set_split(day, slot, movements, sets, variant="active"):
     c = conn()
     if variant not in ("active", "baseline"):
-        sys.exit("variant must be active or baseline (quote multi-word day names)")
+        raise RepsError("variant must be active or baseline")
     try:
         slot = int(slot)
         sets = int(sets)
     except (TypeError, ValueError):
-        sys.exit("slot and sets must be integers")
+        raise RepsError("slot and sets must be integers")
     if sets <= 0:
-        sys.exit("sets must be positive")
+        raise RepsError("sets must be positive")
     movements = movements.strip().lower()
     if not movements:
-        sys.exit("movements cannot be empty")
+        raise RepsError("movements cannot be empty")
     for move in parse_movements(movements):
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
-            sys.exit(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
+            raise RepsError(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
     before = c.execute("SELECT movements FROM splits WHERE variant = ? AND day = ? AND slot = ?",
                        (variant, day, slot)).fetchone()
     c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES (?, ?, ?, ?, ?) "
@@ -371,25 +367,25 @@ def split_set(day, slot, movements, sets, variant="active"):
         warnings = mev_floor_warnings(programmed_weekly_volume(c), affected)
         if warnings:
             out["warnings"] = warnings
-    print(json.dumps(out))
+    return out
 
 
-def split_move(day, exercise, to_slot):
+def move_split(day, exercise, to_slot):
     c = conn()
     exercise = exercise.strip().lower()
     try:
         to_slot = int(to_slot)
     except (TypeError, ValueError):
-        sys.exit("slot must be an integer")
+        raise RepsError("slot must be an integer")
     rows = read_split("active", day, c=c)
     if not rows:
-        sys.exit(f"no active split day '{day}'")
+        raise RepsError(f"no active split day '{day}'")
     origin = next((r for r in rows if exercise in parse_movements(r["movements"])), None)
     if not origin:
-        sys.exit(f"'{exercise}' is not in {day}")
+        raise RepsError(f"'{exercise}' is not in {day}")
     if len(parse_movements(origin["movements"])) > 1:
-        sys.exit(f"'{exercise}' shares slot {origin['slot']} ({origin['movements']}); "
-                 f"use split set to rearrange interchangeable pairs explicitly")
+        raise RepsError(f"'{exercise}' shares slot {origin['slot']} ({origin['movements']}); "
+                       f"use set_split to rearrange interchangeable pairs explicitly")
     carry_sets = origin["sets"]
     remaining = []
     for r in rows:
@@ -403,31 +399,30 @@ def split_move(day, exercise, to_slot):
         c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
                   (day, i, r["movements"], r["sets"]))
     c.commit()
-    print(json.dumps({"moved": exercise, "day": day, "to_slot": to_slot}))
+    return {"moved": exercise, "day": day, "to_slot": to_slot}
 
 
-def split_reconcile(day, after=None):
+def reconcile_split(day, after=None):
     c = conn()
     if not read_split("active", day, c=c):
-        sys.exit(f"no active split day '{day}'")
+        raise RepsError(f"no active split day '{day}'")
     w = open_workout(c)
     if not w:
         w = c.execute("SELECT * FROM workouts WHERE status = 'done' ORDER BY date DESC, id DESC LIMIT 1").fetchone()
     if not w:
-        sys.exit("no workout to reconcile from")
+        raise RepsError("no workout to reconcile from")
     trained = [r["exercise"] for r in c.execute(
         "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
         (w["id"],)).fetchall()]
     known = split_all_movements("active", c=c)
     new = [ex for ex in trained if ex not in known]
     if not new:
-        print(json.dumps({"reconciled": day, "added": []}))
-        return
+        return {"reconciled": day, "added": []}
     rows = read_split("active", day, c=c)
     if after:
         anchor = next((r for r in rows if after.strip().lower() in parse_movements(r["movements"])), None)
         if not anchor:
-            sys.exit(f"'{after}' is not in {day}")
+            raise RepsError(f"'{after}' is not in {day}")
         insert_at = anchor["slot"] + 1
     else:
         insert_at = len(rows) + 1
@@ -438,10 +433,10 @@ def split_reconcile(day, after=None):
         c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
                   (day, insert_at + i, ex, new_slot_sets))
     c.commit()
-    print(json.dumps({"reconciled": day, "added": new}))
+    return {"reconciled": day, "added": new}
 
 
-def split_diff():
+def diff_split():
     c = conn()
     active = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("active", c=c)}
     baseline = {(r["day"], r["slot"]): (r["movements"], r["sets"]) for r in read_split("baseline", c=c)}
@@ -450,15 +445,15 @@ def split_diff():
         a, b = active.get(key), baseline.get(key)
         if a != b:
             lines.append(f"{key[0]} #{key[1]}: baseline {b} vs active {a}")
-    print("\n".join(lines) if lines else "active matches baseline")
+    return {"matches": not lines, "lines": lines}
 
 
-def split_revert(day=None):
+def revert_split(day=None):
     c = conn()
     if day:
         base = read_split("baseline", day, c=c)
         if not base:
-            sys.exit(f"no baseline split day '{day}'")
+            raise RepsError(f"no baseline split day '{day}'")
         c.execute("DELETE FROM splits WHERE variant = 'active' AND day = ?", (day,))
         for r in base:
             c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
@@ -469,7 +464,7 @@ def split_revert(day=None):
             c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?)",
                       (r["day"], r["slot"], r["movements"], r["sets"]))
     c.commit()
-    print(json.dumps({"reverted": day or "all"}))
+    return {"reverted": day or "all"}
 
 
 def consume_session_flags(c, workout_id):
@@ -488,54 +483,54 @@ def consume_session_flags(c, workout_id):
     return cur.rowcount
 
 
-def flag_add(subject, reason):
+def add_flag(subject, reason):
     if not reason:
-        sys.exit("flag reason is required")
+        raise RepsError("flag reason is required")
     c = conn()
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO flags (subject, reason, created, consumed_at) VALUES (?, ?, ?, NULL)",
                     (subject.strip().lower(), reason, created))
     c.commit()
-    print(json.dumps({"flag_id": cur.lastrowid, "subject": subject.strip().lower()}))
+    return {"flag_id": cur.lastrowid, "subject": subject.strip().lower()}
 
 
-def flag_list():
+def list_flags():
     c = conn()
     rows = c.execute("SELECT * FROM flags WHERE consumed_at IS NULL ORDER BY id").fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
+    return [dict(r) for r in rows]
 
 
-def flag_consume(flag_id):
+def consume_flag(flag_id):
     c = conn()
     try:
         flag_id = int(flag_id)
     except (TypeError, ValueError):
-        sys.exit("no such flag")
+        raise RepsError("no such flag")
     cur = c.execute("UPDATE flags SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL",
                     (datetime.now().isoformat(timespec="seconds"), flag_id))
     if cur.rowcount == 0:
-        sys.exit("no such unconsumed flag (see flag list)")
+        raise RepsError("no such unconsumed flag")
     c.commit()
-    print(json.dumps({"consumed": flag_id}))
+    return {"consumed": flag_id}
 
 
-def rule_add(text, subject, expires=None):
+def add_rule(text, subject, expires=None):
     if not text:
-        sys.exit("rule text is required")
+        raise RepsError("rule text is required")
     if not subject:
-        sys.exit("rule subject is required")
+        raise RepsError("rule subject is required")
     if expires is not None:
         try:
             expires = date.fromisoformat(expires).isoformat()
         except ValueError:
-            sys.exit("expiry must be YYYY-MM-DD")
+            raise RepsError("expiry must be YYYY-MM-DD")
     c = conn()
     today = date.today().isoformat()
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO rules (subject, text, start_date, expiry, status, created) VALUES (?, ?, ?, ?, 'active', ?)",
                     (subject.strip().lower(), text, today, expires, created))
     c.commit()
-    print(json.dumps({"rule_id": cur.lastrowid, "subject": subject.strip().lower(), "expiry": expires}))
+    return {"rule_id": cur.lastrowid, "subject": subject.strip().lower(), "expiry": expires}
 
 
 def rule_status_rows(c):
@@ -553,7 +548,7 @@ def rules_with_confirm(c):
     return out
 
 
-def rule_list(expiring_within=None):
+def list_rules(expiring_within=None):
     c = conn()
     out = rules_with_confirm(c)
     today = date.today()
@@ -561,32 +556,32 @@ def rule_list(expiring_within=None):
         try:
             window = int(expiring_within)
         except (TypeError, ValueError):
-            sys.exit("expiring-within must be an integer")
+            raise RepsError("expiring-within must be an integer")
         out = [r for r in out if r["expiry"] and (date.fromisoformat(r["expiry"]) - today).days <= window]
-    print(json.dumps(out, indent=2))
+    return out
 
 
-def rule_confirm(rule_id, extend=None, archive=False):
+def confirm_rule(rule_id, extend=None, archive=False):
     c = conn()
     try:
         rule_id = int(rule_id)
     except (TypeError, ValueError):
-        sys.exit("no such rule")
+        raise RepsError("no such rule")
     row = c.execute("SELECT * FROM rules WHERE id = ?", (rule_id,)).fetchone()
     if not row:
-        sys.exit("no such rule")
+        raise RepsError("no such rule")
     if archive:
         c.execute("UPDATE rules SET status = 'archived' WHERE id = ?", (rule_id,))
     elif extend:
         try:
             expiry = date.fromisoformat(extend).isoformat()
         except ValueError:
-            sys.exit("extend date must be YYYY-MM-DD")
+            raise RepsError("extend date must be YYYY-MM-DD")
         c.execute("UPDATE rules SET expiry = ?, status = 'active' WHERE id = ?", (expiry, rule_id))
     else:
-        sys.exit("rule confirm needs an extend date or archive true")
+        raise RepsError("rule confirm needs an extend date or archive true")
     c.commit()
-    print(json.dumps({"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}))
+    return {"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}
 
 
 def programmed_weekly_volume(c, split_rows=None):

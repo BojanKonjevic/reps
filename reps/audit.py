@@ -1,8 +1,9 @@
 import json
 import os
 import re
-import sys
 from datetime import date, timedelta
+
+from .errors import RepsError
 
 from . import db
 from .adherence import parse_anchor
@@ -14,8 +15,8 @@ from .program import (count_bad_weeks, day_movements, read_priorities,
                       split_day_order)
 
 
-def audit():
-    """Run deterministic audit checks and output flagged items."""
+def run_audit():
+    """Run deterministic audit checks. Returns flags plus a readable report."""
     c = conn()
     import itertools
 
@@ -90,7 +91,7 @@ def audit():
     exercises = [r["exercise"] for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall()]
     for a, b in itertools.combinations(exercises, 2):
         if _levenshtein(a, b) <= dup_dist:
-            flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= {dup_dist})", "fix": "rename <old> <new>"})
+            flags.append({"check": "duplicate_names", "severity": "low", "evidence": f"'{a}' vs '{b}' (Levenshtein <= {dup_dist})", "fix": "muscle_rename the duplicate into the canonical name"})
 
     # Check 7: Stale open workouts
     stale = c.execute("""
@@ -100,7 +101,7 @@ def audit():
                (SELECT MAX(created) FROM sets WHERE workout_id = w.id) < datetime('now', ?))
     """, (f"-{stale_hours} hours",)).fetchall()
     for s in stale:
-        flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "end with note, or delete-workout if empty"})
+        flags.append({"check": "stale_workout", "severity": "high", "evidence": f"workout {s['id']} from {s['date']} still open", "fix": "session_end with note, or delete the workout if empty"})
 
     # Check 5: Goal trajectory divergence (deterministic).
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
@@ -115,7 +116,7 @@ def audit():
                 flags.append({"check": "goal_divergence", "severity": "high",
                               "evidence": f"goal {g['id']} ({g['exercise']} -> {g['target_e1rm']} by {g['deadline']}): "
                                           f"{prog['consecutive_misses']} consecutive sessions off trajectory",
-                              "fix": f"goal rewrite {g['id']}, or extend the deadline conversation"})
+                              "fix": f"goal_rewrite {g['id']}, or extend the deadline conversation"})
         if prog["slippage"]:
             flags.append({"check": "goal_slippage", "severity": "medium",
                           "evidence": f"goal {g['id']} ({g['exercise']}): {prog['remaining']} sessions left "
@@ -162,23 +163,21 @@ def audit():
                           "evidence": f"{muscle}: below MEV in {low_weeks} of last {vol_weeks} weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
 
-    # Output report
-    print(f"Audit complete: {len(flags)} flags (checks 2, 3, 6 are structurally impossible, see docs/AUDIT.md)")
+    lines = [f"Audit complete: {len(flags)} flags (checks 2, 3, 6 are structurally impossible, see docs/AUDIT.md)"]
     for i, f in enumerate(flags, 1):
-        print(f"{i}. [{f['check']}] - {f['severity'].upper()}")
-        print(f"   Evidence: {f['evidence']}")
-        print(f"   Fix: {f['fix']}")
-    print(json.dumps({"flags": flags, "skipped": []}))
+        lines.append(f"{i}. [{f['check']}] - {f['severity'].upper()}")
+        lines.append(f"   Evidence: {f['evidence']}")
+        lines.append(f"   Fix: {f['fix']}")
+    return {"flags": flags, "report": lines}
 
 
-def doctor():
+def run_doctor():
     """Structural check: constants, DB, and dashboard agree. Non-correlated."""
     problems = []
     try:
         constants = load_constants()
-    except SystemExit as e:
-        print(json.dumps({"ok": False, "problems": [{"check": "constants_parse", "fix": str(e)}]}))
-        sys.exit(1)
+    except RepsError as e:
+        raise RepsError(f"constants_parse: {e}")
     root = ROOT
     charts = os.path.join(root, "dashboard", "src", "charts.ts")
     try:
@@ -211,13 +210,13 @@ def doctor():
         rotation = None
     if not isinstance(rotation, list) or not rotation or not all(isinstance(d, str) for d in rotation):
         problems.append({"check": "rotation",
-                         "fix": "meta.rotation must be a non-empty JSON array of day names (see meta show)"})
+                         "fix": "meta.rotation must be a non-empty JSON array of day names"})
     else:
         split_days = {r["day"].lower() for r in c.execute("SELECT DISTINCT day FROM splits").fetchall()}
         for day in rotation:
             if day.lower() != "rest" and day.lower() not in split_days:
                 problems.append({"check": "rotation",
-                                 "fix": f"rotation day '{day}' matches no splits.day value (see split show)"})
+                                 "fix": f"rotation day '{day}' matches no splits.day value"})
     anchor_row = c.execute("SELECT value FROM meta WHERE key = 'rotation_anchor'").fetchone()
     if anchor_row is not None:
         _, problem = parse_anchor(anchor_row["value"], rotation)
@@ -246,6 +245,5 @@ def doctor():
                              "fix": f"workouts.sql tables {sorted(dump_tables)} differ from SCHEMA "
                                     f"{sorted(expected)}; run maintenance_dump"})
     if problems:
-        print(json.dumps({"ok": False, "problems": problems}, indent=2))
-        sys.exit(1)
-    print(json.dumps({"ok": True, "muscles": len(constants.muscles)}))
+        return {"ok": False, "problems": problems}
+    return {"ok": True, "muscles": len(constants.muscles)}

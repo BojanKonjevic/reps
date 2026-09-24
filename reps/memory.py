@@ -1,6 +1,7 @@
 import os
 import re
-import sys
+
+from .errors import RepsError
 
 from .db import ROOT
 
@@ -13,10 +14,10 @@ def append_memory_state(line):
         with open(MEMORY_FILE, 'r') as f:
             text = f.read()
     except OSError:
-        sys.exit(f"cannot append State line, {MEMORY_FILE} unreadable")
+        raise RepsError(f"cannot append State line, {MEMORY_FILE} unreadable")
     m = re.search(r"^## State\s*$", text, re.MULTILINE)
     if not m:
-        sys.exit("MEMORY.md has no ## State section")
+        raise RepsError("MEMORY.md has no ## State section")
     rest = text[m.end():]
     nxt = re.search(r"^## ", rest, re.MULTILINE)
     insert_at = m.end() + (nxt.start() if nxt else len(rest))

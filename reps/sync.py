@@ -2,7 +2,6 @@ import json
 import os
 import re
 import sqlite3
-import sys
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -11,6 +10,7 @@ from . import db
 from .adherence import adherence_snapshot
 from .autoreg import autoreg_block
 from .constants import load_constants
+from .errors import RepsError
 from .models import validate_snapshot
 from .signals import build_signals
 from .db import SCHEMA, conn
@@ -30,7 +30,7 @@ def build_snapshot(c=None):
     bw = [dict(r) for r in c.execute("SELECT * FROM bodyweight ORDER BY date, id").fetchall()]
     try:
         constants = load_constants().model_dump()
-    except SystemExit:
+    except RepsError:
         constants = None
     try:
         split_active = read_split("active", c=c)
@@ -55,7 +55,7 @@ def build_snapshot(c=None):
             entry = dict(g)
             try:
                 entry.update(goal_progress(c, dict(g)))
-            except (sqlite3.Error, SystemExit):
+            except (sqlite3.Error, RepsError):
                 pass
             goals.append(entry)
     except sqlite3.Error:
@@ -86,15 +86,15 @@ def build_snapshot(c=None):
         movement_notes = []
     try:
         adherence = adherence_snapshot(c)
-    except (sqlite3.Error, SystemExit):
+    except (sqlite3.Error, RepsError):
         adherence = None
     try:
         signals = build_signals(c)
-    except (sqlite3.Error, SystemExit):
+    except (sqlite3.Error, RepsError):
         signals = []
     try:
         autoreg = autoreg_block(c)
-    except (sqlite3.Error, SystemExit):
+    except (sqlite3.Error, RepsError):
         autoreg = None
     try:
         changes = [dict(r) for r in c.execute(
@@ -105,7 +105,7 @@ def build_snapshot(c=None):
         changes = []
     try:
         volume = volume_block(c)
-    except (sqlite3.Error, SystemExit):
+    except (sqlite3.Error, RepsError):
         volume = {}
     return {"exported": datetime.now().isoformat(timespec="seconds"), "workouts": workouts, "sets": sets,
             "bodyweight": bw, "split_active": split_active, "rotation": rotation, "constants": constants,
@@ -125,21 +125,21 @@ def build_snapshot_validated(c=None) -> dict:
     return snap
 
 
-def export():
-    print(json.dumps(build_snapshot_validated(), indent=2))
+def export_snapshot():
+    return build_snapshot_validated()
 
 
-def sync(force=False):
+def push_snapshot(force=False):
     try:
         cfg = json.load(open(db.CFG))
         url, secret = cfg["url"], cfg["secret"]
     except (OSError, KeyError, ValueError):
-        sys.exit("no sync config, expected url and secret in " + db.CFG)
+        raise RepsError("no sync config, expected url and secret in " + db.CFG)
     c = conn()
     # Integrity check before sync
     integrity = c.execute("PRAGMA integrity_check").fetchone()[0]
     if integrity != "ok":
-        sys.exit("database integrity check failed: " + integrity)
+        raise RepsError("database integrity check failed: " + integrity)
     # Pull-first: fetch the current snapshot ETag so the push below carries
     # If-Match. A stale base gets a 412 instead of silently overwriting.
     base_etag = None
@@ -151,7 +151,7 @@ def sync(force=False):
             with urllib.request.urlopen(get_req, timeout=30) as res:
                 base_etag = res.headers.get("ETag")
         except OSError as e:
-            sys.exit("sync pull-first failed: " + str(e))
+            raise RepsError("sync pull-first failed: " + str(e))
     payload = json.dumps(build_snapshot_validated(c)).encode()
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + secret,
                "User-Agent": "reps-sync/1"}
@@ -162,7 +162,7 @@ def sync(force=False):
     req = urllib.request.Request(url + "/sync", data=payload, method="PUT", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as res:
-            print(json.dumps({"synced": True, "bytes": len(payload), "reply": json.loads(res.read().decode())}))
+            reply = json.loads(res.read().decode())
     except urllib.error.HTTPError as e:
         if e.code == 412:
             try:
@@ -170,42 +170,42 @@ def sync(force=False):
             except ValueError:
                 detail = {}
             server_etag = detail.get("etag") or e.headers.get("ETag")
-            sys.exit(f"sync rejected: snapshot changed since pull (server {server_etag}), another session pushed first. "
-                     "Reconcile, then sync_push with force true to overwrite deliberately.")
-        sys.exit("sync failed: " + str(e))
+            raise RepsError(f"sync rejected: snapshot changed since pull (server {server_etag}), another session pushed first. "
+                            "Reconcile, then sync_push with force true to overwrite deliberately.")
+        raise RepsError("sync failed: " + str(e))
     except OSError as e:
-        sys.exit("sync failed: " + str(e))
+        raise RepsError("sync failed: " + str(e))
 
     # Dump SQL for git history
     sql_file = os.path.join(os.path.dirname(db.DB), "workouts.sql")
     with open(sql_file, 'w') as f:
         for line in c.iterdump():
             f.write(f"{line}\n")
-    print(f"dumped SQL to {sql_file}")
+    return {"synced": True, "bytes": len(payload), "reply": reply, "dumped": sql_file}
 
 
-def dump():
+def dump_sql():
     c = conn()
     sql_file = os.path.join(os.path.dirname(os.path.abspath(db.DB)), "workouts.sql")
     with open(sql_file, 'w') as f:
         for line in c.iterdump():
             f.write(f"{line}\n")
-    print(json.dumps({"dumped": sql_file}))
+    return {"dumped": sql_file}
 
 
-def restore(force=False):
+def restore_sql(force=False):
     if not force:
         try:
             rc = sqlite3.connect(db.DB)
             row = rc.execute("SELECT id FROM workouts WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
             rc.close()
             if row:
-                sys.exit(f"workout {row[0]} is still open; end or delete it before restore, or use restore force")
+                raise RepsError(f"workout {row[0]} is still open; end or delete it before restore, or use restore force")
         except sqlite3.Error:
             pass
     sql_file = os.path.join(os.path.dirname(db.DB), "workouts.sql")
     if not os.path.exists(sql_file):
-        sys.exit("no workouts.sql found, cannot restore")
+        raise RepsError("no workouts.sql found, cannot restore")
     # Build into a temp file first so a malformed dump can never empty the
     # live DB: the live file is only replaced after the restore verifies.
     import tempfile
@@ -218,13 +218,13 @@ def restore(force=False):
                 t.executescript(f.read())
             t.commit()
         except sqlite3.Error as e:
-            sys.exit(f"dump failed to load ({e}), live DB untouched")
+            raise RepsError(f"dump failed to load ({e}), live DB untouched")
         if t.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-            sys.exit("restored DB failed integrity check, live DB untouched")
+            raise RepsError("restored DB failed integrity check, live DB untouched")
         tables = {r[0] for r in t.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         expected = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", SCHEMA))
         if tables != expected:
-            sys.exit(f"dump is missing tables (has {sorted(tables)}, expected {sorted(expected)}), live DB untouched")
+            raise RepsError(f"dump is missing tables (has {sorted(tables)}, expected {sorted(expected)}), live DB untouched")
         t.close()
         try:
             live = sqlite3.connect(db.DB)
@@ -235,7 +235,7 @@ def restore(force=False):
         try:
             os.replace(tmp, db.DB)
         except OSError as e:
-            sys.exit(f"restore failed to replace live DB ({e}), live DB untouched")
+            raise RepsError(f"restore failed to replace live DB ({e}), live DB untouched")
         for suffix in ("-wal", "-shm", "-journal"):
             try:
                 os.remove(db.DB + suffix)
@@ -246,4 +246,4 @@ def restore(force=False):
             os.remove(tmp)
         except OSError:
             pass
-    print(json.dumps({"restored": True, "from": sql_file}))
+    return {"restored": True, "from": sql_file}

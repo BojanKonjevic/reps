@@ -1,16 +1,15 @@
-import json
-import sys
 from datetime import date, datetime
 
 from .constants import clean_muscles, load_constants
 from .db import conn, open_workout
+from .errors import RepsError
 from .muscles import _levenshtein, attach_muscles, best_e1rm, e1rm_of
 from .program import (active_deloads, best_split_day, consume_session_flags,
                       day_movements, deload_covers, parse_active_split_days,
                       split_all_movements, split_day_order)
 
 
-def start(note):
+def start_workout(note):
     c = conn()
     existing = open_workout(c)
     if existing:
@@ -20,34 +19,33 @@ def start(note):
             age_days = (date.today() - date.fromisoformat(existing["date"])).days
         except ValueError:
             age_days = 0
-        print(json.dumps({"workout_id": existing["id"], "reused": True, "date": existing["date"],
-                          "age_days": age_days, "sets": sets_n,
-                          "last_set_created": last["created"] if last else None}))
-        return
+        return {"workout_id": existing["id"], "reused": True, "date": existing["date"],
+                "age_days": age_days, "sets": sets_n,
+                "last_set_created": last["created"] if last else None}
     today = date.today().isoformat()
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', ?)", (today, note))
     c.commit()
-    print(json.dumps({"workout_id": cur.lastrowid, "reused": False, "date": today}))
+    return {"workout_id": cur.lastrowid, "reused": False, "date": today}
 
 
-def log(exercise, weight, reps, note, muscles, bodyweight=False):
+def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
     c = conn()
     w = open_workout(c)
     if not w:
-        sys.exit("no open workout, run start first (workouts are only created explicitly)")
+        raise RepsError("no open workout, run start first (workouts are only created explicitly)")
     exercise = exercise.strip().lower()
     try:
         weight = float(weight)
     except (TypeError, ValueError):
-        sys.exit("weight must be a number")
+        raise RepsError("weight must be a number")
     try:
         reps = int(reps)
     except (TypeError, ValueError):
-        sys.exit("reps must be an integer")
+        raise RepsError("reps must be an integer")
     if weight < 0:
-        sys.exit("weight cannot be negative")
+        raise RepsError("weight cannot be negative")
     if reps <= 0:
-        sys.exit("reps must be a positive integer")
+        raise RepsError("reps must be a positive integer")
     muscles = clean_muscles(muscles)
 
     mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
@@ -55,11 +53,11 @@ def log(exercise, weight, reps, note, muscles, bodyweight=False):
         if bodyweight:
             pass
         elif not mapping or mapping["is_bodyweight_only"] != 1:
-            sys.exit(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise, add bw flag for bodyweight moves)")
+            raise RepsError(f"zero weight not allowed for '{exercise}' (not a bodyweight-only exercise, add bw flag for bodyweight moves)")
 
     if not mapping:
         if not muscles:
-            sys.exit(f"muscles required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
+            raise RepsError(f"muscles required for new exercise '{exercise}' (no mapping in lift_muscle_map)")
         c.execute("INSERT INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
                   (exercise, muscles, 1 if bodyweight else 0))
     elif not muscles:
@@ -88,9 +86,9 @@ def log(exercise, weight, reps, note, muscles, bodyweight=False):
             if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
                 warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
     if mapping and muscles and set(muscles.split(",")) != set(mapping["muscles"].split(",")):
-        sys.exit(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping['muscles']}); "
-                 f"the mapping is authoritative, log a genuine variation under its own exercise name "
-                 f"or change it everywhere with muscle_map_set")
+        raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping['muscles']}); "
+                        f"the mapping is authoritative, log a genuine variation under its own exercise name "
+                        f"or change it everywhere with muscle_map_set")
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")
@@ -106,50 +104,50 @@ def log(exercise, weight, reps, note, muscles, bodyweight=False):
     out = {"set_id": set_id, "workout_id": wid}
     if warnings:
         out["warnings"] = warnings
-    print(json.dumps(out))
+    return out
 
 
-def update(set_id, field, value):
+def update_set(set_id, field, value):
     allowed = {"weight", "reps", "exercise", "note"}
     if field == "muscles":
-        sys.exit("per-set muscles are gone, the mapping is authoritative; run muscle_map_set for the exercise")
+        raise RepsError("per-set muscles are gone, the mapping is authoritative; run muscle_map_set for the exercise")
     if field not in allowed:
-        sys.exit("field must be one of weight reps exercise note")
+        raise RepsError("field must be one of weight reps exercise note")
     c = conn()
     try:
         set_id = int(set_id)
     except (TypeError, ValueError):
-        sys.exit("no such set")
+        raise RepsError("no such set")
     existing = c.execute("SELECT * FROM sets WHERE id = ?", (set_id,)).fetchone()
     if not existing:
-        sys.exit("no such set")
+        raise RepsError("no such set")
     if field == "exercise":
         value = value.strip().lower()
     if field == "weight":
         if value == "":
-            sys.exit("weight cannot be empty, pass a number or delete the set")
+            raise RepsError("weight cannot be empty, pass a number or delete the set")
         try:
             value = float(value)
         except (TypeError, ValueError):
-            sys.exit("weight must be a number")
+            raise RepsError("weight must be a number")
         if value < 0:
-            sys.exit("weight cannot be negative")
+            raise RepsError("weight cannot be negative")
         # Validate zero-weight against exercise type
         if value == 0:
             mapping = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (existing["exercise"],)).fetchone()
             if not mapping or mapping["is_bodyweight_only"] != 1:
-                sys.exit(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
+                raise RepsError(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
         try:
             value = int(value)
         except (TypeError, ValueError):
-            sys.exit("reps must be an integer")
+            raise RepsError("reps must be an integer")
         if value <= 0:
-            sys.exit("reps must be a positive integer")
+            raise RepsError("reps must be a positive integer")
     if field == "exercise":
         mapping = c.execute("SELECT muscles FROM lift_muscle_map WHERE exercise = ?", (value,)).fetchone()
         if not mapping:
-            sys.exit(f"exercise '{value}' has no mapping (run muscle_map_set first)")
+            raise RepsError(f"exercise '{value}' has no mapping (run muscle_map_set first)")
         c.execute("DELETE FROM set_muscles WHERE set_id = ?", (set_id,))
         for muscle in mapping["muscles"].split(","):
             c.execute("INSERT INTO set_muscles (set_id, muscle) VALUES (?, ?)", (set_id, muscle))
@@ -168,28 +166,28 @@ def update(set_id, field, value):
     out = {"updated": int(set_id)}
     if warnings:
         out["warnings"] = warnings
-    print(json.dumps(out))
+    return out
 
 
-def end(note, force=None):
+def end_workout(note, force=None):
     c = conn()
     w = open_workout(c)
     if not w:
-        sys.exit("no open workout")
+        raise RepsError("no open workout")
     outstanding = end_gate_items(c, w, note if not force else (note + f" {force}" if note else force))
     hard = [o for o in outstanding if o.get("hard")]
     if hard:
-        print(f"cannot close workout {w['id']}, {len(hard)} hard items outstanding (force cannot skip these):\n")
+        lines = [f"cannot close workout {w['id']}, {len(hard)} hard items outstanding (force cannot skip these):", ""]
         for o in hard:
-            print(f"  {o['item']}\n    {o['fix']}")
-        sys.exit(1)
+            lines.append(f"  {o['item']}\n    {o['fix']}")
+        raise RepsError("\n".join(lines))
     if outstanding and not force:
-        print(f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:\n")
+        lines = [f"cannot close workout {w['id']}, {len(outstanding)} items outstanding:", ""]
         for o in outstanding:
-            print(f"  {o['item']}\n    {o['fix']}")
-        print(f"\nor: session_end with a force reason (the reason is written into the workout note; "
-              f"writeback items only, missing muscles always block)")
-        sys.exit(1)
+            lines.append(f"  {o['item']}\n    {o['fix']}")
+        lines.append("or: session_end with a force reason (the reason is written into the workout note; "
+                     "writeback items only, missing muscles always block)")
+        raise RepsError("\n".join(lines))
     if force:
         note = (note + f" (forced: {force})").strip() if note else f"(forced: {force})"
     if note:
@@ -204,22 +202,22 @@ def end(note, force=None):
            "next": "audit this session, then sync, then commit workouts.sql"}
     if force:
         out["forced"] = force
-    print(json.dumps(out))
+    return out
 
 
-def rest(day, note):
+def mark_rest(day, note):
     try:
         day = date.fromisoformat(day).isoformat()
     except ValueError:
-        sys.exit("date must be YYYY-MM-DD")
+        raise RepsError("date must be YYYY-MM-DD")
     c = conn()
     if date.fromisoformat(day) > date.today():
-        sys.exit("rest date cannot be in the future")
+        raise RepsError("rest date cannot be in the future")
     if open_workout(c):
-        sys.exit("open workout exists, end or delete it before marking a rest day")
+        raise RepsError("open workout exists, end or delete it before marking a rest day")
     rows = c.execute("SELECT * FROM workouts WHERE date = ?", (day,)).fetchall()
     if any(r["status"] != "rest" for r in rows):
-        sys.exit(f"already trained on {day}, cannot mark it rest")
+        raise RepsError(f"already trained on {day}, cannot mark it rest")
     rest_rows = [r for r in rows if r["status"] == "rest"]
     if rest_rows:
         rid = rest_rows[0]["id"]
@@ -230,46 +228,44 @@ def rest(day, note):
             c.execute("UPDATE workouts SET notes = ? WHERE id = ?", (combined, rid))
             c.commit()
             appended = True
-        print(json.dumps({"rest_id": rid, "date": day, "appended": appended}))
-        return
+        return {"rest_id": rid, "date": day, "appended": appended}
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'rest', ?)", (day, note))
     c.commit()
-    print(json.dumps({"rest_id": cur.lastrowid, "date": day, "appended": False}))
+    return {"rest_id": cur.lastrowid, "date": day, "appended": False}
 
 
-def today():
+def get_today():
     c = conn()
     w = open_workout(c)
     today = date.today().isoformat()
     rest = c.execute("SELECT * FROM workouts WHERE date = ? AND status = 'rest' ORDER BY id", (today,)).fetchone()
     rest_json = dict(rest) if rest else None
     if not w:
-        print(json.dumps({"open": False, "rest": rest_json}))
-        return
+        return {"open": False, "rest": rest_json}
     sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
-    print(json.dumps({"open": True, "workout": dict(w), "sets": attach_muscles(c, sets), "rest": rest_json}, indent=2))
+    return {"open": True, "workout": dict(w), "sets": attach_muscles(c, sets), "rest": rest_json}
 
 
-def exercises():
+def list_exercises():
     c = conn()
     rows = c.execute("SELECT DISTINCT exercise FROM sets ORDER BY exercise").fetchall()
-    print(json.dumps([r["exercise"] for r in rows], indent=2))
+    return [r["exercise"] for r in rows]
 
 
-def history(exercise, limit):
+def get_history(exercise, limit):
     try:
         limit = int(limit)
     except (TypeError, ValueError):
-        sys.exit("limit must be an integer")
+        raise RepsError("limit must be an integer")
     c = conn()
     rows = c.execute(
         "SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY s.id DESC LIMIT ?",
         (exercise.strip().lower(), limit),
     ).fetchall()
-    print(json.dumps(attach_muscles(c, rows), indent=2))
+    return attach_muscles(c, rows)
 
 
-def stats():
+def get_stats():
     c = conn()
     workouts = c.execute("SELECT id, date, status FROM workouts ORDER BY date").fetchall()
     out = {"workouts": len([w for w in workouts if w["status"] != "rest"]), "by_exercise": {}}
@@ -277,23 +273,23 @@ def stats():
 
     for r in rows:
         out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
-    print(json.dumps(out, indent=2))
+    return out
 
 
-def weigh(kg, note):
+def record_bodyweight(kg, note):
     c = conn()
     today = date.today().isoformat()
     try:
         kg = float(kg)
     except (TypeError, ValueError):
-        sys.exit("bodyweight must be a number")
+        raise RepsError("bodyweight must be a number")
     if kg <= 0:
-        sys.exit("bodyweight must be positive")
+        raise RepsError("bodyweight must be positive")
     if kg < 20 or kg > 300:
-        sys.exit(f"bodyweight {kg}kg is implausible, confirm the value")
+        raise RepsError(f"bodyweight {kg}kg is implausible, confirm the value")
     cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, kg, note))
     c.commit()
-    print(json.dumps({"weigh_id": cur.lastrowid, "date": today, "kg": kg}))
+    return {"weigh_id": cur.lastrowid, "date": today, "kg": kg}
 
 
 def end_gate_items(c, w, note):
@@ -338,134 +334,134 @@ def end_gate_items(c, w, note):
     return outstanding
 
 
-def check(note=""):
+def check_end_gate(note=""):
     c = conn()
     w = open_workout(c)
     if not w:
-        sys.exit("no open workout")
+        raise RepsError("no open workout")
     outstanding = end_gate_items(c, w, note)
     if outstanding:
-        print(f"workout {w['id']} not ready to close, {len(outstanding)} items outstanding:")
+        lines = [f"workout {w['id']} not ready to close, {len(outstanding)} items outstanding:"]
         for o in outstanding:
-            print(f"  {o['item']}\n    {o['fix']}")
-        sys.exit(1)
-    print(json.dumps({"ready": w["id"]}))
+            lines.append(f"  {o['item']}\n    {o['fix']}")
+        raise RepsError("\n".join(lines))
+    return {"ready": w["id"]}
 
 
 def delete_set(set_id):
     try:
         set_id = int(set_id)
     except (TypeError, ValueError):
-        sys.exit("no such set")
+        raise RepsError("no such set")
     c = conn()
     row = c.execute("SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.id = ?", (set_id,)).fetchone()
     if not row:
-        sys.exit("no such set")
+        raise RepsError("no such set")
     c.execute("DELETE FROM sets WHERE id = ?", (set_id,))
     c.commit()
-    print(json.dumps({"deleted": set_id, "workout_id": row["workout_id"], "date": row["date"],
-                      "was": {"exercise": row["exercise"], "weight": row["weight"], "reps": row["reps"]}}))
+    return {"deleted": set_id, "workout_id": row["workout_id"], "date": row["date"],
+            "was": {"exercise": row["exercise"], "weight": row["weight"], "reps": row["reps"]}}
 
 
 def delete_workout(workout_id):
     try:
         workout_id = int(workout_id)
     except (TypeError, ValueError):
-        sys.exit("no such workout")
+        raise RepsError("no such workout")
     c = conn()
     row = c.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
     if not row:
-        sys.exit("no such workout")
+        raise RepsError("no such workout")
     n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (workout_id,)).fetchone()["n"]
     c.execute("DELETE FROM sets WHERE workout_id = ?", (workout_id,))
     c.execute("DELETE FROM workouts WHERE id = ?", (workout_id,))
     c.commit()
-    print(json.dumps({"deleted_workout": workout_id, "date": row["date"], "deleted_sets": n}))
+    return {"deleted_workout": workout_id, "date": row["date"], "deleted_sets": n}
 
 
 def update_workout(workout_id, field, value):
     allowed = {"notes", "date", "status"}
     if field not in allowed:
-        sys.exit("field must be one of notes date status")
+        raise RepsError("field must be one of notes date status")
     try:
         workout_id = int(workout_id)
     except (TypeError, ValueError):
-        sys.exit("no such workout")
+        raise RepsError("no such workout")
     if field == "date":
         try:
             date.fromisoformat(value)
         except ValueError:
-            sys.exit("date must be YYYY-MM-DD")
+            raise RepsError("date must be YYYY-MM-DD")
         if date.fromisoformat(value) > date.today():
-            sys.exit("workout date cannot be in the future")
+            raise RepsError("workout date cannot be in the future")
     if field == "status" and value not in ("open", "done", "rest"):
-        sys.exit("status must be open, done or rest")
+        raise RepsError("status must be open, done or rest")
     c = conn()
     if field == "status" and value == "open":
         other = c.execute("SELECT id FROM workouts WHERE status = 'open' AND id != ?", (int(workout_id),)).fetchone()
         if other:
-            sys.exit(f"workout {other['id']} is already open; end or delete it first")
+            raise RepsError(f"workout {other['id']} is already open; end or delete it first")
     if field == "status" and value == "rest":
         row = c.execute("SELECT date FROM workouts WHERE id = ?", (int(workout_id),)).fetchone()
         if not row:
-            sys.exit("no such workout")
+            raise RepsError("no such workout")
         n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
         if n > 0:
-            sys.exit("workout has sets, cannot mark it rest (move or delete them first)")
+            raise RepsError("workout has sets, cannot mark it rest (move or delete them first)")
         dup = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest' AND id != ?",
                         (row["date"], int(workout_id))).fetchone()
         if dup:
-            sys.exit(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
+            raise RepsError(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
     cur = c.execute(f"UPDATE workouts SET {field} = ? WHERE id = ?", (value, int(workout_id)))
     if cur.rowcount == 0:
-        sys.exit("no such workout")
+        raise RepsError("no such workout")
     c.commit()
-    print(json.dumps({"updated_workout": int(workout_id), "field": field}))
+    return {"updated_workout": int(workout_id), "field": field}
 
 
-def session(datestr):
+def get_session(datestr):
     try:
         day = date.fromisoformat(datestr).isoformat()
     except ValueError:
-        sys.exit("date must be YYYY-MM-DD")
+        raise RepsError("date must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date = ? ORDER BY id", (day,)).fetchall()
     out = []
     for w in wrows:
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         out.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
-    print(json.dumps({"date": day, "workouts": out}, indent=2))
+    return {"date": day, "workouts": out}
 
 
-def session_range(fromstr, tostr):
+def get_session_range(fromstr, tostr):
     try:
         d0 = date.fromisoformat(fromstr).isoformat()
         d1 = date.fromisoformat(tostr).isoformat()
     except ValueError:
-        sys.exit("dates must be YYYY-MM-DD")
+        raise RepsError("dates must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date >= ? AND date <= ? ORDER BY date, id", (d0, d1)).fetchall()
     out = []
     for w in wrows:
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         out.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
-    print(json.dumps({"from": d0, "to": d1, "workouts": out}, indent=2))
+    return {"from": d0, "to": d1, "workouts": out}
 
 
-def notes(limit):
+def get_notes(limit):
     try:
         lim = max(1, min(2000, int(limit)))
-    except ValueError:
+    except (TypeError, ValueError):
         lim = 200
     c = conn()
     wrows = c.execute("SELECT id, date, notes FROM workouts WHERE notes != '' ORDER BY date DESC, id DESC LIMIT ?", (lim,)).fetchall()
     srows = c.execute(
         "SELECT s.id, s.exercise, s.weight, s.reps, s.note, w.date FROM sets s "
         "JOIN workouts w ON w.id = s.workout_id WHERE s.note != '' ORDER BY w.date DESC, s.id DESC LIMIT ?", (lim,)).fetchall()
-    print(json.dumps({"workout_notes": [dict(r) for r in wrows], "set_notes": [dict(r) for r in srows]}, indent=2))
+    return {"workout_notes": [dict(r) for r in wrows], "set_notes": [dict(r) for r in srows]}
 
 
-def calendar():
+def get_calendar():
     c = conn()
     wrows = c.execute("SELECT id, date, status FROM workouts ORDER BY date, id").fetchall()
     by_date = {}
@@ -489,13 +485,13 @@ def calendar():
         else:
             d["gap_since_prev"] = (date.fromisoformat(d["date"]) - date.fromisoformat(prev)).days - 1
         prev = d["date"]
-    print(json.dumps({"dates": days}, indent=2))
+    return {"dates": days}
 
 
-def context(n):
+def get_context(n):
     try:
         limit = max(1, min(5, int(n)))
-    except ValueError:
+    except (TypeError, ValueError):
         limit = 3
     c = conn()
     wrows = c.execute("SELECT * FROM workouts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
@@ -517,4 +513,4 @@ def context(n):
                      "last": dict(last) if last else None})
     totals = c.execute("SELECT COUNT(*) w FROM workouts WHERE status != 'rest'").fetchone()
     bw = [dict(r) for r in c.execute("SELECT date, kg, note FROM bodyweight ORDER BY date DESC, id DESC LIMIT 5").fetchall()]
-    print(json.dumps({"recent": recent, "lifts": best, "workouts_total": totals["w"], "bodyweight_last": bw}, indent=2))
+    return {"recent": recent, "lifts": best, "workouts_total": totals["w"], "bodyweight_last": bw}

@@ -1,4 +1,3 @@
-import json
 from datetime import date, datetime
 
 from .adherence import adherence_block, expectation_context
@@ -12,7 +11,7 @@ from .program import (active_deloads, compaction_due,
                     rules_with_confirm, volume_block)
 
 
-def plan(slot=None, verbose=False):
+def get_plan(slot=None, verbose=False):
     from datetime import timedelta
     c = conn()
     constants = load_constants()
@@ -212,7 +211,7 @@ def plan(slot=None, verbose=False):
         "compaction": compaction_due(),
     }
     if verbose:
-        lines = []
+        lines = []  # human-readable highlights; the bundle stays the contract
         if w:
             flag = "STALE" if stale["is_stale"] else "open"
             lines.append(f"workout {w['id']} {flag} (age {stale['age_days']}d, last set {stale['last_set_created']})")
@@ -236,6 +235,5 @@ def plan(slot=None, verbose=False):
                          f"consider rotation anchor <date> <day>")
         if bundle["compaction"]["due"]:
             lines.append("compaction due")
-        print("\n".join(lines))
-    else:
-        print(json.dumps(bundle, indent=2))
+        return {"bundle": bundle, "lines": lines}
+    return bundle

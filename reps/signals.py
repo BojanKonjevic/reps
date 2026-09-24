@@ -82,7 +82,7 @@ def build_signals(c=None):
     if adherence is not None and adherence["drift"]:
         out.append({"severity": "medium",
                     "text": f"adherence drift: {adherence['drift_days']} non-done days, "
-                            f"consider rotation anchor <date> <day>"})
+                            f"consider re-anchoring the rotation"})
 
     for d in active_deloads(c):
         out.append({"severity": "info", "text": f"deloading {d['scope']} {d['subject']}"})

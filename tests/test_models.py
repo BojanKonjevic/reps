@@ -106,9 +106,10 @@ def test_constants_allows_terminator_and_null_mav():
     ConstantsModel.model_validate(raw)
 
 
-def test_validate_constants_exits_loudly():
+def test_validate_constants_fails_loudly():
     from reps.constants import validate_constants
-    with pytest.raises(SystemExit, match="constants invalid"):
+    from reps.errors import RepsError
+    with pytest.raises(RepsError, match="constants invalid"):
         validate_constants({"muscles": {}}, "test-source")
 
 
@@ -148,8 +149,8 @@ def test_snapshot_tolerates_older_payload():
 
 def test_snapshot_volume_entry_shape(log_module):
     log = log_module
-    log.retag("bench", "chest")
-    log.split_set("Upper A", 1, "bench", 5)
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 5)
     snap = log.build_snapshot_validated()
     assert set(snap["volume"]["chest"]) == {"weekly", "mev", "mav", "mrv", "freq", "status"}
     SnapshotModel.model_validate(snap)
@@ -180,3 +181,31 @@ def test_first_error_reports_location():
         assert first_error(e).startswith("muscles:")
     else:
         raise AssertionError("expected ValidationError")
+
+
+def test_snapshot_models_goal_and_rule_sections(log_module):
+    log = log_module
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest")
+    from datetime import date, timedelta
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    log.add_goal("bench", 130, deadline, "", None)
+    log.add_rule("test rule", "test", None)
+    log.add_flag("bench", "watch")
+    snap = log.build_snapshot_validated()
+    model = SnapshotModel.model_validate(snap)
+    assert model.goals[0].exercise == "bench"
+    assert model.goals[0].checkpoints
+    assert model.rules[0].text == "test rule"
+    assert model.flags[0].subject == "bench"
+    assert model.mapping[0].muscles == "chest"
+
+
+def test_snapshot_rejects_bad_progression_verdict():
+    with pytest.raises(SnapshotValidationError):
+        validate_snapshot({"exported": "2026-01-01T00:00:00", "workouts": [], "sets": [],
+                           "progression": {"bench": {"verdict": "smashed", "next": "82.5x5",
+                                                     "direction": "up", "workout_id": 1,
+                                                     "note": ""}}})

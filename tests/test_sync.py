@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """pytest suite for sync concurrency (pull-first ETag, 412 abort, force)."""
 
-import io
 import json
 import os
-import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pytest
+
+from reps.errors import RepsError
 
 
 class SyncStubState:
@@ -102,16 +102,6 @@ def write_cfg(tmp_path, monkeypatch, log_module, port):
     monkeypatch.setattr("reps.db.CFG", str(cfg))
 
 
-def capture(fn, *args):
-    old = sys.stdout
-    sys.stdout = io.StringIO()
-    try:
-        fn(*args)
-        return sys.stdout.getvalue()
-    finally:
-        sys.stdout = old
-
-
 def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
     """Normal sync GETs first and pushes with the pulled If-Match."""
     import urllib.request
@@ -127,8 +117,8 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
         urllib.request.urlopen(req, timeout=5).read()
         state.requests.clear()
 
-        out = capture(log_module.sync)
-        assert json.loads(out.strip().splitlines()[0])["synced"] is True
+        out = log_module.push_snapshot()
+        assert out["synced"] is True
         puts = [r for r in state.requests if r["method"] == "PUT"]
         assert any(r["method"] == "GET" for r in state.requests)
         assert len(puts) == 1
@@ -138,7 +128,7 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
         server.shutdown()
 
 
-def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch, capsys):
+def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch):
     """A 412 from the server aborts loudly instead of overwriting."""
     state = SyncStubState()
     state.stored = json.dumps({"exported": "2026-09-17T12:05:00", "workouts": [],
@@ -148,9 +138,9 @@ def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch, capsys):
     try:
         write_cfg(tmp_path, monkeypatch, log_module, server.server_port)
         try:
-            log_module.sync()
-            assert False, "should have exited"
-        except SystemExit as e:
+            log_module.push_snapshot()
+            assert False, "should have refused"
+        except RepsError as e:
             assert "sync rejected" in str(e).lower()
             assert "force" in str(e).lower()
     finally:
@@ -166,8 +156,8 @@ def test_sync_force_skips_pull_and_overwrites(log_module, tmp_path, monkeypatch)
     server = start_stub(state)
     try:
         write_cfg(tmp_path, monkeypatch, log_module, server.server_port)
-        out = capture(log_module.sync, True)
-        assert json.loads(out.strip().splitlines()[0])["synced"] is True
+        out = log_module.push_snapshot(True)
+        assert out["synced"] is True
         puts = [r for r in state.requests if r["method"] == "PUT"]
         assert not [r for r in state.requests if r["method"] == "GET"]
         assert len(puts) == 1 and puts[0]["force"] == "1"

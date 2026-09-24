@@ -1,6 +1,6 @@
-import json
-import sys
 from datetime import date, datetime
+
+from .errors import RepsError
 
 from .constants import load_constants
 from .db import conn
@@ -71,44 +71,44 @@ def goal_progress(c, goal):
             "next_checkpoint": checkpoints[completed] if completed < len(checkpoints) else None}
 
 
-def goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
+def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
     c = conn()
     exercise = (exercise or "").strip().lower()
     if not exercise:
-        sys.exit("goal exercise is required")
+        raise RepsError("goal exercise is required")
     if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone():
-        sys.exit(f"'{exercise}' has no mapping (run muscle_map_set first)")
+        raise RepsError(f"'{exercise}' has no mapping (run muscle_map_set first)")
     try:
         target_e1rm = float(target_e1rm)
     except (TypeError, ValueError):
-        sys.exit("target e1RM must be a number")
+        raise RepsError("target e1RM must be a number")
     if target_e1rm <= 0:
-        sys.exit("target e1RM must be positive")
+        raise RepsError("target e1RM must be positive")
     try:
         deadline = date.fromisoformat(deadline).isoformat()
     except ValueError:
-        sys.exit("deadline must be YYYY-MM-DD")
+        raise RepsError("deadline must be YYYY-MM-DD")
     if date.fromisoformat(deadline) <= date.today():
-        sys.exit("deadline must be in the future")
+        raise RepsError("deadline must be in the future")
     if start_e1rm is None:
         top = c.execute(
             "SELECT CASE WHEN reps = 1 THEN weight ELSE weight * (1 + reps / 30.0) END AS e1rm "
             "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (exercise,)).fetchone()
         if not top:
-            sys.exit(f"no logged sets for '{exercise}', pass start_e1rm to seed the trajectory")
+            raise RepsError(f"no logged sets for '{exercise}', pass start_e1rm to seed the trajectory")
         start_e1rm = top["e1rm"]
     else:
         try:
             start_e1rm = float(start_e1rm)
         except (TypeError, ValueError):
-            sys.exit("start e1RM must be a number")
+            raise RepsError("start e1RM must be a number")
     existing = c.execute("SELECT id FROM goals WHERE exercise = ? AND status = 'active'",
                          (exercise,)).fetchone()
     if existing:
-        sys.exit(f"goal {existing['id']} already covers '{exercise}' (rewrite or drop it first)")
+        raise RepsError(f"goal {existing['id']} already covers '{exercise}' (rewrite or drop it first)")
     n = sessions_possible_before(c, exercise, deadline)
     if n < 1:
-        sys.exit(f"no '{exercise}' sessions fit before {deadline} at the current split frequency")
+        raise RepsError(f"no '{exercise}' sessions fit before {deadline} at the current split frequency")
     now = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO goals (exercise, target_e1rm, target_desc, deadline, status, created) "
                     "VALUES (?, ?, ?, ?, 'active', ?)",
@@ -117,20 +117,20 @@ def goal_add(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
     for i, cp in enumerate(build_checkpoints(start_e1rm, target_e1rm, n), 1):
         c.execute("INSERT INTO goal_checkpoints (goal_id, session_no, target_e1rm) VALUES (?, ?, ?)", (gid, i, cp))
     c.commit()
-    print(json.dumps({"goal_id": gid, "exercise": exercise, "sessions": n,
-                      "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline}))
+    return {"goal_id": gid, "exercise": exercise, "sessions": n,
+            "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline}
 
 
-def goal_show(goal_id=None):
+def get_goal(goal_id=None):
     c = conn()
     if goal_id is not None:
         try:
             goal_id = int(goal_id)
         except (TypeError, ValueError):
-            sys.exit("no such goal")
+            raise RepsError("no such goal")
         goals = [dict(r) for r in c.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchall()]
         if not goals:
-            sys.exit("no such goal")
+            raise RepsError("no such goal")
     else:
         goals = [dict(r) for r in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall()]
     out = []
@@ -138,22 +138,22 @@ def goal_show(goal_id=None):
         entry = dict(g)
         entry.update(goal_progress(c, g))
         out.append(entry)
-    print(json.dumps(out, indent=2))
+    return out
 
 
-def goal_rewrite(goal_id):
+def rewrite_goal(goal_id):
     c = conn()
     try:
         goal_id = int(goal_id)
     except (TypeError, ValueError):
-        sys.exit("no such goal")
+        raise RepsError("no such goal")
     goal = c.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchone()
     if not goal:
-        sys.exit("no such goal")
+        raise RepsError("no such goal")
     goal = dict(goal)
     prog = goal_progress(c, goal)
     if prog["remaining"] <= 0:
-        sys.exit("goal trajectory is complete, nothing to rewrite")
+        raise RepsError("goal trajectory is complete, nothing to rewrite")
     sessions = goal_sessions(c, goal)
     anchor = sessions[prog["completed"] - 1][1] if prog["completed"] > 0 else prog["checkpoints"][0]
     fresh = build_checkpoints(anchor, goal["target_e1rm"], prog["remaining"])
@@ -161,17 +161,17 @@ def goal_rewrite(goal_id):
         c.execute("UPDATE goal_checkpoints SET target_e1rm = ? WHERE goal_id = ? AND session_no = ?",
                   (cp, goal_id, i))
     c.commit()
-    print(json.dumps({"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh}))
+    return {"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh}
 
 
-def goal_drop(goal_id):
+def drop_goal(goal_id):
     c = conn()
     try:
         goal_id = int(goal_id)
     except (TypeError, ValueError):
-        sys.exit("no such goal")
+        raise RepsError("no such goal")
     cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ?", (goal_id,))
     if cur.rowcount == 0:
-        sys.exit("no such goal")
+        raise RepsError("no such goal")
     c.commit()
-    print(json.dumps({"dropped": goal_id}))
+    return {"dropped": goal_id}

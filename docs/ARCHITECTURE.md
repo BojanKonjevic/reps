@@ -44,9 +44,10 @@ Where things belong and what owns what. Read before changing code structure or a
 ```
 
 - SQLite owns durable facts and state. Explicit SQL, no ORM. Derivable values are computed on read, never stored redundantly.
-- `reps/` owns deterministic business logic and enforced invariants, behind plain functions. One module per domain: `sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, plus `db`, `constants`, `muscles`, `memory`, `progression`.
-- `reps/models.py` owns structural validation (Pydantic): `ConstantsModel` for constants.json, `SnapshotModel` for the published payload. Domain and business rules stay out; they live in the domain modules.
-- `reps/mcp/` is the sole normal agent interface: thin tools calling domain operations directly. No business logic in handlers, no shell command language anywhere.
+- `reps/` owns deterministic business logic and enforced invariants, behind plain functions. One module per domain: `sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, plus `db`, `constants`, `muscles`, `memory`, `progression`, `errors`, `models`.
+- Domain functions return structured values and raise `RepsError` on refusal. Nothing in `reps/` prints or exits; `log.py` (maintenance) and MCP translate at the process and protocol edges. A refusal that used to exit still refuses, it just arrives as an exception.
+- `reps/models.py` owns structural validation (Pydantic): `ConstantsModel` for constants.json, `SnapshotModel` for the published payload. `load_constants()` returns the model; attribute access is the only read path. Domain and business rules stay out; they live in the domain modules.
+- `reps/mcp/` is the sole normal agent interface: thin tools calling domain operations directly through the shared `_ok` adapter, which shapes returns and translates `RepsError` into error results. No business logic in handlers, no shell command language anywhere. Closed domain vocabularies (verdicts, tiers, directions, scopes, variants) are `Literal` types in tool signatures.
 - `docs/` owns protocol and reasoning rules: when a capability is used, how capabilities sequence, domain concepts, safety requirements.
 - The dashboard presents backend state. It never reconstructs domain semantics that belong in Python.
 - The agent owns judgment and conversational reasoning, grounded in numbers pulled through MCP.
@@ -60,23 +61,41 @@ Where things belong and what owns what. Read before changing code structure or a
 - Runtime schemas: `dashboard/src/schemas/` (Zod; inferred types flow into components, no redundant interfaces). Zod models what the dashboard can render: core facts strict, stale-tolerant sections partial, matching the dashboard's null-safe reads. Python validates strictly before publication.
 - Formatting and presentation helpers: `dashboard/src/lib/` alongside chart math.
 - Charting: D3 (`d3-scale`, `d3-array`) for scales, domains, extents, ticks; Reps owns canvas rendering, PR and goal visuals, hit testing, tooltips, styling.
-- MCP tools: `reps/mcp/server.py`, one thin function per domain operation, sharing the `run_domain` adapter. New capability means a domain function first, then a tool.
-- Tests: backend invariants in `tests/` (pytest), dashboard unit in `dashboard/src/__tests__/` (vitest), e2e in `dashboard/e2e/` (playwright). MCP tools are tested through the MCP interface (`call_tool`/`list_tool_names`), not just via the domain functions underneath.
+- MCP tools: `reps/mcp/server.py`, one thin function per domain operation, sharing the `_ok` adapter. New capability means a domain function first, then a tool. Handlers must stay thin adapters and must not accumulate business logic: no SQL, no domain computation, no output parsing, no `RepsError` construction. Future agent-facing capabilities are exposed through MCP by default.
+- Tests: backend invariants in `tests/` (pytest), dashboard unit in `dashboard/src/__tests__/` (vitest), e2e in `dashboard/e2e/` (playwright). MCP tools are tested through the MCP interface (`call_tool`/`list_tool_names`), not just via the domain functions underneath. `tests/test_architecture.py` pins the boundaries structurally (no command-style names, no `sys.exit`/`print` in `reps/`, no SQL in MCP, legacy entrypoints absent, docs teach MCP).
 
 ## Validation boundaries
 
 | Crossing | Enforced by | Fails as |
 |---|---|---|
-| constants.json into Python | `ConstantsModel` (`reps/models.py`) | loud exit naming file, location, reason |
+| constants.json into Python | `ConstantsModel` (`reps/models.py`) | `RepsError` naming file, location, reason |
 | domain into snapshot | `SnapshotModel` via `build_snapshot_validated` | `SnapshotValidationError`, publish refused |
 | remote JSON into TypeScript | Zod `snapshot` schema | explicit parse failure, no `any` downstream |
-| agent into domain | MCP tool input schemas | typed refusal `{"ok": false, "error"}` |
+| agent into domain | MCP tool input schemas (including `Literal` vocabularies) | typed refusal `{"ok": false, "error"}` |
+| domain operation | return value or `RepsError` | value flows up, refusal surfaces at the edge |
 
-Internal module boundaries use ordinary Python/TypeScript types, not unstructured dicts, wherever practical. Unknown snapshot fields stay tolerated (forward compatibility); known fields and shapes are strict.
+Internal module boundaries use ordinary Python/TypeScript types, not unstructured dicts, wherever practical. Unknown snapshot fields stay tolerated (forward compatibility); known fields and shapes are strict. Python and Zod schemas are aligned by hand and verified by tests on both sides; no codegen pipeline.
+
+## Contributing
+
+New backend capability, in order: domain function in the owning module (returns data, raises `RepsError`, covered by a pytest), thin MCP tool with a descriptive docstring (`Literal` for closed vocabularies), MCP interface test in `tests/test_mcp.py`. Never add the capability to MCP first and never duplicate its logic there.
+
+New dashboard feature, in order: Zod schema shape if new external data arrives (partial-tolerant for stale payloads), query function if new server data is needed (the `snapshot` query stays coherent), derived-data helper in `lib/dashboard.ts`, page or component under `pages/`/`components/`, unit test for math and parsing. Canvas components reuse `lib/canvas.ts`; hover bodies stay per chart.
+
+Verify with `uv run --with pytest --with pydantic --with "mcp>=2" --no-project pytest tests/ -q` plus `pre-commit run --all-files`, dashboard `npm run test` and `npx playwright test` from `dashboard/`, deploy with `npm run deploy` after frontend changes.
+
+## Svelte gotchas (learned here, recorded so nobody relearns them)
+
+- Collections in runes state must be `SvelteSet`/`SvelteMap` from `svelte/reactivity`; plain `Set` mutations do not notify.
+- `createQuery` called in the same component that renders `QueryClientProvider` sees no client context; pass the client explicitly as the second argument.
+- `svelte-check` needs `svelte.config.js` with `vitePreprocess()`; without it every component reports a config error.
+- `{@const}` must be the immediate child of a block or component; compute inside `#each` headers or move the helper out.
+- e2e fixtures must keep exercise names coherent across sets, split, holds, and grouped lists, or list pages silently show nothing the test expects.
 
 ## What not to bypass or rebuild
 
 - Do not add business logic to MCP handlers, the Worker, or the frontend. Domain questions get answered in `reps/`, exposed through MCP, presented by the dashboard.
 - Do not add a second agent interface: no CLI framework (Click, Typer, argparse wrappers), no textual RPC, no generic execute-command or run-arbitrary-SQL tool. `log.py` stays four maintenance ops (doctor, dump, restore, export) for local recovery.
+- Do not make domain functions print or exit. Returns flow up, `RepsError` flows up, and only `log.py` turns them into process output. The old CLI is intentionally gone: no command-style names, no stdout APIs, no shell parsing anywhere.
 - Do not replace explicit SQL with an ORM query builder, and do not replace the canvas renderer with a full charting framework.
 - Do not duplicate MCP tool schemas in prose docs. Docs teach when and why; MCP declares how and what.

@@ -215,13 +215,161 @@ class SnapshotSplitRow(BaseModel):
     sets: StrictInt
 
 
+class SnapshotProgression(BaseModel):
+    """Latest progression verdict per exercise."""
+
+    model_config = ConfigDict(extra="allow")
+
+    verdict: Literal["hit", "miss", "hold", "baseline"]
+    next: StrictStr
+    direction: Literal["up", "flat", "down"]
+    workout_id: StrictInt
+    note: StrictStr = ""
+
+
+class SnapshotGoalActual(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    date: StrictStr
+    e1rm: Union[StrictInt, StrictFloat]
+
+
+class SnapshotGoal(BaseModel):
+    """An active goal with its computed trajectory."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    exercise: StrictStr
+    target_e1rm: Union[StrictInt, StrictFloat]
+    target_desc: StrictStr = ""
+    deadline: StrictStr
+    status: Literal["active", "dropped"] = "active"
+    created: StrictStr = ""
+    checkpoints: list[Union[StrictInt, StrictFloat]] = Field(default_factory=list)
+    completed: StrictInt = 0
+    actuals: list[SnapshotGoalActual] = Field(default_factory=list)
+    consecutive_misses: StrictInt = 0
+    on_track: bool = True
+    remaining: StrictInt = 0
+    slippage: bool = False
+    next_checkpoint: Optional[Union[StrictInt, StrictFloat]] = None
+
+
+class SnapshotPriority(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    tier: Literal["priority", "maintain", "deprioritize"]
+    since: StrictStr = ""
+    until: Optional[StrictStr] = None
+
+
+class SnapshotDeload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    scope: Literal["lift", "slot"]
+    subject: StrictStr
+    set_on: StrictStr
+    cleared_on: Optional[StrictStr] = None
+
+
+class SnapshotRule(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    subject: StrictStr
+    text: StrictStr
+    start_date: StrictStr = ""
+    expiry: Optional[StrictStr] = None
+    status: StrictStr = "active"
+    created: StrictStr = ""
+    needs_confirm: bool = False
+
+
+class SnapshotFlag(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    subject: StrictStr
+    reason: StrictStr
+    created: StrictStr
+    consumed_at: Optional[StrictStr] = None
+
+
+class SnapshotMapping(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    exercise: StrictStr
+    muscles: StrictStr
+    is_bodyweight_only: StrictInt = 0
+
+
+class SnapshotMovementNote(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt = 0
+    exercise: StrictStr
+    note: StrictStr
+    created: StrictStr = ""
+
+
+class SnapshotSignal(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    severity: Literal["high", "medium", "low", "info"]
+    text: StrictStr
+
+
+class SnapshotAutoregHold(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    day: StrictStr
+    movements: StrictStr
+    action: Literal["trim", "swap", "add"]
+    set_on: StrictStr
+    hold_until: StrictStr
+    reason: StrictStr = ""
+
+
+class SnapshotMissStreak(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    exercise: StrictStr
+    streak: StrictInt
+
+
+class SnapshotDropWatch(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    exercise: StrictStr
+    drops_pct: list[Union[StrictInt, StrictFloat]]
+
+
+class SnapshotAutoregChange(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: StrictInt
+    date: StrictStr
+    action: Literal["trim", "swap", "add"]
+    day: StrictStr
+    slot: StrictInt
+    before_movements: StrictStr
+    before_sets: StrictInt
+    after_movements: StrictStr
+    after_sets: StrictInt
+    evidence: StrictStr = ""
+    reverted_on: Optional[StrictStr] = None
+
+
 class SnapshotAutoreg(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     permitted: bool
-    holds: list = Field(default_factory=list)
-    miss_streaks: list = Field(default_factory=list)
-    drop_watch: list = Field(default_factory=list)
+    holds: list[SnapshotAutoregHold] = Field(default_factory=list)
+    miss_streaks: list[SnapshotMissStreak] = Field(default_factory=list)
+    drop_watch: list[SnapshotDropWatch] = Field(default_factory=list)
     grouped: dict[StrictStr, list[StrictStr]] = Field(default_factory=dict)
     program_volume: dict[StrictStr, Union[StrictInt, StrictFloat]] = Field(default_factory=dict)
 
@@ -244,18 +392,18 @@ class SnapshotModel(BaseModel):
     split_active: list[SnapshotSplitRow] = Field(default_factory=list)
     rotation: list[StrictStr] = Field(default_factory=list)
     constants: Optional[ConstantsModel] = None
-    progression: dict = Field(default_factory=dict)
-    goals: list = Field(default_factory=list)
-    priority: dict = Field(default_factory=dict)
-    deload: list = Field(default_factory=list)
-    rules: list = Field(default_factory=list)
-    flags: list = Field(default_factory=list)
-    mapping: list = Field(default_factory=list)
-    movement_notes: list = Field(default_factory=list)
+    progression: dict[StrictStr, SnapshotProgression] = Field(default_factory=dict)
+    goals: list[SnapshotGoal] = Field(default_factory=list)
+    priority: dict[StrictStr, SnapshotPriority] = Field(default_factory=dict)
+    deload: list[SnapshotDeload] = Field(default_factory=list)
+    rules: list[SnapshotRule] = Field(default_factory=list)
+    flags: list[SnapshotFlag] = Field(default_factory=list)
+    mapping: list[SnapshotMapping] = Field(default_factory=list)
+    movement_notes: list[SnapshotMovementNote] = Field(default_factory=list)
     adherence: Optional[SnapshotAdherence] = None
-    signals: list = Field(default_factory=list)
+    signals: list[SnapshotSignal] = Field(default_factory=list)
     autoreg: Optional[SnapshotAutoreg] = None
-    autoreg_changes: list = Field(default_factory=list)
+    autoreg_changes: list[SnapshotAutoregChange] = Field(default_factory=list)
     volume: dict[str, SnapshotVolumeEntry] = Field(default_factory=dict)
 
 

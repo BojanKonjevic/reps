@@ -1,30 +1,18 @@
 #!/usr/bin/env python3
 """Rotation adherence: anchor, expected schedule, status classification, drift."""
 
-import io
 import json
-from contextlib import redirect_stdout
 from datetime import date, timedelta
 
 import pytest
 from conftest import close_session
-
-
-def _out(fn, *args):
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        fn(*args)
-    return buf.getvalue()
+from reps.errors import RepsError
 
 
 def _plan(log, *args):
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        if args:
-            log.plan(*args)
-        else:
-            log.plan()
-    return buf.getvalue()
+    if args:
+        return log.get_plan(*args)
+    return log.get_plan()
 
 
 def _done(c, day, *exercises):
@@ -41,11 +29,11 @@ def _rest(c, day):
 
 
 def _seed_3day(log):
-    log.retag("bench", "chest")
-    log.retag("squat", "quads")
-    log.split_set("Upper A", 1, "bench", 3)
-    log.split_set("Lower A", 1, "squat", 3)
-    log.meta_set("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_exercise_mapping("bench", "chest")
+    log.set_exercise_mapping("squat", "quads")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "squat", 3)
+    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
 
 
 def test_expected_wraparound_and_multi_cycle(log_module):
@@ -61,15 +49,15 @@ def test_expected_wraparound_and_multi_cycle(log_module):
 
 def test_anchor_resolves_first_rotation_index(log_module):
     log = log_module
-    log.meta_set("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
-    out = json.loads(_out(log.rotation_anchor, "2026-09-01", "lower a"))
+    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    out = log.anchor_rotation("2026-09-01", "lower a")
     assert out == {"anchor": {"date": "2026-09-01", "index": 1}, "day": "Lower A"}
-    with pytest.raises(SystemExit, match="no rotation entry"):
-        log.rotation_anchor("2026-09-01", "Upper Z")
-    with pytest.raises(SystemExit, match="cannot be in the future"):
-        log.rotation_anchor("2999-01-01", "Upper A")
-    with pytest.raises(SystemExit, match="YYYY-MM-DD"):
-        log.rotation_anchor("yesterday", "Upper A")
+    with pytest.raises(RepsError, match="no rotation entry"):
+        log.anchor_rotation("2026-09-01", "Upper Z")
+    with pytest.raises(RepsError, match="cannot be in the future"):
+        log.anchor_rotation("2999-01-01", "Upper A")
+    with pytest.raises(RepsError, match="YYYY-MM-DD"):
+        log.anchor_rotation("yesterday", "Upper A")
     c = log.conn()
     for bad in ('{"date": "2026-09-01", "index": 1.5}', '{"date": "2026-09-01", "index": true}',
                 '{"date": "2026-09-01", "index": "1"}'):
@@ -82,7 +70,7 @@ def test_status_classifications(log_module):
     log = log_module
     c = log.conn()
     _seed_3day(log)
-    log.rotation_anchor("2026-08-10", "Upper A")
+    log.anchor_rotation("2026-08-10", "Upper A")
     # 08-10 U expected, bench trained -> done
     _done(c, "2026-08-10", "bench")
     # 08-11 L expected, bench trained -> swapped
@@ -98,7 +86,7 @@ def test_status_classifications(log_module):
     _done(c, "2026-08-17", "bench", "squat")
     # 08-18 rest expected, rest row -> rest_ok
     _rest(c, "2026-08-18")
-    out = json.loads(_out(log.rotation_status, "2026-08-10", "2026-08-18"))
+    out = log.get_rotation_status("2026-08-10", "2026-08-18")
     by_date = {e["date"]: e for e in out}
     assert by_date["2026-08-10"] == {"date": "2026-08-10", "expected": "Upper A",
                                      "trained": "Upper A", "status": "done"}
@@ -119,13 +107,13 @@ def test_status_classifications(log_module):
 def _seed_5day(log):
     for ex, mu in [("ex_u1", "chest"), ("ex_l1", "back"), ("ex_u2", "chest"),
                    ("ex_l2", "back"), ("ex_u3", "chest")]:
-        log.retag(ex, mu)
-    log.split_set("U1", 1, "ex_u1", 3)
-    log.split_set("L1", 1, "ex_l1", 3)
-    log.split_set("U2", 1, "ex_u2", 3)
-    log.split_set("L2", 1, "ex_l2", 3)
-    log.split_set("U3", 1, "ex_u3", 3)
-    log.meta_set("rotation", json.dumps(["U1", "L1", "U2", "L2", "U3"]))
+        log.set_exercise_mapping(ex, mu)
+    log.set_split("U1", 1, "ex_u1", 3)
+    log.set_split("L1", 1, "ex_l1", 3)
+    log.set_split("U2", 1, "ex_u2", 3)
+    log.set_split("L2", 1, "ex_l2", 3)
+    log.set_split("U3", 1, "ex_u3", 3)
+    log.set_meta("rotation", json.dumps(["U1", "L1", "U2", "L2", "U3"]))
 
 
 def test_wednesday_skip_expected_vs_guess(log_module):
@@ -134,10 +122,10 @@ def test_wednesday_skip_expected_vs_guess(log_module):
     c = log.conn()
     _seed_5day(log)
     today = date.today()
-    log.rotation_anchor((today - timedelta(days=4)).isoformat(), "U1")
+    log.anchor_rotation((today - timedelta(days=4)).isoformat(), "U1")
     _done(c, (today - timedelta(days=4)).isoformat(), "ex_u1")
     _done(c, (today - timedelta(days=3)).isoformat(), "ex_l1")
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert bundle["slot_guess"]["day"] == "U2"
     assert bundle["slot_guess"]["expected"]["day"] == "U3"
     assert "expected today: U3" in bundle["slot_guess"]["basis"]
@@ -155,21 +143,21 @@ def test_drift_clears_on_reanchor(log_module):
     c = log.conn()
     _seed_5day(log)
     today = date.today()
-    log.rotation_anchor((today - timedelta(days=4)).isoformat(), "U1")
+    log.anchor_rotation((today - timedelta(days=4)).isoformat(), "U1")
     _done(c, (today - timedelta(days=4)).isoformat(), "ex_u1")
     _done(c, (today - timedelta(days=3)).isoformat(), "ex_l1")
-    assert json.loads(_plan(log))["adherence"]["drift"] is True
+    assert _plan(log)["adherence"]["drift"] is True
     # Train today off-schedule, then re-anchor to what was actually trained:
     # today flips to done and the drift flag clears.
-    log.start("test")
-    log.log("ex_l2", 100, 5, "", "back")
+    log.start_workout("test")
+    log.log_set("ex_l2", 100, 5, "", "back")
     close_session(log, "done")
-    assert json.loads(_plan(log))["adherence"]["drift"] is True
-    log.rotation_anchor(today.isoformat(), "L2")
-    bundle = json.loads(_plan(log))
+    assert _plan(log)["adherence"]["drift"] is True
+    log.anchor_rotation(today.isoformat(), "L2")
+    bundle = _plan(log)
     assert bundle["adherence"]["drift"] is False
     assert bundle["adherence"]["drift_days"] == 0
-    assert "adherence drift" not in _plan(log, None, True)
+    assert not any("adherence drift" in line for line in _plan(log, None, True)["lines"])
 
 
 def test_drift_verbose_line(log_module):
@@ -177,11 +165,11 @@ def test_drift_verbose_line(log_module):
     c = log.conn()
     _seed_5day(log)
     today = date.today()
-    log.rotation_anchor((today - timedelta(days=4)).isoformat(), "U1")
+    log.anchor_rotation((today - timedelta(days=4)).isoformat(), "U1")
     _done(c, (today - timedelta(days=4)).isoformat(), "ex_u1")
     _done(c, (today - timedelta(days=3)).isoformat(), "ex_l1")
-    verbose = _plan(log, None, True)
-    assert "adherence drift: 3 non-done days" in verbose
+    verbose = _plan(log, None, True)["lines"]
+    assert "adherence drift: 3 non-done days" in "\n".join(verbose)
 
 
 def test_no_anchor_disables_adherence(log_module):
@@ -190,61 +178,50 @@ def test_no_anchor_disables_adherence(log_module):
     _seed_5day(log)
     today = date.today()
     _done(c, (today - timedelta(days=1)).isoformat(), "ex_u1")
-    bundle = json.loads(_plan(log))
+    bundle = _plan(log)
     assert bundle["adherence"] is None
     assert "expected" not in bundle["slot_guess"]
     assert "expected today" not in bundle["slot_guess"]["basis"]
-    with pytest.raises(SystemExit, match="needs a rotation and an anchor"):
-        log.rotation_status()
+    with pytest.raises(RepsError, match="needs a rotation and an anchor"):
+        log.get_rotation_status()
 
 
 def test_doctor_anchor_checks(log_module):
     log = log_module
     c = log.conn()
-    log.meta_set("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
-    log.retag("bench", "chest")
-    log.retag("row", "back")
-    log.split_set("Upper A", 1, "bench", 3)
-    log.split_set("Lower A", 1, "row", 3)
-    log.rotation_anchor("2026-09-01", "Upper A")
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        log.doctor()
-    assert json.loads(buf.getvalue())["ok"] is True
+    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_exercise_mapping("bench", "chest")
+    log.set_exercise_mapping("row", "back")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "row", 3)
+    log.anchor_rotation("2026-09-01", "Upper A")
+    assert log.run_doctor()["ok"] is True
     c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'",
               (json.dumps({"date": "2026-09-01", "index": 9}),))
     c.commit()
-    with pytest.raises(SystemExit):
-        with redirect_stdout(io.StringIO()):
-            log.doctor()
+    result = log.run_doctor()
+    assert result["ok"] is False
+    assert any(p["check"] == "rotation_anchor" for p in result["problems"])
     c.execute("UPDATE meta SET value = ? WHERE key = 'rotation_anchor'",
               (json.dumps({"date": "2999-01-01", "index": 0}),))
     c.commit()
-    try:
-        with redirect_stdout(io.StringIO()):
-            log.doctor()
-        assert False, "should have exited"
-    except SystemExit as e:
-        assert e.code == 1
+    result = log.run_doctor()
+    assert result["ok"] is False
     c.execute("UPDATE meta SET value = 'not json' WHERE key = 'rotation_anchor'")
     c.commit()
-    try:
-        with redirect_stdout(io.StringIO()):
-            log.doctor()
-        assert False, "should have exited"
-    except SystemExit as e:
-        assert e.code == 1
+    result = log.run_doctor()
+    assert result["ok"] is False
 
 
 def test_status_stops_at_today(log_module):
     log = log_module
     c = log.conn()
     _seed_3day(log)
-    log.rotation_anchor("2026-08-10", "Upper A")
+    log.anchor_rotation("2026-08-10", "Upper A")
     future = (date.today() + timedelta(days=5)).isoformat()
-    out = json.loads(_out(log.rotation_status, date.today().isoformat(), future))
+    out = log.get_rotation_status(date.today().isoformat(), future)
     assert out and all(e["date"] <= date.today().isoformat() for e in out)
-    out = json.loads(_out(log.rotation_status, future, future))
+    out = log.get_rotation_status(future, future)
     assert out == []
 
 
@@ -253,19 +230,19 @@ def test_open_session_does_not_count_as_trained(log_module):
     c = log.conn()
     _seed_3day(log)
     today = date.today()
-    log.rotation_anchor((today - timedelta(days=3)).isoformat(), "Upper A")
-    log.start("test")
-    log.log("bench", 100, 5, "", "chest")
-    entry = json.loads(_out(log.rotation_status, today.isoformat(), today.isoformat()))[0]
+    log.anchor_rotation((today - timedelta(days=3)).isoformat(), "Upper A")
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest")
+    entry = log.get_rotation_status(today.isoformat(), today.isoformat())[0]
     assert entry["status"] == "missed"
 
 
 def test_invalid_anchor_says_so(log_module):
     log = log_module
     c = log.conn()
-    log.meta_set("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
+    log.set_meta("rotation", json.dumps(["Upper A", "Lower A", "rest"]))
     c.execute("INSERT INTO meta (key, value) VALUES ('rotation_anchor', 'not json')")
     c.commit()
-    with pytest.raises(SystemExit, match="invalid"):
-        log.rotation_status()
-    assert json.loads(_plan(log))["adherence"] is None
+    with pytest.raises(RepsError, match="invalid"):
+        log.get_rotation_status()
+    assert _plan(log)["adherence"] is None

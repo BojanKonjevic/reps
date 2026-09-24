@@ -1,6 +1,6 @@
-import json
-import sys
 from datetime import datetime
+
+from .errors import RepsError
 
 from .constants import clean_muscles
 from .db import conn
@@ -64,39 +64,38 @@ def _levenshtein(a, b):
     return previous_row[-1]
 
 
-def map_show(exercise=None):
+def get_mapping(exercise=None):
     c = conn()
     if exercise:
         exercise = exercise.strip().lower()
         mapping = c.execute("SELECT * FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
         if not mapping:
-            sys.exit(f"'{exercise}' has no mapping (run map set first)")
+            raise RepsError(f"'{exercise}' has no mapping (run muscle_map_set first)")
         notes = [r["note"] for r in c.execute(
             "SELECT note FROM movement_notes WHERE exercise = ? ORDER BY id", (exercise,)).fetchall()]
-        print(json.dumps({"exercise": exercise, "muscles": mapping["muscles"],
-                          "is_bodyweight_only": mapping["is_bodyweight_only"], "notes": notes}, indent=2))
-        return
+        return {"exercise": exercise, "muscles": mapping["muscles"],
+                "is_bodyweight_only": mapping["is_bodyweight_only"], "notes": notes}
     rows = c.execute("SELECT exercise, muscles FROM lift_muscle_map ORDER BY exercise").fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
+    return [dict(r) for r in rows]
 
 
-def map_note(exercise, text):
+def set_movement_note(exercise, text):
     if not text:
-        sys.exit("note text is required")
+        raise RepsError("note text is required")
     c = conn()
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO movement_notes (exercise, note, created) VALUES (?, ?, ?)",
                     (exercise.strip().lower(), text, created))
     c.commit()
-    print(json.dumps({"note_id": cur.lastrowid, "exercise": exercise.strip().lower()}))
+    return {"note_id": cur.lastrowid, "exercise": exercise.strip().lower()}
 
 
-def retag(exercise, muscles, bodyweight=False):
+def set_exercise_mapping(exercise, muscles, bodyweight=False):
     c = conn()
     exercise = exercise.strip().lower()
     muscles = clean_muscles(muscles)
     if not muscles:
-        sys.exit("muscles cannot be empty, pass at least one group")
+        raise RepsError("muscles cannot be empty, pass at least one group")
     existing = c.execute("SELECT is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (exercise,)).fetchone()
     is_bw = existing["is_bodyweight_only"] if existing else 0
     if bodyweight:
@@ -111,19 +110,19 @@ def retag(exercise, muscles, bodyweight=False):
     c.execute("INSERT OR REPLACE INTO lift_muscle_map (exercise, muscles, is_bodyweight_only) VALUES (?, ?, ?)",
               (exercise, muscles, is_bw))
     c.commit()
-    print(json.dumps({"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": is_bw}))
+    return {"retag_exercise": exercise, "updated": updated, "is_bodyweight_only": is_bw}
 
 
-def rename(old, new):
+def rename_exercise(old, new):
     c = conn()
     old = old.strip().lower()
     new = new.strip().lower()
     if old == new:
-        sys.exit("old and new exercise names are identical, nothing to rename")
+        raise RepsError("old and new exercise names are identical, nothing to rename")
     mapping = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (old,)).fetchone()
     target = c.execute("SELECT muscles, is_bodyweight_only FROM lift_muscle_map WHERE exercise = ?", (new,)).fetchone()
     if mapping and target and set(mapping["muscles"].split(",")) != set(target["muscles"].split(",")):
-        sys.exit(f"'{new}' already maps to {target['muscles']}, not {mapping['muscles']}; retag one of them first, then rename")
+        raise RepsError(f"'{new}' already maps to {target['muscles']}, not {mapping['muscles']}; retag one of them first, then rename")
     cur = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old))
     renamed = cur.rowcount
     map_moved = False
@@ -134,4 +133,4 @@ def rename(old, new):
         c.execute("DELETE FROM lift_muscle_map WHERE exercise = ?", (old,))
         map_moved = True
     c.commit()
-    print(json.dumps({"renamed": renamed, "map_moved": map_moved}))
+    return {"renamed": renamed, "map_moved": map_moved}

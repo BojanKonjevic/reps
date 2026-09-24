@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """pytest suite for the dashboard snapshot schema (export/sync forward state)."""
 
-import io
 import json
 import os
 import sys
@@ -14,20 +13,9 @@ FORWARD_KEYS = ["split_active", "rotation", "constants", "progression",
                 "autoreg", "autoreg_changes", "volume"]
 
 
-def capture(fn, *args):
-    old = sys.stdout
-    sys.stdout = io.StringIO()
-    try:
-        fn(*args)
-        return sys.stdout.getvalue()
-    finally:
-        sys.stdout = old
-
-
 def test_export_includes_forward_state(log_module):
     """Export carries program plus forward sections, not just history."""
-    out = capture(log_module.export)
-    snap = json.loads(out)
+    snap = log_module.export_snapshot()
     for key in ["workouts", "sets", "bodyweight"] + FORWARD_KEYS:
         assert key in snap, f"snapshot missing '{key}'"
     assert isinstance(snap["split_active"], list)
@@ -41,16 +29,15 @@ def test_export_list_pages_shape(log_module):
     """List pages get autoreg, recent changes, adherence drift, and volume."""
     log = log_module
     c = log.conn()
-    log.retag("bench", "chest")
-    log.retag("incline", "chest")
-    log.split_set("Upper A", 1, "bench", 5)
-    log.split_set("Upper A", 2, "incline", 5)
-    log.meta_set("rotation", json.dumps(["Upper A", "rest"]))
-    log.rotation_anchor("2026-09-01", "Upper A")
-    log.rule_add("autoreg: manage volume", "autoreg", None)
-    log.autoreg_apply("Upper A", 1, "bench", 4, "testing")
-    out = capture(log.export)
-    snap = json.loads(out)
+    log.set_exercise_mapping("bench", "chest")
+    log.set_exercise_mapping("incline", "chest")
+    log.set_split("Upper A", 1, "bench", 5)
+    log.set_split("Upper A", 2, "incline", 5)
+    log.set_meta("rotation", json.dumps(["Upper A", "rest"]))
+    log.anchor_rotation("2026-09-01", "Upper A")
+    log.add_rule("autoreg: manage volume", "autoreg", None)
+    log.apply_autoreg("Upper A", 1, "bench", 4, "testing")
+    snap = log.export_snapshot()
     assert set(snap["autoreg"]) == {"permitted", "holds", "miss_streaks", "drop_watch",
                                     "grouped", "program_volume"}
     assert snap["autoreg"]["permitted"] is True
@@ -72,7 +59,6 @@ def test_export_forward_state_survives_empty_db(log_module, tmp_path, monkeypatc
     c.executescript(log_module.SCHEMA)
     c.commit()
     c.close()
-    out = capture(log_module.export)
-    snap = json.loads(out)
+    snap = log_module.export_snapshot()
     for key in FORWARD_KEYS:
         assert key in snap, f"snapshot missing '{key}' on fresh DB"

@@ -1,6 +1,6 @@
-import json
-import sys
 from datetime import date
+
+from .errors import RepsError
 
 from .constants import load_constants
 from .db import conn
@@ -89,7 +89,7 @@ def autoreg_block(c):
             "program_volume": programmed_weekly_volume(c)}
 
 
-def autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=None):
+def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=None):
     """Single entry point for every autonomous program edit.
 
     Refuses, in order: no permission rule, missing slot, from-guard mismatch,
@@ -99,39 +99,39 @@ def autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=Non
     c = conn()
     today = date.today().isoformat()
     if not autoreg_permitted(c):
-        sys.exit("autoreg has no standing permission (program_rule_add with subject autoreg)")
+        raise RepsError("autoreg has no standing permission (program_rule_add with subject autoreg)")
     try:
         slot = int(slot)
     except (TypeError, ValueError):
-        sys.exit(f"no active split slot '{slot}' on '{day}'")
+        raise RepsError(f"no active split slot '{slot}' on '{day}'")
     match = next((d for d in split_day_order("active", c=c) if d.lower() == (day or "").strip().lower()), None)
     if match is None:
-        sys.exit(f"no active split slot '{slot}' on '{day}'")
+        raise RepsError(f"no active split slot '{slot}' on '{day}'")
     day = match
     cur = next((r for r in read_split("active", day, c=c) if r["slot"] == slot), None)
     if cur is None:
-        sys.exit(f"no active split slot '{slot}' on '{day}'")
+        raise RepsError(f"no active split slot '{slot}' on '{day}'")
     if from_movements is not None and parse_movements(from_movements) != parse_movements(cur["movements"]):
-        sys.exit(f"from-guard mismatch: slot {slot} on '{day}' holds '{cur['movements']}', "
+        raise RepsError(f"from-guard mismatch: slot {slot} on '{day}' holds '{cur['movements']}', "
                  f"not '{from_movements.strip().lower()}' (refusing to clobber a concurrent edit)")
     to_movements = (to_movements or "").strip().lower()
     if not to_movements:
-        sys.exit("movements cannot be empty")
+        raise RepsError("movements cannot be empty")
     try:
         to_sets = int(to_sets)
     except (TypeError, ValueError):
-        sys.exit("sets must be an integer")
+        raise RepsError("sets must be an integer")
     if to_sets <= 0:
-        sys.exit("sets must be positive")
+        raise RepsError("sets must be positive")
     if not (evidence or "").strip():
-        sys.exit("evidence is required (quote the reason)")
+        raise RepsError("evidence is required")
     for move in parse_movements(to_movements):
         if not c.execute("SELECT exercise FROM lift_muscle_map WHERE exercise = ?", (move,)).fetchone():
-            sys.exit(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
+            raise RepsError(f"'{move}' has no mapping (run muscle_map_set first), split unchanged")
     held = c.execute("SELECT * FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                      (day, cur["movements"], today)).fetchone()
     if held:
-        sys.exit(f"slot {slot} on '{day}' is held until {held['hold_until']}, revert first")
+        raise RepsError(f"slot {slot} on '{day}' is held until {held['hold_until']}, revert first")
     simulated = [dict(r) for r in read_split("active", c=c)]
     for r in simulated:
         if r["day"] == day and r["slot"] == slot:
@@ -140,7 +140,7 @@ def autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=Non
     affected = muscles_for_movements(c, cur["movements"]) | muscles_for_movements(c, to_movements)
     below = mev_floor_warnings(programmed_weekly_volume(c, simulated), affected)
     if below:
-        sys.exit("below MEV, refusing: " + "; ".join(below))
+        raise RepsError("below MEV, refusing: " + "; ".join(below))
     if parse_movements(to_movements) != parse_movements(cur["movements"]):
         action = "swap"
     elif to_sets < cur["sets"]:
@@ -161,36 +161,36 @@ def autoreg_apply(day, slot, to_movements, to_sets, evidence, from_movements=Non
         "after_movements, after_sets, evidence, reverted_on) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
         (today, action, day, slot, cur["movements"], cur["sets"], to_movements, to_sets, evidence.strip()))
     c.commit()
-    print(json.dumps({"autoreg": action, "day": day, "slot": slot,
-                      "before": {"movements": cur["movements"], "sets": cur["sets"]},
-                      "after": {"movements": to_movements, "sets": to_sets},
-                      "hold_until": hold_until, "change_id": cur_change.lastrowid,
-                      "evidence": evidence.strip()}))
+    return {"autoreg": action, "day": day, "slot": slot,
+            "before": {"movements": cur["movements"], "sets": cur["sets"]},
+            "after": {"movements": to_movements, "sets": to_sets},
+            "hold_until": hold_until, "change_id": cur_change.lastrowid,
+            "evidence": evidence.strip()}
 
 
-def autoreg_log():
+def list_autoreg_changes():
     c = conn()
     rows = c.execute("SELECT * FROM autoreg_changes ORDER BY id").fetchall()
-    print(json.dumps([{**dict(r), "reverted": r["reverted_on"] is not None} for r in rows], indent=2))
+    return [{**dict(r), "reverted": r["reverted_on"] is not None} for r in rows]
 
 
-def autoreg_revert(change_id):
+def revert_autoreg_change(change_id):
     """Restore before state exactly; clears matching unexpired holds."""
     c = conn()
     today = date.today().isoformat()
     try:
         change_id = int(change_id)
     except (TypeError, ValueError):
-        sys.exit("no such autoreg change")
+        raise RepsError("no such autoreg change")
     row = c.execute("SELECT * FROM autoreg_changes WHERE id = ?", (change_id,)).fetchone()
     if not row:
-        sys.exit("no such autoreg change")
+        raise RepsError("no such autoreg change")
     if row["reverted_on"] is not None:
-        sys.exit(f"change {change_id} already reverted on {row['reverted_on']}")
+        raise RepsError(f"change {change_id} already reverted on {row['reverted_on']}")
     cur = next((r for r in read_split("active", row["day"], c=c) if r["slot"] == row["slot"]), None)
     if (cur is None or parse_movements(cur["movements"]) != parse_movements(row["after_movements"])
             or cur["sets"] != row["after_sets"]):
-        sys.exit(f"slot {row['slot']} on '{row['day']}' no longer matches the recorded after-state, reconcile manually")
+        raise RepsError(f"slot {row['slot']} on '{row['day']}' no longer matches the recorded after-state, reconcile manually")
     c.execute("INSERT INTO splits (variant, day, slot, movements, sets) VALUES ('active', ?, ?, ?, ?) "
               "ON CONFLICT (variant, day, slot) DO UPDATE SET movements = excluded.movements, sets = excluded.sets",
               (row["day"], row["slot"], row["before_movements"], row["before_sets"]))
@@ -198,6 +198,6 @@ def autoreg_revert(change_id):
     cleared = c.execute("DELETE FROM autoreg_holds WHERE day = ? AND movements = ? AND hold_until >= ?",
                         (row["day"], row["after_movements"], today)).rowcount
     c.commit()
-    print(json.dumps({"reverted": change_id, "day": row["day"], "slot": row["slot"],
-                      "restored": {"movements": row["before_movements"], "sets": row["before_sets"]},
-                      "holds_cleared": cleared}))
+    return {"reverted": change_id, "day": row["day"], "slot": row["slot"],
+            "restored": {"movements": row["before_movements"], "sets": row["before_sets"]},
+            "holds_cleared": cleared}
