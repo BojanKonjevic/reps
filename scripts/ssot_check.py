@@ -42,9 +42,11 @@ def rg(pattern: str, paths: list[str], globs: list[str] | None = None) -> list[s
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
     except FileNotFoundError:
-        return []
+        print("ssot_check: ripgrep (rg) is required but not installed", file=sys.stderr)
+        sys.exit(2)
     if p.returncode not in (0, 1):
-        return []
+        print(f"ssot_check: rg failed ({p.returncode}): {p.stderr.strip()}", file=sys.stderr)
+        sys.exit(2)
     return [ln for ln in p.stdout.splitlines() if ln.strip()]
 
 
@@ -83,7 +85,7 @@ def check_g2() -> None:
 
 def check_g12() -> None:
     """No string-splitting of DB columns; no TEXT muscles/movements columns."""
-    for ln in rg(r'\.split\(","\044\)|\.split\("/"\044\)', ["reps"]):
+    for ln in rg(r'\.split\("(,|/)"\)', ["reps"]):
         if "sanctioned:" in ln:
             continue
         fail("G12", f"DB column string-split in reps/: {ln} (use WS3 normalized tables)")

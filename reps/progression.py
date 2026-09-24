@@ -40,12 +40,16 @@ def set_progression(exercise, verdict, next_weight, next_reps, direction, note="
         next_reps = int(next_reps)
     except (TypeError, ValueError):
         raise RepsError("next reps must be an integer")
-    if next_weight <= 0:
+    if next_weight < 0:
         raise RepsError("next weight must be positive")
     if next_reps <= 0:
         raise RepsError("next reps must be a positive integer")
     c = conn()
     exercise = exercise.strip().lower()
+    if next_weight == 0:
+        from .program import lift_is_bodyweight_only
+        if not lift_is_bodyweight_only(c, exercise):
+            raise RepsError(f"next weight cannot be zero for '{exercise}' (not a bodyweight-only exercise)")
     if workout_id is None:
         w = open_workout(c)
         if not w:

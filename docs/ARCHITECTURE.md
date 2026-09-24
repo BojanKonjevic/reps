@@ -76,13 +76,13 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
 | agent into domain | MCP tool input schemas (including `Literal` vocabularies) | typed refusal `{"ok": false, "error"}` |
 | domain operation | return value or `RepsError` | value flows up, refusal surfaces at the edge |
 
-Internal module boundaries use ordinary Python/TypeScript types, not unstructured dicts, wherever practical. Unknown snapshot fields stay tolerated (forward compatibility); known fields and shapes are strict. Python and Zod schemas are aligned by hand and verified by tests on both sides; no codegen pipeline.
+Internal module boundaries use ordinary Python/TypeScript types, not unstructured dicts, wherever practical. Snapshot fields are strict on both sides: Python validates every field (`extra="forbid"`), Zod is generated from the models by `scripts/gen.py`, the worker rejects wrong versions. Schema changes start in `reps/models.py`, then `gen.py` refreshes every consumer; `gen.py --check` fails the build on drift.
 
 ## Contributing
 
 New backend capability, in order: domain function in the owning module (returns data, raises `RepsError`, covered by a pytest), thin MCP tool with a descriptive docstring (`Literal` for closed vocabularies), MCP interface test in `tests/test_mcp.py`. Never add the capability to MCP first and never duplicate its logic there.
 
-New dashboard feature, in order: Zod schema shape if new external data arrives (partial-tolerant for stale payloads), query function if new server data is needed (the `snapshot` query stays coherent), derived-data helper in `lib/dashboard.ts`, page or component under `pages/`/`components/`, unit test for math and parsing. Canvas components reuse `lib/canvas.ts`; hover bodies stay per chart.
+New dashboard feature, in order: model change in `reps/models.py` plus view builder in `reps/snapshot.py`, `scripts/gen.py` to refresh Zod/fixtures, query function if new server data is needed (the `snapshot` query stays coherent), view selector in `lib/dashboard.ts` or `lib/select.ts` (selection and formatting only, never domain math), page or component under `pages/`/`components`, unit test. Canvas components reuse `lib/canvas.ts` and expose `layoutOf`/`plot` with a `HitMap`; hover bodies stay per chart.
 
 Verify with `scripts/verify.sh` (Python: `scripts/test-py.sh` alone). Dashboard: `pnpm --dir dashboard run test` for unit, `pnpm --dir dashboard exec playwright test` for e2e, deploy with `pnpm --dir dashboard run deploy` after frontend changes.
 

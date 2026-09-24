@@ -46,7 +46,7 @@
     }
     hover = h;
     paint();
-    const mev = mevOf(labels[h.wi]);
+    const mev = mevOf(h.g);
     showTip(
       labels[h.wi],
       [

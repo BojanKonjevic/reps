@@ -1136,38 +1136,35 @@
       "exercise": "bench",
       "target_e1rm": 150.0,
       "target_desc": "",
-      "deadline": "2026-10-24",
+      "deadline": "2026-10-02",
       "status": "active",
-      "created": "2026-09-24T12:00:00",
+      "created": "2026-09-11T12:00:00",
       "checkpoints": [
         116.7,
-        119.1,
-        121.5,
-        123.8,
-        126.2,
-        128.6,
-        131.0,
-        133.3,
-        135.7,
-        138.1,
-        140.5,
-        142.9,
-        145.2,
-        147.6,
+        127.8,
+        138.9,
         150.0
       ],
-      "completed": 1,
+      "completed": 3,
       "actuals": [
+        {
+          "date": "2026-09-12",
+          "e1rm": 116.7
+        },
+        {
+          "date": "2026-09-16",
+          "e1rm": 116.7
+        },
         {
           "date": "2026-09-20",
           "e1rm": 116.7
         }
       ],
-      "consecutive_misses": 0,
-      "on_track": true,
-      "remaining": 14,
+      "consecutive_misses": 2,
+      "on_track": false,
+      "remaining": 1,
       "slippage": false,
-      "next_checkpoint": 119.1,
+      "next_checkpoint": 150.0,
       "percent": 0.0,
       "top_by_date": {
         "2026-09-12": {
@@ -1198,6 +1195,10 @@
     {
       "severity": "high",
       "text": "back: 0 sets in 8 of last 8 weeks (MEV 10)"
+    },
+    {
+      "severity": "high",
+      "text": "bench: off trajectory 2 sessions running (goal 1 to 150.0 by 2026-10-02)"
     },
     {
       "severity": "high",

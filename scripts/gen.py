@@ -101,20 +101,8 @@ def zod_module(schema):
         node = defs[k]
         if node.get("type") != "object" or "enum" in node or "$ref" in node or "anyOf" in node:
             parts.append(f"export const {k}Schema = {zod_type(k, node, defs)};")
-            parts.append("")
-            emitted.add(k)
-            order.append(k)
-            return
-        req = set(node.get("required", []))
-        fields = []
-        for fk, fv in node.get("properties", {}).items():
-            expr = zod_type(fk, fv, defs)
-            if fk not in req:
-                expr += ".optional()"
-            fields.append(f"  {fk}: {expr},")
-        parts.append(f"export const {k}Schema = z.object({{")
-        parts.extend(fields)
-        parts.append("});")
+        else:
+            parts.append(f"export const {k}Schema = {zod_type(k, node, defs)};")
         parts.append("")
         emitted.add(k)
         order.append(k)
@@ -187,15 +175,17 @@ def main():
     write("schema/snapshot.schema.json", json.dumps(snap_schema, indent=2) + "\n")
     write("schema/constants.schema.json", json.dumps(const_schema, indent=2) + "\n")
     write("dashboard/src/generated/snapshot.ts", zod_module(snap_schema))
+    from reps.models import SNAPSHOT_SCHEMA_VERSION as SNAP_VER
     write("dashboard/src/generated/version.ts",
           HEADER_TS + f"export const SCHEMA_VERSION = {SCHEMA_VERSION};\n"
-          + "export const SNAPSHOT_SCHEMA_VERSION = 2;\n")
+          + f"export const SNAPSHOT_SCHEMA_VERSION = {SNAP_VER};\n")
 
     # Blank: a valid v2 snapshot of an empty DB (the worker's no-sync payload).
     import sqlite3
     import tempfile
     from reps import db as _db
     from reps.snapshot import build_views
+    import scenarios
     _freeze_time()
     fd, tmp = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -212,8 +202,8 @@ def main():
     validate_snapshot(blank)
     write("dashboard/src/generated/blank.json", json.dumps(blank, indent=2) + "\n")
 
-    # Fixtures from real backend scenarios.
-    import scenarios
+    # Fixtures from real backend scenarios (module already loaded above so the
+    # freeze patches its date reference too).
     for name, seed in scenarios.SCENARIOS.items():
         fd, tmp = tempfile.mkstemp(suffix=".db")
         os.close(fd)

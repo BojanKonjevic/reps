@@ -151,7 +151,7 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
             prev_e1rm = e1rm_of(prev["weight"], prev["reps"])
             if prev_e1rm > 0 and new_e1rm < prev_e1rm / 3:
                 warnings.append(f"e1RM {new_e1rm:.1f} is under a third of this workout's earlier {prev_e1rm:.1f} for '{exercise}'; confirm weight and reps")
-    if mapping and muscles and set(muscles.split(",")) != set(mapping.split(",")):
+    if mapping and muscles and set(muscles.split(",")) != set(mapping.split(",")):  # sanctioned: input-boundary vs read-model compare
         raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping}); "
                         f"the mapping is authoritative, log a genuine variation under its own exercise name "
                         f"or change it everywhere with muscle_map_set")

@@ -148,6 +148,8 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
+SNAPSHOT_SCHEMA_VERSION = 2
+
 STRICT = ConfigDict(extra="forbid")
 
 

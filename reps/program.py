@@ -18,7 +18,7 @@ def parse_movements(text):
     Input-boundary parser for MCP args and read-model assembly. DB columns
     are never string-split: storage is split_slot_lift rows.
     """
-    return [m.strip().lower() for m in text.split("/") if m.strip()]
+    return [m.strip().lower() for m in text.split("/") if m.strip()]  # sanctioned: input-boundary parser
 
 
 # --- lift registry (lift + lift_muscle own exercise existence and mapping) ---
@@ -181,14 +181,32 @@ def set_rotation(days):
             raise RepsError(f"rotation days must exist in splits, unknown: {name}")
         entries.append(match)
     try:
+        old_rotation = get_rotation(c)
+        saved = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+        c.execute("DELETE FROM rotation_anchor WHERE id = 1")
         c.execute("DELETE FROM rotation")
         for i, day in enumerate(entries):
             c.execute("INSERT INTO rotation (position, day) VALUES (?, ?)", (i, day))
+        cleared = False
+        if saved is not None:
+            pos = saved["position"]
+            def _norm(d):
+                return None if d is None or str(d).lower() == "rest" else d
+            same_day = (pos < len(entries) and pos < len(old_rotation)
+                        and _norm(entries[pos]) == _norm(old_rotation[pos]))
+            if same_day:
+                c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?)",
+                          (saved["anchor_date"], pos))
+            else:
+                cleared = True
         c.commit()
     except sqlite3.IntegrityError as e:
         c.rollback()
         raise RepsError(f"rotation write refused: {e}")
-    return {"rotation": get_rotation(c)}
+    out = {"rotation": get_rotation(c)}
+    if saved is not None:
+        out["anchor_cleared"] = cleared
+    return out
 
 
 def show_rotation():
@@ -270,16 +288,17 @@ def get_compaction():
 
 
 def set_compaction(last_compacted=None, postponed_until=None):
-    """Typed compaction markers (replaces untyped meta writes)."""
-    if last_compacted is not None and last_compacted not in ("never", ""):
+    """Typed compaction markers (replaces untyped meta writes).
+
+    None means leave the stored value unchanged. "never"/"" clears
+    last_compacted back to NULL.
+    """
+    clear_last = last_compacted in ("never", "")
+    if last_compacted is not None and not clear_last:
         try:
             datetime.strptime(last_compacted, "%b %d %Y")
         except ValueError:
             raise RepsError('last_compacted must be "never" or "Mon D YYYY" (e.g. Oct 1 2026)')
-        if last_compacted == "never":
-            last_compacted = None
-        elif last_compacted == "":
-            last_compacted = None
     if postponed_until is not None:
         try:
             postponed_until = date.fromisoformat(postponed_until).isoformat()
@@ -288,7 +307,7 @@ def set_compaction(last_compacted=None, postponed_until=None):
     c = conn()
     cur = get_compaction()
     if last_compacted is not None:
-        cur["last_compacted"] = last_compacted
+        cur["last_compacted"] = None if clear_last else last_compacted
     if postponed_until is not None:
         cur["postponed_until"] = postponed_until
     c.execute("INSERT INTO compaction (id, last_compacted, postponed_until) VALUES (1, ?, ?) "
@@ -587,9 +606,11 @@ def reconcile_split(day, after=None):
     else:
         insert_at = len(rows) + 1
     new_slot_sets = load_constants().thresholds.default_new_slot_sets
-    for r in c.execute("SELECT id, slot FROM split_slot WHERE variant = 'active' AND day = ? AND slot >= ?",
-                       (day, insert_at)).fetchall():
-        c.execute("UPDATE split_slot SET slot = slot + 1 WHERE id = ?", (r["id"],))
+    shift = len(new)
+    # Descending so shifted slots never collide with not-yet-moved ones.
+    for r in c.execute("SELECT id, slot FROM split_slot WHERE variant = 'active' AND day = ? "
+                       "AND slot >= ? ORDER BY slot DESC", (day, insert_at)).fetchall():
+        c.execute("UPDATE split_slot SET slot = slot + ? WHERE id = ?", (shift, r["id"]))
     for i, ex in enumerate(new):
         _write_slot(c, "active", day, insert_at + i, [ex], new_slot_sets)
     c.commit()

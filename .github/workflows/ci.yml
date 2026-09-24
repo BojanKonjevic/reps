@@ -33,7 +33,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python dependencies
-        run: pip install "pydantic>=2" "mcp>=2"
+        run: pip install "pydantic>=2" "mcp>=2" "pytest>=8"
 
       - name: Run pre-commit on all files
         uses: pre-commit/action@v3.0.1

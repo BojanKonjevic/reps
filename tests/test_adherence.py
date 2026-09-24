@@ -245,3 +245,22 @@ def test_invalid_anchor_says_so(log_module):
     with pytest.raises(RepsError, match="invalid"):
         log.get_rotation_status()
     assert _plan(log)["adherence"] is None
+
+
+def test_rotation_replace_preserves_or_clears_anchor(log_module):
+    log = log_module
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "bench", 3)
+    log.set_rotation(["Upper A", "Lower A", "rest"])
+    log.anchor_rotation("2026-09-01", "Lower A")
+    out = log.set_rotation(["Upper A", "Lower A"])
+    assert out["anchor_cleared"] is False
+    assert log.get_anchor(log.conn()) == {"date": "2026-09-01", "index": 1}
+    out = log.set_rotation(["Upper A"])
+    assert out["anchor_cleared"] is True
+    assert log.get_anchor(log.conn()) is None
+    log.anchor_rotation("2026-09-01", "Upper A")
+    out = log.set_rotation(["Lower A", "Upper A", "rest"])
+    assert out["anchor_cleared"] is True
+    assert log.get_anchor(log.conn()) is None

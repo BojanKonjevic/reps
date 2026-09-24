@@ -126,17 +126,17 @@ def test_snapshot_rejects_missing_exported():
 
 
 def test_snapshot_rejects_string_weight(log_module):
+    from conftest import close_session
+    log_module.set_exercise_mapping("bench", "chest")
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    close_session(log_module, "done")
     snap = log_module.build_snapshot_validated()
-    snap["sessions"][0]["exercises"] if snap["sessions"] else None
-    bad = dict(snap)
-    bad["lifts"] = [dict(l, sessions=[dict(s, weight="heavy") for s in l["sessions"]])
-                    for l in snap["lifts"]] or snap["lifts"]
-    if snap["lifts"]:
-        with pytest.raises(SnapshotValidationError):
-            validate_snapshot(bad)
-    else:
-        with pytest.raises(SnapshotValidationError):
-            validate_snapshot({"exported": "2026-01-01T00:00:00"})
+    assert snap["lifts"], "seeded lift must exist for the string-weight probe"
+    bad = json.loads(json.dumps(snap))
+    bad["lifts"][0]["sessions"][0]["weight"] = "heavy"
+    with pytest.raises(SnapshotValidationError):
+        validate_snapshot(bad)
 
 
 def test_snapshot_rejects_unknown_sections(log_module):

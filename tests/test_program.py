@@ -122,3 +122,42 @@ def test_plan_split_section(log_module):
     assert bench["notes"] == ["paused reps"]
     assert bench["muscles"] == ["chest"]
     assert bench["goal"] is None
+
+
+def test_compaction_never_clears(log_module):
+    log = log_module
+    log.set_compaction(last_compacted="Oct 1 2026")
+    assert log.get_compaction()["last_compacted"] == "Oct 1 2026"
+    log.set_compaction(last_compacted="never")
+    assert log.get_compaction()["last_compacted"] is None
+
+
+def test_reconcile_two_new_lifts_after_middle_slot(log_module):
+    log = log_module
+    log.set_exercise_mapping("bench", "chest")
+    log.set_exercise_mapping("row", "back")
+    log.set_exercise_mapping("press", "chest")
+    log.set_exercise_mapping("curl", "biceps")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Upper A", 2, "row", 3)
+    log.start_workout("test")
+    log.log_set("bench", 100, 5, "", "chest")
+    log.log_set("press", 60, 8, "", "chest")
+    log.log_set("curl", 30, 10, "", "biceps")
+    out = log.reconcile_split("Upper A", after="bench")
+    assert out["added"] == ["press", "curl"]
+    rows = log.read_split("active", "Upper A")
+    assert [(r["slot"], r["movements"]) for r in rows] == [
+        (1, "bench"), (2, "press"), (3, "curl"), (4, "row")]
+
+
+def test_progression_zero_target_bodyweight_only(log_module):
+    log = log_module
+    log.start_workout("test")
+    log.log_set("pullup", 0, 8, "", "back,biceps", True)
+    out = log.set_progression("pullup", "baseline", 0, 10, "flat")
+    assert out["next"] == "0x10"
+    log.log_set("bench", 100, 5, "", "chest")
+    import pytest
+    with pytest.raises(Exception, match="cannot be zero"):
+        log.set_progression("bench", "baseline", 0, 5, "flat")

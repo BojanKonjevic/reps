@@ -218,16 +218,31 @@ def conn():
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
     c.create_function("e1rm", 2, lambda w, r: _e1rm(w, r), deterministic=True)
-    c.executescript(SCHEMA)
-    row = c.execute("SELECT version FROM schema_version").fetchone()
-    if row is None:
+    tables = {r[0] for r in c.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if "schema_version" not in tables:
+        legacy = {"meta", "lift_muscle_map", "splits", "movement_notes", "set_muscles"} & tables
+        if legacy:
+            c.close()
+            raise RuntimeError(
+                f"legacy v1 tables present ({sorted(legacy)}); "
+                "migrate the database, there is no auto-migrate path")
+        c.executescript(SCHEMA)
         c.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
         c.commit()
-    elif row["version"] != SCHEMA_VERSION:
+        return c
+    row = c.execute("SELECT version FROM schema_version").fetchone()
+    if row is None:
+        # Schema created but never stamped (fresh executescript): stamp it.
+        c.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+        c.commit()
+        return c
+    if row["version"] != SCHEMA_VERSION:
         c.close()
         raise RuntimeError(
             f"schema version {row['version']} != code {SCHEMA_VERSION}; "
-            "run scripts/migrate_v2.py, there is no auto-migrate path")
+            "migrate the database, there is no auto-migrate path")
+    c.executescript(SCHEMA)
     return c
 
 

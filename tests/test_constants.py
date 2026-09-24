@@ -31,21 +31,25 @@ def test_constants_thresholds_complete():
         assert key in raw["thresholds"], key
 
 
-def test_dashboard_derives_from_constants():
+def _rg(*args):
     import subprocess
-    out = subprocess.run(["rg", "-l", "constants.json", "dashboard/src",
-                                  "--glob", "!**/__tests__/**", "--glob", "!**/fixtures/**",
-                                  "--glob", "!**/generated/**"],
-                         capture_output=True, text=True).stdout.strip()
+    r = subprocess.run(["rg", *args], capture_output=True, text=True, cwd=ROOT)
+    assert r.returncode in (0, 1), f"rg failed: {r.stderr}"
+    return r.stdout.strip()
+
+
+def test_dashboard_derives_from_constants():
+    out = _rg("-l", "constants.json", "dashboard/src",
+              "--glob", "!**/__tests__/**", "--glob", "!**/fixtures/**",
+              "--glob", "!**/generated/**")
     assert out == "", f"dashboard reads constants via snapshot only, found: {out}"
 
 
 def test_generated_snapshot_types_are_the_only_ones():
     import subprocess
-    out = subprocess.run(["rg", "-n", "(interface Snap\\w*|type Snap\\w*\\s*=)",
-                                      "dashboard/src", "--glob", "!**/generated/**",
-                                      "--glob", "!**/__tests__/**"],
-                         capture_output=True, text=True).stdout.strip()
+    out = _rg("-n", "(interface Snap\\w*|type Snap\\w*\\s*=)",
+                "dashboard/src", "--glob", "!**/generated/**",
+                "--glob", "!**/__tests__/**")
     lines = [ln for ln in out.splitlines() if "import " not in ln]
     assert lines == [], f"hand-written snapshot types found: {lines}"
 

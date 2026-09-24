@@ -77,7 +77,7 @@
 
 **Adding a color or icon**
 
-- Good: `--warn-soft` in `tokens.css`, referenced via a class or `theme.color('warnSoft')`. Icon path added to `icons.ts`.
+- Good: `--warn-soft` in `tokens.css`, referenced via a class or `theme.color('warn-soft')`. New tokens also join the fixed key list in `lib/theme.ts` (canvas reads computed styles once). Icon path added to `icons.ts`.
 - Bad: `ctx.strokeStyle = '#e6c400'` in a chart. Bad: pasting an `<svg>` into a page.
 
 **Adding a route**

@@ -79,3 +79,22 @@ def test_domain_refusal_is_not_a_process_exit():
     err = RepsError("no open workout")
     assert str(err) == "no open workout"
     assert not isinstance(err, SystemExit)
+
+
+def test_conn_refuses_legacy_v1_db(tmp_path, monkeypatch):
+    """A v1 database is refused before any v2 table is created (no auto-migrate)."""
+    import sqlite3
+    legacy = str(tmp_path / "legacy.db")
+    c = sqlite3.connect(legacy)
+    c.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    c.execute("CREATE TABLE workouts (id INTEGER PRIMARY KEY, date TEXT NOT NULL)")
+    c.commit()
+    c.close()
+    monkeypatch.setattr("reps.db.DB", legacy)
+    import pytest
+    with pytest.raises(RuntimeError, match="legacy v1"):
+        log_module_conn = __import__("reps").conn()
+    live = {r[0] for r in sqlite3.connect(legacy).execute(
+        "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    assert "schema_version" not in live
+    assert "lift" not in live

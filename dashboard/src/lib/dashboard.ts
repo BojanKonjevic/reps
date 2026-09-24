@@ -30,8 +30,8 @@ export function statusLines(snap: Snapshot): NowSeg[][] {
     );
   for (const d of snap.deload) line(['Deloading', true], [' ' + d.subject + '.', false]);
   for (const m of snap.muscles) {
-    if (m.tier !== 'maintain')
-      line(['Focus:', true], [' ' + m.muscle + ' (' + m.tier + ').', false]);
+    if (m.tier === 'priority') line(['Focus:', true], [' ' + m.muscle + '.', false]);
+    else if (m.tier === 'deprioritize') line(['Held back:', true], [' ' + m.muscle + '.', false]);
   }
   snap.flags.slice(0, 3).forEach(f => {
     line(['Watch:', true], [' ' + f.subject + ', ' + f.reason, false]);

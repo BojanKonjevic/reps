@@ -112,7 +112,7 @@ def rename_exercise(old, new):
         raise RepsError("old and new exercise names are identical, nothing to rename")
     old_m = lift_muscles_csv(c, old)
     new_m = lift_muscles_csv(c, new)
-    if old_m and new_m and set(old_m.split(",")) != set(new_m.split(",")):
+    if old_m and new_m and set(old_m.split(",")) != set(new_m.split(",")):  # sanctioned: validated read-model compare
         raise RepsError(f"'{new}' already maps to {new_m}, not {old_m}; retag one of them first, then rename")
     if new_m is not None and old_m is None:
         renamed = c.execute("UPDATE sets SET exercise = ? WHERE exercise = ?", (new, old)).rowcount

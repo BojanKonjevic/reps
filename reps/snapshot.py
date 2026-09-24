@@ -8,6 +8,7 @@ from datetime import date, datetime
 from .adherence import adherence_snapshot, classify_date
 from .autoreg import autoreg_block
 from .constants import load_constants
+from .models import SNAPSHOT_SCHEMA_VERSION
 from .e1rm import e1rm
 from .program import (active_deloads, deload_covers, get_rotation,
                       lift_muscles_csv, parse_active_split_days, read_priorities,
@@ -71,7 +72,7 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
         last_row = hist[-1]
         last_pr = next((s["date"] for s in reversed(hist) if pr.get(s["id"])), None)
         csv = lift_muscles_csv(c, ex) or ""
-        muscles = [m for m in csv.split(",") if m]
+        muscles = [m for m in csv.split(",") if m]  # sanctioned: validated read-model split
         notes = [n["note"] for n in c.execute(
             "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (ex,)).fetchall()]
         p = prog.get(ex)
@@ -289,7 +290,7 @@ def program_view(c, rotation, anchor, priorities):
             uniq: list[str] = []
             for m in moves:
                 csv = lift_muscles_csv(c, m) or ""
-                for mu in csv.split(","):
+                for mu in csv.split(","):  # sanctioned: validated read-model split
                     if mu and mu not in uniq:
                         uniq.append(mu)
             slots.append({"slot": r["slot"], "moves": moves, "sets": r["sets"],
@@ -434,7 +435,7 @@ def build_views(c):
     break_threshold = constants.thresholds.break_days + 1
     goals = goals_view(c, prog)
     snap = {
-        "schema_version": 2,
+        "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "exported": datetime.now().isoformat(timespec="seconds"),
         "as_of": as_of,
         "constants": constants.model_dump(),

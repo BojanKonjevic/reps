@@ -3,372 +3,372 @@
 import { z } from "zod";
 
 export const AdherenceDaySchema = z.object({
-  date: z.string(),
-  expected: z.string(),
-  trained: z.string().nullable(),
-  status: z.enum(["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]),
-});
+  "date": z.string(),
+  "expected": z.string(),
+  "trained": z.string().nullable(),
+  "status": z.enum(["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]),
+}).strict();
 
 export const AdherenceWeekSchema = z.object({
-  week_start: z.string(),
-  trained: z.number().int(),
-  expected: z.number().int(),
-});
+  "week_start": z.string(),
+  "trained": z.number().int(),
+  "expected": z.number().int(),
+}).strict();
 
 export const ProgramAnchorSchema = z.object({
-  date: z.string(),
-  index: z.number().int(),
-});
+  "date": z.string(),
+  "index": z.number().int(),
+}).strict();
 
 export const AdherenceSchema = z.object({
-  anchor: ProgramAnchorSchema.nullable(),
-  days: z.array(AdherenceDaySchema),
-  drift: z.boolean(),
-  drift_days: z.union([z.number().int(), z.number()]),
-  drift_threshold: z.union([z.number().int(), z.number()]),
-  weeks: z.array(AdherenceWeekSchema),
-});
+  "anchor": ProgramAnchorSchema.nullable(),
+  "days": z.array(AdherenceDaySchema),
+  "drift": z.boolean(),
+  "drift_days": z.union([z.number().int(), z.number()]),
+  "drift_threshold": z.union([z.number().int(), z.number()]),
+  "weeks": z.array(AdherenceWeekSchema),
+}).strict();
 
 export const AutoregDropWatchSchema = z.object({
-  exercise: z.string(),
-  drops_pct: z.array(z.union([z.number().int(), z.number()])),
-});
+  "exercise": z.string(),
+  "drops_pct": z.array(z.union([z.number().int(), z.number()])),
+}).strict();
 
 export const AutoregHoldSchema = z.object({
-  id: z.number().int(),
-  day: z.string(),
-  movements: z.string(),
-  action: z.enum(["trim", "swap", "add"]),
-  set_on: z.string(),
-  hold_until: z.string(),
-  reason: z.string(),
-});
+  "id": z.number().int(),
+  "day": z.string(),
+  "movements": z.string(),
+  "action": z.enum(["trim", "swap", "add"]),
+  "set_on": z.string(),
+  "hold_until": z.string(),
+  "reason": z.string(),
+}).strict();
 
 export const AutoregMissStreakSchema = z.object({
-  exercise: z.string(),
-  streak: z.number().int(),
-});
+  "exercise": z.string(),
+  "streak": z.number().int(),
+}).strict();
 
 export const AutoregSchema = z.object({
-  permitted: z.boolean(),
-  holds: z.array(AutoregHoldSchema),
-  miss_streaks: z.array(AutoregMissStreakSchema),
-  drop_watch: z.array(AutoregDropWatchSchema),
-  grouped: z.record(z.string(), z.array(z.string())),
-  program_volume: z.record(z.string(), z.union([z.number().int(), z.number()])),
-});
+  "permitted": z.boolean(),
+  "holds": z.array(AutoregHoldSchema),
+  "miss_streaks": z.array(AutoregMissStreakSchema),
+  "drop_watch": z.array(AutoregDropWatchSchema),
+  "grouped": z.record(z.string(), z.array(z.string())),
+  "program_volume": z.record(z.string(), z.union([z.number().int(), z.number()])),
+}).strict();
 
 export const AutoregChangeSchema = z.object({
-  id: z.number().int(),
-  date: z.string(),
-  action: z.enum(["trim", "swap", "add"]),
-  day: z.string(),
-  slot: z.number().int(),
-  before_movements: z.string(),
-  before_sets: z.number().int(),
-  after_movements: z.string(),
-  after_sets: z.number().int(),
-  evidence: z.string(),
-  reverted_on: z.string().nullable(),
-});
+  "id": z.number().int(),
+  "date": z.string(),
+  "action": z.enum(["trim", "swap", "add"]),
+  "day": z.string(),
+  "slot": z.number().int(),
+  "before_movements": z.string(),
+  "before_sets": z.number().int(),
+  "after_movements": z.string(),
+  "after_sets": z.number().int(),
+  "evidence": z.string(),
+  "reverted_on": z.string().nullable(),
+}).strict();
 
 export const BodyweightPointSchema = z.object({
-  date: z.string(),
-  kg: z.union([z.number().int(), z.number()]),
-  avg7: z.union([z.number().int(), z.number()]).nullable(),
-  gap_before: z.number().int().nullable(),
-  gap: z.boolean(),
-});
+  "date": z.string(),
+  "kg": z.union([z.number().int(), z.number()]),
+  "avg7": z.union([z.number().int(), z.number()]).nullable(),
+  "gap_before": z.number().int().nullable(),
+  "gap": z.boolean(),
+}).strict();
 
 export const CalendarHoverSchema = z.object({
-  lines: z.array(z.string()),
-});
+  "lines": z.array(z.string()),
+}).strict();
 
 export const CalendarDaySchema = z.object({
-  date: z.string(),
-  kind: z.enum(["trained", "rest", "missed", "empty"]),
-  slot_label: z.string().nullable(),
-  has_pr: z.boolean(),
-  break_after_gap: z.boolean(),
-  adherence_status: z.string().nullable(),
-  expected: z.string().nullable(),
-  hover: CalendarHoverSchema,
-});
+  "date": z.string(),
+  "kind": z.enum(["trained", "rest", "missed", "empty"]),
+  "slot_label": z.string().nullable(),
+  "has_pr": z.boolean(),
+  "break_after_gap": z.boolean(),
+  "adherence_status": z.string().nullable(),
+  "expected": z.string().nullable(),
+  "hover": CalendarHoverSchema,
+}).strict();
 
 export const MuscleEntrySchema = z.object({
-  mev: z.number().int(),
-  mav: z.array(z.union([z.number().int(), z.number()])).nullable().optional(),
-  mrv: z.union([z.number().int(), z.number()]).nullable().optional(),
-  freq: z.array(z.union([z.number().int(), z.number()])),
-  tier: z.enum(["settled", "contested", "opinion"]),
-  source: z.string(),
-  color: z.string(),
+  "mev": z.number().int(),
+  "mav": z.array(z.union([z.number().int(), z.number()])).nullable().optional(),
+  "mrv": z.union([z.number().int(), z.number()]).nullable().optional(),
+  "freq": z.array(z.union([z.number().int(), z.number()])),
+  "tier": z.enum(["settled", "contested", "opinion"]),
+  "source": z.string(),
+  "color": z.string(),
 });
 
 export const RepBandSchema = z.object({
-  max_reps: z.number().int().nullable().optional(),
-  jump_pct: z.union([z.number().int(), z.number()]).nullable().optional(),
+  "max_reps": z.number().int().nullable().optional(),
+  "jump_pct": z.union([z.number().int(), z.number()]).nullable().optional(),
 });
 
 export const ThresholdsSchema = z.object({
-  stale_workout_hours: z.union([z.number().int(), z.number()]),
-  stale_workout_days: z.union([z.number().int(), z.number()]),
-  break_days: z.union([z.number().int(), z.number()]),
-  e1rm_warn_ratio: z.union([z.number().int(), z.number()]),
-  duplicate_name_distance: z.union([z.number().int(), z.number()]),
-  volume_window_weeks: z.number().int(),
-  volume_bad_weeks: z.number().int(),
-  ledger_retention_days: z.number().int(),
-  default_new_slot_sets: z.number().int(),
-  adherence_drift_days: z.number().int(),
-  progression_drop_pct: z.union([z.number().int(), z.number()]),
-  deload_watch_pct: z.union([z.number().int(), z.number()]).optional(),
-  goal_divergence_pct: z.union([z.number().int(), z.number()]).optional(),
-  stall_window_sessions: z.number().int().optional(),
-  stall_decline_pct: z.union([z.number().int(), z.number()]).optional(),
-  stall_flat_sessions: z.number().int().optional(),
-  stall_min_sessions: z.number().int().optional(),
-  bodyweight_gap_days: z.number().int().optional(),
-  bodyweight_avg_days: z.number().int().optional(),
-  recent_notes_count: z.number().int().optional(),
-  trend_top_lifts: z.number().int().optional(),
-  deload_volume_reduction: z.array(z.union([z.number().int(), z.number()])).optional(),
+  "stale_workout_hours": z.union([z.number().int(), z.number()]),
+  "stale_workout_days": z.union([z.number().int(), z.number()]),
+  "break_days": z.union([z.number().int(), z.number()]),
+  "e1rm_warn_ratio": z.union([z.number().int(), z.number()]),
+  "duplicate_name_distance": z.union([z.number().int(), z.number()]),
+  "volume_window_weeks": z.number().int(),
+  "volume_bad_weeks": z.number().int(),
+  "ledger_retention_days": z.number().int(),
+  "default_new_slot_sets": z.number().int(),
+  "adherence_drift_days": z.number().int(),
+  "progression_drop_pct": z.union([z.number().int(), z.number()]),
+  "deload_watch_pct": z.union([z.number().int(), z.number()]).optional(),
+  "goal_divergence_pct": z.union([z.number().int(), z.number()]).optional(),
+  "stall_window_sessions": z.number().int().optional(),
+  "stall_decline_pct": z.union([z.number().int(), z.number()]).optional(),
+  "stall_flat_sessions": z.number().int().optional(),
+  "stall_min_sessions": z.number().int().optional(),
+  "bodyweight_gap_days": z.number().int().optional(),
+  "bodyweight_avg_days": z.number().int().optional(),
+  "recent_notes_count": z.number().int().optional(),
+  "trend_top_lifts": z.number().int().optional(),
+  "deload_volume_reduction": z.array(z.union([z.number().int(), z.number()])).optional(),
 });
 
 export const ConstantsModelSchema = z.object({
-  version: z.number().int().optional(),
-  muscles: z.record(z.string(), MuscleEntrySchema),
-  untracked: z.array(z.string()).optional(),
-  rep_bands: z.array(RepBandSchema),
-  thresholds: ThresholdsSchema,
-  explained_keywords: z.array(z.string()).optional(),
-  rep_scheme_default: z.array(z.number().int()).optional(),
+  "version": z.number().int().optional(),
+  "muscles": z.record(z.string(), MuscleEntrySchema),
+  "untracked": z.array(z.string()).optional(),
+  "rep_bands": z.array(RepBandSchema),
+  "thresholds": ThresholdsSchema,
+  "explained_keywords": z.array(z.string()).optional(),
+  "rep_scheme_default": z.array(z.number().int()).optional(),
 });
 
 export const DeloadSchema = z.object({
-  id: z.number().int(),
-  scope: z.enum(["lift", "slot"]),
-  subject: z.string(),
-  set_on: z.string(),
-  cleared_on: z.string().nullable(),
-});
+  "id": z.number().int(),
+  "scope": z.enum(["lift", "slot"]),
+  "subject": z.string(),
+  "set_on": z.string(),
+  "cleared_on": z.string().nullable(),
+}).strict();
 
 export const FlagSchema = z.object({
-  id: z.number().int(),
-  subject: z.string(),
-  reason: z.string(),
-  created: z.string(),
-  consumed_at: z.string().nullable(),
-});
+  "id": z.number().int(),
+  "subject": z.string(),
+  "reason": z.string(),
+  "created": z.string(),
+  "consumed_at": z.string().nullable(),
+}).strict();
 
 export const GoalActualSchema = z.object({
-  date: z.string(),
-  e1rm: z.union([z.number().int(), z.number()]),
-});
+  "date": z.string(),
+  "e1rm": z.union([z.number().int(), z.number()]),
+}).strict();
 
 export const GoalTopSchema = z.object({
-  weight: z.union([z.number().int(), z.number()]),
-  reps: z.number().int(),
-});
+  "weight": z.union([z.number().int(), z.number()]),
+  "reps": z.number().int(),
+}).strict();
 
 export const GoalSchema = z.object({
-  id: z.number().int(),
-  exercise: z.string(),
-  target_e1rm: z.union([z.number().int(), z.number()]),
-  target_desc: z.string(),
-  deadline: z.string(),
-  status: z.enum(["active", "dropped", "done"]).optional(),
-  created: z.string(),
-  checkpoints: z.array(z.union([z.number().int(), z.number()])),
-  completed: z.number().int(),
-  actuals: z.array(GoalActualSchema),
-  consecutive_misses: z.number().int(),
-  on_track: z.boolean(),
-  remaining: z.number().int(),
-  slippage: z.boolean(),
-  next_checkpoint: z.union([z.number().int(), z.number()]).nullable(),
-  percent: z.union([z.number().int(), z.number()]).nullable(),
-  top_by_date: z.record(z.string(), GoalTopSchema),
-});
+  "id": z.number().int(),
+  "exercise": z.string(),
+  "target_e1rm": z.union([z.number().int(), z.number()]),
+  "target_desc": z.string(),
+  "deadline": z.string(),
+  "status": z.enum(["active", "dropped", "done"]).optional(),
+  "created": z.string(),
+  "checkpoints": z.array(z.union([z.number().int(), z.number()])),
+  "completed": z.number().int(),
+  "actuals": z.array(GoalActualSchema),
+  "consecutive_misses": z.number().int(),
+  "on_track": z.boolean(),
+  "remaining": z.number().int(),
+  "slippage": z.boolean(),
+  "next_checkpoint": z.union([z.number().int(), z.number()]).nullable(),
+  "percent": z.union([z.number().int(), z.number()]).nullable(),
+  "top_by_date": z.record(z.string(), GoalTopSchema),
+}).strict();
 
 export const LiftBestSchema = z.object({
-  weight: z.union([z.number().int(), z.number()]),
-  reps: z.number().int(),
-  e1rm: z.union([z.number().int(), z.number()]),
-  date: z.string(),
-});
+  "weight": z.union([z.number().int(), z.number()]),
+  "reps": z.number().int(),
+  "e1rm": z.union([z.number().int(), z.number()]),
+  "date": z.string(),
+}).strict();
 
 export const LiftLastSchema = z.object({
-  weight: z.union([z.number().int(), z.number()]),
-  reps: z.number().int(),
-  date: z.string(),
-});
+  "weight": z.union([z.number().int(), z.number()]),
+  "reps": z.number().int(),
+  "date": z.string(),
+}).strict();
 
 export const MarkKindSchema = z.enum(["goal", "stalling", "slipping", "focus", "autoreg", "grouped"]);
 
 export const LiftMarkSchema = z.object({
-  kind: MarkKindSchema,
-  payload: z.record(z.string(), z.union([z.string(), z.number().int(), z.number(), z.boolean()]).nullable()),
-});
+  "kind": MarkKindSchema,
+  "payload": z.record(z.string(), z.union([z.string(), z.number().int(), z.number(), z.boolean()]).nullable()),
+}).strict();
 
 export const LiftProgressionSchema = z.object({
-  verdict: z.enum(["hit", "miss", "hold", "baseline"]),
-  next: z.string(),
-  next_weight: z.union([z.number().int(), z.number()]),
-  next_reps: z.number().int(),
-  direction: z.enum(["up", "flat", "down"]),
-  note: z.string(),
-  next_e1rm: z.union([z.number().int(), z.number()]),
-});
+  "verdict": z.enum(["hit", "miss", "hold", "baseline"]),
+  "next": z.string(),
+  "next_weight": z.union([z.number().int(), z.number()]),
+  "next_reps": z.number().int(),
+  "direction": z.enum(["up", "flat", "down"]),
+  "note": z.string(),
+  "next_e1rm": z.union([z.number().int(), z.number()]),
+}).strict();
 
 export const LiftSessionSchema = z.object({
-  date: z.string(),
-  workout_id: z.number().int(),
-  weight: z.union([z.number().int(), z.number()]),
-  reps: z.number().int(),
-  e1rm: z.union([z.number().int(), z.number()]),
-  is_pr: z.boolean(),
-  delta_e1rm: z.union([z.number().int(), z.number()]).nullable(),
-});
+  "date": z.string(),
+  "workout_id": z.number().int(),
+  "weight": z.union([z.number().int(), z.number()]),
+  "reps": z.number().int(),
+  "e1rm": z.union([z.number().int(), z.number()]),
+  "is_pr": z.boolean(),
+  "delta_e1rm": z.union([z.number().int(), z.number()]).nullable(),
+}).strict();
 
 export const LiftSchema = z.object({
-  exercise: z.string(),
-  muscles: z.array(z.string()),
-  notes: z.array(z.string()),
-  sessions: z.array(LiftSessionSchema),
-  best: LiftBestSchema.nullable(),
-  last: LiftLastSchema.nullable(),
-  last_pr_date: z.string().nullable(),
-  days_since_pr: z.number().int().nullable(),
-  progression: LiftProgressionSchema.nullable(),
-  goal_id: z.number().int().nullable(),
-  tags: z.array(z.string()),
-  marks: z.array(LiftMarkSchema),
-  rank_default: z.number().int(),
-  rank_attention: z.number().int(),
-});
+  "exercise": z.string(),
+  "muscles": z.array(z.string()),
+  "notes": z.array(z.string()),
+  "sessions": z.array(LiftSessionSchema),
+  "best": LiftBestSchema.nullable(),
+  "last": LiftLastSchema.nullable(),
+  "last_pr_date": z.string().nullable(),
+  "days_since_pr": z.number().int().nullable(),
+  "progression": LiftProgressionSchema.nullable(),
+  "goal_id": z.number().int().nullable(),
+  "tags": z.array(z.string()),
+  "marks": z.array(LiftMarkSchema),
+  "rank_default": z.number().int(),
+  "rank_attention": z.number().int(),
+}).strict();
 
 export const MuscleBandsSchema = z.object({
-  mev: z.union([z.number().int(), z.number()]),
-  mav: z.array(z.union([z.number().int(), z.number()])).nullable(),
-  mrv: z.union([z.number().int(), z.number()]).nullable(),
-});
+  "mev": z.union([z.number().int(), z.number()]),
+  "mav": z.array(z.union([z.number().int(), z.number()])).nullable(),
+  "mrv": z.union([z.number().int(), z.number()]).nullable(),
+}).strict();
 
 export const MuscleLiftShareSchema = z.object({
-  exercise: z.string(),
-  sets: z.number().int(),
-  share: z.number(),
-});
+  "exercise": z.string(),
+  "sets": z.number().int(),
+  "share": z.number(),
+}).strict();
 
 export const MuscleSchema = z.object({
-  muscle: z.string(),
-  bands: MuscleBandsSchema,
-  weekly: z.array(z.number().int()),
-  status: z.string(),
-  tier: z.enum(["priority", "maintain", "deprioritize"]),
-  grouped: z.array(z.string()),
-  lift_share: z.array(MuscleLiftShareSchema),
-  trained_weeks: z.number().int(),
-  avg_recent: z.union([z.number().int(), z.number()]),
-});
+  "muscle": z.string(),
+  "bands": MuscleBandsSchema,
+  "weekly": z.array(z.number().int()),
+  "status": z.string(),
+  "tier": z.enum(["priority", "maintain", "deprioritize"]),
+  "grouped": z.array(z.string()),
+  "lift_share": z.array(MuscleLiftShareSchema),
+  "trained_weeks": z.number().int(),
+  "avg_recent": z.union([z.number().int(), z.number()]),
+}).strict();
 
 export const NextUpRowSchema = z.object({
-  movement: z.string(),
-  last: LiftLastSchema.nullable(),
-  target: z.string().nullable(),
-});
+  "movement": z.string(),
+  "last": LiftLastSchema.nullable(),
+  "target": z.string().nullable(),
+}).strict();
 
 export const NextUpSchema = z.object({
-  day: z.string().nullable(),
-  basis: z.string(),
-  rows: z.array(NextUpRowSchema),
-  empty: z.string().nullable(),
-});
+  "day": z.string().nullable(),
+  "basis": z.string(),
+  "rows": z.array(NextUpRowSchema),
+  "empty": z.string().nullable(),
+}).strict();
 
 export const PrioritySchema = z.object({
-  tier: z.enum(["priority", "maintain", "deprioritize"]),
-  since: z.string(),
-  until: z.string().nullable(),
-});
+  "tier": z.enum(["priority", "maintain", "deprioritize"]),
+  "since": z.string(),
+  "until": z.string().nullable(),
+}).strict();
 
 export const ProgramSlotSchema = z.object({
-  slot: z.number().int(),
-  moves: z.array(z.string()),
-  sets: z.number().int(),
-  muscles: z.array(z.string()),
-  focus: z.array(z.string()),
-});
+  "slot": z.number().int(),
+  "moves": z.array(z.string()),
+  "sets": z.number().int(),
+  "muscles": z.array(z.string()),
+  "focus": z.array(z.string()),
+}).strict();
 
 export const ProgramDaySchema = z.object({
-  day: z.string(),
-  muscles: z.array(z.string()),
-  slots: z.array(ProgramSlotSchema),
-});
+  "day": z.string(),
+  "muscles": z.array(z.string()),
+  "slots": z.array(ProgramSlotSchema),
+}).strict();
 
 export const ProgramViewSchema = z.object({
-  rotation: z.array(z.string()),
-  anchor: ProgramAnchorSchema.nullable(),
-  days: z.array(ProgramDaySchema),
-});
+  "rotation": z.array(z.string()),
+  "anchor": ProgramAnchorSchema.nullable(),
+  "days": z.array(ProgramDaySchema),
+}).strict();
 
 export const RecentNoteSchema = z.object({
-  date: z.string(),
-  text: z.string(),
-  hot: z.boolean(),
-});
+  "date": z.string(),
+  "text": z.string(),
+  "hot": z.boolean(),
+}).strict();
 
 export const RuleSchema = z.object({
-  id: z.number().int(),
-  subject: z.string(),
-  text: z.string(),
-  start_date: z.string(),
-  expiry: z.string().nullable(),
-  status: z.string().optional(),
-  created: z.string(),
-  needs_confirm: z.boolean(),
-});
+  "id": z.number().int(),
+  "subject": z.string(),
+  "text": z.string(),
+  "start_date": z.string(),
+  "expiry": z.string().nullable(),
+  "status": z.string().optional(),
+  "created": z.string(),
+  "needs_confirm": z.boolean(),
+}).strict();
 
 export const SetViewSchema = z.object({
-  n: z.number().int(),
-  w: z.union([z.number().int(), z.number()]),
-  r: z.number().int(),
-  e: z.union([z.number().int(), z.number()]),
-  pr: z.boolean(),
-  note: z.string(),
-});
+  "n": z.number().int(),
+  "w": z.union([z.number().int(), z.number()]),
+  "r": z.number().int(),
+  "e": z.union([z.number().int(), z.number()]),
+  "pr": z.boolean(),
+  "note": z.string(),
+}).strict();
 
 export const SessionExerciseSchema = z.object({
-  exercise: z.string(),
-  deload: z.boolean(),
-  sets: z.array(SetViewSchema),
-});
+  "exercise": z.string(),
+  "deload": z.boolean(),
+  "sets": z.array(SetViewSchema),
+}).strict();
 
 export const SessionViewSchema = z.object({
-  date: z.string(),
-  workout_id: z.number().int(),
-  status: z.enum(["open", "done", "rest"]),
-  slot_label: z.string().nullable(),
-  notes: z.string(),
-  exercises: z.array(SessionExerciseSchema),
-});
+  "date": z.string(),
+  "workout_id": z.number().int(),
+  "status": z.enum(["open", "done", "rest"]),
+  "slot_label": z.string().nullable(),
+  "notes": z.string(),
+  "exercises": z.array(SessionExerciseSchema),
+}).strict();
 
 export const SignalSchema = z.object({
-  severity: z.enum(["high", "medium", "low", "info"]),
-  text: z.string(),
-});
+  "severity": z.enum(["high", "medium", "low", "info"]),
+  "text": z.string(),
+}).strict();
 
 export const StatusViewSchema = z.object({
-  open_today: z.boolean(),
-  rest_today: z.boolean(),
-  last_trained: z.string().nullable(),
-  break_days: z.number().int().nullable(),
-  on_break: z.boolean(),
-});
+  "open_today": z.boolean(),
+  "rest_today": z.boolean(),
+  "last_trained": z.string().nullable(),
+  "break_days": z.number().int().nullable(),
+  "on_break": z.boolean(),
+}).strict();
 
 export const VolumeHistorySchema = z.object({
-  week_starts: z.array(z.string()),
-  by_muscle: z.record(z.string(), z.array(z.number().int())),
-});
+  "week_starts": z.array(z.string()),
+  "by_muscle": z.record(z.string(), z.array(z.number().int())),
+}).strict();
 
 export const snapshotSchema = z.object({
   "schema_version": z.number().int(),

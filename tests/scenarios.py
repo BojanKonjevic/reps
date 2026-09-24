@@ -95,7 +95,11 @@ def seed_goal_off_track(log):
     log.set_split("Upper A", 1, "bench", 3)
     log.set_rotation(["Upper A", "rest"])
     _session(log, 12, "bench", 100, 5)
-    log.add_goal("bench", 150, (date.today() + timedelta(days=30)).isoformat(), "", 116.7)
+    gid = log.add_goal("bench", 150, (date.today() + timedelta(days=8)).isoformat(), "", 116.7)["goal_id"]
+    c = log.conn()
+    c.execute("UPDATE goals SET created = ? WHERE id = ?",
+              ((date.today() - timedelta(days=13)).isoformat() + "T12:00:00", gid))
+    c.commit()
     _session(log, 8, "bench", 100, 5, "miss")
     _session(log, 4, "bench", 100, 5, "miss")
     return {"name": "goal_off_track"}

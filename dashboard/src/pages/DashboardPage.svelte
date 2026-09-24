@@ -53,7 +53,7 @@
     if (snap.exported !== paintedStamp) {
       paintedStamp = snap.exported;
       pruneHidden(top);
-      defaultHide(top, snap.constants.thresholds.trend_top_lifts ?? 8);
+      defaultHide(top, snap.constants.thresholds.trend_top_lifts);
     }
   });
 
@@ -346,7 +346,7 @@
               {g.next_checkpoint !== null && g.next_checkpoint !== undefined
                 ? 'next checkpoint ' + fmtV(g.next_checkpoint)
                 : 'trajectory complete'}
-              {#if g.percent !== null}| {g.percent}% there{#if g.on_track === false}, off track{/if}{/if}
+              {#if g.percent !== null}| {g.percent}% there{/if}
               {#if g.on_track === false}| OFF TRACK{/if}
               {#if g.slippage}| slippage: deadline needs room{/if}
             </div>

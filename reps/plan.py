@@ -131,7 +131,7 @@ def get_plan(slot=None, verbose=False):
                     "SELECT note FROM movement_note WHERE exercise = ? ORDER BY id", (m,)).fetchall())
                 csv = lift_muscles_csv(c, m)
                 if csv:
-                    entry["muscles"].extend(mu for mu in csv.split(",") if mu not in entry["muscles"])
+                    entry["muscles"].extend(mu for mu in csv.split(",") if mu not in entry["muscles"])  # sanctioned: validated read-model split
             slots.append(entry)
         split_section = {"day": split_day, "slots": slots}
 
