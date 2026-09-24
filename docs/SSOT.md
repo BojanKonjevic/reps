@@ -135,6 +135,16 @@
 - [ ] Generated files are regenerated (`scripts/gen.py`) and docs markers synced.
 - [ ] `scripts/verify.sh` passes.
 - [ ] Any new duplication is in the sanctioned list, with the mechanism named.
+- [ ] New tests pin meaning, not shape (see Testing scope).
+
+## Testing scope
+
+Tests pin meaning; schemas pin shape; gates pin repeat violations. In order:
+
+1. **Golden tests assert semantics with literal oracles.** A stall test states the series and the verdict, typed out. It never computes the expectation from the function it verifies. Add one when you add or change a domain definition.
+2. **Shape is covered once, by validation.** Strict models plus generated schemas already reject missing, extra, and mistyped fields. Do not golden-test every field of a large view; test the fields that carry a decision (PR flags, tags, verdicts, break facts).
+3. **A new gate only for a repeated violation.** Positive test (violation fails) plus negative test (clean tree passes). Do not add gates for rules nothing has broken yet; gate count scales with gate tests, and scaffolding tests have diminishing returns.
+4. **A deleted check leaves a refusal test.** When an FK or type subsumes a procedural check, the test attempts the violation and expects the refusal, so enforcement is proven moved, not removed.
 
 ## Sanctioned duplication (closed list)
 
