@@ -11,7 +11,7 @@ DB = os.environ.get("REPS_DB", os.path.join(ROOT, "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _check_lists():
@@ -90,8 +90,8 @@ CREATE TABLE IF NOT EXISTS progression (
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE,
   verdict TEXT NOT NULL CHECK (verdict IN ({ck['verdict']})),
-  next_weight REAL,
-  next_reps INTEGER,
+  next_weight REAL NOT NULL,
+  next_reps INTEGER NOT NULL,
   direction TEXT NOT NULL CHECK (direction IN ({ck['direction']})),
   note TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL,

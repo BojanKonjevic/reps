@@ -19,7 +19,7 @@ from .constants import (CONSTANTS_FILE, canon_muscle_name, check_constants,
                         clean_muscles, get_constants, load_constants,
                         parse_mev_from_science, rep_band_bound, set_constant,
                         tracked_muscles, validate_constants)
-from .db import CFG, DB, SCHEMA, conn, open_workout, placeholders
+from .db import CFG, DB, SCHEMA, SCHEMA_VERSION, conn, open_workout, placeholders
 from .errors import Fix, GateItem, GateReport, Refusal, RepsError
 from .goals import (add_goal, build_checkpoints, drop_goal, get_goal,
                     goal_progress, goal_sessions, rewrite_goal)
@@ -63,9 +63,9 @@ from .sessions import (check_end_gate, delete_set, delete_workout,
                        start_workout, update_set, update_workout)
 from .slots import next_slot, slot_of_session
 from .trends import drop_watch, is_slipping, is_stalling
-from .vocab import (AdherenceStatus, AutoregAction, DeloadScope, Direction,
-                    GoalStatus, MarkKind, PriorityTier, RuleStatus, SplitVariant,
-                    Verdict, VolumeStatus, WorkoutStatus)
+from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
+                    Direction, EvidenceTier, GoalStatus, MarkKind, PriorityTier,
+                    RuleStatus, SplitVariant, Verdict, VolumeStatus, WorkoutStatus)
 from .weeks import monday_of, week_start_of, week_starts, weekly_counts
 from .signals import SEVERITY_ORDER, build_signals
 from .snapshot import build_views
@@ -74,7 +74,8 @@ from .sync import (build_snapshot, build_snapshot_validated, dump_sql,
 
 __all__ = [
     "CFG", "CONSTANTS_FILE", "ConstantsModel", "DB", "MEMORY_FILE",
-    "Fix", "GateItem", "GateReport", "Refusal", "RepsError", "SCHEMA", "SEVERITY_ORDER", "Adherence",
+    "Fix", "GateItem", "GateReport", "Refusal", "RepsError", "SCHEMA", "SCHEMA_VERSION",
+    "SEVERITY_ORDER", "Adherence",
     "Autoreg", "BodyweightPoint", "CalendarDay", "SnapshotModel",
     "SnapshotValidationError", "Deload", "Flag", "Goal", "Lift", "Muscle",
     "NextUp", "Priority", "ProgramView", "RecentNote", "Rule",
@@ -118,7 +119,7 @@ __all__ = [
     "status_range", "top_e1rm_by_date", "tracked_muscles", "update_set",
     "update_workout", "validate_constants", "validate_snapshot",
     "volume_block", "week_start_of", "week_starts", "weekly_counts",
-    "AdherenceStatus", "AutoregAction", "DeloadScope", "Direction",
-    "GoalStatus", "MarkKind", "PriorityTier", "RuleStatus", "SplitVariant",
+    "AdherenceStatus", "AutoregAction", "CalendarKind", "DeloadScope", "Direction",
+    "EvidenceTier", "GoalStatus", "MarkKind", "PriorityTier", "RuleStatus", "SplitVariant",
     "Verdict", "VolumeStatus", "WorkoutStatus",
 ]

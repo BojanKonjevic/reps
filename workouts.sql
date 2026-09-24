@@ -194,8 +194,8 @@ CREATE TABLE progression (
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE,
   verdict TEXT NOT NULL CHECK (verdict IN ('hit', 'miss', 'hold', 'baseline')),
-  next_weight REAL,
-  next_reps INTEGER,
+  next_weight REAL NOT NULL,
+  next_reps INTEGER NOT NULL,
   direction TEXT NOT NULL CHECK (direction IN ('up', 'flat', 'down')),
   note TEXT NOT NULL DEFAULT '',
   created TEXT NOT NULL,
@@ -266,7 +266,7 @@ INSERT INTO "rules" VALUES(6,'coaching','at every session end, show two separate
 INSERT INTO "rules" VALUES(7,'coaching','laterality (unilateral/bilateral) and setup facts go to movement notes via map note on first sight, never left only in set notes','2026-09-23',NULL,'active','2026-09-23T09:39:41');
 INSERT INTO "rules" VALUES(8,'smith','Smith movements log added plates only, bar counts as 0','2026-09-24',NULL,'active','2026-09-24T09:30:32');
 CREATE TABLE schema_version (version INTEGER NOT NULL);
-INSERT INTO "schema_version" VALUES(2);
+INSERT INTO "schema_version" VALUES(3);
 CREATE TABLE sets (
   id INTEGER PRIMARY KEY,
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,

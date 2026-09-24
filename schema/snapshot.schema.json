@@ -89,16 +89,7 @@
           "title": "Trained"
         },
         "status": {
-          "enum": [
-            "done",
-            "swapped",
-            "extra",
-            "rest_ok",
-            "rest_logged",
-            "missed"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/AdherenceStatus"
         }
       },
       "required": [
@@ -109,6 +100,18 @@
       ],
       "title": "AdherenceDay",
       "type": "object"
+    },
+    "AdherenceStatus": {
+      "enum": [
+        "done",
+        "swapped",
+        "extra",
+        "rest_ok",
+        "rest_logged",
+        "missed"
+      ],
+      "title": "AdherenceStatus",
+      "type": "string"
     },
     "AdherenceWeek": {
       "additionalProperties": false,
@@ -198,6 +201,15 @@
       "title": "Autoreg",
       "type": "object"
     },
+    "AutoregAction": {
+      "enum": [
+        "trim",
+        "swap",
+        "add"
+      ],
+      "title": "AutoregAction",
+      "type": "string"
+    },
     "AutoregChange": {
       "additionalProperties": false,
       "properties": {
@@ -210,13 +222,7 @@
           "type": "string"
         },
         "action": {
-          "enum": [
-            "trim",
-            "swap",
-            "add"
-          ],
-          "title": "Action",
-          "type": "string"
+          "$ref": "#/$defs/AutoregAction"
         },
         "day": {
           "title": "Day",
@@ -319,13 +325,7 @@
           "type": "string"
         },
         "action": {
-          "enum": [
-            "trim",
-            "swap",
-            "add"
-          ],
-          "title": "Action",
-          "type": "string"
+          "$ref": "#/$defs/AutoregAction"
         },
         "set_on": {
           "title": "Set On",
@@ -437,14 +437,7 @@
           "type": "string"
         },
         "kind": {
-          "enum": [
-            "trained",
-            "rest",
-            "missed",
-            "empty"
-          ],
-          "title": "Kind",
-          "type": "string"
+          "$ref": "#/$defs/CalendarKind"
         },
         "slot_label": {
           "anyOf": [
@@ -521,6 +514,16 @@
       "title": "CalendarHover",
       "type": "object"
     },
+    "CalendarKind": {
+      "enum": [
+        "trained",
+        "rest",
+        "missed",
+        "empty"
+      ],
+      "title": "CalendarKind",
+      "type": "string"
+    },
     "ConstantsModel": {
       "additionalProperties": true,
       "description": "Canonical validated form of constants.json.",
@@ -587,12 +590,7 @@
           "type": "integer"
         },
         "scope": {
-          "enum": [
-            "lift",
-            "slot"
-          ],
-          "title": "Scope",
-          "type": "string"
+          "$ref": "#/$defs/DeloadScope"
         },
         "subject": {
           "title": "Subject",
@@ -623,6 +621,32 @@
       ],
       "title": "Deload",
       "type": "object"
+    },
+    "DeloadScope": {
+      "enum": [
+        "lift",
+        "slot"
+      ],
+      "title": "DeloadScope",
+      "type": "string"
+    },
+    "Direction": {
+      "enum": [
+        "up",
+        "flat",
+        "down"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "EvidenceTier": {
+      "enum": [
+        "settled",
+        "contested",
+        "opinion"
+      ],
+      "title": "EvidenceTier",
+      "type": "string"
     },
     "Flag": {
       "additionalProperties": false,
@@ -696,14 +720,7 @@
           "type": "string"
         },
         "status": {
-          "default": "active",
-          "enum": [
-            "active",
-            "dropped",
-            "done"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/GoalStatus"
         },
         "created": {
           "title": "Created",
@@ -792,6 +809,7 @@
         "target_e1rm",
         "target_desc",
         "deadline",
+        "status",
         "created",
         "checkpoints",
         "completed",
@@ -832,6 +850,15 @@
       ],
       "title": "GoalActual",
       "type": "object"
+    },
+    "GoalStatus": {
+      "enum": [
+        "active",
+        "dropped",
+        "done"
+      ],
+      "title": "GoalStatus",
+      "type": "string"
     },
     "GoalTop": {
       "additionalProperties": false,
@@ -1108,14 +1135,7 @@
       "additionalProperties": false,
       "properties": {
         "verdict": {
-          "enum": [
-            "hit",
-            "miss",
-            "hold",
-            "baseline"
-          ],
-          "title": "Verdict",
-          "type": "string"
+          "$ref": "#/$defs/Verdict"
         },
         "next": {
           "title": "Next",
@@ -1137,13 +1157,7 @@
           "type": "integer"
         },
         "direction": {
-          "enum": [
-            "up",
-            "flat",
-            "down"
-          ],
-          "title": "Direction",
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         },
         "note": {
           "title": "Note",
@@ -1272,17 +1286,10 @@
           "type": "array"
         },
         "status": {
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/VolumeStatus"
         },
         "tier": {
-          "enum": [
-            "priority",
-            "maintain",
-            "deprioritize"
-          ],
-          "title": "Tier",
-          "type": "string"
+          "$ref": "#/$defs/PriorityTier"
         },
         "grouped": {
           "items": {
@@ -1449,13 +1456,7 @@
           "type": "array"
         },
         "tier": {
-          "enum": [
-            "settled",
-            "contested",
-            "opinion"
-          ],
-          "title": "Tier",
-          "type": "string"
+          "$ref": "#/$defs/EvidenceTier"
         },
         "source": {
           "title": "Source",
@@ -1588,13 +1589,7 @@
       "additionalProperties": false,
       "properties": {
         "tier": {
-          "enum": [
-            "priority",
-            "maintain",
-            "deprioritize"
-          ],
-          "title": "Tier",
-          "type": "string"
+          "$ref": "#/$defs/PriorityTier"
         },
         "since": {
           "title": "Since",
@@ -1619,6 +1614,15 @@
       ],
       "title": "Priority",
       "type": "object"
+    },
+    "PriorityTier": {
+      "enum": [
+        "priority",
+        "maintain",
+        "deprioritize"
+      ],
+      "title": "PriorityTier",
+      "type": "string"
     },
     "ProgramAnchor": {
       "additionalProperties": false,
@@ -1902,13 +1906,7 @@
           "type": "integer"
         },
         "status": {
-          "enum": [
-            "open",
-            "done",
-            "rest"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/WorkoutStatus"
         },
         "slot_label": {
           "anyOf": [
@@ -1998,18 +1996,21 @@
       "title": "SetView",
       "type": "object"
     },
+    "Severity": {
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
     "Signal": {
       "additionalProperties": false,
       "properties": {
         "severity": {
-          "enum": [
-            "high",
-            "medium",
-            "low",
-            "info"
-          ],
-          "title": "Severity",
-          "type": "string"
+          "$ref": "#/$defs/Severity"
         },
         "text": {
           "title": "Text",
@@ -2275,6 +2276,16 @@
       "title": "Thresholds",
       "type": "object"
     },
+    "Verdict": {
+      "enum": [
+        "hit",
+        "miss",
+        "hold",
+        "baseline"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
     "VolumeHistory": {
       "additionalProperties": false,
       "properties": {
@@ -2302,6 +2313,24 @@
       ],
       "title": "VolumeHistory",
       "type": "object"
+    },
+    "VolumeStatus": {
+      "enum": [
+        "below_mev",
+        "in_range",
+        "above_mrv"
+      ],
+      "title": "VolumeStatus",
+      "type": "string"
+    },
+    "WorkoutStatus": {
+      "enum": [
+        "open",
+        "done",
+        "rest"
+      ],
+      "title": "WorkoutStatus",
+      "type": "string"
     }
   },
   "additionalProperties": false,

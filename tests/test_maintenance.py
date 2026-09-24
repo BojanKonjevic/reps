@@ -30,7 +30,7 @@ def test_maintenance_ops_emit_json(log_module, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("reps.db.DB", fresh)
     c = sqlite3.connect(fresh)
     c.executescript(log_module.SCHEMA)
-    c.execute("INSERT INTO schema_version (version) VALUES (2)")
+    c.execute("INSERT INTO schema_version (version) VALUES (?)", (log_module.SCHEMA_VERSION,))
     c.execute("INSERT INTO lift (exercise, is_bodyweight_only) VALUES ('bench', 0)")
     c.execute("INSERT INTO lift_muscle (exercise, muscle) VALUES ('bench', 'chest')")
     c.execute("INSERT INTO split_day (name) VALUES ('Test')")

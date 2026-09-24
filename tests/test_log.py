@@ -449,3 +449,18 @@ def test_context_reports_max_e1rm(log_module):
     bench = next(x for x in data["lifts"] if x["exercise"] == "bench")
     assert bench["max_e1rm"] == round(100 * (1 + 10 / 30.0), 1)
     assert bench["max_weight"] == 100
+
+
+def test_refused_set_leaves_lift_untouched(log_module):
+    """A mapping-mismatch refusal must not flip the bodyweight flag first."""
+    c = log_module.conn()
+    log_module.start_workout("test")
+    log_module.log_set("press", 60, 8, "", "chest")
+    assert c.execute("SELECT is_bodyweight_only FROM lift WHERE exercise = 'press'").fetchone()[0] == 0
+    try:
+        log_module.log_set("press", 60, 8, "", "back", True)
+        assert False, "should have refused"
+    except Exception as e:
+        assert "differ from the mapping" in str(e)
+    assert c.execute("SELECT is_bodyweight_only FROM lift WHERE exercise = 'press'").fetchone()[0] == 0
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1

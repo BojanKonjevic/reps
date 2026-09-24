@@ -21,9 +21,11 @@ Strictness is deliberate: strict scalar types reject silent coercion
 hide invalid Reps data.
 """
 
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
-from .vocab import MarkKind
+from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
+                    Direction, EvidenceTier, GoalStatus, MarkKind, PriorityTier,
+                    Severity, Verdict, VolumeStatus, WorkoutStatus)
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr, field_validator, model_validator
 
@@ -38,7 +40,7 @@ class MuscleEntry(BaseModel):
     mav: Optional[list[Union[StrictInt, StrictFloat]]] = None
     mrv: Optional[Union[StrictInt, StrictFloat]] = None
     freq: list[Union[StrictInt, StrictFloat]] = Field(min_length=2, max_length=2)
-    tier: Literal["settled", "contested", "opinion"]
+    tier: EvidenceTier
     source: StrictStr
     color: StrictStr = Field(pattern=r"^#[0-9a-fA-F]{6}$")
 
@@ -187,11 +189,11 @@ class LiftLast(BaseModel):
 class LiftProgression(BaseModel):
     model_config = STRICT
 
-    verdict: Literal["hit", "miss", "hold", "baseline"]
+    verdict: Verdict
     next: StrictStr
     next_weight: Real
     next_reps: StrictInt
-    direction: Literal["up", "flat", "down"]
+    direction: Direction
     note: StrictStr
     next_e1rm: Real
 
@@ -246,8 +248,8 @@ class Muscle(BaseModel):
     muscle: StrictStr
     bands: MuscleBands
     weekly: list[StrictInt]
-    status: StrictStr
-    tier: Literal["priority", "maintain", "deprioritize"]
+    status: VolumeStatus
+    tier: PriorityTier
     grouped: list[StrictStr]
     lift_share: list[MuscleLiftShare]
     trained_weeks: StrictInt
@@ -284,7 +286,7 @@ class SessionView(BaseModel):
 
     date: StrictStr
     workout_id: StrictInt
-    status: Literal["open", "done", "rest"]
+    status: WorkoutStatus
     slot_label: Optional[StrictStr]
     notes: StrictStr
     exercises: list[SessionExercise]
@@ -300,7 +302,7 @@ class CalendarDay(BaseModel):
     model_config = STRICT
 
     date: StrictStr
-    kind: Literal["trained", "rest", "missed", "empty"]
+    kind: CalendarKind
     slot_label: Optional[StrictStr]
     has_pr: bool
     break_after_gap: bool
@@ -410,7 +412,7 @@ class Goal(BaseModel):
     target_e1rm: Real
     target_desc: StrictStr
     deadline: StrictStr
-    status: Literal["active", "dropped", "done"] = "active"
+    status: GoalStatus
     created: StrictStr
     checkpoints: list[Real]
     completed: StrictInt
@@ -427,7 +429,7 @@ class Goal(BaseModel):
 class Priority(BaseModel):
     model_config = STRICT
 
-    tier: Literal["priority", "maintain", "deprioritize"]
+    tier: PriorityTier
     since: StrictStr
     until: Optional[StrictStr]
 
@@ -436,7 +438,7 @@ class Deload(BaseModel):
     model_config = STRICT
 
     id: StrictInt
-    scope: Literal["lift", "slot"]
+    scope: DeloadScope
     subject: StrictStr
     set_on: StrictStr
     cleared_on: Optional[StrictStr]
@@ -485,7 +487,7 @@ class MovementNote(BaseModel):
 class Signal(BaseModel):
     model_config = STRICT
 
-    severity: Literal["high", "medium", "low", "info"]
+    severity: Severity
     text: StrictStr
 
 
@@ -495,7 +497,7 @@ class AutoregHold(BaseModel):
     id: StrictInt
     day: StrictStr
     movements: StrictStr
-    action: Literal["trim", "swap", "add"]
+    action: AutoregAction
     set_on: StrictStr
     hold_until: StrictStr
     reason: StrictStr
@@ -520,7 +522,7 @@ class AutoregChange(BaseModel):
 
     id: StrictInt
     date: StrictStr
-    action: Literal["trim", "swap", "add"]
+    action: AutoregAction
     day: StrictStr
     slot: StrictInt
     before_movements: StrictStr
@@ -550,7 +552,7 @@ class AdherenceDay(BaseModel):
     date: StrictStr
     expected: StrictStr
     trained: Optional[StrictStr]
-    status: Literal["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]
+    status: AdherenceStatus
 
 
 class AdherenceWeek(BaseModel):

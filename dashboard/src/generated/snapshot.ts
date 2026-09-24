@@ -2,11 +2,13 @@
 
 import { z } from "zod";
 
+export const AdherenceStatusSchema = z.enum(["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]);
+
 export const AdherenceDaySchema = z.object({
   "date": z.string(),
   "expected": z.string(),
   "trained": z.string().nullable(),
-  "status": z.enum(["done", "swapped", "extra", "rest_ok", "rest_logged", "missed"]),
+  "status": AdherenceStatusSchema,
 }).strict();
 
 export const AdherenceWeekSchema = z.object({
@@ -34,11 +36,13 @@ export const AutoregDropWatchSchema = z.object({
   "drops_pct": z.array(z.union([z.number().int(), z.number()])),
 }).strict();
 
+export const AutoregActionSchema = z.enum(["trim", "swap", "add"]);
+
 export const AutoregHoldSchema = z.object({
   "id": z.number().int(),
   "day": z.string(),
   "movements": z.string(),
-  "action": z.enum(["trim", "swap", "add"]),
+  "action": AutoregActionSchema,
   "set_on": z.string(),
   "hold_until": z.string(),
   "reason": z.string(),
@@ -61,7 +65,7 @@ export const AutoregSchema = z.object({
 export const AutoregChangeSchema = z.object({
   "id": z.number().int(),
   "date": z.string(),
-  "action": z.enum(["trim", "swap", "add"]),
+  "action": AutoregActionSchema,
   "day": z.string(),
   "slot": z.number().int(),
   "before_movements": z.string(),
@@ -84,9 +88,11 @@ export const CalendarHoverSchema = z.object({
   "lines": z.array(z.string()),
 }).strict();
 
+export const CalendarKindSchema = z.enum(["trained", "rest", "missed", "empty"]);
+
 export const CalendarDaySchema = z.object({
   "date": z.string(),
-  "kind": z.enum(["trained", "rest", "missed", "empty"]),
+  "kind": CalendarKindSchema,
   "slot_label": z.string().nullable(),
   "has_pr": z.boolean(),
   "break_after_gap": z.boolean(),
@@ -95,12 +101,14 @@ export const CalendarDaySchema = z.object({
   "hover": CalendarHoverSchema,
 }).strict();
 
+export const EvidenceTierSchema = z.enum(["settled", "contested", "opinion"]);
+
 export const MuscleEntrySchema = z.object({
   "mev": z.number().int(),
   "mav": z.array(z.union([z.number().int(), z.number()])).nullable().optional(),
   "mrv": z.union([z.number().int(), z.number()]).nullable().optional(),
   "freq": z.array(z.union([z.number().int(), z.number()])),
-  "tier": z.enum(["settled", "contested", "opinion"]),
+  "tier": EvidenceTierSchema,
   "source": z.string(),
   "color": z.string(),
 });
@@ -145,13 +153,17 @@ export const ConstantsModelSchema = z.object({
   "rep_scheme_default": z.array(z.number().int()).optional(),
 });
 
+export const DeloadScopeSchema = z.enum(["lift", "slot"]);
+
 export const DeloadSchema = z.object({
   "id": z.number().int(),
-  "scope": z.enum(["lift", "slot"]),
+  "scope": DeloadScopeSchema,
   "subject": z.string(),
   "set_on": z.string(),
   "cleared_on": z.string().nullable(),
 }).strict();
+
+export const DirectionSchema = z.enum(["up", "flat", "down"]);
 
 export const FlagSchema = z.object({
   "id": z.number().int(),
@@ -166,6 +178,8 @@ export const GoalActualSchema = z.object({
   "e1rm": z.union([z.number().int(), z.number()]),
 }).strict();
 
+export const GoalStatusSchema = z.enum(["active", "dropped", "done"]);
+
 export const GoalTopSchema = z.object({
   "weight": z.union([z.number().int(), z.number()]),
   "reps": z.number().int(),
@@ -177,7 +191,7 @@ export const GoalSchema = z.object({
   "target_e1rm": z.union([z.number().int(), z.number()]),
   "target_desc": z.string(),
   "deadline": z.string(),
-  "status": z.enum(["active", "dropped", "done"]).optional(),
+  "status": GoalStatusSchema,
   "created": z.string(),
   "checkpoints": z.array(z.union([z.number().int(), z.number()])),
   "completed": z.number().int(),
@@ -211,12 +225,14 @@ export const LiftMarkSchema = z.object({
   "payload": z.record(z.string(), z.union([z.string(), z.number().int(), z.number(), z.boolean()]).nullable()),
 }).strict();
 
+export const VerdictSchema = z.enum(["hit", "miss", "hold", "baseline"]);
+
 export const LiftProgressionSchema = z.object({
-  "verdict": z.enum(["hit", "miss", "hold", "baseline"]),
+  "verdict": VerdictSchema,
   "next": z.string(),
   "next_weight": z.union([z.number().int(), z.number()]),
   "next_reps": z.number().int(),
-  "direction": z.enum(["up", "flat", "down"]),
+  "direction": DirectionSchema,
   "note": z.string(),
   "next_e1rm": z.union([z.number().int(), z.number()]),
 }).strict();
@@ -260,12 +276,16 @@ export const MuscleLiftShareSchema = z.object({
   "share": z.number(),
 }).strict();
 
+export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
+
+export const VolumeStatusSchema = z.enum(["below_mev", "in_range", "above_mrv"]);
+
 export const MuscleSchema = z.object({
   "muscle": z.string(),
   "bands": MuscleBandsSchema,
   "weekly": z.array(z.number().int()),
-  "status": z.string(),
-  "tier": z.enum(["priority", "maintain", "deprioritize"]),
+  "status": VolumeStatusSchema,
+  "tier": PriorityTierSchema,
   "grouped": z.array(z.string()),
   "lift_share": z.array(MuscleLiftShareSchema),
   "trained_weeks": z.number().int(),
@@ -286,7 +306,7 @@ export const NextUpSchema = z.object({
 }).strict();
 
 export const PrioritySchema = z.object({
-  "tier": z.enum(["priority", "maintain", "deprioritize"]),
+  "tier": PriorityTierSchema,
   "since": z.string(),
   "until": z.string().nullable(),
 }).strict();
@@ -343,17 +363,21 @@ export const SessionExerciseSchema = z.object({
   "sets": z.array(SetViewSchema),
 }).strict();
 
+export const WorkoutStatusSchema = z.enum(["open", "done", "rest"]);
+
 export const SessionViewSchema = z.object({
   "date": z.string(),
   "workout_id": z.number().int(),
-  "status": z.enum(["open", "done", "rest"]),
+  "status": WorkoutStatusSchema,
   "slot_label": z.string().nullable(),
   "notes": z.string(),
   "exercises": z.array(SessionExerciseSchema),
 }).strict();
 
+export const SeveritySchema = z.enum(["high", "medium", "low", "info"]);
+
 export const SignalSchema = z.object({
-  "severity": z.enum(["high", "medium", "low", "info"]),
+  "severity": SeveritySchema,
   "text": z.string(),
 }).strict();
 
@@ -396,36 +420,46 @@ export const snapshotSchema = z.object({
   "autoreg_changes": z.array(AutoregChangeSchema),
 }).strict();
 export type Snapshot = z.infer<typeof snapshotSchema>;
+export type AdherenceStatus = z.infer<typeof AdherenceStatusSchema>;
 export type AdherenceDay = z.infer<typeof AdherenceDaySchema>;
 export type AdherenceWeek = z.infer<typeof AdherenceWeekSchema>;
 export type ProgramAnchor = z.infer<typeof ProgramAnchorSchema>;
 export type Adherence = z.infer<typeof AdherenceSchema>;
 export type AutoregDropWatch = z.infer<typeof AutoregDropWatchSchema>;
+export type AutoregAction = z.infer<typeof AutoregActionSchema>;
 export type AutoregHold = z.infer<typeof AutoregHoldSchema>;
 export type AutoregMissStreak = z.infer<typeof AutoregMissStreakSchema>;
 export type Autoreg = z.infer<typeof AutoregSchema>;
 export type AutoregChange = z.infer<typeof AutoregChangeSchema>;
 export type BodyweightPoint = z.infer<typeof BodyweightPointSchema>;
 export type CalendarHover = z.infer<typeof CalendarHoverSchema>;
+export type CalendarKind = z.infer<typeof CalendarKindSchema>;
 export type CalendarDay = z.infer<typeof CalendarDaySchema>;
+export type EvidenceTier = z.infer<typeof EvidenceTierSchema>;
 export type MuscleEntry = z.infer<typeof MuscleEntrySchema>;
 export type RepBand = z.infer<typeof RepBandSchema>;
 export type Thresholds = z.infer<typeof ThresholdsSchema>;
 export type ConstantsModel = z.infer<typeof ConstantsModelSchema>;
+export type DeloadScope = z.infer<typeof DeloadScopeSchema>;
 export type Deload = z.infer<typeof DeloadSchema>;
+export type Direction = z.infer<typeof DirectionSchema>;
 export type Flag = z.infer<typeof FlagSchema>;
 export type GoalActual = z.infer<typeof GoalActualSchema>;
+export type GoalStatus = z.infer<typeof GoalStatusSchema>;
 export type GoalTop = z.infer<typeof GoalTopSchema>;
 export type Goal = z.infer<typeof GoalSchema>;
 export type LiftBest = z.infer<typeof LiftBestSchema>;
 export type LiftLast = z.infer<typeof LiftLastSchema>;
 export type MarkKind = z.infer<typeof MarkKindSchema>;
 export type LiftMark = z.infer<typeof LiftMarkSchema>;
+export type Verdict = z.infer<typeof VerdictSchema>;
 export type LiftProgression = z.infer<typeof LiftProgressionSchema>;
 export type LiftSession = z.infer<typeof LiftSessionSchema>;
 export type Lift = z.infer<typeof LiftSchema>;
 export type MuscleBands = z.infer<typeof MuscleBandsSchema>;
 export type MuscleLiftShare = z.infer<typeof MuscleLiftShareSchema>;
+export type PriorityTier = z.infer<typeof PriorityTierSchema>;
+export type VolumeStatus = z.infer<typeof VolumeStatusSchema>;
 export type Muscle = z.infer<typeof MuscleSchema>;
 export type NextUpRow = z.infer<typeof NextUpRowSchema>;
 export type NextUp = z.infer<typeof NextUpSchema>;
@@ -437,7 +471,9 @@ export type RecentNote = z.infer<typeof RecentNoteSchema>;
 export type Rule = z.infer<typeof RuleSchema>;
 export type SetView = z.infer<typeof SetViewSchema>;
 export type SessionExercise = z.infer<typeof SessionExerciseSchema>;
+export type WorkoutStatus = z.infer<typeof WorkoutStatusSchema>;
 export type SessionView = z.infer<typeof SessionViewSchema>;
+export type Severity = z.infer<typeof SeveritySchema>;
 export type Signal = z.infer<typeof SignalSchema>;
 export type StatusView = z.infer<typeof StatusViewSchema>;
 export type VolumeHistory = z.infer<typeof VolumeHistorySchema>;

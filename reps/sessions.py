@@ -128,8 +128,6 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         set_lift_muscles(c, exercise, muscles, 1 if bodyweight else 0)
     elif not muscles:
         muscles = mapping
-    elif bodyweight and not lift_is_bodyweight_only(c, exercise):
-        c.execute("UPDATE lift SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
     constants = load_constants()
     warn_ratio = constants.thresholds.e1rm_warn_ratio
@@ -155,6 +153,11 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
         raise RepsError(f"logged muscles {muscles} differ from the mapping for '{exercise}' ({mapping}); "
                         f"the mapping is authoritative, log a genuine variation under its own exercise name "
                         f"or change it everywhere with muscle_map_set")
+
+    # Refusals above leave the lift untouched: the bodyweight flag flips only
+    # on the validated write path below.
+    if mapping is not None and bodyweight and not lift_is_bodyweight_only(c, exercise):
+        c.execute("UPDATE lift SET is_bodyweight_only = 1 WHERE exercise = ?", (exercise,))
 
     wid = w["id"]
     created = datetime.now().isoformat(timespec="seconds")

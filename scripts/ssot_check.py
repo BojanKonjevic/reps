@@ -173,8 +173,6 @@ def check_g17() -> None:
 
 def check_g18() -> None:
     """No second-owner file names."""
-    for ln in rg(r"", []):
-        pass
     bad = ["utils2", "helpers", "common", "misc", "constants2"]
     for p in list((ROOT / "reps").rglob("*.py")) + list((ROOT / "dashboard" / "src").rglob("*.ts")):
         stem = p.stem.lower()

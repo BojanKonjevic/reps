@@ -35,7 +35,7 @@ def test_export_v2_survives_empty_db(log_module, tmp_path, monkeypatch):
     monkeypatch.setattr("reps.db.DB", fresh)
     c = sqlite3.connect(fresh)
     c.executescript(log_module.SCHEMA)
-    c.execute("INSERT INTO schema_version (version) VALUES (2)")
+    c.execute("INSERT INTO schema_version (version) VALUES (?)", (log_module.SCHEMA_VERSION,))
     c.commit()
     c.close()
     snap = log_module.export_snapshot()

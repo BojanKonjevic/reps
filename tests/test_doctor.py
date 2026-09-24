@@ -93,3 +93,15 @@ def test_doctor_flags_dump_drift(log_module, tmp_path, monkeypatch):
     with open(tmp_path / "workouts.sql", "w") as f:
         f.write("CREATE TABLE workouts (id INTEGER PRIMARY KEY);\n")
     assert [p for p in log.run_doctor()["problems"] if p["check"] == "dump_drift"]
+
+
+def test_progression_target_columns_not_null(log_module):
+    """Every judgment carries a target: NULL next_weight/next_reps refused."""
+    import sqlite3
+    c = log_module.conn()
+    wid = c.execute("INSERT INTO workouts (date, status, notes) VALUES ('2026-09-01', 'done', '')").lastrowid
+    c.execute("INSERT INTO lift (exercise, is_bodyweight_only) VALUES ('press', 0)")
+    with pytest.raises(sqlite3.IntegrityError):
+        c.execute("INSERT INTO progression (workout_id, exercise, verdict, next_weight, next_reps, "
+                  "direction, note, created) VALUES (?, 'press', 'hit', NULL, 5, 'up', '', datetime('now'))",
+                  (wid,))

@@ -100,3 +100,16 @@ class MarkKind(StrEnum):
 
 def values(enum_cls) -> list[str]:
     return [m.value for m in enum_cls]
+
+
+class CalendarKind(StrEnum):
+    TRAINED = "trained"
+    REST = "rest"
+    MISSED = "missed"
+    EMPTY = "empty"
+
+
+class EvidenceTier(StrEnum):
+    SETTLED = "settled"
+    CONTESTED = "contested"
+    OPINION = "opinion"

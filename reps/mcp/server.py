@@ -32,11 +32,12 @@ from reps.errors import RepsError
 
 mcp = MCPServer("reps")
 
-Verdict = Literal["hit", "miss", "hold", "baseline"]
-Direction = Literal["up", "flat", "down"]
-Tier = Literal["priority", "maintain", "deprioritize"]
-Scope = Literal["lift", "slot"]
-Variant = Literal["active", "baseline"]
+# Closed vocabularies come from reps/vocab.py (the single owner), so tool
+# inputSchema enumerates the legal values without a second definition.
+# SetField/WorkoutField stay local: they describe MCP call shapes, not domain facts.
+from reps.vocab import (DeloadScope as Scope,
+                        Direction, PriorityTier as Tier, SplitVariant as Variant,
+                        Verdict)
 SetField = Literal["weight", "reps", "exercise", "note"]
 WorkoutField = Literal["notes", "date", "status"]
 

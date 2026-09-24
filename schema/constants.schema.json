@@ -1,5 +1,14 @@
 {
   "$defs": {
+    "EvidenceTier": {
+      "enum": [
+        "settled",
+        "contested",
+        "opinion"
+      ],
+      "title": "EvidenceTier",
+      "type": "string"
+    },
     "MuscleEntry": {
       "additionalProperties": true,
       "description": "Per-muscle dose landmarks. mav/mrv stay optional: some groups\n(e.g. forearms) have no trusted landmarks, plan falls back to mev.",
@@ -63,13 +72,7 @@
           "type": "array"
         },
         "tier": {
-          "enum": [
-            "settled",
-            "contested",
-            "opinion"
-          ],
-          "title": "Tier",
-          "type": "string"
+          "$ref": "#/$defs/EvidenceTier"
         },
         "source": {
           "title": "Source",
