@@ -79,6 +79,31 @@ body {
   max-width: 1400px;
   margin: 0 auto;
 }
+.topnav {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.95rem;
+  padding-bottom: 20px;
+}
+.topnav a {
+  color: var(--ink-mute);
+}
+.topnav a:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+.topnav a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 700;
+}
+.topnav .brand {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
 .cols2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

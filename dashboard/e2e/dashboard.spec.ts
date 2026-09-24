@@ -51,6 +51,22 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#chSessLen')).toBeVisible();
   });
 
+  test('top nav reaches movements, muscles and program from anywhere', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    for (const [link, view] of [
+      ['Movements', '#viewLifts'],
+      ['Muscles', '#viewMuscles'],
+      ['Program', '#viewProgram'],
+    ] as Array<[string, string]>) {
+      await page.locator('.topnav a', { hasText: link }).click();
+      await expect(page.locator(view)).toBeVisible();
+      await expect(page.locator('.topnav a', { hasText: link })).toHaveAttribute(
+        'aria-current',
+        'page'
+      );
+    }
+  });
+
   test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.locator('#trendGrid .mini a').first().click();
