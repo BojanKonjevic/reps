@@ -921,3 +921,33 @@ thead th {
 .cal .cd.brk {
   box-shadow: inset 0 0 0 2px var(--bad-deep);
 }
+
+/* Visited links read exactly like unvisited ones everywhere. The only link
+   that ever recolors is the topnav active page (aria-current). */
+.topnav a:visited {
+  color: var(--ink-mute);
+}
+.topnav a[aria-current='page']:visited {
+  color: var(--accent);
+}
+.muscles a:visited,
+#legMus a:visited,
+.nextrow a:visited,
+.minititle a:visited,
+.notes li a:visited,
+.ex h3 a:visited,
+#prs td a:visited,
+#liftPRs td a:visited,
+#viewProgram a:visited,
+.tl-item:visited {
+  color: inherit;
+}
+.notes li.hot a:visited {
+  color: var(--warn-soft);
+}
+.cal a.cd.t:visited {
+  color: var(--ink);
+}
+.cal a.cd.r:visited {
+  color: var(--ink-mute);
+}
