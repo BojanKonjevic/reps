@@ -55,7 +55,7 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
   const px = linearScale([0, Math.max(1, n - 1)], [P, W - L.padR]);
   const xOf = (i: number) => (n <= 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - 15, 6]);
-  if (single) drawSingleLine(g, W, P, L.padR, py(raw[0]), fmtV(raw[0]));
+  if (single) drawSingleLine(g, W, P, L.padR, py(raw[0]), fmtV(raw[0]), H - 21);
   else if (t) drawYAxis(g, W, H, P, t);
   g.strokeStyle = color;
   g.lineWidth = 2.5;

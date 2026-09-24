@@ -70,7 +70,7 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
   }
   const py = linearScale([mn, mx], [H - P, 18]);
   if (t) drawYAxis(g, W, H, P, t);
-  else drawSingleLine(g, W, P, L.padR, py(pts[0].ev), fmtV(pts[0].ev));
+  else drawSingleLine(g, W, P, L.padR, py(pts[0].ev), fmtV(pts[0].ev), H - P - 18);
   drawXAxisLabels(g, W, H, P, pts[0].date, single ? asOf : pts[pts.length - 1].date);
   const linePts = pts.map(p => ({ x: xOf(p.date), y: py(p.ev) }));
   g.fillStyle = theme.color('ink-dim');

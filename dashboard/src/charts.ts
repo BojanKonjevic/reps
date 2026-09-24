@@ -148,10 +148,26 @@ export function drawSingleLine(
   P: number,
   padR: number,
   y: number,
-  label: string
+  label: string,
+  span?: number
 ) {
   // The y-axis for one data point: a single gridline labeled with the value.
   // The floating value label is dropped with it, so the two can never collide.
+  // Faint unlabeled parallels give the chart texture without printing
+  // values for a range that does not exist yet.
+  if (span) {
+    g.save();
+    g.strokeStyle = theme.color('line');
+    g.globalAlpha = 0.45;
+    g.lineWidth = 1;
+    g.beginPath();
+    for (const off of [-span / 4, span / 4]) {
+      g.moveTo(P, y + off);
+      g.lineTo(W - padR, y + off);
+    }
+    g.stroke();
+    g.restore();
+  }
   g.strokeStyle = theme.color('line');
   g.lineWidth = 1;
   g.beginPath();
