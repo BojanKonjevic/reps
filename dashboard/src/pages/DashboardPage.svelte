@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { liftColor } from '../charts';
-  import { fmtD, fmtV } from '../lib/format';
+  import { fmtD, fmtMin, fmtV } from '../lib/format';
   import {
     verdictClass,
     directionArrow,
@@ -13,12 +13,13 @@
   import type { Snapshot } from '../generated/snapshot';
   import {
     bestSetRows,
+    dayAvgs,
     rankLifts,
     statusLines,
     subLine,
     adherenceWeeksView,
   } from '../lib/dashboard';
-  import { trendMatrix, liftByName } from '../lib/select';
+  import { trendMatrix, liftByName, sessionSpans } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
   import {
     defaultHide,
@@ -34,6 +35,7 @@
   import TrendMini from '../components/TrendMini.svelte';
   import VolumeChart from '../components/VolumeChart.svelte';
   import BodyweightChart from '../components/BodyweightChart.svelte';
+  import SessionLengthChart from '../components/SessionLengthChart.svelte';
   import GoalChartView from '../components/GoalChartView.svelte';
   import Calendar from '../components/Calendar.svelte';
 
@@ -92,6 +94,11 @@
   const adhDays = $derived(snap.adherence?.days || []);
   const adhWeeks = $derived(adherenceWeeksView(snap));
   const goals = $derived(snap.goals);
+  const spans = $derived(sessionSpans(snap.sessions));
+  const sessPoints = $derived(
+    spans.map(s => ({ date: s.date, minutes: s.minutes, day: s.day, color: liftColor(s.day) }))
+  );
+  const sessAvgs = $derived(dayAvgs(spans));
   const progLifts = $derived(
     lifts.filter(l => l.progression).sort((a, b) => (a.exercise < b.exercise ? -1 : 1))
   );
@@ -287,6 +294,20 @@
               </li>
             {/each}
           </ul>
+        </div>
+        <h2>Session length</h2>
+        <div class="card" id="sessLenWrap">
+          <SessionLengthChart points={sessPoints} />
+          <div class="pielegend" id="sessLenLegend">
+            {#each sessAvgs as a}
+              <div class="row">
+                <span class="sw" style:background={liftColor(a.day)}></span>
+                <a href={href.program()}>{a.day}</a>
+                <span class="meta">avg {fmtMin(a.avg)} · {a.n} session{a.n === 1 ? '' : 's'}</span>
+              </div>
+            {/each}
+          </div>
+          <div class="cap">First set to last set. Colors mark split days.</div>
         </div>
         {#if adhDays.length}
           <div id="adhWrap">

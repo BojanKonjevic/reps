@@ -290,6 +290,7 @@ class SessionView(BaseModel):
     slot_label: Optional[StrictStr]
     notes: StrictStr
     exercises: list[SessionExercise]
+    duration_min: Optional[Real]
 
 
 class CalendarHover(BaseModel):

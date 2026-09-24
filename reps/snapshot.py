@@ -15,7 +15,7 @@ from .program import (active_deloads, deload_covers, get_rotation,
                       read_split, recent_average, rules_with_confirm, volume_block)
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
-from .sessions import break_threshold, last_done
+from .sessions import break_threshold, last_done, session_duration_min
 from .signals import build_signals
 from .slots import next_slot, slot_of_session
 from .trends import is_slipping, is_stalling
@@ -189,7 +189,8 @@ def sessions_view(c, days, flags):
                               "deload": bool(deload_covers(at_date, ex, days)),
                               "sets": sets})
         out.append({"date": w["date"], "workout_id": w["id"], "status": w["status"],
-                    "slot_label": match["day"], "notes": w["notes"], "exercises": exercises})
+                    "slot_label": match["day"], "notes": w["notes"], "exercises": exercises,
+                    "duration_min": session_duration_min([s["created"] for s in rows])})
     return out
 
 

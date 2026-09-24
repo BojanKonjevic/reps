@@ -59,6 +59,27 @@ def test_empty_db_reports_nothing_bad(log_module, tmp_path, monkeypatch):
     assert len(snap["signals"]) == 1 and snap["signals"][0]["severity"] == "info"
 
 
+def test_session_duration_spans_first_to_last_set():
+    """Session length is first-to-last-set only; chatter and notes don't count."""
+    from reps.sessions import session_duration_min
+
+    assert session_duration_min([]) is None
+    assert session_duration_min(["2026-09-24 09:03:39"]) == 0.0
+    assert session_duration_min(["2026-09-24 09:03:39", "2026-09-24 10:28:08"]) == 84.5
+    assert session_duration_min(["nope", "2026-09-24 08:13:07", "2026-09-24 09:30:54"]) == 77.8
+
+
+def test_sessions_view_carries_duration(log_module):
+    """The snapshot emits the derived span per workout."""
+    log = log_module
+    _seeded(log)
+    log.start_workout("d1")
+    log.log_set("bench", 100, 5, "", "chest")
+    close_session(log, "d1")
+    sess = log.export_snapshot()["sessions"]
+    assert len(sess) == 1 and sess[0]["duration_min"] == 0.0
+
+
 def test_pr_flags_first_set_baseline(log_module):
     """PR definition: first set per lift is baseline, later sets need strictly greater e1RM."""
     log = log_module

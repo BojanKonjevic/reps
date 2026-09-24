@@ -49,6 +49,11 @@ export function fmtSet(w: number, r: number): string {
   return (Number.isInteger(w) ? String(w) : String(w)) + ' x ' + r;
 }
 
+export function fmtMin(v: number): string {
+  const n = Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return n + ' min';
+}
+
 export function fmtE1RM(ev: number): string {
   return 'e1RM ' + ev.toFixed(1);
 }

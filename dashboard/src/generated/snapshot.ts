@@ -375,6 +375,7 @@ export const SessionViewSchema = z.object({
   "slot_label": z.string().nullable(),
   "notes": z.string(),
   "exercises": z.array(SessionExerciseSchema),
+  "duration_min": z.union([z.number().int(), z.number()]).nullable(),
 }).strict();
 
 export const SeveritySchema = z.enum(["high", "medium", "low", "info"]);

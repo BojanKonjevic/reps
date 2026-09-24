@@ -2,7 +2,7 @@
 // Search/facet/hidden state, tag-membership filtering, alphabetical sorts.
 // No domain math: every number rendered here was computed in Python.
 
-import type { Lift } from '../generated/snapshot';
+import type { Lift, SessionView } from '../generated/snapshot';
 
 export interface TrendMatrix {
   days: string[];
@@ -50,4 +50,23 @@ export function filterLifts(lifts: Lift[], q: string, facets: Set<string>): Lift
 
 export function sortAlpha<T extends string>(names: T[]): T[] {
   return names.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+export interface SessionSpan {
+  date: string;
+  minutes: number;
+  day: string;
+}
+
+export function sessionSpans(sessions: SessionView[]): SessionSpan[] {
+  // Done sessions with a derived span only: open workouts are partial,
+  // rest rows carry no sets. Unmatched days group under one label.
+  return sessions
+    .filter(s => s.status === 'done' && s.duration_min !== null && s.duration_min !== undefined)
+    .map(s => ({
+      date: s.date,
+      minutes: s.duration_min as number,
+      day: s.slot_label || 'unscheduled',
+    }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
 }

@@ -687,7 +687,8 @@
             }
           ]
         }
-      ]
+      ],
+      "duration_min": 0.0
     },
     {
       "date": "2026-09-22",
@@ -695,7 +696,8 @@
       "status": "rest",
       "slot_label": null,
       "notes": "sore legs",
-      "exercises": []
+      "exercises": [],
+      "duration_min": null
     }
   ],
   "calendar": [

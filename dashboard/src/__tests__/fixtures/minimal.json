@@ -687,7 +687,8 @@
             }
           ]
         }
-      ]
+      ],
+      "duration_min": 0.0
     }
   ],
   "calendar": [

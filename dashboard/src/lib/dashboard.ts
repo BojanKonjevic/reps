@@ -5,6 +5,7 @@
 
 import type { Snapshot } from '../generated/snapshot';
 import { fmtD } from './format';
+import type { SessionSpan } from './select';
 
 export interface NowSeg {
   t: string;
@@ -95,4 +96,23 @@ export function adherenceWeeksView(snap: Snapshot): AdherenceWeekView[] {
 
 export function liftNames(snap: Snapshot): string[] {
   return snap.lifts.map(l => l.exercise).sort();
+}
+
+export interface DayAvg {
+  day: string;
+  avg: number;
+  n: number;
+}
+
+export function dayAvgs(spans: SessionSpan[]): DayAvg[] {
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const s of spans) {
+    const e = acc.get(s.day) || { sum: 0, n: 0 };
+    e.sum += s.minutes;
+    e.n += 1;
+    acc.set(s.day, e);
+  }
+  return Array.from(acc.entries())
+    .map(([day, e]) => ({ day, avg: Math.round((e.sum / e.n) * 10) / 10, n: e.n }))
+    .sort((a, b) => (a.day < b.day ? -1 : 1));
 }

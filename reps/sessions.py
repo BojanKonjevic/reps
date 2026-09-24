@@ -50,6 +50,24 @@ def last_done(c):
         "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
 
 
+def session_duration_min(created):
+    """First-to-last-set span in minutes: the session length.
+
+    Prompt chatter and the closing note don't count, only set timestamps.
+    A lone set spans 0.0, no sets is None. Unparseable stamps are ignored,
+    never invented.
+    """
+    stamps = []
+    for raw in created:
+        try:
+            stamps.append(datetime.fromisoformat(raw))
+        except (ValueError, TypeError):
+            continue
+    if not stamps:
+        return None
+    return round((max(stamps) - min(stamps)).total_seconds() / 60, 1)
+
+
 def break_threshold() -> int:
     """Days since the last done session that counts as a break (V11 owner).
 

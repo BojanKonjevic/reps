@@ -1953,6 +1953,20 @@
           },
           "title": "Exercises",
           "type": "array"
+        },
+        "duration_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Min"
         }
       },
       "required": [
@@ -1961,7 +1975,8 @@
         "status",
         "slot_label",
         "notes",
-        "exercises"
+        "exercises",
+        "duration_min"
       ],
       "title": "SessionView",
       "type": "object"

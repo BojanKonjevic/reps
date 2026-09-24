@@ -45,6 +45,12 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#prs')).toContainText('100 x 5');
   });
 
+  test('session length chart renders below the calendar', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    await expect(page.locator('#sessLenWrap')).toBeVisible();
+    await expect(page.locator('#chSessLen')).toBeVisible();
+  });
+
   test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.locator('#trendGrid .mini a').first().click();
