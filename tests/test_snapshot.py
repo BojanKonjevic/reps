@@ -44,6 +44,21 @@ def test_export_v2_survives_empty_db(log_module, tmp_path, monkeypatch):
     assert snap["adherence"] is None and snap["autoreg"]["permitted"] is False
 
 
+def test_empty_db_reports_nothing_bad(log_module, tmp_path, monkeypatch):
+    """No history means nothing is bad yet: every muscle in range, one info signal."""
+    import sqlite3
+    fresh = str(tmp_path / "fresh.db")
+    monkeypatch.setattr("reps.db.DB", fresh)
+    c = sqlite3.connect(fresh)
+    c.executescript(log_module.SCHEMA)
+    c.execute("INSERT INTO schema_version (version) VALUES (?)", (log_module.SCHEMA_VERSION,))
+    c.commit()
+    c.close()
+    snap = log_module.export_snapshot()
+    assert {m["status"] for m in snap["muscles"]} == {"in_range"}
+    assert len(snap["signals"]) == 1 and snap["signals"][0]["severity"] == "info"
+
+
 def test_pr_flags_first_set_baseline(log_module):
     """PR definition: first set per lift is baseline, later sets need strictly greater e1RM."""
     log = log_module

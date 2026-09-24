@@ -350,7 +350,7 @@
         }
       ],
       "trained_weeks": 2,
-      "avg_recent": 0.5
+      "avg_recent": 1.0
     },
     {
       "muscle": "back",
@@ -372,7 +372,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -426,7 +426,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -453,7 +453,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -480,7 +480,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -507,7 +507,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -534,7 +534,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -561,7 +561,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -588,7 +588,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -615,7 +615,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -642,7 +642,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -666,7 +666,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -1011,50 +1011,6 @@
   "goals": [],
   "adherence": null,
   "signals": [
-    {
-      "severity": "high",
-      "text": "abs: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "adductors: 0 sets in 8 of last 8 weeks (MEV 4)"
-    },
-    {
-      "severity": "high",
-      "text": "back: 0 sets in 8 of last 8 weeks (MEV 10)"
-    },
-    {
-      "severity": "high",
-      "text": "biceps: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "forearms: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "glutes: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "hamstrings: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "quads: 0 sets in 8 of last 8 weeks (MEV 8)"
-    },
-    {
-      "severity": "high",
-      "text": "rear delts: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "side delts: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
-    {
-      "severity": "high",
-      "text": "triceps: 0 sets in 8 of last 8 weeks (MEV 6)"
-    },
     {
       "severity": "info",
       "text": "deloading lift bench"

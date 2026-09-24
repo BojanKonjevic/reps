@@ -264,3 +264,23 @@ def test_rotation_replace_preserves_or_clears_anchor(log_module):
     out = log.set_rotation(["Lower A", "Upper A", "rest"])
     assert out["anchor_cleared"] is True
     assert log.get_anchor(log.conn()) is None
+
+
+def test_adherence_windows_start_at_anchor(log_module):
+    """Dates before the program existed are unscored, never missed."""
+    log = log_module
+    _seed_3day(log)
+    log.anchor_rotation((date.today() - timedelta(days=2)).isoformat(), "Upper A")
+    snap = log.export_snapshot()["adherence"]
+    assert snap["days"]
+    assert all(d["date"] >= snap["anchor"]["date"] for d in snap["days"])
+
+
+def test_slot_guess_lists_no_missed_before_first_session(log_module):
+    """Never trained means nothing was skipped: missed list stays empty."""
+    log = log_module
+    _seed_3day(log)
+    log.anchor_rotation((date.today() - timedelta(days=2)).isoformat(), "Upper A")
+    expected = _plan(log)["slot_guess"]["expected"]
+    assert expected["last_done"] is None
+    assert expected["missed"] == []

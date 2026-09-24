@@ -119,21 +119,23 @@ def run_audit():
                           "fix": f"extend the deadline or compress jumps, never silently"})
 
     # Check 8: Volume vs MEV, rolling window from constants (current week + back).
-    # Weeks before the first logged sets for a muscle are pre-history, not
-    # absences; zeros after that count. Zero and low volume are separate
-    # flags; bad weeks are counted over the trained span, a good week in
-    # between does not reset anything. A muscle never trained keeps the whole
-    # window and flags. Bucketing is owned by reps/weeks.py; per-muscle
-    # counts by weekly_volume; the pre-history trim by trim_leading_zeros.
-    from .program import weekly_volume as _weekly_volume
+    # Bad weeks count over the trained span only: weeks before the first
+    # logged sets (any muscle) are absent, per-muscle leading zeros after
+    # that are absent too, and a span never training the muscle counts only
+    # when long enough to judge. A good week in between does not reset
+    # anything. Bucketing is owned by reps/weeks.py; per-muscle counts by
+    # weekly_volume; the span rules by span_start/trim_leading_zeros.
+    from .program import weekly_volume as _weekly_volume, span_start as _span_start
     from .weeks import week_starts as _week_starts
     starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
     mev_bounds = {m: e.mev for m, e in constants.muscles.items()}
     priorities = read_priorities(c)
+    span_weeklies = {m: _weekly_volume(c, m, starts) for m in mev_bounds}
+    gstart = _span_start(list(span_weeklies.values()))
     for muscle, mev in mev_bounds.items():
-        weekly = _weekly_volume(c, muscle, starts)
+        weekly = span_weeklies[muscle][gstart:]
         counts = "[" + ", ".join(str(n) for n in weekly) + "]"
-        zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
+        zero_weeks, low_weeks = count_bad_weeks(weekly, mev, vol_bad)
         # A muscle explicitly marked deprioritize is intentionally held back:
         # its flags still stand (listed, never silently dropped) but drop one
         # severity level and carry the reason, so the audit reads as explained.
@@ -141,11 +143,11 @@ def run_audit():
         suffix = " (priority: deprioritize, intentional)" if deprioritized else ""
         if zero_weeks >= vol_bad:
             flags.append({"check": "volume_zero", "severity": "medium" if deprioritized else "high",
-                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last {vol_weeks} weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
         if low_weeks >= vol_bad:
             flags.append({"check": "volume_low", "severity": "low" if deprioritized else "medium",
-                          "evidence": f"{muscle}: below MEV in {low_weeks} of last {vol_weeks} weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: below MEV in {low_weeks} of last {len(weekly)} weeks {counts} (MEV {mev}){suffix}",
                           "fix": "add volume, or add Active rule explaining"})
 
     lines = [f"Audit complete: {len(flags)} flags (checks 2, 3, 6 are structurally impossible, see docs/AUDIT.md)"]

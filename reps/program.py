@@ -280,13 +280,35 @@ def trim_leading_zeros(weekly):
     return weekly
 
 
-def count_bad_weeks(weekly, mev):
-    """Zero and low week counts over the trained span (audit check 8 rule)."""
+def span_start(weeklies):
+    """First week index with any logged sets across muscles: the history start.
+
+    Weeks before anything was logged are absent for every muscle, never
+    skipped. Returns the window width when nothing was logged, so every
+    slice comes back empty and nothing can flag on no data.
+    """
+    width = max([len(w) for w in weeklies] or [0])
+    for i in range(width):
+        if any(i < len(w) and w[i] > 0 for w in weeklies):
+            return i
+    return width
+
+
+def count_bad_weeks(weekly, mev, min_span):
+    """Zero and low week counts over the trained span (audit check 8 rule).
+
+    `weekly` arrives already sliced at the history start by the caller;
+    per-muscle leading zeros are absent, not skipped. A span that never
+    trained the muscle counts whole only when long enough to judge
+    (min_span, the bad-week bar); shorter spans contribute nothing.
+    """
     if mev == 0:
         # MEV 0 means no direct work is required (covered indirectly),
         # so zero-set weeks meet the floor and never flag.
         return (0, 0)
     trimmed = trim_leading_zeros(weekly)
+    if not trimmed:
+        return (len(weekly), 0) if len(weekly) >= min_span else (0, 0)
     return (sum(1 for n in trimmed if n == 0),
             sum(1 for n in trimmed if 0 < n < mev))
 
@@ -306,7 +328,7 @@ def classify_volume(weekly, mev, mrv, vol_bad):
     average over the same span. Meeting MEV exactly (n == mev) is in range,
     only strictly-below weeks count as low.
     """
-    zero_weeks, low_weeks = count_bad_weeks(weekly, mev)
+    zero_weeks, low_weeks = count_bad_weeks(weekly, mev, vol_bad)
     if zero_weeks >= vol_bad or low_weeks >= vol_bad:
         return "below_mev"
     avg = recent_average(weekly)
@@ -326,12 +348,15 @@ def volume_block(c):
     thresholds = constants.thresholds
     starts = [date.fromisoformat(s) for s in _week_starts(thresholds.volume_window_weeks)]
     vol_bad = thresholds.volume_bad_weeks
+    weeklies = {muscle: weekly_volume(c, muscle, starts)
+                for muscle in constants.muscles}
+    start = span_start(list(weeklies.values()))
     volume = {}
     for muscle, entry in constants.muscles.items():
-        weekly = weekly_volume(c, muscle, starts)
+        weekly = weeklies[muscle]
         volume[muscle] = {"weekly": weekly, "mev": entry.mev, "mav": entry.mav,
                           "mrv": entry.mrv, "freq": entry.freq,
-                          "status": classify_volume(weekly, entry.mev, entry.mrv, vol_bad)}
+                          "status": classify_volume(weekly[start:], entry.mev, entry.mrv, vol_bad)}
     return volume
 
 

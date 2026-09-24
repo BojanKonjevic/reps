@@ -348,10 +348,11 @@ def test_audit_volume_zero(audit_db):
 def test_audit_mev_zero_never_flags_zero(audit_db):
     """check 8: MEV 0 muscles (front delts) never flag volume_zero, zero meets the floor."""
     log, c = audit_db
+    _seed_muscle_weeks(c, "back", {0: 2, 1: 2, 2: 2, 3: 2, 4: 2})
     flags = _run_audit(log)
     front_zero = [f for f in flags if f["check"] == "volume_zero" and f["evidence"].startswith("front delts:")]
     assert front_zero == []
-    # sanity: a nonzero-MEV muscle with no data still flags
+    # sanity: a nonzero-MEV muscle with no data across the span still flags
     assert _chest_volume_flags(log, "volume_zero") != []
 
 
@@ -384,12 +385,27 @@ def test_audit_volume_no_streak_reset(audit_db):
 
 
 def test_audit_volume_never_trained(audit_db):
-    """check 8: a muscle absent from every week still flags as zero."""
+    """check 8: a muscle absent across a long trained span still flags as zero."""
     log, c = audit_db
+    _seed_muscle_weeks(c, "back", {w: 2 for w in range(8)})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"
     assert "0 sets in 8 of last 8 weeks" in zeros[0]["evidence"]
+
+
+def test_audit_volume_short_history_stays_silent(audit_db):
+    """check 8: one trained week cannot reach the bad-week bar, nothing flags."""
+    log, c = audit_db
+    _seed_muscle_weeks(c, "chest", {0: 8})
+    assert _chest_volume_flags(log, "volume_zero") == []
+    assert _chest_volume_flags(log, "volume_low") == []
+
+
+def test_audit_empty_db_flags_nothing(audit_db):
+    """No history at all means nothing is bad yet: zero flags, not thirteen."""
+    log, _ = audit_db
+    assert _run_audit(log) == []
 
 
 EXPECTED_MEV = {

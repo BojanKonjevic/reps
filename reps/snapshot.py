@@ -12,7 +12,7 @@ from .models import SNAPSHOT_SCHEMA_VERSION
 from .e1rm import e1rm
 from .program import (active_deloads, deload_covers, get_rotation,
                       lift_muscles, parse_active_split_days, read_priorities,
-                      read_split, rules_with_confirm, volume_block)
+                      read_split, recent_average, rules_with_confirm, volume_block)
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
 from .sessions import break_threshold, last_done
@@ -146,7 +146,7 @@ def muscles_view(c, constants, priorities, autoreg, volume, starts):
         total = sum(n for _, n in per_ex_muscle.get(muscle, []))
         share = [{"exercise": ex, "sets": n, "share": round(n / total, 3) if total else 0.0}
                  for ex, n in sorted(per_ex_muscle.get(muscle, []), key=lambda e: -e[1])]
-        recent = weekly[-4:] if len(weekly) >= 4 else weekly
+        recent = recent_average(weekly)
         out.append({
             "muscle": muscle,
             "bands": {"mev": entry.mev, "mav": list(entry.mav) if entry.mav else None,
@@ -156,7 +156,7 @@ def muscles_view(c, constants, priorities, autoreg, volume, starts):
             "grouped": sorted(autoreg.get("grouped", {}).get(muscle, [])),
             "lift_share": share,
             "trained_weeks": sum(1 for n in weekly if n > 0),
-            "avg_recent": round(sum(recent) / len(recent), 1) if recent else 0,
+            "avg_recent": round(recent, 1),
         })
     return out
 

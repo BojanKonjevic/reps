@@ -138,16 +138,20 @@ def drift_days(statuses):
 
 
 def adherence_block(c, window_days=14):
-    """Plan's adherence section, or None when anchor or rotation is missing."""
+    """Plan's adherence section, or None when anchor or rotation is missing.
+
+    Windows start at the anchor at the earliest: dates before the program
+    existed are unscored, never missed.
+    """
     rotation = parse_rotation(c)
     anchor = get_anchor(c)
     if not rotation or anchor is None:
         return None
     today = date.today()
-    days = status_range(c, rotation, anchor,
-                        (today - timedelta(days=window_days - 1)).isoformat(), today.isoformat())
+    start = max((today - timedelta(days=window_days - 1)).isoformat(), anchor["date"])
+    days = status_range(c, rotation, anchor, start, today.isoformat())
     vol_weeks = load_constants().thresholds.volume_window_weeks
-    freq_start = (today - timedelta(days=vol_weeks * 7 - 1)).isoformat()
+    freq_start = max((today - timedelta(days=vol_weeks * 7 - 1)).isoformat(), anchor["date"])
     window = status_range(c, rotation, anchor, freq_start, today.isoformat())
     frequency = {}
     for day in split_day_order("active", c=c):
@@ -171,8 +175,8 @@ def adherence_snapshot(c):
         return None
     today = date.today()
     span = load_constants().thresholds.volume_window_weeks * 7
-    days = status_range(c, rotation, anchor,
-                        (today - timedelta(days=span - 1)).isoformat(), today.isoformat())
+    start = max((today - timedelta(days=span - 1)).isoformat(), anchor["date"])
+    days = status_range(c, rotation, anchor, start, today.isoformat())
     threshold = load_constants().thresholds.adherence_drift_days
     run = drift_days(days)
     return {"anchor": anchor, "days": days, "drift": run >= threshold,
@@ -192,8 +196,12 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
     done = [e for e in hist if e["status"] == "done"]
     last = done[-1] if done else None
     recent_from = (today - timedelta(days=13)).isoformat()
-    missed = [e for e in hist if e["status"] == "missed" and e["date"] >= recent_from
-              and (last is None or e["date"] > last["date"])]
+    if last is None:
+        # Never trained: nothing was skipped, so nothing is missed.
+        missed = []
+    else:
+        missed = [e for e in hist if e["status"] == "missed" and e["date"] >= recent_from
+                  and e["date"] > last["date"]]
     return {"day": exp,
             "last_done": {"date": last["date"], "day": last["expected"]} if last else None,
             "missed": [{"date": e["date"], "day": e["expected"]} for e in missed]}

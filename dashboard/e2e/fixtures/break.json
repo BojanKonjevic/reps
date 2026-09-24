@@ -341,7 +341,7 @@
         }
       ],
       "trained_weeks": 1,
-      "avg_recent": 0.2
+      "avg_recent": 0.5
     },
     {
       "muscle": "back",
@@ -363,7 +363,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -417,7 +417,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -444,7 +444,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -471,7 +471,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -498,7 +498,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -525,7 +525,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -552,7 +552,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -579,7 +579,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -606,7 +606,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -633,7 +633,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
@@ -657,7 +657,7 @@
         0,
         0
       ],
-      "status": "below_mev",
+      "status": "in_range",
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],

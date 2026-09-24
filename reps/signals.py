@@ -40,18 +40,21 @@ def build_signals(c=None):
                             f"in {vol_weeks} weeks)"})
     else:
         vol_bad = thresholds.volume_bad_weeks
+        from .program import span_start
+        span_weeklies = {m: weekly_volume(c, m, week_starts) for m in constants.muscles}
+        gstart = span_start(list(span_weeklies.values()))
         for muscle, entry in constants.muscles.items():
-            weekly = weekly_volume(c, muscle, week_starts)
+            weekly = span_weeklies[muscle][gstart:]
             status = classify_volume(weekly, entry.mev, entry.mrv, vol_bad)
             if status == "below_mev":
-                zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev)
+                zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev, vol_bad)
                 if zero_weeks >= vol_bad:
                     out.append({"severity": "high",
-                                "text": f"{muscle}: 0 sets in {zero_weeks} of last {vol_weeks} "
+                                "text": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} "
                                         f"weeks (MEV {entry.mev})"})
                 else:
                     out.append({"severity": "medium",
-                                "text": f"{muscle}: under MEV in {low_weeks} of last {vol_weeks} "
+                                "text": f"{muscle}: under MEV in {low_weeks} of last {len(weekly)} "
                                         f"weeks (MEV {entry.mev})"})
             elif status == "above_mrv":
                 avg = recent_average(weekly)
