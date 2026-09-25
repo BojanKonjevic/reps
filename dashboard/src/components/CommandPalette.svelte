@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { palette } from '../lib/palette.svelte';
+  import { closePalette, palette } from '../lib/palette.svelte';
   import { palettePages, filterPages } from '../lib/select';
 
   let q = $state('');
@@ -9,7 +9,7 @@
   const rows = $derived(filterPages(palettePages(), q));
 
   function close() {
-    palette.open = false;
+    closePalette();
     q = '';
     active = 0;
   }
@@ -37,10 +37,10 @@
       close();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      active = Math.min(active + 1, Math.max(rows.length - 1, 0));
+      if (rows.length) active = (active + 1) % rows.length;
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      active = Math.max(active - 1, 0);
+      if (rows.length) active = (active - 1 + rows.length) % rows.length;
     } else if (e.key === 'Enter') {
       const row = rows[active];
       if (row) {

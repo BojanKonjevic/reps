@@ -5,7 +5,7 @@
   import { queryClient, snapshotKey } from './queries/client';
   import { fetchSnapshot } from './queries/snapshot';
   import { syncRoute, route } from './router.svelte';
-  import { palette } from './lib/palette.svelte';
+  import { closePalette, palette } from './lib/palette.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
   import DashboardPage from './pages/DashboardPage.svelte';
   import SessionPage from './pages/SessionPage.svelte';
@@ -28,6 +28,10 @@
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         palette.open = !palette.open;
+      } else if (e.key === 'Escape' && palette.open) {
+        // Works even when the input never took focus.
+        e.preventDefault();
+        closePalette();
       }
     };
     window.addEventListener('hashchange', syncRoute);

@@ -65,6 +65,20 @@ test.describe('Dashboard', () => {
     await expect(page.locator('.pal-panel')).toBeHidden();
   });
 
+  test('palette arrows cycle and esc closes without input focus', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('.pal-panel')).toBeVisible();
+    const rows = page.locator('.pal-panel button');
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowDown');
+    await expect(rows.first()).toHaveClass(/pal-active/);
+    await page.keyboard.press('ArrowUp');
+    await expect(rows.last()).toHaveClass(/pal-active/);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pal-panel')).toBeHidden();
+  });
+
   test('going back returns to the saved scroll position', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     const link = page.locator('#trendGrid .mini a').first();

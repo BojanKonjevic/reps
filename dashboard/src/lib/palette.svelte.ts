@@ -2,3 +2,7 @@
 // itself lives in select.ts so filtering stays unit-testable without a DOM.
 
 export const palette: { open: boolean } = $state({ open: false });
+
+export function closePalette() {
+  palette.open = false;
+}
