@@ -127,6 +127,19 @@ def test_state_at_scopes_successive_goals(log_module):
     assert tip["state"]["status"] == "active"
 
 
+def test_goal_drop_revert_refuses_when_successor_active(log_module):
+    from datetime import timedelta
+
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid1 = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    drop_cid = log.drop_goal(gid1)["change_id"]
+    log.add_goal("bench", 140, deadline, "", None)
+    with pytest.raises(RepsError, match="already covers"):
+        log.revert_change(drop_cid)
+
+
 def test_goal_drop_refuses_double_drop(log_module):
     from datetime import timedelta
 

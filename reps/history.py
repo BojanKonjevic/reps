@@ -257,6 +257,11 @@ def _revert_goal(c, subject, before, after):
         if goal["status"] != "dropped":
             raise RepsError("goal moved since this change, revert would clobber newer edits; "
                             "revert the later change first")
+        rival = c.execute("SELECT id FROM goals WHERE exercise = ? AND status = 'active' AND id != ?",
+                          (after.get("exercise"), gid)).fetchone()
+        if rival:
+            raise RepsError(f"goal {rival['id']} already covers '{after.get('exercise')}' "
+                            f"(rewrite or drop it first)")
         c.execute("UPDATE goals SET status = ? WHERE id = ?", (before.get("status") or "active", gid))
         return dict(before)
     raise RepsError(f"goal change with action '{action}' has no defined inverse")

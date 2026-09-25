@@ -94,7 +94,7 @@ def test_goal_trajectory_marks_in_range_actuals(log_module):
     assert narrow["checkpoints_vs_actuals"][0]["in_range"] is False
 
 
-def test_goal_trajectory_marks_in_range_actuals(log_module):
+def test_goal_trajectory_pairs_checkpoints(log_module):
     log = log_module
     _seeded(log)
     deadline = (date.today() + timedelta(days=60)).isoformat()
