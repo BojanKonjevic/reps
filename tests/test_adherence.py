@@ -54,7 +54,8 @@ def test_anchor_resolves_first_rotation_index(log_module):
     log.set_split("Lower A", 1, "bench", 3)
     log.set_rotation(["Upper A", "Lower A", "rest"])
     out = log.anchor_rotation("2026-09-01", "lower a")
-    assert out == {"anchor": {"date": "2026-09-01", "index": 1}, "day": "Lower A"}
+    assert out["anchor"] == {"date": "2026-09-01", "index": 1} and out["day"] == "Lower A"
+    assert out["change_id"] >= 1
     with pytest.raises(RepsError, match="no rotation entry"):
         log.anchor_rotation("2026-09-01", "Upper Z")
     with pytest.raises(RepsError, match="cannot be in the future"):

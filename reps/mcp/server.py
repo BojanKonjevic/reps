@@ -22,7 +22,9 @@ from reps import audit as _audit
 from reps import autoreg as _autoreg
 from reps import constants as _constants
 from reps import goals as _goals
+from reps import history as _history
 from reps import muscles as _muscles
+from reps import observations as _observations
 from reps import plan as _plan
 from reps import program as _program
 from reps import progression as _progression
@@ -36,8 +38,10 @@ mcp = MCPServer("reps")
 # inputSchema enumerates the legal values without a second definition.
 # SetField/WorkoutField stay local: they describe MCP call shapes, not domain facts.
 from reps.vocab import (DeloadScope as Scope,
-                        Direction, PriorityTier as Tier, SplitVariant as Variant,
-                        Verdict)
+                         Direction, HistoryDomain as HistoryDomain,
+                         ObserveMetric as ObserveMetric,
+                         PriorityTier as Tier, SplitVariant as Variant,
+                         Verdict)
 SetField = Literal["weight", "reps", "exercise", "note"]
 WorkoutField = Literal["notes", "date", "status"]
 
@@ -370,7 +374,7 @@ def program_split_show(day: str = "", variant: Variant = "active") -> dict:
 
 @mcp.tool()
 def program_split_set(day: str, slot: int, movements: str, sets: int,
-                      variant: Variant = "active") -> dict:
+                      variant: Variant = "active", evidence: str = "") -> dict:
     """Routine active-split update (one-off swaps add the alternate here, never a rewrite).
 
     Args:
@@ -379,31 +383,34 @@ def program_split_set(day: str, slot: int, movements: str, sets: int,
         movements: Movement expression.
         sets: Working set count.
         variant: active normally, baseline only for explicit major program changes.
+        evidence: Why this edit happened (stored with the state change).
     """
-    return call_domain(_program.set_split, day, slot, movements, sets, variant)
+    return call_domain(_program.set_split, day, slot, movements, sets, variant, evidence)
 
 
 @mcp.tool()
-def program_split_move(day: str, exercise: str, to_slot: int) -> dict:
+def program_split_move(day: str, exercise: str, to_slot: int, evidence: str = "") -> dict:
     """Move an exercise between slots on a day.
 
     Args:
         day: Split day name.
         exercise: Exercise to move.
         to_slot: Destination slot number.
+        evidence: Why this move happened (stored with the state change).
     """
-    return call_domain(_program.move_split, day, exercise, to_slot)
+    return call_domain(_program.move_split, day, exercise, to_slot, evidence)
 
 
 @mcp.tool()
-def program_split_reconcile(day: str, after: str = "") -> dict:
+def program_split_reconcile(day: str, after: str = "", evidence: str = "") -> dict:
     """Append newly logged exercises to a day (the end gate enforces this).
 
     Args:
         day: Split day name.
         after: Optional exercise to insert after.
+        evidence: Why these exercises were added (stored with the state change).
     """
-    return call_domain(_program.reconcile_split, day, after or None)
+    return call_domain(_program.reconcile_split, day, after or None, evidence)
 
 
 @mcp.tool()
@@ -413,35 +420,38 @@ def program_split_diff() -> dict:
 
 
 @mcp.tool()
-def program_split_revert(day: str = "") -> dict:
+def program_split_revert(day: str = "", evidence: str = "") -> dict:
     """Revert active toward baseline, whole program or one day.
 
     Args:
         day: Optional single day, or empty for the whole program.
+        evidence: Why the revert happened (stored with the state change).
     """
-    return call_domain(_program.revert_split, day or None)
+    return call_domain(_program.revert_split, day or None, evidence)
 
 
 @mcp.tool()
-def program_priority_set(muscle: str, tier: Tier, until: str = "") -> dict:
+def program_priority_set(muscle: str, tier: Tier, until: str = "", evidence: str = "") -> dict:
     """Bring a muscle up or down: tier breaks ties for slack volume.
 
     Args:
         muscle: Tracked muscle.
         tier: One of priority, maintain, deprioritize.
         until: Optional expiry date.
+        evidence: Why this tier was set (stored with the state change).
     """
-    return call_domain(_program.set_priority, muscle, tier, until or None)
+    return call_domain(_program.set_priority, muscle, tier, until or None, evidence)
 
 
 @mcp.tool()
-def program_priority_clear(muscle: str) -> dict:
+def program_priority_clear(muscle: str, evidence: str = "") -> dict:
     """Clear a muscle priority tier.
 
     Args:
         muscle: Tracked muscle.
+        evidence: Why the tier was cleared (stored with the state change).
     """
-    return call_domain(_program.clear_priority, muscle)
+    return call_domain(_program.clear_priority, muscle, evidence)
 
 
 @mcp.tool()
@@ -451,32 +461,38 @@ def program_priority_list() -> dict:
 
 
 @mcp.tool()
-def program_deload_set(scope: Scope, subject: str) -> dict:
+def program_deload_set(scope: Scope, subject: str, evidence: str = "") -> dict:
     """Mark a lift or slot as deloaded (volume down per SCIENCE.md, trajectory resumes next session).
 
     Args:
         scope: One of lift, slot.
         subject: Lift or slot name.
+        evidence: What triggered the deload (stored with the state change).
     """
-    return call_domain(_program.set_deload, scope, subject)
+    return call_domain(_program.set_deload, scope, subject, evidence)
 
 
 @mcp.tool()
-def program_deload_clear() -> dict:
-    """Clear deload state after the deload session ends (appends the dated state line)."""
-    return call_domain(_program.clear_deload)
+def program_deload_clear(evidence: str = "") -> dict:
+    """Clear deload state after the deload session ends (appends the dated state line).
+
+    Args:
+        evidence: Session outcome note (stored with the state change).
+    """
+    return call_domain(_program.clear_deload, evidence)
 
 
 @mcp.tool()
-def program_rule_add(text: str, subject: str = "", expires: str = "") -> dict:
+def program_rule_add(text: str, subject: str = "", expires: str = "", evidence: str = "") -> dict:
     """Write a durable pref or plan down as a rule.
 
     Args:
         text: Rule text.
         subject: Optional subject the rule governs.
         expires: Optional expiry date.
+        evidence: Why this rule was written (stored with the state change).
     """
-    return call_domain(_program.add_rule, text, subject or None, expires or None)
+    return call_domain(_program.add_rule, text, subject or None, expires or None, evidence)
 
 
 @mcp.tool()
@@ -490,15 +506,17 @@ def program_rule_list(expiring_within: Optional[int] = None) -> dict:
 
 
 @mcp.tool()
-def program_rule_confirm(rule_id: int, extend: str = "", archive: bool = False) -> dict:
+def program_rule_confirm(rule_id: int, extend: str = "", archive: bool = False,
+                         evidence: str = "") -> dict:
     """Reactivate (extend) or archive a rule. Nothing durable is deleted without an answer.
 
     Args:
         rule_id: Exact rule id.
         extend: New expiry date for reactivation.
         archive: Archive instead of extending.
+        evidence: Why this decision was made (stored with the state change).
     """
-    return call_domain(_program.confirm_rule, rule_id, extend or None, archive)
+    return call_domain(_program.confirm_rule, rule_id, extend or None, archive, evidence)
 
 
 @mcp.tool()
@@ -535,13 +553,14 @@ def program_rotation_show() -> dict:
 
 
 @mcp.tool()
-def program_rotation_set(days: list[str]) -> dict:
+def program_rotation_set(days: list[str], evidence: str = "") -> dict:
     """Replace the rotation order. Days must exist as split days; "rest" for rest entries.
 
     Args:
         days: Ordered day names ("rest" allowed).
+        evidence: Why the rotation changed (stored with the state change).
     """
-    return call_domain(_program.set_rotation, days)
+    return call_domain(_program.set_rotation, days, evidence)
 
 
 @mcp.tool()
@@ -563,14 +582,15 @@ def program_compaction_set(last_compacted: str = "", postponed_until: str = "") 
 
 
 @mcp.tool()
-def program_rotation_anchor(date: str, day: str) -> dict:
+def program_rotation_anchor(date: str, day: str, evidence: str = "") -> dict:
     """Anchor the rotation schedule to a date. Drift asks for a re-anchor, never re-anchors silently.
 
     Args:
         date: Anchor date yyyy-mm-dd.
         day: Rotation day trained that date.
+        evidence: Why the schedule was re-anchored (stored with the state change).
     """
-    return call_domain(_adherence.anchor_rotation, date, day)
+    return call_domain(_adherence.anchor_rotation, date, day, evidence)
 
 
 @mcp.tool()
@@ -618,7 +638,7 @@ def progression_show(exercise: str = "") -> dict:
 
 @mcp.tool()
 def goal_add(exercise: str, target_e1rm: float, deadline: str, desc: str = "",
-             start_e1rm: Optional[float] = None) -> dict:
+             start_e1rm: Optional[float] = None, evidence: str = "") -> dict:
     """Declare a goal: trajectory numbers become the strong prior for planning.
 
     Args:
@@ -627,8 +647,9 @@ def goal_add(exercise: str, target_e1rm: float, deadline: str, desc: str = "",
         deadline: Deadline date.
         desc: Optional description.
         start_e1rm: Optional starting e1RM (defaults to current best).
+        evidence: Why this goal was set (stored with the state change).
     """
-    return call_domain(_goals.add_goal, exercise, target_e1rm, deadline, desc, start_e1rm)
+    return call_domain(_goals.add_goal, exercise, target_e1rm, deadline, desc, start_e1rm, evidence)
 
 
 @mcp.tool()
@@ -642,23 +663,25 @@ def goal_show(goal_id: str = "") -> dict:
 
 
 @mcp.tool()
-def goal_rewrite(goal_id: int) -> dict:
+def goal_rewrite(goal_id: int, evidence: str = "") -> dict:
     """Recut a goal trajectory after a session moved it.
 
     Args:
         goal_id: Exact goal id.
+        evidence: Which logged result caused the rewrite (stored with the state change).
     """
-    return call_domain(_goals.rewrite_goal, goal_id)
+    return call_domain(_goals.rewrite_goal, goal_id, evidence)
 
 
 @mcp.tool()
-def goal_drop(goal_id: int) -> dict:
+def goal_drop(goal_id: int, evidence: str = "") -> dict:
     """Drop a goal.
 
     Args:
         goal_id: Exact goal id.
+        evidence: Why the goal was dropped (stored with the state change).
     """
-    return call_domain(_goals.drop_goal, goal_id)
+    return call_domain(_goals.drop_goal, goal_id, evidence)
 
 
 # === autoreg ===
@@ -697,6 +720,76 @@ def autoreg_revert(change_id: int) -> dict:
         change_id: Exact autoreg change id.
     """
     return call_domain(_autoreg.revert_autoreg_change, change_id)
+
+
+# === history and observations (review-mode tools, never pulled in bulk at session start) ===
+
+
+@mcp.tool()
+def history_list(domain: HistoryDomain, subject: str = "", since: str = "",
+                 until: str = "") -> dict:
+    """State-change transitions for one domain, oldest first, with before/after evidence.
+
+    Args:
+        domain: One of program, priority, goal, deload, rule, rotation.
+        subject: Optional domain-scoped id (program "active:Day", muscle, exercise, rule id).
+        since: Optional start date yyyy-mm-dd.
+        until: Optional end date yyyy-mm-dd.
+    """
+    return call_domain(_history.list_changes, domain, subject, since, until)
+
+
+@mcp.tool()
+def history_get(change_id: int) -> dict:
+    """One state transition with parsed before/after payloads and evidence.
+
+    Args:
+        change_id: Exact state-change id.
+    """
+    return call_domain(_history.get_change, change_id)
+
+
+@mcp.tool()
+def history_state(domain: HistoryDomain, subject: str, at: str = "") -> dict:
+    """Reconstruct domain state as of a date. Subject is required: an empty
+    subject would fold unrelated subjects into one misleading state.
+    Pre-history dates report unknown, never a guess.
+
+    Args:
+        domain: One of program, priority, goal, deload, rule, rotation.
+        subject: Domain-scoped id: program "active:Day", muscle, exercise, rule id,
+            "rotation" or "anchor".
+        at: Date yyyy-mm-dd, defaults to today.
+    """
+    return call_domain(_history.state_at, domain, subject, at or None)
+
+
+@mcp.tool()
+def history_revert(change_id: int, evidence: str = "") -> dict:
+    """Create the inverse transition of a recorded change. History is append-only:
+    the original row stands, the inverse is a new row pointing back.
+
+    Args:
+        change_id: Exact state-change id.
+        evidence: Why the change is being undone.
+    """
+    return call_domain(_history.revert_change, change_id, evidence)
+
+
+@mcp.tool()
+def observe(metric: ObserveMetric, subject: str = "", since: str = "",
+            until: str = "") -> dict:
+    """One deterministic semantic observation over a date range, with provenance.
+
+    Args:
+        metric: One of lift_trend, muscle_volume, program_activity, goal_trajectory,
+            adherence_summary, bodyweight_trend.
+        subject: Metric-scoped id (exercise for lift_trend/goal_trajectory,
+            muscle for muscle_volume, program day subject for program_activity).
+        since: Optional start date yyyy-mm-dd (defaults to 90 days ago).
+        until: Optional end date yyyy-mm-dd (defaults to today).
+    """
+    return call_domain(_observations.observe, metric, subject, since, until)
 
 
 # === analysis and configuration ===

@@ -46,6 +46,8 @@
 | Enums                                | `reps/vocab.py`                                                           | SQL `CHECK`, Pydantic, MCP schema, generated Zod | T1    | G3                 |
 | Lift registry, mapping, alternates   | `lift`, `lift_muscle`, `split_slot_lift`                                  | FKs                                              | T1    | G12                |
 | Autoreg history movements            | `autoreg_holds`/`autoreg_changes` TEXT (immutable point-in-time record)   | snapshot `moves`/`before_moves`/`after_moves` arrays | T2    | tests              |
+| State-change history                 | `reps/history.py` over `state_change` (append-only, domain as data)       | MCP `history_list`/`history_get`/`history_state`/`history_revert` | T2 | tests |
+| Observations                         | `reps/observations.py` (derived on read, never stored)                    | MCP `observe(metric, subject, since, until)` | T2 | tests |
 | Snapshot shape                       | `reps/models.py`                                                          | generated `snapshot.ts`, blank, fixtures         | T2    | G3, G11            |
 | Snapshot views                       | `reps/snapshot.py`                                                        | `sync.build_snapshot`, dashboard views           | T1    | tests              |
 | Colors, fonts                        | `design/tokens.css`                                                       | `theme.ts` for canvas                            | T1/T2 | G6                 |
@@ -158,6 +160,7 @@ Anything not in this list is a violation. Extending the list requires editing th
 4. **Doc prose stating intent and rationale** ("why autoreg never trims below MEV"), never values, enumerations, or tool argument lists.
 5. **Playwright screenshot baselines and lockfiles.**
 6. **The muscle-name seam:** `constants.json` owns the taxonomy, `lift_muscle.muscle` is a plain column validated at write and by `doctor`. A single named seam.
-7. **`liftColor` hashing** as the single place lift identity maps to a color (presentation-only, no domain meaning).
+7. **Autoreg's own ledger:** `autoreg_changes`/`autoreg_holds` stay separate from the shared `state_change` table. Its columns (day, slot, movements, sets) are first-class query shapes, not a JSON envelope; forcing uniformity would lose information. New domains default to the shared table.
+8. **`liftColor` hashing** as the single place lift identity maps to a color (presentation-only, no domain meaning).
 9. **MCP call-shape literals** (`SetField`, `WorkoutField` in `reps/mcp/server.py`): field names of MCP call payloads, not domain facts. They mirror tool signatures by construction (changing a signature breaks its own tool); domain vocabularies stay in `reps/vocab.py`.
-8. **Gate catalogs and their tests naming banned identifiers** (`scripts/ssot_check.py`, `dashboard/src/__tests__/ssot.test.ts`). Naming a banned pattern to forbid it is enforcement, not a second mechanism: the gate itself fails the build on real drift, and the name cannot drift because it is a string, not a computation. Section 7 verification commands exclude these enforcement files (plus generated artifacts and test fixtures).
+10. **Gate catalogs and their tests naming banned identifiers** (`scripts/ssot_check.py`, `dashboard/src/__tests__/ssot.test.ts`). Naming a banned pattern to forbid it is enforcement, not a second mechanism: the gate itself fails the build on real drift, and the name cannot drift because it is a string, not a computation. Section 7 verification commands exclude these enforcement files (plus generated artifacts and test fixtures).

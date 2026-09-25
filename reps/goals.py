@@ -4,6 +4,7 @@ from .errors import RepsError
 
 from .constants import load_constants
 from .db import conn
+from .history import record_change
 from .program import day_movements, parse_rotation, split_day_order
 from .progression import top_e1rm_by_date
 
@@ -45,10 +46,13 @@ def goal_sessions(c, goal):
     return (prior[-1:] + current) if prior or current else []
 
 
-def goal_progress(c, goal):
-    checkpoints = [r["target_e1rm"] for r in c.execute(
-        "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
+def goal_progress(c, goal, checkpoints=None, through=None):
+    if checkpoints is None:
+        checkpoints = [r["target_e1rm"] for r in c.execute(
+            "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
     sessions = goal_sessions(c, goal)
+    if through is not None:
+        sessions = [s for s in sessions if s[0][:10] <= through]
     completed = min(len(sessions), len(checkpoints))
     divergence = load_constants().thresholds.goal_divergence_pct
     consecutive_misses = 0
@@ -71,7 +75,20 @@ def goal_progress(c, goal):
             "next_checkpoint": checkpoints[completed] if completed < len(checkpoints) else None}
 
 
-def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
+def _goal_image(goal_id, exercise, action, checkpoints=None, target_e1rm=None,
+                deadline=None, status=None, target_desc=None):
+    return {"goal_id": goal_id, "exercise": exercise, "action": action,
+            "checkpoints": checkpoints, "target_e1rm": target_e1rm,
+            "deadline": deadline, "status": status, "target_desc": target_desc}
+
+
+def _checkpoint_list(c, goal_id):
+    return [r["target_e1rm"] for r in c.execute(
+        "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no",
+        (goal_id,)).fetchall()]
+
+
+def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None, evidence=""):
     c = conn()
     exercise = (exercise or "").strip().lower()
     if not exercise:
@@ -114,11 +131,18 @@ def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None):
                     "VALUES (?, ?, ?, ?, 'active', ?)",
                     (exercise, target_e1rm, target_desc, deadline, now))
     gid = cur.lastrowid
-    for i, cp in enumerate(build_checkpoints(start_e1rm, target_e1rm, n), 1):
+    checkpoints = build_checkpoints(start_e1rm, target_e1rm, n)
+    for i, cp in enumerate(checkpoints, 1):
         c.execute("INSERT INTO goal_checkpoints (goal_id, session_no, target_e1rm) VALUES (?, ?, ?)", (gid, i, cp))
+    change = record_change(c, "goal", exercise,
+                           _goal_image(gid, exercise, "add"),
+                           _goal_image(gid, exercise, "add", checkpoints, target_e1rm,
+                                       deadline, "active", target_desc),
+                           evidence)
     c.commit()
     return {"goal_id": gid, "exercise": exercise, "sessions": n,
-            "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline}
+            "start_e1rm": round(start_e1rm, 1), "target_e1rm": target_e1rm, "deadline": deadline,
+            "change_id": change["change_id"]}
 
 
 def get_goal(goal_id=None):
@@ -141,7 +165,7 @@ def get_goal(goal_id=None):
     return out
 
 
-def rewrite_goal(goal_id):
+def rewrite_goal(goal_id, evidence=""):
     c = conn()
     try:
         goal_id = int(goal_id)
@@ -154,24 +178,46 @@ def rewrite_goal(goal_id):
     prog = goal_progress(c, goal)
     if prog["remaining"] <= 0:
         raise RepsError("goal trajectory is complete, nothing to rewrite")
+    before_cps = _checkpoint_list(c, goal_id)
+    before = _goal_image(goal_id, goal["exercise"], "rewrite", before_cps,
+                         goal["target_e1rm"], goal["deadline"], goal["status"],
+                         goal["target_desc"])
     sessions = goal_sessions(c, goal)
     anchor = sessions[prog["completed"] - 1][1] if prog["completed"] > 0 else prog["checkpoints"][0]
     fresh = build_checkpoints(anchor, goal["target_e1rm"], prog["remaining"])
     for i, cp in enumerate(fresh, prog["completed"] + 1):
         c.execute("UPDATE goal_checkpoints SET target_e1rm = ? WHERE goal_id = ? AND session_no = ?",
                   (cp, goal_id, i))
+    after_cps = _checkpoint_list(c, goal_id)
+    after = _goal_image(goal_id, goal["exercise"], "rewrite", after_cps,
+                        goal["target_e1rm"], goal["deadline"], goal["status"],
+                        goal["target_desc"])
+    change = record_change(c, "goal", goal["exercise"], before, after, evidence)
     c.commit()
-    return {"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh}
+    return {"goal_id": goal_id, "rewritten_from_session": prog["completed"] + 1, "checkpoints": fresh,
+            "change_id": change["change_id"]}
 
 
-def drop_goal(goal_id):
+def drop_goal(goal_id, evidence=""):
     c = conn()
     try:
         goal_id = int(goal_id)
     except (TypeError, ValueError):
         raise RepsError("no such goal")
-    cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ?", (goal_id,))
-    if cur.rowcount == 0:
+    goal = c.execute("SELECT * FROM goals WHERE id = ?", (goal_id,)).fetchone()
+    if not goal:
         raise RepsError("no such goal")
+    goal = dict(goal)
+    if goal["status"] == "dropped":
+        raise RepsError("goal is already dropped")
+    before = _goal_image(goal_id, goal["exercise"], "drop", _checkpoint_list(c, goal_id),
+                         goal["target_e1rm"], goal["deadline"], goal["status"],
+                         goal["target_desc"])
+    cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ? AND status != 'dropped'",
+                    (goal_id,))
+    if cur.rowcount == 0:
+        raise RepsError("goal is already dropped")
+    after = dict(before, status="dropped")
+    change = record_change(c, "goal", goal["exercise"], before, after, evidence)
     c.commit()
-    return {"dropped": goal_id}
+    return {"dropped": goal_id, "change_id": change["change_id"]}

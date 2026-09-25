@@ -1,5 +1,6 @@
 # SSOT owner: closed vocabularies (workout status, verdict, direction, tier, deload scope,
-# adherence status, severity, volume status, split variant, autoreg action, rule/goal status).
+# adherence status, severity, volume status, split variant, autoreg action, rule/goal status,
+# history domain, observation metric).
 # Consumers: SQL CHECK lists (generated in db.SCHEMA assembly), Pydantic Literals,
 # MCP tool schemas, generated Zod. Consumers derive, never redefine.
 
@@ -113,3 +114,21 @@ class EvidenceTier(StrEnum):
     SETTLED = "settled"
     CONTESTED = "contested"
     OPINION = "opinion"
+
+
+class HistoryDomain(StrEnum):
+    PROGRAM = "program"
+    PRIORITY = "priority"
+    GOAL = "goal"
+    DELOAD = "deload"
+    RULE = "rule"
+    ROTATION = "rotation"
+
+
+class ObserveMetric(StrEnum):
+    LIFT_TREND = "lift_trend"
+    MUSCLE_VOLUME = "muscle_volume"
+    PROGRAM_ACTIVITY = "program_activity"
+    GOAL_TRAJECTORY = "goal_trajectory"
+    ADHERENCE_SUMMARY = "adherence_summary"
+    BODYWEIGHT_TREND = "bodyweight_trend"

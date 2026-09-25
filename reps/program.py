@@ -10,6 +10,7 @@ from .vocab import AutoregAction, DeloadScope, PriorityTier, SplitVariant, value
 
 from .constants import canon_muscle_name, load_constants
 from .db import conn, open_workout, placeholders
+from .history import record_change
 from .memory import append_memory_state
 
 
@@ -192,7 +193,60 @@ def parse_rotation(c=None):
     return get_rotation(c)
 
 
-def set_rotation(days):
+def _day_snapshot(c, variant, day):
+    rows = read_split(variant, day, c=c)
+    return {"variant": variant, "day": day,
+            "slots": [{"slot": r["slot"], "movements": r["movements"], "sets": r["sets"]}
+                      for r in rows]}
+
+
+def _restore_day_snapshot(c, variant, day, slots):
+    """Rewrite one day from a recorded snapshot (history revert path, no recording)."""
+    c.execute("DELETE FROM split_slot WHERE variant = ? AND day = ?", (variant, day))
+    for r in slots or []:
+        _write_slot(c, variant, day, r["slot"], parse_movements(r["movements"]), r["sets"])
+
+
+def _write_rotation(c, entries):
+    """Replace rotation rows with anchor preservation. Returns anchor_cleared."""
+    old_rotation = get_rotation(c)
+    saved = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    c.execute("DELETE FROM rotation_anchor WHERE id = 1")
+    c.execute("DELETE FROM rotation")
+    for i, day in enumerate(entries):
+        c.execute("INSERT INTO rotation (position, day) VALUES (?, ?)", (i, day))
+    cleared = False
+    if saved is not None:
+        pos = saved["position"]
+
+        def _norm(d):
+            return None if d is None or str(d).lower() == "rest" else d
+        same_day = (pos < len(entries) and pos < len(old_rotation)
+                    and _norm(entries[pos]) == _norm(old_rotation[pos]))
+        if same_day:
+            c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?)",
+                      (saved["anchor_date"], pos))
+        else:
+            cleared = True
+    return cleared
+
+
+def _restore_rotation(c, entries):
+    """Rewrite rotation from a recorded image (history revert path, no recording)."""
+    _write_rotation(c, entries)
+
+
+def _rotation_image(days):
+    return [None if d is None or str(d).lower() == "rest" else d for d in days]
+
+
+def _priority_image(row):
+    if row is None:
+        return {"tier": None, "since": None, "until": None}
+    return {"tier": row["tier"], "since": row["since"], "until": row["until"]}
+
+
+def set_rotation(days, evidence=""):
     """Replace the rotation order. Days must be split days; None means rest."""
     if not days:
         raise RepsError("rotation must be a non-empty day list")
@@ -213,32 +267,29 @@ def set_rotation(days):
         if match is None:
             raise RepsError(f"rotation days must exist in splits, unknown: {name}")
         entries.append(match)
+    before = {"rotation": _rotation_image(get_rotation(c))}
+    after = {"rotation": _rotation_image(entries)}
+    anchor_row = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    had_anchor = anchor_row is not None
     try:
-        old_rotation = get_rotation(c)
-        saved = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
-        c.execute("DELETE FROM rotation_anchor WHERE id = 1")
-        c.execute("DELETE FROM rotation")
-        for i, day in enumerate(entries):
-            c.execute("INSERT INTO rotation (position, day) VALUES (?, ?)", (i, day))
-        cleared = False
-        if saved is not None:
-            pos = saved["position"]
-            def _norm(d):
-                return None if d is None or str(d).lower() == "rest" else d
-            same_day = (pos < len(entries) and pos < len(old_rotation)
-                        and _norm(entries[pos]) == _norm(old_rotation[pos]))
-            if same_day:
-                c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?)",
-                          (saved["anchor_date"], pos))
-            else:
-                cleared = True
+        cleared = _write_rotation(c, entries)
+        change = record_change(c, "rotation", "rotation", before, after, evidence)
+        anchor_change = None
+        if had_anchor and cleared:
+            from .adherence import _anchor_image
+
+            anchor_change = record_change(
+                c, "rotation", "anchor", _anchor_image(dict(anchor_row)),
+                {"rotation": None, "anchor_date": None, "position": None}, evidence)
         c.commit()
     except sqlite3.IntegrityError as e:
         c.rollback()
         raise RepsError(f"rotation write refused: {e}")
-    out = {"rotation": get_rotation(c)}
-    if saved is not None:
+    out = {"rotation": get_rotation(c), "change_id": change["change_id"]}
+    if had_anchor:
         out["anchor_cleared"] = cleared
+    if anchor_change is not None:
+        out["anchor_change_id"] = anchor_change["change_id"]
     return out
 
 
@@ -439,7 +490,7 @@ def priority_needs_confirm(c):
     return out
 
 
-def set_priority(muscle, tier, until=None):
+def set_priority(muscle, tier, until=None, evidence=""):
     muscle = muscle.strip().lower()
     if tier not in values(PriorityTier):
         raise RepsError("tier must be one of priority maintain deprioritize")
@@ -456,18 +507,30 @@ def set_priority(muscle, tier, until=None):
         except ValueError:
             raise RepsError("until must be YYYY-MM-DD")
     c = conn()
+    old = c.execute("SELECT * FROM priority WHERE muscle = ?", (muscle,)).fetchone()
+    before = _priority_image(dict(old) if old else None)
+    today = date.today().isoformat()
     c.execute("INSERT INTO priority (muscle, tier, since, until) VALUES (?, ?, ?, ?) "
               "ON CONFLICT (muscle) DO UPDATE SET tier = excluded.tier, since = excluded.since, until = excluded.until",
-              (muscle, tier, date.today().isoformat(), until))
+              (muscle, tier, today, until))
+    after = {"tier": tier, "since": today, "until": until}
+    change = record_change(c, "priority", muscle, before, after, evidence)
     c.commit()
-    return {"priority": muscle, "tier": tier, "until": until}
+    return {"priority": muscle, "tier": tier, "until": until, "change_id": change["change_id"]}
 
 
-def clear_priority(muscle):
+def clear_priority(muscle, evidence=""):
+    muscle = muscle.strip().lower()
     c = conn()
-    cur = c.execute("DELETE FROM priority WHERE muscle = ?", (muscle.strip().lower(),))
+    old = c.execute("SELECT * FROM priority WHERE muscle = ?", (muscle,)).fetchone()
+    cur = c.execute("DELETE FROM priority WHERE muscle = ?", (muscle,))
+    out = {"cleared": muscle, "rows": cur.rowcount}
+    if old is not None:
+        change = record_change(c, "priority", muscle, _priority_image(dict(old)),
+                               _priority_image(None), evidence)
+        out["change_id"] = change["change_id"]
     c.commit()
-    return {"cleared": muscle.strip().lower(), "rows": cur.rowcount}
+    return out
 
 
 def list_priorities():
@@ -476,7 +539,7 @@ def list_priorities():
     return [dict(r) for r in rows]
 
 
-def set_deload(scope, subject):
+def set_deload(scope, subject, evidence=""):
     if scope not in values(DeloadScope):
         raise RepsError("scope must be lift or slot")
     if not subject:
@@ -498,11 +561,16 @@ def set_deload(scope, subject):
         return {"deload_id": existing["id"], "scope": scope, "subject": subject, "reused": True}
     cur = c.execute("INSERT INTO deload_state (scope, subject, set_on, cleared_on) VALUES (?, ?, ?, NULL)",
                     (scope, subject, today))
+    change = record_change(c, "deload", f"{scope}:{subject}",
+                           {"scope": scope, "subject": subject, "action": "set", "active": False},
+                           {"scope": scope, "subject": subject, "action": "set", "active": True},
+                           evidence)
     c.commit()
-    return {"deload_id": cur.lastrowid, "scope": scope, "subject": subject}
+    return {"deload_id": cur.lastrowid, "scope": scope, "subject": subject,
+            "change_id": change["change_id"]}
 
 
-def clear_deload():
+def clear_deload(evidence=""):
     # Prose first: if the State write fails, the DB is untouched and a retry
     # is safe. A markdown edit must never break a DB command halfway.
     c = conn()
@@ -511,8 +579,20 @@ def clear_deload():
     for r in rows:
         append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
     c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
+    change_ids = []
+    for r in rows:
+        change = record_change(c, "deload", f"{r['scope']}:{r['subject']}",
+                               {"scope": r["scope"], "subject": r["subject"],
+                                "action": "clear", "active": True},
+                               {"scope": r["scope"], "subject": r["subject"],
+                                "action": "clear", "active": False},
+                               evidence)
+        change_ids.append(change["change_id"])
     c.commit()
-    return {"cleared": len(rows)}
+    out = {"cleared": len(rows)}
+    if change_ids:
+        out["change_ids"] = change_ids
+    return out
 
 
 def active_deloads(c):
@@ -591,7 +671,7 @@ def _write_slot(c, variant, day, slot, moves, sets):
                   (slot_id, pos, move))
 
 
-def set_split(day, slot, movements, sets, variant="active"):
+def set_split(day, slot, movements, sets, variant="active", evidence=""):
     c = conn()
     if variant not in values(SplitVariant):
         raise RepsError("variant must be active or baseline")
@@ -609,15 +689,18 @@ def set_split(day, slot, movements, sets, variant="active"):
     for move in moves:
         if lift_muscles(c, move) is None:
             raise RepsError(f"'{move}' is not a known lift, split unchanged")
-    before = read_split(variant, day, c=c)
-    before_moves = next((r["movements"] for r in before if r["slot"] == slot), None)
+    before = _day_snapshot(c, variant, day)
+    before_moves = next((r["movements"] for r in read_split(variant, day, c=c) if r["slot"] == slot), None)
     try:
         _write_slot(c, variant, day, slot, moves, sets)
+        after = _day_snapshot(c, variant, day)
+        change = record_change(c, "program", f"{variant}:{day}", before, after, evidence)
         c.commit()
     except sqlite3.IntegrityError as e:
         c.rollback()
         raise RepsError(f"split write refused: {e}")
-    out = {"split": variant, "day": day, "slot": slot, "movements": movements, "sets": sets}
+    out = {"split": variant, "day": day, "slot": slot, "movements": movements, "sets": sets,
+           "change_id": change["change_id"]}
     if variant == "active":
         # MEV floor warns, never blocks: a human reviews the split edit first.
         # Scoped to muscles in the before or after movements only, so fresh
@@ -631,7 +714,7 @@ def set_split(day, slot, movements, sets, variant="active"):
     return out
 
 
-def move_split(day, exercise, to_slot):
+def move_split(day, exercise, to_slot, evidence=""):
     c = conn()
     exercise = exercise.strip().lower()
     try:
@@ -641,6 +724,7 @@ def move_split(day, exercise, to_slot):
     rows = slot_rows(c, "active", day)
     if not rows:
         raise RepsError(f"no active split day '{day}'")
+    before = _day_snapshot(c, "active", day)
     origin = next((r for r in rows if exercise in r["moves"]), None)
     if not origin:
         raise RepsError(f"'{exercise}' is not in {day}")
@@ -658,11 +742,13 @@ def move_split(day, exercise, to_slot):
     c.execute("DELETE FROM split_slot WHERE variant = 'active' AND day = ?", (day,))
     for i, r in enumerate(remaining, 1):
         _write_slot(c, "active", day, i, r["moves"], r["sets"])
+    after = _day_snapshot(c, "active", day)
+    change = record_change(c, "program", f"active:{day}", before, after, evidence)
     c.commit()
-    return {"moved": exercise, "day": day, "to_slot": to_slot}
+    return {"moved": exercise, "day": day, "to_slot": to_slot, "change_id": change["change_id"]}
 
 
-def reconcile_split(day, after=None):
+def reconcile_split(day, after=None, evidence=""):
     c = conn()
     if not read_split("active", day, c=c):
         raise RepsError(f"no active split day '{day}'")
@@ -678,6 +764,7 @@ def reconcile_split(day, after=None):
     new = [ex for ex in trained if ex not in known]
     if not new:
         return {"reconciled": day, "added": []}
+    before = _day_snapshot(c, "active", day)
     rows = slot_rows(c, "active", day)
     if after:
         anchor = next((r for r in rows if after.strip().lower() in r["moves"]), None)
@@ -694,8 +781,10 @@ def reconcile_split(day, after=None):
         c.execute("UPDATE split_slot SET slot = slot + ? WHERE id = ?", (shift, r["id"]))
     for i, ex in enumerate(new):
         _write_slot(c, "active", day, insert_at + i, [ex], new_slot_sets)
+    after = _day_snapshot(c, "active", day)
+    change = record_change(c, "program", f"active:{day}", before, after, evidence)
     c.commit()
-    return {"reconciled": day, "added": new}
+    return {"reconciled": day, "added": new, "change_id": change["change_id"]}
 
 
 def diff_split():
@@ -710,21 +799,30 @@ def diff_split():
     return {"matches": not lines, "lines": lines}
 
 
-def revert_split(day=None):
+def revert_split(day=None, evidence=""):
     c = conn()
     if day:
-        base = read_split("baseline", day, c=c)
-        if not base:
+        if not read_split("baseline", day, c=c):
             raise RepsError(f"no baseline split day '{day}'")
-        c.execute("DELETE FROM split_slot WHERE variant = 'active' AND day = ?", (day,))
-        for r in base:
-            _write_slot(c, "active", day, r["slot"], parse_movements(r["movements"]), r["sets"])
+        days = [day]
     else:
-        c.execute("DELETE FROM split_slot WHERE variant = 'active'")
-        for r in read_split("baseline", c=c):
-            _write_slot(c, "active", r["day"], r["slot"], parse_movements(r["movements"]), r["sets"])
+        days = list(dict.fromkeys(split_day_order("baseline", c=c) + split_day_order("active", c=c)))
+    change_ids = []
+    for d in days:
+        base = read_split("baseline", d, c=c)
+        before = _day_snapshot(c, "active", d)
+        c.execute("DELETE FROM split_slot WHERE variant = 'active' AND day = ?", (d,))
+        for r in base:
+            _write_slot(c, "active", d, r["slot"], parse_movements(r["movements"]), r["sets"])
+        after = _day_snapshot(c, "active", d)
+        if before != after:
+            change = record_change(c, "program", f"active:{d}", before, after, evidence)
+            change_ids.append(change["change_id"])
     c.commit()
-    return {"reverted": day or "all"}
+    out = {"reverted": day or "all"}
+    if change_ids:
+        out["change_ids"] = change_ids
+    return out
 
 
 def consume_session_flags(c, workout_id):
@@ -772,7 +870,7 @@ def consume_flag(flag_id):
     return {"consumed": flag_id}
 
 
-def add_rule(text, subject, expires=None):
+def add_rule(text, subject, expires=None, evidence=""):
     if not text:
         raise RepsError("rule text is required")
     if not subject:
@@ -787,8 +885,17 @@ def add_rule(text, subject, expires=None):
     created = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO rules (subject, text, start_date, expiry, status, created) VALUES (?, ?, ?, ?, 'active', ?)",
                     (subject.strip().lower(), text, today, expires, created))
+    rid = cur.lastrowid
+    change = record_change(c, "rule", str(rid),
+                           {"rule_id": rid, "action": "add", "text": None,
+                            "subject": None, "expiry": None, "status": None},
+                           {"rule_id": rid, "action": "add", "text": text,
+                            "subject": subject.strip().lower(), "expiry": expires,
+                            "status": "active"},
+                           evidence)
     c.commit()
-    return {"rule_id": cur.lastrowid, "subject": subject.strip().lower(), "expiry": expires}
+    return {"rule_id": rid, "subject": subject.strip().lower(), "expiry": expires,
+            "change_id": change["change_id"]}
 
 
 def rule_status_rows(c):
@@ -819,7 +926,15 @@ def list_rules(expiring_within=None):
     return out
 
 
-def confirm_rule(rule_id, extend=None, archive=False):
+def _rule_image(row):
+    if row is None:
+        return {"rule_id": 0, "action": "add", "text": None,
+                "subject": None, "expiry": None, "status": None}
+    return {"rule_id": row["id"], "action": "add", "text": row["text"],
+            "subject": row["subject"], "expiry": row["expiry"], "status": row["status"]}
+
+
+def confirm_rule(rule_id, extend=None, archive=False, evidence=""):
     c = conn()
     try:
         rule_id = int(rule_id)
@@ -828,18 +943,23 @@ def confirm_rule(rule_id, extend=None, archive=False):
     row = c.execute("SELECT * FROM rules WHERE id = ?", (rule_id,)).fetchone()
     if not row:
         raise RepsError("no such rule")
+    before = _rule_image(dict(row))
     if archive:
         c.execute("UPDATE rules SET status = 'archived' WHERE id = ?", (rule_id,))
+        after = dict(before, action="archive", status="archived")
     elif extend:
         try:
             expiry = date.fromisoformat(extend).isoformat()
         except ValueError:
             raise RepsError("extend date must be YYYY-MM-DD")
         c.execute("UPDATE rules SET expiry = ?, status = 'active' WHERE id = ?", (expiry, rule_id))
+        after = dict(before, action="extend", expiry=expiry, status="active")
     else:
         raise RepsError("rule confirm needs an extend date or archive true")
+    change = record_change(c, "rule", str(rule_id), before, after, evidence)
     c.commit()
-    return {"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None}
+    return {"rule_id": rule_id, "archived": archive, "expiry": extend if not archive else None,
+            "change_id": change["change_id"]}
 
 
 def programmed_weekly_volume(c, split_rows=None):

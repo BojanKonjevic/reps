@@ -610,6 +610,19 @@ INSERT INTO "split_slot_lift" VALUES(119,0,'unilateral cable pushdown');
 INSERT INTO "split_slot_lift" VALUES(120,0,'ezbar skullcrusher');
 INSERT INTO "split_slot_lift" VALUES(121,0,'rear delt cable fly');
 INSERT INTO "split_slot_lift" VALUES(122,0,'rear delt cable fly');
+CREATE TABLE state_change (
+  id INTEGER PRIMARY KEY,
+  domain TEXT NOT NULL CHECK (domain IN ('program', 'priority', 'goal', 'deload', 'rule', 'rotation')),
+  subject TEXT NOT NULL DEFAULT '',
+  date TEXT NOT NULL,
+  created TEXT NOT NULL,
+  before_json TEXT NOT NULL DEFAULT '{}',
+  after_json TEXT NOT NULL DEFAULT '{}',
+  evidence TEXT NOT NULL DEFAULT '',
+  superseded_by INTEGER REFERENCES state_change(id),
+  reverses INTEGER REFERENCES state_change(id),
+  sequence INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -628,4 +641,6 @@ CREATE INDEX idx_bw_date ON bodyweight(date);
 CREATE VIEW set_muscle AS
   SELECT s.id AS set_id, lm.muscle AS muscle FROM sets s JOIN lift_muscle lm USING (exercise);
 CREATE UNIQUE INDEX idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
+CREATE INDEX idx_state_change_domain_subject_date
+  ON state_change(domain, subject, date, created, id);
 COMMIT;

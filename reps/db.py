@@ -16,7 +16,7 @@ SCHEMA_VERSION = 3
 
 def _check_lists():
     from .vocab import (AdherenceStatus, AutoregAction, DeloadScope,
-                        GoalStatus, PriorityTier, RuleStatus, SplitVariant,
+                        GoalStatus, HistoryDomain, PriorityTier, RuleStatus, SplitVariant,
                         Verdict, Direction, WorkoutStatus, values)
     return {
         "workout_status": ", ".join(f"'{v}'" for v in values(WorkoutStatus)),
@@ -29,6 +29,7 @@ def _check_lists():
         "rule_status": ", ".join(f"'{v}'" for v in values(RuleStatus)),
         "goal_status": ", ".join(f"'{v}'" for v in values(GoalStatus)),
         "adherence_status": ", ".join(f"'{v}'" for v in values(AdherenceStatus)),
+        "history_domain": ", ".join(f"'{v}'" for v in values(HistoryDomain)),
     }
 
 
@@ -197,6 +198,26 @@ CREATE TABLE IF NOT EXISTS autoreg_changes (
   evidence TEXT NOT NULL DEFAULT '',
   reverted_on TEXT
 );
+-- Shared state-change history (docs/observe spec, Part II section 25.1).
+-- Append-only: reversals are new rows pointing back via reverses, never
+-- rewrites. before/after are per-domain JSON envelopes validated on read
+-- through the Pydantic discriminated union in reps/models.py. Autoreg keeps
+-- its own structured ledger by sanctioned exception, it is not migrated here.
+CREATE TABLE IF NOT EXISTS state_change (
+  id INTEGER PRIMARY KEY,
+  domain TEXT NOT NULL CHECK (domain IN ({ck['history_domain']})),
+  subject TEXT NOT NULL DEFAULT '',
+  date TEXT NOT NULL,
+  created TEXT NOT NULL,
+  before_json TEXT NOT NULL DEFAULT '{{}}',
+  after_json TEXT NOT NULL DEFAULT '{{}}',
+  evidence TEXT NOT NULL DEFAULT '',
+  superseded_by INTEGER REFERENCES state_change(id),
+  reverses INTEGER REFERENCES state_change(id),
+  sequence INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_state_change_domain_subject_date
+  ON state_change(domain, subject, date, created, id);
 """
 
 

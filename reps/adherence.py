@@ -78,28 +78,31 @@ def trained_exercises(c, day_iso):
         "WHERE w.date = ? AND w.status = 'done'", (day_iso,)).fetchall()}
 
 
-def match_day(c, trained):
+def match_day(c, trained, day_map=None):
     """Best-matching split day for a trained set. Ties and no-overlap give None.
 
     A tie means the session is ambiguous, so it resolves to swapped downstream
     instead of crediting one of the tied days as done. One tie rule, owned
-    by reps/slots.py.
+    by reps/slots.py. day_map overrides the live split for historical evaluation.
     """
     from .program import parse_active_split_days
     if not trained:
         return None
-    match = slot_of_session(list(trained), parse_active_split_days(c))
+    match = slot_of_session(list(trained), day_map if day_map is not None else parse_active_split_days(c))
     return match["day"]
 
 
-def classify_date(c, rotation, anchor, day_iso):
-    """One adherence verdict for a date (see rotation status)."""
+def classify_date(c, rotation, anchor, day_iso, day_map=None):
+    """One adherence verdict for a date (see rotation status).
+
+    day_map overrides the live split for historical evaluation (observe folds
+    program history to the date instead of applying today's split)."""
     exp = expected_day(rotation, anchor, day_iso)
     trained = trained_exercises(c, day_iso)
     rest_row = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest'",
                          (day_iso,)).fetchone() is not None
     if trained:
-        matched = match_day(c, trained)
+        matched = match_day(c, trained, day_map)
         if is_rest_day(exp):
             status = "extra"
         elif matched is not None and matched.lower() == exp.lower():
@@ -111,7 +114,7 @@ def classify_date(c, rotation, anchor, day_iso):
     else:
         status = "rest_ok" if is_rest_day(exp) else "missed"
     return {"date": day_iso, "expected": exp,
-            "trained": match_day(c, trained) if trained else None, "status": status}
+            "trained": match_day(c, trained, day_map) if trained else None, "status": status}
 
 
 def status_range(c, rotation, anchor, from_iso, to_iso):
@@ -207,11 +210,32 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
             "missed": [{"date": e["date"], "day": e["expected"]} for e in missed]}
 
 
-def anchor_rotation(date_str, day):
+def _anchor_image(row):
+    if row is None:
+        return {"rotation": None, "anchor_date": None, "position": None}
+    return {"rotation": None, "anchor_date": row["anchor_date"], "position": row["position"]}
+
+
+def _restore_anchor(c, anchor_date, position):
+    """Rewrite the anchor from a recorded image (history revert path, no recording)."""
+    import sqlite3
+
+    c.execute("DELETE FROM rotation_anchor WHERE id = 1")
+    if anchor_date is not None:
+        try:
+            c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?)",
+                      (anchor_date, position))
+        except sqlite3.IntegrityError as e:
+            raise RepsError(f"anchor restore refused: {e}")
+
+
+def anchor_rotation(date_str, day, evidence=""):
     """Pin the rotation schedule: on <date> the rotation was at <day>.
 
     Day resolves to the first matching rotation index (case-insensitive).
     """
+    from .history import record_change
+
     c = conn()
     try:
         on = date.fromisoformat((date_str or "").strip()).isoformat()
@@ -226,11 +250,15 @@ def anchor_rotation(date_str, day):
     if match is None:
         raise RepsError(f"'{day}' matches no rotation entry")
     anchor = {"date": on, "index": match}
+    old = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    before = _anchor_image(dict(old) if old else None)
     c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?) "
               "ON CONFLICT (id) DO UPDATE SET anchor_date = excluded.anchor_date, "
               "position = excluded.position", (on, match))
+    after = {"rotation": None, "anchor_date": on, "position": match}
+    change = record_change(c, "rotation", "anchor", before, after, evidence)
     c.commit()
-    return {"anchor": anchor, "day": rotation[match]}
+    return {"anchor": anchor, "day": rotation[match], "change_id": change["change_id"]}
 
 
 def get_rotation_status(from_iso=None, to_iso=None):
