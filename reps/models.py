@@ -24,8 +24,8 @@ hide invalid Reps data.
 from typing import Optional, Union
 
 from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
-                    Direction, EvidenceTier, GoalStatus, MarkKind, PriorityTier,
-                    Severity, Verdict, VolumeStatus, WorkoutStatus)
+                     Direction, EvidenceTier, GoalStatus, HistoryDomain, MarkKind, PriorityTier,
+                     RuleStatus, Severity, Verdict, VolumeStatus, WorkoutStatus)
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr, field_validator, model_validator
 
@@ -584,6 +584,107 @@ class RecentNote(BaseModel):
     date: StrictStr
     text: StrictStr
     hot: bool
+
+
+class ProgramSlotSnapshot(BaseModel):
+    """One slot inside a program day snapshot (history before/after envelope)."""
+
+    model_config = STRICT
+
+    slot: StrictInt
+    movements: StrictStr
+    sets: StrictInt
+
+
+class ProgramHistoryPayload(BaseModel):
+    """Full day snapshot before/after a program edit (set/move/reconcile/revert)."""
+
+    model_config = STRICT
+
+    variant: StrictStr
+    day: StrictStr
+    slots: list[ProgramSlotSnapshot]
+
+
+class PriorityHistoryPayload(BaseModel):
+    """Priority tier before/after; all-None means no tier (maintain by absence)."""
+
+    model_config = STRICT
+
+    tier: Optional[PriorityTier]
+    since: Optional[StrictStr]
+    until: Optional[StrictStr]
+
+
+class GoalHistoryPayload(BaseModel):
+    """Goal trajectory before/after; action names which transition this envelope is."""
+
+    model_config = STRICT
+
+    goal_id: StrictInt
+    exercise: StrictStr
+    action: StrictStr
+    checkpoints: Optional[list[Real]] = None
+    target_e1rm: Optional[Real] = None
+    deadline: Optional[StrictStr] = None
+    status: Optional[GoalStatus] = None
+    target_desc: Optional[StrictStr] = None
+
+
+class DeloadHistoryPayload(BaseModel):
+    model_config = STRICT
+
+    scope: Optional[DeloadScope] = None
+    subject: Optional[StrictStr] = None
+    action: StrictStr
+    active: Optional[bool] = None
+
+
+class RuleHistoryPayload(BaseModel):
+    model_config = STRICT
+
+    rule_id: StrictInt
+    action: StrictStr
+    text: Optional[StrictStr] = None
+    subject: Optional[StrictStr] = None
+    expiry: Optional[StrictStr] = None
+    status: Optional[RuleStatus] = None
+
+
+class RotationHistoryPayload(BaseModel):
+    """Rotation order before/after; None entries are rest."""
+
+    model_config = STRICT
+
+    rotation: Optional[list[Optional[StrictStr]]] = None
+
+
+_HISTORY_PAYLOADS = {
+    HistoryDomain.PROGRAM.value: ProgramHistoryPayload,
+    HistoryDomain.PRIORITY.value: PriorityHistoryPayload,
+    HistoryDomain.GOAL.value: GoalHistoryPayload,
+    HistoryDomain.DELOAD.value: DeloadHistoryPayload,
+    HistoryDomain.RULE.value: RuleHistoryPayload,
+    HistoryDomain.ROTATION.value: RotationHistoryPayload,
+}
+
+
+def validate_history_payload(domain: str, data: dict) -> dict:
+    """Validate a state-change envelope against its domain shape (read path).
+
+    Raises ValueError naming the defect; history._shape turns it into RepsError.
+    """
+    from pydantic import ValidationError as _ValidationError
+
+    cls = _HISTORY_PAYLOADS.get(domain)
+    if cls is None:
+        raise ValueError(f"unknown history domain '{domain}'")
+    if not isinstance(data, dict):
+        raise ValueError("history payload must be an object")
+    try:
+        return cls.model_validate(data).model_dump()
+    except _ValidationError as e:
+        raise ValueError(first_error(e))
 
 
 class SnapshotModel(BaseModel):

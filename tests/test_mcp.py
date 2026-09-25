@@ -113,6 +113,34 @@ def test_program_tools_through_mcp(log_module):
     assert call("program_rotation_status", {})["ok"] is True
 
 
+def test_history_and_observe_through_mcp(log_module):
+    log = log_module
+    log.start_workout("history mcp")
+    log.log_set("bench", 80, 5, "", "chest", False)
+    assert call("program_split_set", {"day": "Upper A", "slot": 1, "movements": "bench",
+                                      "sets": 3, "evidence": "mcp"})["ok"] is True
+    listed = call("history_list", {"domain": "program", "subject": "active:Upper A"})
+    assert listed["ok"] is True and len(listed["data"]) == 1
+    cid = listed["data"][0]["id"]
+    assert listed["data"][0]["evidence"] == "mcp"
+    assert call("history_get", {"change_id": cid})["ok"] is True
+    state = call("history_state", {"domain": "program", "subject": "active:Upper A"})
+    assert state["ok"] is True and state["data"]["reconstructible"] is True
+    assert call("history_revert", {"change_id": cid, "evidence": "mcp undo"})["ok"] is True
+    assert call("history_revert", {"change_id": cid})["ok"] is False
+    obs = call("observe", {"metric": "muscle_volume", "subject": "chest"})
+    assert obs["ok"] is True and "provenance" in obs["data"]
+    assert call("observe", {"metric": "lift_trend"})["ok"] is False
+
+
+def test_history_vocabularies_reject_at_the_schema(log_module):
+    import pytest
+    with pytest.raises(Exception, match="domain"):
+        call("history_list", {"domain": "autoreg"})
+    with pytest.raises(Exception, match="metric"):
+        call("observe", {"metric": "vibes"})
+
+
 def test_constants_and_snapshot_through_mcp(log_module):
     assert call("constants_validate", {})["ok"] is True
     chest = call("constants_show", {"key": "muscles.chest"})

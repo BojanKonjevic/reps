@@ -23,6 +23,9 @@ from .db import CFG, DB, SCHEMA, SCHEMA_VERSION, conn, open_workout, placeholder
 from .errors import Fix, GateItem, GateReport, Refusal, RepsError
 from .goals import (add_goal, build_checkpoints, drop_goal, get_goal,
                     goal_progress, goal_sessions, rewrite_goal)
+from .history import (get_change, list_changes, record_change, revert_change,
+                      state_at)
+from .observations import observe
 from .memory import MEMORY_FILE, append_memory_state
 from .mcp.server import call_tool as mcp_call_tool
 from .mcp.server import list_tool_names as mcp_list_tool_names
@@ -64,8 +67,9 @@ from .sessions import (check_end_gate, delete_set, delete_workout,
 from .slots import next_slot, slot_of_session
 from .trends import drop_watch, is_slipping, is_stalling
 from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
-                    Direction, EvidenceTier, GoalStatus, MarkKind, PriorityTier,
-                    RuleStatus, SplitVariant, Verdict, VolumeStatus, WorkoutStatus)
+                    Direction, EvidenceTier, GoalStatus, HistoryDomain, MarkKind,
+                    ObserveMetric, PriorityTier, RuleStatus, SplitVariant,
+                    Verdict, VolumeStatus, WorkoutStatus)
 from .weeks import monday_of, week_start_of, week_starts, weekly_counts
 from .signals import SEVERITY_ORDER, build_signals
 from .sessions import break_threshold
@@ -94,33 +98,34 @@ __all__ = [
     "dump_sql", "e1rm",
     "end_gate_items", "end_workout", "ensure_lift", "expected_day",
     "expectation_context", "export_snapshot", "first_error", "format_target",
-    "get_anchor", "get_calendar", "get_compaction",
+    "get_anchor", "get_calendar", "get_change", "get_compaction",
     "get_constants", "get_context", "get_goal", "get_history", "get_mapping",
     "get_notes", "get_plan", "get_progression", "get_rotation",
     "get_rotation_status", "get_session", "get_session_range", "get_split",
     "get_stats", "get_today", "goal_progress", "goal_sessions",
     "is_rest_day", "is_slipping", "is_stalling", "last_done", "last_pr_date",
     "latest_progression", "lift_muscles", "lift_muscles_csv", "list_autoreg_changes",
-    "list_exercises", "list_flags",
+    "list_changes", "list_exercises", "list_flags",
     "list_priorities", "list_rules", "load_constants", "log_set",
     "mark_rest", "match_day", "mcp_call_tool", "mcp_list_tool_names",
     "mcp_server", "merge_exercises", "merge_lifts", "mev_floor_warnings", "monday_of",
-    "move_split", "muscles_for_movements", "next_slot",
-    "open_workout", "parse_anchor", "parse_mev_from_science",
+    "move_split", "muscles_for_movements",     "next_slot",
+    "observe", "open_workout", "parse_anchor", "parse_mev_from_science",
     "parse_movements", "parse_rotation", "personal_records",
     "placeholders", "programmed_weekly_volume", "push_snapshot",
     "read_priorities", "read_split", "reconcile_split", "record_bodyweight",
-    "rename_exercise", "rename_lift", "rep_band_bound", "restore_sql",
-    "revert_autoreg_change", "revert_split", "rewrite_goal", "rule_status_rows",
+    "record_change", "rename_exercise", "rename_lift", "rep_band_bound", "restore_sql",
+    "revert_autoreg_change", "revert_change", "revert_split", "rewrite_goal", "rule_status_rows",
     "rules_with_confirm", "run_audit", "run_doctor", "session_prs",
     "set_compaction", "set_constant", "set_deload", "set_exercise_mapping",
     "set_lift_muscles", "set_movement_note", "set_priority", "set_progression",
     "set_rotation", "set_split", "show_rotation", "slot_of_session", "slot_rows",
     "split_all_movements", "split_day_order", "staleness", "start_workout",
-    "status_range", "top_e1rm_by_date", "tracked_muscles", "update_set",
+    "state_at", "status_range", "top_e1rm_by_date", "tracked_muscles", "update_set",
     "update_workout", "validate_constants", "validate_snapshot",
     "volume_block", "week_start_of", "week_starts", "weekly_counts",
     "AdherenceStatus", "AutoregAction", "CalendarKind", "DeloadScope", "Direction",
-    "EvidenceTier", "GoalStatus", "MarkKind", "PriorityTier", "RuleStatus", "SplitVariant",
+    "EvidenceTier", "GoalStatus", "HistoryDomain", "MarkKind", "ObserveMetric",
+    "PriorityTier", "RuleStatus", "SplitVariant",
     "Verdict", "VolumeStatus", "WorkoutStatus",
 ]
