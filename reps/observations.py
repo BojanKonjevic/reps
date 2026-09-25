@@ -145,53 +145,138 @@ def _program_activity(subject, since, until):
 
 def _goal_trajectory(subject, since, until):
     from .goals import goal_progress
+    from .history import state_at
 
     if not subject:
         raise RepsError("goal_trajectory needs a subject goal id or exercise")
     c = conn()
+    gid = None
     try:
         gid = int(subject)
         row = c.execute("SELECT * FROM goals WHERE id = ?", (gid,)).fetchone()
     except ValueError:
-        gid = None
         row = c.execute("SELECT * FROM goals WHERE exercise = ? ORDER BY id DESC LIMIT 1",
                         (subject.lower(),)).fetchone()
     if not row:
         raise RepsError(f"no goal '{subject}'")
-    goal = dict(row)
-    prog = goal_progress(c, goal)
+    exercise = row["exercise"]
+    st = state_at("goal", exercise, until)
+    from_history = st["reconstructible"]
+    if from_history:
+        h = st["state"]
+        eff_gid = h["goal_id"]
+        checkpoints = h["checkpoints"] or []
+        target, deadline, status, desc = (h["target_e1rm"], h["deadline"],
+                                          h["status"], h.get("target_desc"))
+        grow = c.execute("SELECT created FROM goals WHERE id = ?", (eff_gid,)).fetchone()
+        created = grow["created"] if grow else row["created"]
+        in_effect = True
+    elif st.get("reason", "").startswith("no recorded history for"):
+        eff_gid, checkpoints = row["id"], None
+        target, deadline, status, desc = (row["target_e1rm"], row["deadline"],
+                                          row["status"], row["target_desc"])
+        created = row["created"]
+        in_effect = True
+    else:
+        return _wrap("goal_trajectory", subject, since, until,
+                     {"goal_id": None, "exercise": exercise, "in_effect": False,
+                      "target_e1rm": None, "deadline": None, "status": None,
+                      "target_desc": None, "checkpoints_vs_actuals": [],
+                      "completed": 0, "consecutive_misses": 0, "on_track": True,
+                      "slippage": False,
+                      "effective": {"as_of": until, "from_history": True}},
+                     ["goals", "goal_checkpoints", "state_change"],
+                     "no goal for this exercise was in effect during the range; "
+                     "goal history starts later")
+    goal = {"id": eff_gid, "exercise": exercise, "created": created,
+            "target_e1rm": target, "deadline": deadline}
+    prog = goal_progress(c, goal, checkpoints)
     pairs = [{"session_no": i + 1, "target": t,
               "actual": prog["actuals"][i]["e1rm"] if i < len(prog["actuals"]) else None,
               "actual_date": prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None,
               "in_range": (prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None) is not None
               and since <= prog["actuals"][i]["date"] <= until}
              for i, t in enumerate(prog["checkpoints"])]
-    result = {"goal_id": goal["id"], "exercise": goal["exercise"],
-              "target_e1rm": goal["target_e1rm"], "deadline": goal["deadline"],
-              "status": goal["status"], "checkpoints_vs_actuals": pairs,
+    result = {"goal_id": eff_gid, "exercise": exercise, "in_effect": in_effect,
+              "target_e1rm": target, "deadline": deadline,
+              "status": status, "target_desc": desc, "checkpoints_vs_actuals": pairs,
               "completed": prog["completed"], "consecutive_misses": prog["consecutive_misses"],
-              "on_track": prog["on_track"], "slippage": prog["slippage"]}
+              "on_track": prog["on_track"], "slippage": prog["slippage"],
+              "effective": {"as_of": until, "from_history": from_history}}
     return _wrap("goal_trajectory", subject, since, until, result,
-                 ["goals", "goal_checkpoints", "sets", "workouts"],
-                 "trajectory checkpoints against logged top-set e1RMs; "
-                 "range selects the goal, the trajectory itself is session-numbered")
+                 ["goals", "goal_checkpoints", "sets", "workouts", "state_change"],
+                 "trajectory checkpoints folded from goal history to the range end, "
+                 "so later rewrites do not move historical results; the trajectory "
+                 "itself is session-numbered, in_range marks actuals inside the range")
+
+
+def _effective(change_list, day_iso, key):
+    """State value in effect on a date: fold history to that date, else the
+    earliest recorded before-image (stable under later changes, flagged as
+    pre-history by the caller via coverage dates), else None."""
+    past = [ch for ch in change_list if ch["date"] <= day_iso]
+    if past:
+        return past[-1]["after"].get(key)
+    if change_list:
+        return change_list[0]["before"].get(key)
+    return None
 
 
 def _adherence_summary(subject, since, until):
-    from .adherence import drift_days, get_rotation_status
+    from .adherence import (classify_date, drift_days, get_anchor, match_day,
+                            trained_exercises)
+    from .history import list_changes
+    from .program import get_rotation
 
-    days = get_rotation_status(since, until)
+    c = conn()
+    rot_hist = list_changes("rotation", "rotation")
+    anch_hist = list_changes("rotation", "anchor")
+    cur_rot = get_rotation(c)
+    cur_anch = get_anchor(c)
+    if not rot_hist and not cur_rot:
+        raise RepsError("rotation adherence needs a rotation and an anchor")
+    if not anch_hist and cur_anch is None:
+        raise RepsError("rotation adherence needs a rotation and an anchor")
+    days = []
+    day = date.fromisoformat(since)
+    end = date.fromisoformat(until)
+    while day <= end:
+        d = day.isoformat()
+        rot = _effective(rot_hist, d, "rotation")
+        if rot is None and not rot_hist:
+            rot = [None if x == "rest" else x for x in cur_rot]
+        anch = _effective(anch_hist, d, "anchor_date")
+        anch_pos = _effective(anch_hist, d, "position")
+        if anch is None and not anch_hist and cur_anch is not None:
+            anch, anch_pos = cur_anch["date"], cur_anch["index"]
+        rot_names = ([r if r is not None else "rest" for r in rot]
+                     if isinstance(rot, list) and rot else None)
+        anchor = ({"date": anch, "index": anch_pos}
+                  if anch is not None and anch_pos is not None
+                  and rot_names is not None and anch_pos < len(rot_names) else None)
+        trained = trained_exercises(c, d)
+        if rot_names is not None and anchor is not None:
+            days.append(classify_date(c, rot_names, anchor, d))
+        else:
+            days.append({"date": d, "expected": None,
+                         "trained": match_day(c, trained) if trained else None,
+                         "status": "unknown"})
+        day += timedelta(days=1)
     counts: dict = {}
-    for d in days:
-        counts[d["status"]] = counts.get(d["status"], 0) + 1
+    for v in days:
+        counts[v["status"]] = counts.get(v["status"], 0) + 1
     result = {"days": len(days), "by_status": counts,
               "trailing_off_days": drift_days(days),
-              "verdicts": [{"date": d["date"], "expected": d.get("expected"),
-                            "trained": d.get("trained"), "status": d["status"]} for d in days]}
+              "coverage": {"rotation_history_since": rot_hist[0]["date"] if rot_hist else None,
+                           "anchor_history_since": anch_hist[0]["date"] if anch_hist else None},
+              "verdicts": [{"date": v["date"], "expected": v.get("expected"),
+                            "trained": v.get("trained"), "status": v["status"]} for v in days]}
     return _wrap("adherence_summary", subject, since, until, result,
-                 ["workouts", "rotation", "rotation_anchor"],
-                 "per-date rotation verdicts from reps/adherence.py; "
-                 "counts group by verdict, never a hand tally")
+                 ["workouts", "rotation", "rotation_anchor", "state_change"],
+                 "each date classified with the rotation/anchor folded from history "
+                 "to that date (earliest recorded image before history starts, "
+                 "never today's state); dates without an applicable rotation/anchor "
+                 "report expected None with status unknown")
 
 
 def _bodyweight_trend(subject, since, until):

@@ -194,6 +194,50 @@ def test_deload_revert_guards(log_module):
         log.revert_change(clear_cid)
 
 
+def test_state_at_requires_subject(log_module):
+    log = log_module
+    _seeded(log)
+    with pytest.raises(RepsError, match="needs a subject"):
+        log.state_at("program")
+    with pytest.raises(RepsError, match="needs a subject"):
+        log.state_at("rotation")
+    with pytest.raises(RepsError, match="needs a subject"):
+        log.state_at("priority", "")
+
+
+def test_anchor_revert_round_trip(log_module):
+    from datetime import timedelta
+
+    log = log_module
+    _seeded(log)
+    log.set_rotation(["Upper A", "rest"])
+    back6 = (date.today() - timedelta(days=6)).isoformat()
+    log.anchor_rotation(back6, "Upper A")
+    first = log.list_changes("rotation", "anchor")[-1]["id"]
+    log.anchor_rotation(date.today().isoformat(), "rest")
+    with pytest.raises(RepsError, match="moved since this change"):
+        log.revert_change(first)
+    tip = log.list_changes("rotation", "anchor")[-1]["id"]
+    log.revert_change(tip)
+    row = log.conn().execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    assert (row["anchor_date"], row["position"]) == (back6, 0)
+
+
+def test_rotation_change_clearing_anchor_records_it(log_module):
+    log = log_module
+    _seeded(log)
+    log.set_rotation(["Upper A", "rest"])
+    log.anchor_rotation(date.today().isoformat(), "Upper A")
+    out = log.set_rotation(["rest", "Upper A"])
+    assert out["anchor_cleared"] is True
+    assert out["anchor_change_id"] >= 1
+    rows = log.list_changes("rotation", "anchor")
+    assert rows[-1]["before"]["anchor_date"] == date.today().isoformat()
+    assert rows[-1]["after"] == {"rotation": None, "anchor_date": None, "position": None}
+    st = log.state_at("rotation", "anchor", date.today().isoformat())
+    assert st["reconstructible"] is True and st["state"]["anchor_date"] is None
+
+
 def test_state_at_unknown_before_first_record(log_module):
     log = log_module
     _seeded(log)
@@ -246,7 +290,7 @@ def test_rotation_and_rule_recorded(log_module):
     log.set_rotation(["Upper A", "rest"])
     rid = log.add_rule("no grind", "bench")["rule_id"]
     assert log.list_changes("rotation", "rotation")[0]["after"] == {
-        "rotation": ["Upper A", None]}
+        "rotation": ["Upper A", None], "anchor_date": None, "position": None}
     rule_rows = log.list_changes("rule", str(rid))
     assert rule_rows[0]["after"]["status"] == "active"
     log.confirm_rule(rid, archive=True)

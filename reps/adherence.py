@@ -207,11 +207,32 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
             "missed": [{"date": e["date"], "day": e["expected"]} for e in missed]}
 
 
-def anchor_rotation(date_str, day):
+def _anchor_image(row):
+    if row is None:
+        return {"rotation": None, "anchor_date": None, "position": None}
+    return {"rotation": None, "anchor_date": row["anchor_date"], "position": row["position"]}
+
+
+def _restore_anchor(c, anchor_date, position):
+    """Rewrite the anchor from a recorded image (history revert path, no recording)."""
+    import sqlite3
+
+    c.execute("DELETE FROM rotation_anchor WHERE id = 1")
+    if anchor_date is not None:
+        try:
+            c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?)",
+                      (anchor_date, position))
+        except sqlite3.IntegrityError as e:
+            raise RepsError(f"anchor restore refused: {e}")
+
+
+def anchor_rotation(date_str, day, evidence=""):
     """Pin the rotation schedule: on <date> the rotation was at <day>.
 
     Day resolves to the first matching rotation index (case-insensitive).
     """
+    from .history import record_change
+
     c = conn()
     try:
         on = date.fromisoformat((date_str or "").strip()).isoformat()
@@ -226,11 +247,15 @@ def anchor_rotation(date_str, day):
     if match is None:
         raise RepsError(f"'{day}' matches no rotation entry")
     anchor = {"date": on, "index": match}
+    old = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    before = _anchor_image(dict(old) if old else None)
     c.execute("INSERT INTO rotation_anchor (id, anchor_date, position) VALUES (1, ?, ?) "
               "ON CONFLICT (id) DO UPDATE SET anchor_date = excluded.anchor_date, "
               "position = excluded.position", (on, match))
+    after = {"rotation": None, "anchor_date": on, "position": match}
+    change = record_change(c, "rotation", "anchor", before, after, evidence)
     c.commit()
-    return {"anchor": anchor, "day": rotation[match]}
+    return {"anchor": anchor, "day": rotation[match], "change_id": change["change_id"]}
 
 
 def get_rotation_status(from_iso=None, to_iso=None):

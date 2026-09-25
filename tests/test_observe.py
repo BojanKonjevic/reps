@@ -83,6 +83,26 @@ def test_muscle_volume_weekly_rate_needs_full_week(log_module):
     assert wide["avg_per_week"] == {"chest": 1.3}
 
 
+def test_goal_trajectory_uses_period_checkpoints(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    add_cid = log.list_changes("goal", "bench")[0]["id"]
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(8), add_cid))
+    c.commit()
+    before = log.observe("goal_trajectory", str(gid), _day(10), _day(1))["result"]
+    assert before["in_effect"] is True
+    assert before["checkpoints_vs_actuals"][0]["target"] == 122.5
+    assert before["effective"] == {"as_of": _day(1), "from_history": True}
+    log.drop_goal(gid)
+    after = log.observe("goal_trajectory", str(gid), _day(10), _day(1))["result"]
+    assert after == before
+    live = log.observe("goal_trajectory", str(gid), _day(10), _day(0))["result"]
+    assert live["status"] == "dropped"
+
+
 def test_goal_trajectory_marks_in_range_actuals(log_module):
     log = log_module
     _seeded(log)
@@ -115,6 +135,30 @@ def test_adherence_summary_groups_verdicts(log_module):
     assert r["days"] == 1
     assert sum(r["by_status"].values()) == 1
     assert r["verdicts"][0]["date"] == _day(6)
+
+
+def test_adherence_uses_period_rotation_and_anchor(log_module):
+    log = log_module
+    _seeded(log)
+    log.set_rotation(["Upper A", "rest"])
+    log.anchor_rotation(_day(6), "Upper A")
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE domain = 'rotation'", (_day(8),))
+    c.commit()
+    day6 = _day(6)
+    first = log.observe("adherence_summary", "", day6, day6)["result"]
+    assert [v["status"] for v in first["verdicts"]] == ["done"]
+    assert first["verdicts"][0]["expected"] == "Upper A"
+    log.set_rotation(["rest", "Upper A"])
+    log.anchor_rotation(_day(0), "rest")
+    second = log.observe("adherence_summary", "", day6, day6)["result"]
+    assert second == first
+
+
+def test_adherence_refuses_without_rotation(log_module):
+    log = log_module
+    with pytest.raises(RepsError, match="needs a rotation and an anchor"):
+        log.observe("adherence_summary", "", _day(6), _day(6))
 
 
 def test_bodyweight_trend_delta(log_module):

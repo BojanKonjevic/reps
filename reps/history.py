@@ -118,6 +118,9 @@ def state_at(domain, subject="", at=""):
     """
     _check_domain(domain)
     subject = (subject or "").strip()
+    if not subject:
+        raise RepsError("history_state needs a subject (program 'active:Day', muscle, exercise, "
+                        "rule id, 'rotation' or 'anchor')")
     at = _check_day(at) if at else date.today().isoformat()
     all_changes = list_changes(domain, subject)
     if not all_changes:
@@ -320,6 +323,8 @@ def _revert_rule(c, subject, before, after):
 
 
 def _revert_rotation(c, subject, before, after):
+    if subject == "anchor":
+        return _revert_anchor(c, subject, before, after)
     from .program import _restore_rotation, _rotation_image, get_rotation
 
     current = _rotation_image(get_rotation(c))
@@ -328,4 +333,20 @@ def _revert_rotation(c, subject, before, after):
                         "revert the later change first")
     entries = [None if d is None else d for d in (before.get("rotation") or [])]
     _restore_rotation(c, entries)
+    return dict(before)
+
+
+def _revert_anchor(c, subject, before, after):
+    from .adherence import _restore_anchor, get_anchor
+
+    current = get_anchor(c)
+    current_image = {"rotation": None,
+                     "anchor_date": current["date"] if current else None,
+                     "position": current["index"] if current else None}
+    wanted = {"rotation": None, "anchor_date": after.get("anchor_date"),
+              "position": after.get("position")}
+    if current_image != wanted:
+        raise RepsError("anchor moved since this change, revert would clobber newer edits; "
+                        "revert the later change first")
+    _restore_anchor(c, before.get("anchor_date"), before.get("position"))
     return dict(before)

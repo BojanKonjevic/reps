@@ -269,10 +269,18 @@ def set_rotation(days, evidence=""):
         entries.append(match)
     before = {"rotation": _rotation_image(get_rotation(c))}
     after = {"rotation": _rotation_image(entries)}
-    had_anchor = c.execute("SELECT 1 FROM rotation_anchor WHERE id = 1").fetchone() is not None
+    anchor_row = c.execute("SELECT anchor_date, position FROM rotation_anchor WHERE id = 1").fetchone()
+    had_anchor = anchor_row is not None
     try:
         cleared = _write_rotation(c, entries)
         change = record_change(c, "rotation", "rotation", before, after, evidence)
+        anchor_change = None
+        if had_anchor and cleared:
+            from .adherence import _anchor_image
+
+            anchor_change = record_change(
+                c, "rotation", "anchor", _anchor_image(dict(anchor_row)),
+                {"rotation": None, "anchor_date": None, "position": None}, evidence)
         c.commit()
     except sqlite3.IntegrityError as e:
         c.rollback()
@@ -280,6 +288,8 @@ def set_rotation(days, evidence=""):
     out = {"rotation": get_rotation(c), "change_id": change["change_id"]}
     if had_anchor:
         out["anchor_cleared"] = cleared
+    if anchor_change is not None:
+        out["anchor_change_id"] = anchor_change["change_id"]
     return out
 
 

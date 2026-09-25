@@ -582,14 +582,15 @@ def program_compaction_set(last_compacted: str = "", postponed_until: str = "") 
 
 
 @mcp.tool()
-def program_rotation_anchor(date: str, day: str) -> dict:
+def program_rotation_anchor(date: str, day: str, evidence: str = "") -> dict:
     """Anchor the rotation schedule to a date. Drift asks for a re-anchor, never re-anchors silently.
 
     Args:
         date: Anchor date yyyy-mm-dd.
         day: Rotation day trained that date.
+        evidence: Why the schedule was re-anchored (stored with the state change).
     """
-    return call_domain(_adherence.anchor_rotation, date, day)
+    return call_domain(_adherence.anchor_rotation, date, day, evidence)
 
 
 @mcp.tool()
@@ -749,12 +750,15 @@ def history_get(change_id: int) -> dict:
 
 
 @mcp.tool()
-def history_state(domain: HistoryDomain, subject: str = "", at: str = "") -> dict:
-    """Reconstruct domain state as of a date. Pre-history dates report unknown, never a guess.
+def history_state(domain: HistoryDomain, subject: str, at: str = "") -> dict:
+    """Reconstruct domain state as of a date. Subject is required: an empty
+    subject would fold unrelated subjects into one misleading state.
+    Pre-history dates report unknown, never a guess.
 
     Args:
         domain: One of program, priority, goal, deload, rule, rotation.
-        subject: Optional domain-scoped id (program "active:Day", muscle, exercise, rule id).
+        subject: Domain-scoped id: program "active:Day", muscle, exercise, rule id,
+            "rotation" or "anchor".
         at: Date yyyy-mm-dd, defaults to today.
     """
     return call_domain(_history.state_at, domain, subject, at or None)

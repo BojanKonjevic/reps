@@ -46,9 +46,10 @@ def goal_sessions(c, goal):
     return (prior[-1:] + current) if prior or current else []
 
 
-def goal_progress(c, goal):
-    checkpoints = [r["target_e1rm"] for r in c.execute(
-        "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
+def goal_progress(c, goal, checkpoints=None):
+    if checkpoints is None:
+        checkpoints = [r["target_e1rm"] for r in c.execute(
+            "SELECT target_e1rm FROM goal_checkpoints WHERE goal_id = ? ORDER BY session_no", (goal["id"],)).fetchall()]
     sessions = goal_sessions(c, goal)
     completed = min(len(sessions), len(checkpoints))
     divergence = load_constants().thresholds.goal_divergence_pct

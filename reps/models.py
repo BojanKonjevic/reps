@@ -652,11 +652,18 @@ class RuleHistoryPayload(BaseModel):
 
 
 class RotationHistoryPayload(BaseModel):
-    """Rotation order before/after; None entries are rest."""
+    """Rotation order and anchor before/after; None entries are rest.
+
+    Order changes carry rotation with anchor fields None; anchor changes
+    carry anchor_date/position with rotation None. The two live under
+    separate history subjects ("rotation", "anchor") so folds stay homogeneous.
+    """
 
     model_config = STRICT
 
     rotation: Optional[list[Optional[StrictStr]]] = None
+    anchor_date: Optional[StrictStr] = None
+    position: Optional[StrictInt] = None
 
 
 _HISTORY_PAYLOADS = {
