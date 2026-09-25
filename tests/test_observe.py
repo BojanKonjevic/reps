@@ -131,6 +131,23 @@ def test_goal_trajectory_numeric_subject_stays_on_that_goal(log_module):
     assert second["goal_id"] == gid2 and second["in_effect"] is False
 
 
+def test_goal_trajectory_ignores_sessions_after_until(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    add_cid = log.list_changes("goal", "bench")[0]["id"]
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(8), add_cid))
+    c.execute("UPDATE goals SET created = ? WHERE id = ?", (_day(2), gid))
+    c.commit()
+    first = log.observe("goal_trajectory", str(gid), _day(10), _day(1))["result"]
+    assert first["completed"] == 1
+    _log_on(log, 0, "bench", 110, 5)
+    second = log.observe("goal_trajectory", str(gid), _day(10), _day(1))["result"]
+    assert second == first
+
+
 def test_goal_trajectory_marks_in_range_actuals(log_module):
     log = log_module
     _seeded(log)

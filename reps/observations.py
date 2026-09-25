@@ -197,7 +197,7 @@ def _goal_trajectory(subject, since, until):
                               row["id"] if gid is not None else None)
     goal = {"id": eff_gid, "exercise": exercise, "created": created,
             "target_e1rm": target, "deadline": deadline}
-    prog = goal_progress(c, goal, checkpoints)
+    prog = goal_progress(c, goal, checkpoints, through=until)
     pairs = [{"session_no": i + 1, "target": t,
               "actual": prog["actuals"][i]["e1rm"] if i < len(prog["actuals"]) else None,
               "actual_date": prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None,
@@ -217,7 +217,7 @@ def _goal_trajectory(subject, since, until):
                  "itself is session-numbered, in_range marks actuals inside the range")
 
 
-def _effective(change_list, day_iso, key):
+def _value_at(change_list, day_iso, key):
     """State value in effect on a date: fold history to that date, else the
     earliest recorded before-image (stable under later changes, flagged as
     pre-history by the caller via coverage dates), else None."""
@@ -229,7 +229,7 @@ def _effective(change_list, day_iso, key):
     return None
 
 
-def _split_at(prog_hist, day_iso, c):
+def _split_map_at(prog_hist, day_iso, c):
     """Active split daymap in effect on a date: per-day snapshots folded from
     program history (earliest before-image before history starts), current
     days for never-recorded days. Never today's edited split."""
@@ -277,11 +277,11 @@ def _adherence_summary(subject, since, until):
     end = date.fromisoformat(until)
     while day <= end:
         d = day.isoformat()
-        rot = _effective(rot_hist, d, "rotation")
+        rot = _value_at(rot_hist, d, "rotation")
         if rot is None and not rot_hist:
             rot = [None if x == "rest" else x for x in cur_rot]
-        anch = _effective(anch_hist, d, "anchor_date")
-        anch_pos = _effective(anch_hist, d, "position")
+        anch = _value_at(anch_hist, d, "anchor_date")
+        anch_pos = _value_at(anch_hist, d, "position")
         if anch is None and not anch_hist and cur_anch is not None:
             anch, anch_pos = cur_anch["date"], cur_anch["index"]
         rot_names = ([r if r is not None else "rest" for r in rot]
@@ -290,7 +290,7 @@ def _adherence_summary(subject, since, until):
                   if anch is not None and anch_pos is not None
                   and rot_names is not None and anch_pos < len(rot_names) else None)
         trained = trained_exercises(c, d)
-        daymap = _split_at(prog_hist, d, c)
+        daymap = _split_map_at(prog_hist, d, c)
         if rot_names is not None and anchor is not None:
             days.append(classify_date(c, rot_names, anchor, d, daymap))
         else:
