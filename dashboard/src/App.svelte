@@ -45,7 +45,6 @@
   });
 </script>
 
-<CommandPalette />
 <QueryClientProvider client={queryClient}>
   {#if snapshot.isPending}
     <div class="wrap">
@@ -59,6 +58,7 @@
     </div>
   {:else if snapshot.data}
     {@const snap = snapshot.data}
+    <CommandPalette {snap} />
     {#if route.view.name === 'sess'}
       <SessionPage {snap} date={route.view.date} />
     {:else if route.view.name === 'lift'}

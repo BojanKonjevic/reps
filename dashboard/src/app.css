@@ -149,6 +149,15 @@ body {
   font-size: 0.88rem;
   padding: 10px 12px;
 }
+.pal-sec {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 10px 12px 2px;
+}
 .pal-foot {
   display: flex;
   gap: 14px;

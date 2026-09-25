@@ -65,6 +65,20 @@ test.describe('Dashboard', () => {
     await expect(page.locator('.pal-panel')).toBeHidden();
   });
 
+  test('palette finds movements, muscles and sessions', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    await page.keyboard.press('Control+k');
+    await page.locator('.pal-panel input').fill('bench');
+    await expect(page.locator('.pal-panel')).toContainText('Movements');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#viewLift')).toBeVisible();
+    const done = rich.sessions.find(s => s.status === 'done' && s.exercises.length);
+    await page.keyboard.press('Control+k');
+    await page.locator('.pal-panel input').fill(done.date);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#viewSession')).toBeVisible();
+  });
+
   test('palette arrows cycle and esc closes without input focus', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.keyboard.press('Control+k');

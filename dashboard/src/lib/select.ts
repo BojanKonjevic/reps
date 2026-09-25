@@ -2,8 +2,10 @@
 // Search/facet/hidden state, tag-membership filtering, alphabetical sorts.
 // No domain math: every number rendered here was computed in Python.
 
-import type { Lift, SessionView } from '../generated/snapshot';
+import type { Lift, Muscle, SessionView } from '../generated/snapshot';
 import { href } from '../routes';
+import { fmtD, fmtMin, fmtV } from './format';
+import { statusLabel } from './present';
 
 export interface TrendMatrix {
   days: string[];
@@ -72,24 +74,89 @@ export function sessionSpans(sessions: SessionView[]): SessionSpan[] {
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
-export interface PageRow {
+export interface PalRow {
   key: string;
   label: string;
   sub: string;
   href: string;
+  match: string;
 }
 
-export function palettePages(): PageRow[] {
+export interface PalSection {
+  header: string;
+  rows: PalRow[];
+}
+
+function palRow(key: string, label: string, sub: string, target: string, match: string): PalRow {
+  return { key, label, sub, href: target, match: (label + ' ' + match).toLowerCase() };
+}
+
+export function palettePages(): PalRow[] {
   return [
-    { key: 'dash', label: 'Dashboard', sub: 'overview', href: href.dash() },
-    { key: 'lifts', label: 'Movements', sub: 'every lift', href: href.lifts() },
-    { key: 'muscles', label: 'Muscles', sub: 'volume vs MEV', href: href.muscles() },
-    { key: 'program', label: 'Program', sub: 'the split', href: href.program() },
+    palRow('page:dash', 'Dashboard', 'overview', href.dash(), 'dash'),
+    palRow('page:lifts', 'Movements', 'every lift', href.lifts(), 'lifts'),
+    palRow('page:muscles', 'Muscles', 'volume vs MEV', href.muscles(), 'muscles'),
+    palRow('page:program', 'Program', 'the split', href.program(), 'program'),
   ];
 }
 
-export function filterPages(rows: PageRow[], q: string): PageRow[] {
+export function paletteMovements(lifts: Lift[]): PalRow[] {
+  return lifts
+    .map(l =>
+      palRow(
+        'lift:' + l.exercise,
+        l.exercise,
+        l.best ? 'e1RM ' + fmtV(l.best.e1rm) + ' · ' + fmtD(l.best.date) : 'no sets yet',
+        href.lift(l.exercise),
+        l.exercise
+      )
+    )
+    .sort((a, b) => (a.label < b.label ? -1 : 1));
+}
+
+export function paletteMuscles(muscles: Muscle[]): PalRow[] {
+  return muscles
+    .map(m => {
+      const wk = m.weekly.length ? m.weekly[m.weekly.length - 1] : 0;
+      return palRow(
+        'muscle:' + m.muscle,
+        m.muscle,
+        statusLabel(m.status) + ' · ' + wk + (wk === 1 ? ' set' : ' sets'),
+        href.muscle(m.muscle),
+        m.muscle
+      );
+    })
+    .sort((a, b) => (a.label < b.label ? -1 : 1));
+}
+
+export function paletteSessions(sessions: SessionView[]): PalRow[] {
+  return sessions
+    .filter(s => s.status === 'done' || s.status === 'rest')
+    .sort((a, b) => (a.date > b.date ? -1 : 1))
+    .map(s => {
+      const day = s.slot_label || 'unscheduled';
+      const sub =
+        s.status === 'rest'
+          ? 'rest day'
+          : day +
+            ' · ' +
+            s.exercises.reduce((a, e) => a + e.sets.length, 0) +
+            ' sets' +
+            (s.duration_min === null || s.duration_min === undefined
+              ? ''
+              : ' · ' + fmtMin(s.duration_min));
+      return palRow(
+        'session:' + s.date,
+        fmtD(s.date),
+        sub,
+        href.session(s.date),
+        s.date + ' ' + day
+      );
+    });
+}
+
+export function filterPalRows(rows: PalRow[], q: string, limit = 6): PalRow[] {
   const needle = (q || '').trim().toLowerCase();
-  if (!needle) return rows;
-  return rows.filter(r => r.label.toLowerCase().includes(needle) || r.key.includes(needle));
+  if (!needle) return rows.slice(0, limit);
+  return rows.filter(r => r.match.includes(needle)).slice(0, limit);
 }

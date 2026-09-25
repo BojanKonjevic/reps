@@ -1,12 +1,39 @@
 <script lang="ts">
   import { closePalette, palette } from '../lib/palette.svelte';
-  import { palettePages, filterPages } from '../lib/select';
+  import {
+    paletteMovements,
+    paletteMuscles,
+    palettePages,
+    paletteSessions,
+    filterPalRows,
+    type PalSection,
+  } from '../lib/select';
+  import type { Snapshot } from '../generated/snapshot';
+
+  interface Props {
+    snap: Snapshot;
+  }
+
+  let { snap }: Props = $props();
 
   let q = $state('');
   let active = $state(0);
   let input: HTMLInputElement | undefined = $state();
 
-  const rows = $derived(filterPages(palettePages(), q));
+  const sections = $derived.by((): PalSection[] => {
+    if (!q.trim()) return [{ header: '', rows: filterPalRows(palettePages(), '') }];
+    const out: PalSection[] = [];
+    const add = (header: string, rows: ReturnType<typeof filterPalRows>) => {
+      if (rows.length) out.push({ header, rows });
+    };
+    add('Pages', filterPalRows(palettePages(), q));
+    add('Movements', filterPalRows(paletteMovements(snap.lifts), q));
+    add('Muscles', filterPalRows(paletteMuscles(snap.muscles), q));
+    add('Sessions', filterPalRows(paletteSessions(snap.sessions), q));
+    return out;
+  });
+
+  const flat = $derived(sections.flatMap(s => s.rows));
 
   function close() {
     closePalette();
@@ -28,18 +55,18 @@
   });
 
   $effect(() => {
-    if (active > rows.length - 1) active = Math.max(0, rows.length - 1);
+    if (active > flat.length - 1) active = Math.max(0, flat.length - 1);
   });
 
   function key(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (rows.length) active = (active + 1) % rows.length;
+      if (flat.length) active = (active + 1) % flat.length;
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (rows.length) active = (active - 1 + rows.length) % rows.length;
+      if (flat.length) active = (active - 1 + flat.length) % flat.length;
     } else if (e.key === 'Enter') {
-      const row = rows[active];
+      const row = flat[active];
       if (row) {
         e.preventDefault();
         go(row.href);
@@ -51,7 +78,7 @@
 {#if palette.open}
   <div class="pal-backdrop" onclick={close} aria-hidden="true"></div>
   <div class="pal-wrap">
-    <div class="pal-panel" role="dialog" aria-modal="true" aria-label="jump to page">
+    <div class="pal-panel" role="dialog" aria-modal="true" aria-label="jump anywhere">
       <input
         bind:this={input}
         value={q}
@@ -61,21 +88,27 @@
         }}
         onkeydown={key}
         placeholder="jump to..."
-        aria-label="jump to page"
+        aria-label="jump anywhere"
       />
-      {#if !rows.length}
-        <div class="pal-empty">no page matches</div>
+      {#if !flat.length}
+        <div class="pal-empty">nothing matches</div>
       {/if}
-      {#each rows as row, i}
-        <button
-          type="button"
-          class:pal-active={i === active}
-          onmouseenter={() => (active = i)}
-          onclick={() => go(row.href)}
-        >
-          <span class="pal-name">{row.label}</span>
-          <span class="pal-sub">{row.sub}</span>
-        </button>
+      {#each sections as sec}
+        {#if sec.header}
+          <div class="pal-sec">{sec.header}</div>
+        {/if}
+        {#each sec.rows as row}
+          {@const gi = flat.indexOf(row)}
+          <button
+            type="button"
+            class:pal-active={gi === active}
+            onmouseenter={() => (active = gi)}
+            onclick={() => go(row.href)}
+          >
+            <span class="pal-name">{row.label}</span>
+            <span class="pal-sub">{row.sub}</span>
+          </button>
+        {/each}
       {/each}
       <div class="pal-foot">
         <span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> open</span><span
