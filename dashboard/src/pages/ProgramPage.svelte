@@ -18,7 +18,6 @@
 
   onMount(() => {
     document.title = 'program';
-    window.scrollTo(0, 0);
   });
 </script>
 

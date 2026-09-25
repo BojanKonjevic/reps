@@ -171,7 +171,6 @@
 
   onMount(() => {
     document.title = 'movements';
-    window.scrollTo(0, 0);
   });
 </script>
 

@@ -19,6 +19,8 @@
   );
 
   onMount(() => {
+    // The router owns scroll position per hash; the browser must not race it.
+    history.scrollRestoration = 'manual';
     syncRoute();
     window.addEventListener('hashchange', syncRoute);
     return () => window.removeEventListener('hashchange', syncRoute);

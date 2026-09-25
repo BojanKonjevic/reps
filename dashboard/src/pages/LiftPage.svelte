@@ -114,7 +114,6 @@
 
   onMount(() => {
     document.title = ex;
-    window.scrollTo(0, 0);
   });
 </script>
 

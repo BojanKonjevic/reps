@@ -87,7 +87,6 @@
 
   onMount(() => {
     document.title = 'muscles';
-    window.scrollTo(0, 0);
   });
 </script>
 

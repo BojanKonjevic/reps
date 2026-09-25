@@ -81,7 +81,6 @@
     if (!match) location.hash = href.dash();
     else {
       document.title = match;
-      window.scrollTo(0, 0);
     }
   });
 </script>

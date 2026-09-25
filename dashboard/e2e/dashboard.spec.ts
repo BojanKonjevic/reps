@@ -67,8 +67,22 @@ test.describe('Dashboard', () => {
     }
   });
 
-  test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
+  test('going back returns to the saved scroll position', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
+    const link = page.locator('#trendGrid .mini a').first();
+    await link.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+    const y0 = await page.evaluate(() => window.scrollY);
+    await link.click();
+    await expect(page.locator('#viewLift')).toBeVisible();
+    await page.goBack();
+    await expect(page.locator('#viewDash')).toBeVisible();
+    await page.waitForTimeout(200);
+    const y = await page.evaluate(() => window.scrollY);
+    expect(Math.abs(y - y0)).toBeLessThan(60);
+  });
+
+  test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {    await gotoFixture(page, rich, rich.as_of);
     await page.locator('#trendGrid .mini a').first().click();
     await expect(page.locator('#viewLift')).toBeVisible();
     // Resize while the dash is hidden: the debounced render must not bake a

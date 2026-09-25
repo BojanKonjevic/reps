@@ -59,7 +59,6 @@
 
   onMount(() => {
     document.title = fmtD(ds) + (!day.length ? ' no session' : allRest ? ' rest day' : ' training');
-    window.scrollTo(0, 0);
   });
 </script>
 
