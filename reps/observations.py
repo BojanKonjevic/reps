@@ -102,7 +102,6 @@ def _top_set(c, exercise, day):
 def _muscle_volume(subject, since, until):
     c = conn()
     constants = load_constants()
-    muscles = [subject] if subject else sorted(constants.muscles)
     if subject:
         known = set(constants.muscles) | set(constants.untracked)
         hit = canon_muscle_name(subject.strip().lower(), known)
@@ -110,21 +109,25 @@ def _muscle_volume(subject, since, until):
         if muscle not in constants.muscles:
             raise RepsError(f"'{subject}' is not a tracked muscle")
         muscles = [muscle]
+    else:
+        muscles = sorted(constants.muscles)
     rows = c.execute("SELECT sm.muscle AS muscle, COUNT(*) AS n FROM sets s "
                      "JOIN workouts w ON w.id = s.workout_id "
                      "JOIN set_muscle sm ON sm.set_id = s.id "
                      "WHERE date(w.date) BETWEEN ? AND ? GROUP BY sm.muscle",
                      (since, until)).fetchall()
     counts = {r["muscle"]: r["n"] for r in rows}
-    span_weeks = max(1, (date.fromisoformat(until) - date.fromisoformat(since)).days / 7)
+    span_days = (date.fromisoformat(until) - date.fromisoformat(since)).days + 1
     totals = {m: counts.get(m, 0) for m in muscles}
     result = {"totals": totals,
               "total_sets": sum(totals.values()),
-              "avg_per_week": {m: round(n / span_weeks, 1) for m, n in totals.items()},
-              "span_days": (date.fromisoformat(until) - date.fromisoformat(since)).days + 1}
+              "avg_per_day": {m: round(n / span_days, 2) for m, n in totals.items()},
+              "avg_per_week": ({m: round(n / (span_days / 7), 1) for m, n in totals.items()}
+                               if span_days >= 7 else None),
+              "span_days": span_days}
     return _wrap("muscle_volume", subject, since, until, result, ["sets", "set_muscle", "workouts"],
                  "logged working sets per muscle in range (full credit per mapped muscle); "
-                 "weekly average divides by the range span")
+                 "avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)")
 
 
 def _program_activity(subject, since, until):
@@ -159,7 +162,9 @@ def _goal_trajectory(subject, since, until):
     prog = goal_progress(c, goal)
     pairs = [{"session_no": i + 1, "target": t,
               "actual": prog["actuals"][i]["e1rm"] if i < len(prog["actuals"]) else None,
-              "actual_date": prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None}
+              "actual_date": prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None,
+              "in_range": (prog["actuals"][i]["date"] if i < len(prog["actuals"]) else None) is not None
+              and since <= prog["actuals"][i]["date"] <= until}
              for i, t in enumerate(prog["checkpoints"])]
     result = {"goal_id": goal["id"], "exercise": goal["exercise"],
               "target_e1rm": goal["target_e1rm"], "deadline": goal["deadline"],

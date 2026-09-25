@@ -72,7 +72,29 @@ def test_program_activity_counts_changes(log_module):
     assert len(r["change_ids"]) == 2
 
 
-def test_goal_trajectory_pairs_checkpoints(log_module):
+def test_muscle_volume_weekly_rate_needs_full_week(log_module):
+    log = log_module
+    _seeded(log)
+    short = log.observe("muscle_volume", "chest", _day(3), _day(3))["result"]
+    assert short["totals"] == {"chest": 1}
+    assert short["avg_per_week"] is None
+    assert short["avg_per_day"] == {"chest": 1.0}
+    wide = log.observe("muscle_volume", "chest", _day(10), _day(0))["result"]
+    assert wide["avg_per_week"] == {"chest": 1.3}
+
+
+def test_goal_trajectory_marks_in_range_actuals(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    wide = log.observe("goal_trajectory", str(gid), _day(10), _day(0))["result"]
+    assert wide["checkpoints_vs_actuals"][0]["in_range"] is True
+    narrow = log.observe("goal_trajectory", str(gid), _day(2), _day(0))["result"]
+    assert narrow["checkpoints_vs_actuals"][0]["in_range"] is False
+
+
+def test_goal_trajectory_marks_in_range_actuals(log_module):
     log = log_module
     _seeded(log)
     deadline = (date.today() + timedelta(days=60)).isoformat()

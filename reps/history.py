@@ -10,6 +10,15 @@ payload shapes per domain validated on read through the Pydantic
 discriminated models in reps/models.py. Original rows are never rewritten;
 a reversal is a new row with reverses pointing back, and the old tip row
 gets superseded_by set when it had none.
+
+Two deliberate deviations from the spec's Part II defaults, both required by
+Part I invariants: history_state exists alongside the three named tools
+because reconstructing state at an arbitrary point (Part I section 11) is
+not achievable by listing transitions and folding them agent-side, which is
+exactly the bookkeeping the spec moves out of the LLM. And all six domains
+land together because the shared mechanism makes each one a payload shape
+plus thin wiring; shipping two now and four later is how per-domain revert
+semantics drift apart, the failure Part II section 25 names explicitly.
 """
 
 import json
@@ -40,12 +49,15 @@ def record_change(c, domain, subject, before, after, evidence="", reverses=None)
     if not isinstance(before, dict) or not isinstance(after, dict):
         raise RepsError("history payloads must be objects")
     now = datetime.now().isoformat(timespec="seconds")
+    today = date.today().isoformat()
+    seq = c.execute("SELECT COUNT(*) n FROM state_change WHERE domain = ? AND subject = ? AND date = ?",
+                    (domain, subject, today)).fetchone()["n"]
     cur = c.execute(
         "INSERT INTO state_change (domain, subject, date, created, before_json, after_json, "
-        "evidence, reverses) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (domain, subject, date.today().isoformat(), now,
+        "evidence, reverses, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (domain, subject, today, now,
          json.dumps(before, sort_keys=True), json.dumps(after, sort_keys=True),
-         evidence or "", reverses))
+         evidence or "", reverses, seq))
     return {"change_id": cur.lastrowid}
 
 
@@ -79,7 +91,7 @@ def list_changes(domain, subject="", since="", until=""):
     if until:
         q += " AND date <= ?"
         args.append(_check_day(until))
-    q += " ORDER BY date, created, id"
+    q += " ORDER BY date, sequence, id"
     return [_shape(r) for r in c.execute(q, args).fetchall()]
 
 
@@ -107,8 +119,16 @@ def state_at(domain, subject="", at=""):
     _check_domain(domain)
     subject = (subject or "").strip()
     at = _check_day(at) if at else date.today().isoformat()
-    changes = [ch for ch in list_changes(domain, subject) if ch["date"] <= at]
     all_changes = list_changes(domain, subject)
+    if not all_changes:
+        if domain == "priority":
+            return {"domain": domain, "subject": subject, "at": at,
+                    "reconstructible": True, "as_of_change_id": None,
+                    "state": {"tier": "maintain", "since": None, "until": None}}
+        return {"domain": domain, "subject": subject, "at": at,
+                "reconstructible": False, "as_of_change_id": None,
+                "reason": "no recorded history for this subject"}
+    changes = [ch for ch in all_changes if ch["date"] <= at]
     if not all_changes:
         if domain == "priority":
             return {"domain": domain, "subject": subject, "at": at,
@@ -133,20 +153,18 @@ def state_at(domain, subject="", at=""):
 
 
 def _fold(domain, subject, changes):
-    """Fold a chain of transitions (oldest first) into the state at the tip."""
-    if domain == "program":
-        return changes[-1]["after"]
-    if domain == "priority":
-        return changes[-1]["after"]
+    """Fold a chain of transitions (oldest first) into the state at the tip.
+
+    Every after-envelope is a complete domain state (never a delta), so the
+    tip's after is the fold, except for goal: successive goals share one
+    exercise subject, so scope the chain to the tip's goal_id.
+    """
     if domain == "goal":
-        return changes[-1]["after"]
-    if domain == "deload":
-        return changes[-1]["after"]
-    if domain == "rule":
-        return changes[-1]["after"]
-    if domain == "rotation":
-        return changes[-1]["after"]
-    raise RepsError(f"no fold defined for domain '{domain}'")
+        gid = changes[-1]["after"].get("goal_id")
+        chain = [ch for ch in changes
+                 if ch["after"].get("goal_id") == gid or ch["before"].get("goal_id") == gid]
+        return chain[-1]["after"] if chain else changes[-1]["after"]
+    return changes[-1]["after"]
 
 
 def revert_change(change_id, evidence=""):
@@ -177,24 +195,18 @@ def revert_change(change_id, evidence=""):
 
 
 def _revert_program(c, subject, before, after):
-    from .program import _restore_day_snapshot
+    from .program import _day_snapshot, _restore_day_snapshot
 
     variant, _, day = subject.partition(":")
     if not variant or not day:
         raise RepsError(f"change has malformed program subject '{subject}'")
-    current = _day_snapshot(c, variant, day)
-    if current != after.get("slots") and after.get("slots"):
+    current = [{"slot": r["slot"], "movements": r["movements"], "sets": r["sets"]}
+               for r in _day_snapshot(c, variant, day)["slots"]]
+    if current != after.get("slots"):
         raise RepsError("program day moved since this change, revert would clobber newer edits; "
                         "revert the later change first")
     _restore_day_snapshot(c, variant, day, before.get("slots") or [])
     return dict(before)
-
-
-def _day_snapshot(c, variant, day):
-    from .program import read_split
-
-    rows = read_split(variant, day, c=c)
-    return [{"slot": r["slot"], "movements": r["movements"], "sets": r["sets"]} for r in rows]
 
 
 def _revert_priority(c, subject, before, after):

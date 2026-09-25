@@ -95,6 +95,38 @@ def test_revert_priority_restores_tier(log_module):
     assert tip["after"] == {"tier": None, "since": None, "until": None}
 
 
+def test_same_day_changes_order_by_sequence(log_module):
+    log = log_module
+    _seeded(log)
+    first = log.set_priority("chest", "priority")["change_id"]
+    second = log.set_priority("chest", "deprioritize")["change_id"]
+    rows = log.list_changes("priority", "chest")
+    assert [r["id"] for r in rows] == [first, second]
+    assert [r["sequence"] for r in rows] == [0, 1]
+
+
+def test_state_at_scopes_successive_goals(log_module):
+    from datetime import timedelta
+
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid1 = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    drop_cid = log.drop_goal(gid1)["change_id"]
+    add_cid = log.list_changes("goal", "bench")[0]["id"]
+    gid2 = log.add_goal("bench", 140, deadline, "", None)["goal_id"]
+    c = log.conn()
+    back = (date.today() - timedelta(days=10)).isoformat()
+    c.execute("UPDATE state_change SET date = ? WHERE id IN (?, ?)", (back, add_cid, drop_cid))
+    c.commit()
+    mid = (date.today() - timedelta(days=5)).isoformat()
+    assert log.state_at("goal", "bench", mid)["state"]["goal_id"] == gid1
+    assert log.state_at("goal", "bench", mid)["state"]["status"] == "dropped"
+    tip = log.state_at("goal", "bench", date.today().isoformat())
+    assert tip["state"]["goal_id"] == gid2
+    assert tip["state"]["status"] == "active"
+
+
 def test_goal_drop_refuses_double_drop(log_module):
     from datetime import timedelta
 
