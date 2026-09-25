@@ -73,7 +73,7 @@ body {
   color: var(--ink);
   font-family: 'IBM Plex Serif', Georgia, serif;
   line-height: 1.6;
-  padding: 56px 32px 120px;
+  padding: 0 32px 120px;
 }
 .wrap {
   max-width: 1400px;
