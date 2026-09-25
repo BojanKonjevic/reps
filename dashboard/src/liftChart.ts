@@ -94,7 +94,10 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
     drawPoint(g, x, y, 4, color, false);
   });
   if (futureEv !== undefined && futureEv !== null && pts.length) {
-    const fx = Math.min(xOf(pts[pts.length - 1].date) + 26, W - 14);
+    // Pinned to the right edge, never next to the last point: the target is
+    // upcoming, not tomorrow. A date-meaningful x would need the next
+    // scheduled day for this lift, which the snapshot does not emit.
+    const fx = W - L.padR;
     const fy = py(futureEv);
     g.save();
     g.strokeStyle = color;
@@ -119,8 +122,7 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
     g.stroke();
     g.restore();
     g.fillStyle = theme.color('ink-dim');
-    if (fx < W / 2) putText(g, W, fmtV(futureEv) + ' next', fx + 12, fy - 10, 'left');
-    else putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
+    putText(g, W, fmtV(futureEv) + ' next', fx, fy - 10, 'right');
   }
   if (hover >= 0 && hover < pts.length) {
     const p = pts[hover];
