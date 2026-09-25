@@ -32,10 +32,7 @@
   });
 
   function key(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      close();
-    } else if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (rows.length) active = (active + 1) % rows.length;
     } else if (e.key === 'ArrowUp') {

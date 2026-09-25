@@ -29,16 +29,18 @@
         e.preventDefault();
         palette.open = !palette.open;
       } else if (e.key === 'Escape' && palette.open) {
-        // Works even when the input never took focus.
+        // Single source for esc: capture phase beats focus and delegation
+        // order puzzles, and the input no longer handles it at all.
         e.preventDefault();
+        e.stopPropagation();
         closePalette();
       }
     };
     window.addEventListener('hashchange', syncRoute);
-    window.addEventListener('keydown', keys);
+    window.addEventListener('keydown', keys, true);
     return () => {
       window.removeEventListener('hashchange', syncRoute);
-      window.removeEventListener('keydown', keys);
+      window.removeEventListener('keydown', keys, true);
     };
   });
 </script>
