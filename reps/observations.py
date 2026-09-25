@@ -143,6 +143,18 @@ def _program_activity(subject, since, until):
                  "use history_get(change_id) for before/after detail")
 
 
+def _not_in_effect(subject, exercise, since, until, goal_id):
+    return _wrap("goal_trajectory", subject, since, until,
+                 {"goal_id": goal_id, "exercise": exercise, "in_effect": False,
+                  "target_e1rm": None, "deadline": None, "status": None,
+                  "target_desc": None, "checkpoints_vs_actuals": [],
+                  "completed": 0, "consecutive_misses": 0, "on_track": True,
+                  "slippage": False,
+                  "effective": {"as_of": until, "from_history": True}},
+                 ["goals", "goal_checkpoints", "state_change"],
+                 "the requested goal was not in effect during the range")
+
+
 def _goal_trajectory(subject, since, until):
     from .goals import goal_progress
     from .history import state_at
@@ -165,29 +177,24 @@ def _goal_trajectory(subject, since, until):
     if from_history:
         h = st["state"]
         eff_gid = h["goal_id"]
+        if gid is not None and eff_gid != gid:
+            return _not_in_effect(subject, exercise, since, until, gid)
         checkpoints = h["checkpoints"] or []
         target, deadline, status, desc = (h["target_e1rm"], h["deadline"],
                                           h["status"], h.get("target_desc"))
         grow = c.execute("SELECT created FROM goals WHERE id = ?", (eff_gid,)).fetchone()
         created = grow["created"] if grow else row["created"]
         in_effect = True
-    elif st.get("reason", "").startswith("no recorded history for"):
+    elif st.get("reason", "").startswith("no recorded history for") \
+            and row["created"][:10] <= until:
         eff_gid, checkpoints = row["id"], None
         target, deadline, status, desc = (row["target_e1rm"], row["deadline"],
                                           row["status"], row["target_desc"])
         created = row["created"]
         in_effect = True
     else:
-        return _wrap("goal_trajectory", subject, since, until,
-                     {"goal_id": None, "exercise": exercise, "in_effect": False,
-                      "target_e1rm": None, "deadline": None, "status": None,
-                      "target_desc": None, "checkpoints_vs_actuals": [],
-                      "completed": 0, "consecutive_misses": 0, "on_track": True,
-                      "slippage": False,
-                      "effective": {"as_of": until, "from_history": True}},
-                     ["goals", "goal_checkpoints", "state_change"],
-                     "no goal for this exercise was in effect during the range; "
-                     "goal history starts later")
+        return _not_in_effect(subject, exercise, since, until,
+                              row["id"] if gid is not None else None)
     goal = {"id": eff_gid, "exercise": exercise, "created": created,
             "target_e1rm": target, "deadline": deadline}
     prog = goal_progress(c, goal, checkpoints)
@@ -222,6 +229,33 @@ def _effective(change_list, day_iso, key):
     return None
 
 
+def _split_at(prog_hist, day_iso, c):
+    """Active split daymap in effect on a date: per-day snapshots folded from
+    program history (earliest before-image before history starts), current
+    days for never-recorded days. Never today's edited split."""
+    from .program import parse_active_split_days, parse_movements
+
+    by_subject: dict = {}
+    for ch in prog_hist:
+        if ch["subject"].startswith("active:"):
+            by_subject.setdefault(ch["subject"], []).append(ch)
+    covered = {sub.partition(":")[2] for sub in by_subject}
+    daymap: dict = {}
+    for sub, changes in by_subject.items():
+        dayname = sub.partition(":")[2]
+        past = [ch for ch in changes if ch["date"] <= day_iso]
+        snap = (past[-1]["after"] if past else changes[0]["before"])["slots"]
+        moves = []
+        for s in snap:
+            moves.extend(parse_movements(s["movements"]))
+        if moves:
+            daymap[dayname] = moves
+    for dayname, moves in parse_active_split_days(c).items():
+        if dayname not in covered:
+            daymap[dayname] = moves
+    return daymap
+
+
 def _adherence_summary(subject, since, until):
     from .adherence import (classify_date, drift_days, get_anchor, match_day,
                             trained_exercises)
@@ -231,6 +265,7 @@ def _adherence_summary(subject, since, until):
     c = conn()
     rot_hist = list_changes("rotation", "rotation")
     anch_hist = list_changes("rotation", "anchor")
+    prog_hist = list_changes("program")
     cur_rot = get_rotation(c)
     cur_anch = get_anchor(c)
     if not rot_hist and not cur_rot:
@@ -255,11 +290,12 @@ def _adherence_summary(subject, since, until):
                   if anch is not None and anch_pos is not None
                   and rot_names is not None and anch_pos < len(rot_names) else None)
         trained = trained_exercises(c, d)
+        daymap = _split_at(prog_hist, d, c)
         if rot_names is not None and anchor is not None:
-            days.append(classify_date(c, rot_names, anchor, d))
+            days.append(classify_date(c, rot_names, anchor, d, daymap))
         else:
             days.append({"date": d, "expected": None,
-                         "trained": match_day(c, trained) if trained else None,
+                         "trained": match_day(c, trained, daymap) if trained else None,
                          "status": "unknown"})
         day += timedelta(days=1)
     counts: dict = {}
@@ -273,7 +309,7 @@ def _adherence_summary(subject, since, until):
                             "trained": v.get("trained"), "status": v["status"]} for v in days]}
     return _wrap("adherence_summary", subject, since, until, result,
                  ["workouts", "rotation", "rotation_anchor", "state_change"],
-                 "each date classified with the rotation/anchor folded from history "
+                 "each date classified with the rotation/anchor/split folded from history "
                  "to that date (earliest recorded image before history starts, "
                  "never today's state); dates without an applicable rotation/anchor "
                  "report expected None with status unknown")

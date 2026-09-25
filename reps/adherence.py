@@ -78,28 +78,31 @@ def trained_exercises(c, day_iso):
         "WHERE w.date = ? AND w.status = 'done'", (day_iso,)).fetchall()}
 
 
-def match_day(c, trained):
+def match_day(c, trained, days=None):
     """Best-matching split day for a trained set. Ties and no-overlap give None.
 
     A tie means the session is ambiguous, so it resolves to swapped downstream
     instead of crediting one of the tied days as done. One tie rule, owned
-    by reps/slots.py.
+    by reps/slots.py. days overrides the live split for historical evaluation.
     """
     from .program import parse_active_split_days
     if not trained:
         return None
-    match = slot_of_session(list(trained), parse_active_split_days(c))
+    match = slot_of_session(list(trained), days if days is not None else parse_active_split_days(c))
     return match["day"]
 
 
-def classify_date(c, rotation, anchor, day_iso):
-    """One adherence verdict for a date (see rotation status)."""
+def classify_date(c, rotation, anchor, day_iso, days=None):
+    """One adherence verdict for a date (see rotation status).
+
+    days overrides the live split for historical evaluation (observe folds
+    program history to the date instead of applying today's split)."""
     exp = expected_day(rotation, anchor, day_iso)
     trained = trained_exercises(c, day_iso)
     rest_row = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest'",
                          (day_iso,)).fetchone() is not None
     if trained:
-        matched = match_day(c, trained)
+        matched = match_day(c, trained, days)
         if is_rest_day(exp):
             status = "extra"
         elif matched is not None and matched.lower() == exp.lower():
@@ -111,7 +114,7 @@ def classify_date(c, rotation, anchor, day_iso):
     else:
         status = "rest_ok" if is_rest_day(exp) else "missed"
     return {"date": day_iso, "expected": exp,
-            "trained": match_day(c, trained) if trained else None, "status": status}
+            "trained": match_day(c, trained, days) if trained else None, "status": status}
 
 
 def status_range(c, rotation, anchor, from_iso, to_iso):

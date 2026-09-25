@@ -243,6 +243,9 @@ def _revert_goal(c, subject, before, after):
         if _checkpoint_list(c, gid) != after.get("checkpoints"):
             raise RepsError("goal trajectory moved since this change, revert would clobber newer "
                             "edits; revert the later change first")
+        if goal["status"] != after.get("status"):
+            raise RepsError("goal moved since this change, revert would clobber newer edits; "
+                            "revert the later change first")
         for i, cp in enumerate(before.get("checkpoints") or [], 1):
             c.execute("UPDATE goal_checkpoints SET target_e1rm = ? WHERE goal_id = ? AND session_no = ?",
                       (cp, gid, i))

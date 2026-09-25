@@ -103,6 +103,34 @@ def test_goal_trajectory_uses_period_checkpoints(log_module):
     assert live["status"] == "dropped"
 
 
+def test_goal_trajectory_not_in_effect_before_creation(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    r = log.observe("goal_trajectory", str(gid), "2020-01-01", "2020-02-01")["result"]
+    assert r["in_effect"] is False and r["goal_id"] == gid
+    assert r["checkpoints_vs_actuals"] == []
+
+
+def test_goal_trajectory_numeric_subject_stays_on_that_goal(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid1 = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    add_cid = log.list_changes("goal", "bench")[0]["id"]
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(8), add_cid))
+    c.commit()
+    log.drop_goal(gid1)
+    gid2 = log.add_goal("bench", 140, deadline, "", None)["goal_id"]
+    era = {"since": _day(10), "until": _day(5)}
+    first = log.observe("goal_trajectory", str(gid1), era["since"], era["until"])["result"]
+    assert first["goal_id"] == gid1 and first["in_effect"] is True
+    second = log.observe("goal_trajectory", str(gid2), era["since"], era["until"])["result"]
+    assert second["goal_id"] == gid2 and second["in_effect"] is False
+
+
 def test_goal_trajectory_marks_in_range_actuals(log_module):
     log = log_module
     _seeded(log)
@@ -143,7 +171,7 @@ def test_adherence_uses_period_rotation_and_anchor(log_module):
     log.set_rotation(["Upper A", "rest"])
     log.anchor_rotation(_day(6), "Upper A")
     c = log.conn()
-    c.execute("UPDATE state_change SET date = ? WHERE domain = 'rotation'", (_day(8),))
+    c.execute("UPDATE state_change SET date = ? WHERE domain IN ('rotation', 'program')", (_day(8),))
     c.commit()
     day6 = _day(6)
     first = log.observe("adherence_summary", "", day6, day6)["result"]
@@ -153,6 +181,24 @@ def test_adherence_uses_period_rotation_and_anchor(log_module):
     log.anchor_rotation(_day(0), "rest")
     second = log.observe("adherence_summary", "", day6, day6)["result"]
     assert second == first
+
+
+def test_adherence_uses_period_split(log_module):
+    log = log_module
+    _seeded(log)
+    log.set_rotation(["Upper A", "rest"])
+    log.anchor_rotation(_day(6), "Upper A")
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE domain IN ('rotation', 'program')", (_day(8),))
+    c.commit()
+    day6 = _day(6)
+    first = log.observe("adherence_summary", "", day6, day6)["result"]
+    assert [v["status"] for v in first["verdicts"]] == ["done"]
+    log.set_exercise_mapping("squat", "quads")
+    log.set_split("Upper A", 1, "squat", 3)
+    second = log.observe("adherence_summary", "", day6, day6)["result"]
+    assert second == first
+    assert second["verdicts"][0]["trained"] == "Upper A"
 
 
 def test_adherence_refuses_without_rotation(log_module):

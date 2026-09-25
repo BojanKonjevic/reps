@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shared state-change history: record, list, reconstruct, revert (append-only)."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -125,6 +125,17 @@ def test_state_at_scopes_successive_goals(log_module):
     tip = log.state_at("goal", "bench", date.today().isoformat())
     assert tip["state"]["goal_id"] == gid2
     assert tip["state"]["status"] == "active"
+
+
+def test_goal_rewrite_revert_refuses_after_drop(log_module):
+    log = log_module
+    _seeded(log)
+    deadline = (date.today() + timedelta(days=60)).isoformat()
+    gid = log.add_goal("bench", 130, deadline, "", None)["goal_id"]
+    rcid = log.rewrite_goal(gid)["change_id"]
+    log.drop_goal(gid)
+    with pytest.raises(RepsError, match="moved since this change"):
+        log.revert_change(rcid)
 
 
 def test_goal_drop_revert_refuses_when_successor_active(log_module):
