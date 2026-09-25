@@ -1,16 +1,16 @@
 /* SSOT owner: colors, fonts, radii. Consumers: app.css via var(), canvas via lib/theme.ts. */
 
 :root {
-  --bg: #080807;
-  --bg-soft: #171514;
-  --bg-card: #232120;
-  --bg-hover: #2b2926;
-  --ink: #f0ede6;
-  --ink-dim: #cfc9bc;
-  --ink-mute: #b0aca2;
-  --ink-faint: #8a8478;
-  --line: #3a3733;
-  --line-soft: #6b655a;
+  --bg: #0a0a0a;
+  --bg-soft: #161515;
+  --bg-card: #262524;
+  --bg-hover: #2e2d2c;
+  --ink: #f0efec;
+  --ink-dim: #cfcfcb;
+  --ink-mute: #a8a8a3;
+  --ink-faint: #82827c;
+  --line: #333332;
+  --line-soft: #63635c;
   --good: #7fd67f;
   --good-deep: #3d9a42;
   --good-bright: #4cb052;
@@ -25,7 +25,7 @@
   --link: #42a5f5;
   --overlay-dim: rgba(0, 0, 0, 0.18);
   --overlay-backdrop: rgba(0, 0, 0, 0.5);
-  --overlay-line: rgba(127, 122, 110, 0.16);
+  --overlay-line: rgba(148, 148, 145, 0.16);
   --overlay-warn: rgba(230, 196, 0, 0.05);
   --overlay-card: rgba(255, 255, 255, 0.9);
   --overlay-tick: rgba(255, 255, 255, 0.1);
