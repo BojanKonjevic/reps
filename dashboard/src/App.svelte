@@ -5,6 +5,8 @@
   import { queryClient, snapshotKey } from './queries/client';
   import { fetchSnapshot } from './queries/snapshot';
   import { syncRoute, route } from './router.svelte';
+  import { palette } from './lib/palette.svelte';
+  import CommandPalette from './components/CommandPalette.svelte';
   import DashboardPage from './pages/DashboardPage.svelte';
   import SessionPage from './pages/SessionPage.svelte';
   import LiftPage from './pages/LiftPage.svelte';
@@ -22,11 +24,22 @@
     // The router owns scroll position per hash; the browser must not race it.
     history.scrollRestoration = 'manual';
     syncRoute();
+    const keys = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        palette.open = !palette.open;
+      }
+    };
     window.addEventListener('hashchange', syncRoute);
-    return () => window.removeEventListener('hashchange', syncRoute);
+    window.addEventListener('keydown', keys);
+    return () => {
+      window.removeEventListener('hashchange', syncRoute);
+      window.removeEventListener('keydown', keys);
+    };
   });
 </script>
 
+<CommandPalette />
 <QueryClientProvider client={queryClient}>
   {#if snapshot.isPending}
     <div class="wrap">

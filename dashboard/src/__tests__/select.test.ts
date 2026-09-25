@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sessionSpans } from '../lib/select';
+import { palettePages, filterPages, sessionSpans } from '../lib/select';
 import { dayAvgs } from '../lib/dashboard';
 import type { SessionView } from '../generated/snapshot';
 
@@ -51,5 +51,21 @@ describe('dayAvgs', () => {
       { day: 'U1', avg: 77.6, n: 2 },
       { day: 'U2', avg: 84.5, n: 1 },
     ]);
+  });
+});
+
+describe('palettePages', () => {
+  it('lists the four top-level pages with working hashes', () => {
+    const pages = palettePages();
+    expect(pages.map(p => p.label)).toEqual(['Dashboard', 'Movements', 'Muscles', 'Program']);
+    expect(pages.map(p => p.href)).toEqual(['#/', '#/lifts', '#/muscles', '#/program']);
+  });
+
+  it('filters by label substring, empty matches all', () => {
+    const pages = palettePages();
+    expect(filterPages(pages, '')).toHaveLength(4);
+    expect(filterPages(pages, 'mov').map(p => p.key)).toEqual(['lifts']);
+    expect(filterPages(pages, 'MUSCLES').map(p => p.key)).toEqual(['muscles']);
+    expect(filterPages(pages, 'zzz')).toEqual([]);
   });
 });

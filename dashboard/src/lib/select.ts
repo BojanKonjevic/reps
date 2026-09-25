@@ -3,6 +3,7 @@
 // No domain math: every number rendered here was computed in Python.
 
 import type { Lift, SessionView } from '../generated/snapshot';
+import { href } from '../routes';
 
 export interface TrendMatrix {
   days: string[];
@@ -69,4 +70,26 @@ export function sessionSpans(sessions: SessionView[]): SessionSpan[] {
       day: s.slot_label || 'unscheduled',
     }))
     .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+export interface PageRow {
+  key: string;
+  label: string;
+  sub: string;
+  href: string;
+}
+
+export function palettePages(): PageRow[] {
+  return [
+    { key: 'dash', label: 'Dashboard', sub: 'overview', href: href.dash() },
+    { key: 'lifts', label: 'Movements', sub: 'every lift', href: href.lifts() },
+    { key: 'muscles', label: 'Muscles', sub: 'volume vs MEV', href: href.muscles() },
+    { key: 'program', label: 'Program', sub: 'the split', href: href.program() },
+  ];
+}
+
+export function filterPages(rows: PageRow[], q: string): PageRow[] {
+  const needle = (q || '').trim().toLowerCase();
+  if (!needle) return rows;
+  return rows.filter(r => r.label.toLowerCase().includes(needle) || r.key.includes(needle));
 }

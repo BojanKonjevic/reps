@@ -51,20 +51,18 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#chSessLen')).toBeVisible();
   });
 
-  test('top nav reaches movements, muscles and program from anywhere', async ({ page }) => {
+  test('command palette jumps between pages', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
-    for (const [link, view] of [
-      ['Movements', '#viewLifts'],
-      ['Muscles', '#viewMuscles'],
-      ['Program', '#viewProgram'],
-    ] as Array<[string, string]>) {
-      await page.locator('.topnav a', { hasText: link }).click();
-      await expect(page.locator(view)).toBeVisible();
-      await expect(page.locator('.topnav a', { hasText: link })).toHaveAttribute(
-        'aria-current',
-        'page'
-      );
-    }
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('.pal-panel')).toBeVisible();
+    await page.locator('.pal-panel input').fill('muscles');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#viewMuscles')).toBeVisible();
+    await expect(page.locator('.pal-panel')).toBeHidden();
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('.pal-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pal-panel')).toBeHidden();
   });
 
   test('going back returns to the saved scroll position', async ({ page }) => {

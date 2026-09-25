@@ -24,6 +24,7 @@
   --accent-rust: #a34a32;
   --link: #42a5f5;
   --overlay-dim: rgba(0, 0, 0, 0.18);
+  --overlay-backdrop: rgba(0, 0, 0, 0.5);
   --overlay-line: rgba(127, 122, 110, 0.16);
   --overlay-warn: rgba(230, 196, 0, 0.05);
   --overlay-card: rgba(255, 255, 255, 0.9);

@@ -79,51 +79,90 @@ body {
   max-width: 1400px;
   margin: 0 auto;
 }
-.topnav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: transparent;
-  border: none;
+.pal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-backdrop);
+  z-index: 70;
+}
+.pal-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 71;
+  display: flex;
+  justify-content: center;
+  padding: 10vh 16px 0;
   pointer-events: none;
 }
-.topnav-inner {
+.pal-panel {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 560px;
+  height: fit-content;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-soft);
+  border: 1px solid var(--bg-card);
+  border-radius: 14px;
+  padding: 8px;
+}
+.pal-panel input {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  outline: none;
+}
+.pal-panel button {
   display: flex;
   align-items: baseline;
-  justify-content: center;
-  gap: 28px;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  padding: 8px 12px;
+  text-align: left;
+}
+.pal-panel button.pal-active {
+  background: var(--bg-hover);
+}
+.pal-name {
   font-weight: 600;
-  text-shadow:
-    0 1px 6px var(--bg),
-    0 0 3px var(--bg);
 }
-.topnav,
-.topnav-inner {
-  pointer-events: none;
+.pal-sub {
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+  margin-left: auto;
 }
-.topnav a {
-  pointer-events: auto;
+.pal-empty {
+  color: var(--ink-faint);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  padding: 10px 12px;
 }
-.topnav a {
-  color: var(--ink-mute);
+.pal-foot {
+  display: flex;
+  gap: 14px;
+  color: var(--ink-faint);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  padding: 8px 12px 4px;
 }
-.topnav a:hover {
-  color: var(--ink);
-  text-decoration: none;
-}
-.topnav a[aria-current='page'] {
-  color: var(--accent);
-  font-weight: 700;
-}
-.topnav .brand {
-  font-family: var(--font-serif);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--ink);
+.pal-foot kbd {
+  border: 1px solid var(--bg-card);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  margin-right: 4px;
+  padding: 0 5px;
 }
 .cols2 {
   display: grid;
@@ -930,14 +969,7 @@ thead th {
   box-shadow: inset 0 0 0 2px var(--bad-deep);
 }
 
-/* Visited links read exactly like unvisited ones everywhere. The only link
-   that ever recolors is the topnav active page (aria-current). */
-.topnav a:visited {
-  color: var(--ink-mute);
-}
-.topnav a[aria-current='page']:visited {
-  color: var(--accent);
-}
+/* Visited links read exactly like unvisited ones everywhere. */
 .muscles a:visited,
 #legMus a:visited,
 .nextrow a:visited,
