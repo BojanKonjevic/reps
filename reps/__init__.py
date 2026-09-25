@@ -23,16 +23,17 @@ from .db import CFG, DB, SCHEMA, SCHEMA_VERSION, conn, open_workout, placeholder
 from .errors import Fix, GateItem, GateReport, Refusal, RepsError
 from .goals import (add_goal, build_checkpoints, drop_goal, get_goal,
                     goal_progress, goal_sessions, rewrite_goal)
-from .history import (get_change, list_changes, record_change, revert_change,
-                      state_at)
-from .observations import observe
+from .history import (coverage, get_change, list_changes, record_change, revert_change,
+                      split_map_at, state_at, training_state_at, value_at)
+from .observations import observation_defs, observe
 from .memory import MEMORY_FILE, append_memory_state
 from .mcp.server import call_tool as mcp_call_tool
 from .mcp.server import list_tool_names as mcp_list_tool_names
 from .mcp.server import mcp as mcp_server
 from .models import (Adherence, Autoreg, BodyweightPoint, CalendarDay,
-                     ConstantsModel, Deload, Flag, Goal, Lift, Muscle,
-                     NextUp, Priority, ProgramView, RecentNote, Rule,
+                     ConstantsModel, Deload, Flag, Goal, HistoryCoverage,
+                     HistoryEvent, HistoryState, Lift, Muscle,
+                     NextUp, ObservationDef, Priority, ProgramView, RecentNote, Rule,
                      SessionView, Signal, SnapshotModel,
                      SnapshotValidationError, VolumeHistory, first_error,
                      validate_snapshot)
@@ -82,8 +83,9 @@ __all__ = [
     "Fix", "GateItem", "GateReport", "Refusal", "RepsError", "SCHEMA", "SCHEMA_VERSION",
     "SEVERITY_ORDER", "Adherence",
     "Autoreg", "BodyweightPoint", "CalendarDay", "SnapshotModel",
-    "SnapshotValidationError", "Deload", "Flag", "Goal", "Lift", "Muscle",
-    "NextUp", "Priority", "ProgramView", "RecentNote", "Rule",
+    "SnapshotValidationError", "Deload", "Flag", "Goal", "HistoryCoverage",
+    "HistoryEvent", "HistoryState", "Lift", "Muscle",
+    "NextUp", "ObservationDef", "Priority", "ProgramView", "RecentNote", "Rule",
     "SessionView", "Signal", "VolumeHistory", "active_deloads", "add_flag", "add_goal",
     "add_rule", "adherence_block", "adherence_snapshot", "anchor_rotation",
     "append_memory_state", "apply_autoreg", "attach_muscles",
@@ -95,7 +97,8 @@ __all__ = [
     "clear_deload", "clear_priority", "confirm_rule", "consume_flag",
     "consume_session_flags", "day_movements", "delete_set", "delete_workout",
     "deload_covers", "diff_split", "drift_days", "drop_goal", "drop_watch",
-    "dump_sql", "e1rm",
+    "dump_sql", "e1rm", "coverage", "observation_defs", "split_map_at", "training_state_at",
+    "value_at",
     "end_gate_items", "end_workout", "ensure_lift", "expected_day",
     "expectation_context", "export_snapshot", "first_error", "format_target",
     "get_anchor", "get_calendar", "get_change", "get_compaction",

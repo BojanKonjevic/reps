@@ -7,9 +7,10 @@
 
   interface Props {
     rows: BwRow[];
+    onSelect?: (index: number | null) => void;
   }
 
-  let { rows }: Props = $props();
+  let { rows, onSelect = undefined }: Props = $props();
 
   let cv: HTMLCanvasElement;
   let hit: HitMap = emptyHit();
@@ -49,12 +50,20 @@
 
   onMount(() => {
     bindHover(cv, show);
+    const click = (ev: MouseEvent) => {
+      if (!onSelect) return;
+      const r = cv.getBoundingClientRect();
+      const p = nearestPoint(hit, ev.clientX - r.left, 30);
+      onSelect(p ? p.index : null);
+    };
+    cv.addEventListener('click', click);
     const leave = () => {
       hideTip();
       paint();
     };
     cv.addEventListener('mouseleave', leave);
     return () => {
+      cv.removeEventListener('click', click);
       cv.removeEventListener('mouseleave', leave);
     };
   });

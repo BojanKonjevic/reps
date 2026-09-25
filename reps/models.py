@@ -24,7 +24,8 @@ hide invalid Reps data.
 from typing import Optional, Union
 
 from .vocab import (AdherenceStatus, AutoregAction, CalendarKind, DeloadScope,
-                     Direction, EvidenceTier, GoalStatus, HistoryDomain, MarkKind, PriorityTier,
+                     Direction, EvidenceTier, GoalStatus, HistoryDomain, MarkKind, ObserveMetric,
+                     PriorityTier,
                      RuleStatus, Severity, Verdict, VolumeStatus, WorkoutStatus)
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr, field_validator, model_validator
@@ -694,6 +695,157 @@ def validate_history_payload(domain: str, data: dict) -> dict:
         raise ValueError(first_error(e))
 
 
+# Every after-envelope is a complete domain state, so before/after share one
+# union. Required-key members come first; the all-optional members
+# (Priority, Rotation) come last so smart-union scoring cannot prefer them,
+# and the domain re-check below rejects any misassignment regardless.
+HistoryPayload = Union[ProgramHistoryPayload, GoalHistoryPayload, DeloadHistoryPayload,
+                       RuleHistoryPayload, PriorityHistoryPayload, RotationHistoryPayload]
+
+
+class HistoryEvent(BaseModel):
+    """One recorded training-system transition for the dashboard read model.
+
+    before/after are the validated domain envelopes; title/summary/affects
+    are the read-model projection built once in reps/snapshot.py so every
+    chart formats the same change the same way.
+    """
+
+    model_config = STRICT
+
+    id: StrictInt
+    domain: HistoryDomain
+    subject: StrictStr
+    date: StrictStr
+    created: StrictStr
+    evidence: StrictStr
+    superseded_by: Optional[StrictInt]
+    reverses: Optional[StrictInt]
+    sequence: StrictInt
+    before: HistoryPayload
+    after: HistoryPayload
+    title: StrictStr
+    summary: StrictStr
+    affects_exercises: list[StrictStr]
+    affects_muscles: list[StrictStr]
+    affects_days: list[StrictStr]
+
+    @model_validator(mode="after")
+    def _envelopes_match_domain(self):
+        for key in ("before", "after"):
+            payload = getattr(self, key).model_dump()
+            try:
+                validate_history_payload(self.domain.value, payload)
+            except ValueError as e:
+                raise ValueError(f"{key} does not match domain '{self.domain.value}': {e}")
+        return self
+
+
+class HistoryCoverage(BaseModel):
+    """Earliest recorded date per (domain, subject). Unknown stays unknown:
+    the UI reads this to say 'unavailable before X', never a guess."""
+
+    model_config = STRICT
+
+    domain: HistoryDomain
+    subject: StrictStr
+    first_date: StrictStr
+
+
+class HistoryProgramDay(BaseModel):
+    """One split day inside a historical training state. known False means
+    the day was never recorded: slots stay empty, never today's program."""
+
+    model_config = STRICT
+
+    day: StrictStr
+    slots: list[ProgramSlotSnapshot]
+    known: bool
+    first_date: Optional[StrictStr]
+
+
+class HistoryGoalState(BaseModel):
+    model_config = STRICT
+
+    exercise: StrictStr
+    goal_id: Optional[StrictInt]
+    target_e1rm: Optional[Real]
+    deadline: Optional[StrictStr]
+    status: Optional[GoalStatus]
+    checkpoints: Optional[list[Real]]
+    known: bool
+    first_date: Optional[StrictStr]
+
+
+class HistoryPriorityState(BaseModel):
+    """One muscle tier inside a historical training state. Absence means
+    maintain by backend rule, but known stays False until recorded, so the
+    UI can tell a recorded tier from the default."""
+
+    model_config = STRICT
+
+    muscle: StrictStr
+    tier: Optional[PriorityTier]
+    since: Optional[StrictStr]
+    until: Optional[StrictStr]
+    known: bool
+    first_date: Optional[StrictStr]
+
+
+class HistoryDeloadState(BaseModel):
+    model_config = STRICT
+
+    scope: Optional[DeloadScope]
+    subject: Optional[StrictStr]
+    active: Optional[bool]
+    known: bool
+    first_date: Optional[StrictStr]
+
+
+class HistoryRuleState(BaseModel):
+    model_config = STRICT
+
+    rule_id: Optional[StrictInt]
+    text: Optional[StrictStr]
+    status: Optional[RuleStatus]
+    known: bool
+    first_date: Optional[StrictStr]
+
+
+class HistoryState(BaseModel):
+    """Whole training-system state in effect on one date, folded by
+    reps/history.py. The frontend selects by date and compares with the
+    current snapshot sections; it never folds chains itself."""
+
+    model_config = STRICT
+
+    date: StrictStr
+    program: list[HistoryProgramDay]
+    goals: list[HistoryGoalState]
+    priorities: list[HistoryPriorityState]
+    rotation: Optional[list[Optional[StrictStr]]]
+    rotation_known: bool
+    rotation_first_date: Optional[StrictStr]
+    anchor_date: Optional[StrictStr]
+    anchor_position: Optional[StrictInt]
+    anchor_known: bool
+    anchor_first_date: Optional[StrictStr]
+    deloads: list[HistoryDeloadState]
+    rules: list[HistoryRuleState]
+
+
+class ObservationDef(BaseModel):
+    """Backend-owned definition and provenance for one observation metric.
+    The dashboard renders these verbatim; it never restates domain meaning."""
+
+    model_config = STRICT
+
+    metric: ObserveMetric
+    subject_kind: StrictStr
+    definition: StrictStr
+    sources: list[StrictStr]
+
+
 class SnapshotModel(BaseModel):
     """Canonical validated form of the synchronized dashboard payload (v2 views).
 
@@ -726,6 +878,10 @@ class SnapshotModel(BaseModel):
     priority: dict[str, Priority]
     autoreg: Optional[Autoreg]
     autoreg_changes: list[AutoregChange]
+    history: list[HistoryEvent]
+    history_states: list[HistoryState]
+    history_coverage: list[HistoryCoverage]
+    observation_defs: list[ObservationDef]
 
 
 class SnapshotValidationError(ValueError):

@@ -11,14 +11,15 @@
     color: string;
     futureEv?: number | null;
     asOf: string;
+    marks?: string[];
   }
 
-  let { pts, color, futureEv = null, asOf }: Props = $props();
+  let { pts, color, futureEv = null, asOf, marks = [] }: Props = $props();
 
   let cv: HTMLCanvasElement;
   let hit: HitMap = emptyHit();
 
-  const model: LiftModel = $derived({ pts, color, futureEv, asOf });
+  const model: LiftModel = $derived({ pts, color, futureEv, asOf, marks });
 
   function paint(hover = -1) {
     if (isVisible(cv)) hit = plot(cv, model, hover);

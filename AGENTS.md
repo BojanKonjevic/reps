@@ -53,3 +53,18 @@ MCP is the sole normal interface; code changes serve it, never a second one:
 - Domain truth lives in `reps/` behind plain functions, validated by Pydantic models in `reps/models.py`; the dashboard validates the same snapshot with matching schemas on its side. Docs teach when and why to call things, MCP schemas declare what to call with. Details in `docs/ARCHITECTURE.md`.
 - Verify with `scripts/verify.sh` (gen check + ssot_check + py tests + dashboard lint/typecheck/unit + doctor). `scripts/test-py.sh` runs the Python suite alone. Dashboard: `pnpm --dir dashboard run test` for unit, `pnpm --dir dashboard exec playwright test` for e2e; deploy with `pnpm --dir dashboard run deploy` after any frontend change and verify live.
 - `log.py` stays four maintenance ops (doctor, dump, restore, export). Do not grow it back into an application interface, and do not add Click, Typer, argparse wrappers, or any other command framework.
+
+## Dashboard protocol
+
+Future agents changing dashboard structure follow `docs/DASHBOARD_PROTOCOL.md`. In short:
+
+1. Read `docs/DASHBOARD.md` and `docs/ARCHITECTURE.md` before changing dashboard structure.
+2. Check whether a backend observation or historical capability already exists before adding frontend logic.
+3. Prefer enhancing an existing chart before introducing a new analytics surface.
+4. Keep domain semantics in `reps/`.
+5. Keep Worker code transport-oriented.
+6. Reuse shared temporal/history/provenance components.
+7. Preserve truthful unknown-history behavior.
+8. Test phone and desktop layouts.
+9. Update documentation when introducing a reusable dashboard convention.
+10. Document justified deviations from the project protocol.

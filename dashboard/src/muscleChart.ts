@@ -1,7 +1,7 @@
 // SSOT owner: muscle-volume chart geometry. Consumers: MuscleVolumeChart via plot() -> HitMap.
 
 import { max } from 'd3-array';
-import { fit, putText, drawHoverLine } from './charts';
+import { fit, putText, drawHoverLine, drawEventTicks } from './charts';
 import { linearScale } from './lib/scales';
 import { niceTicks } from './lib/format';
 import { theme } from './lib/theme';
@@ -25,6 +25,7 @@ export interface MuscleModel {
   counts: number[];
   bands: MuscleBands;
   color: string;
+  markWeeks?: number[];
 }
 
 export function layoutOf(w: number, h: number): ChartLayout {
@@ -43,7 +44,7 @@ export function vertical(H: number): { padL: number; padB: number; top: number; 
 }
 
 export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): HitMap {
-  const { labels, counts, bands, color } = model;
+  const { labels, counts, bands, color, markWeeks } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const V = vertical(H);
@@ -106,6 +107,11 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   line(bands.mev, theme.color('warn'), [6, 4]);
   if (bands.mrv !== null && bands.mrv !== undefined) line(bands.mrv, theme.color('bad'), [6, 4]);
   const pxi = (i: number) => P + (i - start) * bw + bw / 2;
+  drawEventTicks(
+    g,
+    (markWeeks ?? []).filter(i => i >= start && i < n).map(i => pxi(i)),
+    H - V.padB
+  );
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';

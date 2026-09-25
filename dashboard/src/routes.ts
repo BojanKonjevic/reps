@@ -9,7 +9,8 @@ export type Route =
   | { name: 'muscle'; muscle: string }
   | { name: 'program' }
   | { name: 'lifts' }
-  | { name: 'muscles' };
+  | { name: 'muscles' }
+  | { name: 'history' };
 
 export const href = {
   dash(): string {
@@ -33,6 +34,9 @@ export const href = {
   muscles(): string {
     return '#/muscles';
   },
+  history(): string {
+    return '#/history';
+  },
 };
 
 export function parse(hash: string): Route {
@@ -50,6 +54,7 @@ export function parse(hash: string): Route {
   if (segs[1] === 'program') return { name: 'program' };
   if (segs[1] === 'lifts') return { name: 'lifts' };
   if (segs[1] === 'muscles') return { name: 'muscles' };
+  if (segs[1] === 'history') return { name: 'history' };
   return { name: 'dash' };
 }
 

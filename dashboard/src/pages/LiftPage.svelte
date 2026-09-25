@@ -4,10 +4,28 @@
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { liftByName } from '../lib/select';
+  import {
+    coverageNote,
+    defOf,
+    eventsForGoal,
+    eventsForLift,
+    groupByDate,
+    ruleIdOf,
+    scopeForLift,
+    scopeOf,
+    stateOn,
+    trajectoryLines,
+  } from '../lib/temporal';
+  import { createEventSelection } from '../lib/eventSelection.svelte';
   import { vocabOf } from '../lib/vocab.svelte';
   import PageShell from '../components/PageShell.svelte';
   import LiftDetailChart from '../components/LiftDetailChart.svelte';
   import GoalChartView from '../components/GoalChartView.svelte';
+  import EventStrip from '../components/EventStrip.svelte';
+  import AsOfControl from '../components/AsOfControl.svelte';
+  import ChangeDetail from '../components/ChangeDetail.svelte';
+  import TrainingState from '../components/TrainingState.svelte';
+  import Provenance from '../components/Provenance.svelte';
   import type { LiftPoint } from '../liftChart';
 
   interface Props {
@@ -112,6 +130,23 @@
     return days <= 0 ? 'PR today' : 'last PR ' + days + 'd ago (' + fmtD(lift.last_pr_date) + ')';
   });
 
+  const events = $derived(ex ? eventsForLift(snap, ex) : []);
+  const groups = $derived(groupByDate(events));
+  const marks = $derived(groups.map(g => g.date));
+  const coverNote = $derived(coverageNote(events, lift?.sessions[0]?.date ?? null));
+  const goalEvents = $derived(ex ? eventsForGoal(snap, ex) : []);
+  const pageScope = $derived(
+    ex ? scopeForLift(snap, ex) : { exercises: [], muscles: [], days: [] }
+  );
+
+  const sel = createEventSelection();
+  let asof: string | null = $state(null);
+  const selected = $derived(events.find(e => e.id === sel.selId) ?? null);
+  const panelDate = $derived(sel.stateDate ?? asof);
+  const panelState = $derived(panelDate ? stateOn(snap, panelDate) : null);
+  const panelScope = $derived(selected && sel.stateDate ? scopeOf(selected) : pageScope);
+  const panelRule = $derived(selected && sel.stateDate ? ruleIdOf(selected) : null);
+
   onMount(() => {
     document.title = ex;
   });
@@ -133,11 +168,41 @@
         color={vocab.liftColor(ex)}
         futureEv={prog ? prog.next_e1rm : null}
         asOf={snap.as_of}
+        {marks}
       />
       <div class="cap">
         Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow
-        diamond marks the progression next target.
+        diamond marks the progression next target. Ticks mark recorded training changes.
       </div>
+      {#if coverNote}
+        <div class="cap" id="liftHistNote">{coverNote}</div>
+      {/if}
+      <AsOfControl
+        dates={groups.map(g => g.date)}
+        value={asof}
+        onPick={d => (asof = d)}
+        id="liftAsof"
+      />
+      <EventStrip {groups} selectedId={sel.selId} onSelect={sel.select} id="liftEvents" />
+      {#if selected}
+        <ChangeDetail
+          event={selected}
+          events={snap.history}
+          stateOpen={sel.stateDate === selected.date}
+          onViewState={sel.viewState}
+          id="liftChange"
+        />
+      {/if}
+      {#if panelState && panelDate}
+        <TrainingState
+          histState={panelState}
+          {snap}
+          scope={panelScope}
+          ruleId={panelRule}
+          id="liftState"
+        />
+      {/if}
+      <Provenance def={defOf(snap, 'lift_trend')} id="liftProv" />
     </div>
     {#if goal && goalCps.length}
       <div class="card future futurebg" id="liftGoalCard">
@@ -150,6 +215,13 @@
           tops={goalTops}
         />
         <div class="cap" id="liftGoalCap">{goalCap}</div>
+        {#if goalEvents.length}
+          <div class="cap" id="liftGoalHist">Trajectory history</div>
+          {#each goalEvents as ge}
+            <div>{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
+          {/each}
+        {/if}
+        <Provenance def={defOf(snap, 'goal_trajectory')} id="liftGoalProv" />
       </div>
     {/if}
     {#if setup.length}

@@ -12,14 +12,23 @@
     bands: MuscleModel['bands'];
     color: string;
     height?: string;
+    markWeeks?: number[];
   }
 
-  let { id = undefined, labels, counts, bands, color, height = undefined }: Props = $props();
+  let {
+    id = undefined,
+    labels,
+    counts,
+    bands,
+    color,
+    height = undefined,
+    markWeeks = [],
+  }: Props = $props();
 
   let cv: HTMLCanvasElement;
   let hit: HitMap = emptyHit();
 
-  const model: MuscleModel = $derived({ labels, counts, bands, color });
+  const model: MuscleModel = $derived({ labels, counts, bands, color, markWeeks });
 
   function paint(hover = -1) {
     if (isVisible(cv)) hit = plot(cv, model, hover);

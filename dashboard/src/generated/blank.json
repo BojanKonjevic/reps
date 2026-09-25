@@ -813,5 +813,68 @@
       "forearms": 0.0
     }
   },
-  "autoreg_changes": []
+  "autoreg_changes": [],
+  "history": [],
+  "history_states": [],
+  "history_coverage": [],
+  "observation_defs": [
+    {
+      "metric": "lift_trend",
+      "subject_kind": "exercise",
+      "sources": [
+        "sets",
+        "workouts"
+      ],
+      "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); delta is last minus first in range, best is the range max"
+    },
+    {
+      "metric": "muscle_volume",
+      "subject_kind": "muscle (empty means all tracked muscles)",
+      "sources": [
+        "sets",
+        "set_muscle",
+        "workouts"
+      ],
+      "definition": "logged working sets per muscle in range (full credit per mapped muscle); avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)"
+    },
+    {
+      "metric": "program_activity",
+      "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+      "sources": [
+        "state_change"
+      ],
+      "definition": "recorded program day-snapshot transitions in range; use history_get(change_id) for before/after detail"
+    },
+    {
+      "metric": "goal_trajectory",
+      "subject_kind": "goal id or exercise",
+      "sources": [
+        "goals",
+        "goal_checkpoints",
+        "sets",
+        "workouts",
+        "state_change"
+      ],
+      "definition": "trajectory checkpoints folded from goal history to the range end, so later rewrites do not move historical results; the trajectory itself is session-numbered, in_range marks actuals inside the range"
+    },
+    {
+      "metric": "adherence_summary",
+      "subject_kind": "rotation schedule (subject is unused)",
+      "sources": [
+        "workouts",
+        "rotation",
+        "rotation_anchor",
+        "state_change"
+      ],
+      "definition": "each date classified with the rotation/anchor/split folded from history to that date (earliest recorded image before history starts, never today's state); dates without an applicable rotation/anchor report expected None with status unknown"
+    },
+    {
+      "metric": "bodyweight_trend",
+      "subject_kind": "unused",
+      "sources": [
+        "bodyweight"
+      ],
+      "definition": "gym-scale weigh-ins in range; delta is last minus first"
+    }
+  ]
 }

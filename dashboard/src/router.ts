@@ -10,7 +10,8 @@ export type View =
   | { name: 'muscle'; muscle: string }
   | { name: 'prog' }
   | { name: 'lifts' }
-  | { name: 'muscles' };
+  | { name: 'muscles' }
+  | { name: 'hist' };
 
 export { isDate };
 
@@ -25,5 +26,6 @@ export function parseHash(hash: string): View {
   if (r.name === 'program') return { name: 'prog' };
   if (r.name === 'lifts') return { name: 'lifts' };
   if (r.name === 'muscles') return { name: 'muscles' };
+  if (r.name === 'history') return { name: 'hist' };
   return { name: 'dash' };
 }

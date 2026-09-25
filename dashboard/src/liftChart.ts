@@ -7,6 +7,7 @@ import {
   drawYAxis,
   drawXAxisLabels,
   drawHoverLine,
+  drawEventTicks,
   drawPoint,
   drawHoverPoint,
   drawLine,
@@ -29,14 +30,23 @@ export interface LiftModel {
   color: string;
   futureEv?: number | null;
   asOf: string;
+  marks?: string[];
 }
 
 export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
+// Dates carrying a state change, clamped to the plotted span, oldest first.
+export function markDates(pts: LiftPoint[], marks: string[] | undefined): string[] {
+  if (!marks || !pts.length) return [];
+  const d0 = pts[0].date;
+  const d1 = pts[pts.length - 1].date;
+  return marks.filter(m => m >= d0 && m <= d1);
+}
+
 export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMap {
-  const { pts, color, futureEv, asOf } = model;
+  const { pts, color, futureEv, asOf, marks } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const P = L.padL;
@@ -87,6 +97,11 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
       'right'
     );
   drawLine(g, linePts, color);
+  drawEventTicks(
+    g,
+    markDates(pts, marks).map(m => xOf(m)),
+    H - P
+  );
   pts.forEach((p, i) => {
     const x = xOf(p.date),
       y = py(p.ev);
