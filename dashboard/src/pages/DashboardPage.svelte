@@ -547,7 +547,9 @@
     <table id="prs">
       <thead>
         <tr
-          ><th scope="col">lift</th><th scope="col">best set by e1RM</th><th scope="col">date</th
+          ><th scope="col">lift</th><th scope="col" class="num">best set by e1RM</th><th
+            scope="col"
+            class="num">date</th
           ></tr
         >
       </thead>

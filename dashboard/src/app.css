@@ -1251,6 +1251,31 @@ canvas {
   width: 30%;
 }
 
+/* ============ dashboard numeric columns: hug content, keep clear of neighbors ============ */
+#progTable td.num,
+#progTable th.num,
+#prs td.num,
+#prs th.num {
+  white-space: nowrap;
+  width: 1%;
+}
+#progTable td:nth-child(3),
+#progTable th:nth-child(3),
+#prs td:nth-child(2),
+#prs th:nth-child(2) {
+  padding-right: 22px;
+}
+#progTable td:last-child,
+#progTable th:last-child {
+  width: 2.5rem;
+  text-align: center;
+}
+#prs td:last-child,
+#prs th:last-child {
+  white-space: nowrap;
+  width: 1%;
+}
+
 /* ============ consistency strip ============ */
 .dtstrip {
   display: flex;
