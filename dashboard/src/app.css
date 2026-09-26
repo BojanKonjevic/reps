@@ -214,6 +214,10 @@ a:visited {
   gap: 2px;
   margin-left: auto;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+.topnav::-webkit-scrollbar {
+  display: none;
 }
 .topnav a {
   font-size: 13px;
@@ -328,6 +332,15 @@ h3 {
   flex: none;
 }
 .sec-action:hover {
+  color: var(--ink);
+}
+/* Contextual back link shared by detail pages. */
+.crumb {
+  font-size: 12.5px;
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+}
+.crumb a:hover {
   color: var(--ink);
 }
 .muscles {
@@ -1108,27 +1121,17 @@ canvas {
   margin-left: 8px;
 }
 
-/* ============ dashboard header strip ============ */
-.toprow {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  align-items: flex-start;
+/* ============ dashboard header: title plus contextual state ============ */
+.dashhead {
+  margin-bottom: 20px;
 }
-.toprow .nowlines {
-  text-align: right;
-  padding-top: 4px;
-  flex: none;
+.dashhead .phead {
+  margin-bottom: 0;
 }
-@media (max-width: 900px) {
-  .toprow {
-    flex-direction: column;
-    gap: 4px;
-  }
-  .toprow .nowlines {
-    text-align: left;
-    padding-top: 0;
-  }
+.dashhead .nowlines {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 .nowlines {
   font-size: 12.5px;
@@ -1747,6 +1750,17 @@ button.asofday.sel {
   }
   .filterbar input[type='search'] {
     width: 100%;
+  }
+  .topbar {
+    padding: 8px 8px;
+    gap: 4px;
+  }
+  .topbar .side-word {
+    font-size: 12px;
+  }
+  .topnav a {
+    font-size: 12.5px;
+    padding: 5px 5px;
   }
 }
 

@@ -16,6 +16,9 @@
   let { value, min, max, eventDates, onPick, id = undefined }: Props = $props();
 
   let open = $state(false);
+  let trigger: HTMLButtonElement | undefined = $state();
+  let pop: HTMLDivElement | undefined = $state();
+  let opener: Element | null = null;
   const dots = $derived(new Set(eventDates));
 
   let viewY = $state(0);
@@ -28,17 +31,33 @@
   }
 
   function toggle() {
-    if (!open) syncView(value ?? max);
-    open = !open;
+    setOpen(!open);
   }
 
   function close() {
-    open = false;
+    setOpen(false);
   }
 
   function pick(date: string | null) {
     onPick(date);
-    close();
+    setOpen(false);
+  }
+
+  function setOpen(v: boolean) {
+    if (v === open) return;
+    if (v) {
+      opener = document.activeElement;
+      syncView(value ?? max);
+      open = true;
+      // First meaningful control: month navigation at the top of the dialog.
+      requestAnimationFrame(() => {
+        pop?.querySelector<HTMLElement>('button')?.focus();
+      });
+    } else {
+      open = false;
+      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
+      opener = null;
+    }
   }
 
   function step(delta: number) {
@@ -54,7 +73,19 @@
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      close();
+      setOpen(false);
+    } else if (e.key === 'Tab' && pop) {
+      const items = pop.querySelectorAll<HTMLElement>('button:not([disabled])');
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   }
 </script>
@@ -64,6 +95,7 @@
     type="button"
     class="evbtn"
     class:set={value !== null}
+    bind:this={trigger}
     onclick={toggle}
     aria-expanded={open}
     aria-haspopup="dialog"
@@ -75,8 +107,10 @@
     <div
       class="asofpop"
       role="dialog"
+      aria-modal="true"
       aria-label="Choose as-of date"
       tabindex={-1}
+      bind:this={pop}
       onkeydown={onKey}
     >
       <div class="asofhead">

@@ -4,6 +4,7 @@
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { liftByName } from '../lib/select';
+  import PageHeader from '../components/PageHeader.svelte';
   import Icon from '../components/Icon.svelte';
 
   interface Props {
@@ -62,8 +63,8 @@
 </script>
 
 <div id="viewSession">
-  <div class="sessnav">
-    <a href={href.dash()}>← session</a>
+  <div class="crumb sessnav">
+    <a href={href.dash()}>← Overview</a>
     <span class="sesspg">
       {#if prev}
         <a
@@ -91,7 +92,7 @@
       {/if}
     </span>
   </div>
-  <h1 id="sessTitle">{title}</h1>
+  <PageHeader {title} titleId="sessTitle" />
   <div id="sessNotes">
     {#if allRest}
       <div class="restday">rest day</div>
@@ -150,12 +151,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    font-size: 12.5px;
-    color: var(--ink-mute);
-  }
-  .sessnav a:hover {
-    color: var(--ink);
   }
   .sessnotes {
     font-size: 13px;

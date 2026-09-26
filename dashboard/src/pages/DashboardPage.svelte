@@ -34,7 +34,7 @@
     subLine,
     adherenceWeeksView,
   } from '../lib/dashboard';
-  import { trendMatrix, liftByName, sessionSpans, latestE1rm } from '../lib/select';
+  import { trendMatrix, liftByName, sessionSpans, latestE1rm, tagFacetsPass } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
   import {
     defaultHide,
@@ -85,14 +85,8 @@
   function passFilter(t: string): boolean {
     if (ui.trendQ && !t.toLowerCase().includes(ui.trendQ)) return false;
     if (!ui.trendFacets.size) return true;
-    const lift = liftByName(lifts, t);
-    const tags = new Set(lift?.tags ?? []);
-    for (const f of ui.trendFacets) {
-      if (f === 'goal' && tags.has('goal')) return true;
-      if (f === 'stall' && (tags.has('stalling') || tags.has('slipping'))) return true;
-      if (f === 'focus' && tags.has('focus')) return true;
-    }
-    return false;
+    const tags = new Set(liftByName(lifts, t)?.tags ?? []);
+    return tagFacetsPass(tags, ui.trendFacets);
   }
 
   const shown = $derived(
@@ -160,17 +154,19 @@
 </script>
 
 <div id="viewDash">
-  <div class="toprow">
+  <div class="dashhead">
     <PageHeader title="Overview" sub={subLine(snap)} subId="sub" />
-    <div class="nowlines" id="nowLines">
-      {#each statusLines(snap) as line}
-        <div>
-          {#each line as seg}
-            {#if seg.b}<b>{seg.t}</b>{:else}{seg.t}{/if}
-          {/each}
-        </div>
-      {/each}
-    </div>
+    {#if statusLines(snap).length}
+      <div class="nowlines" id="nowLines">
+        {#each statusLines(snap) as line}
+          <div>
+            {#each line as seg}
+              {#if seg.b}<b>{seg.t}</b>{:else}{seg.t}{/if}
+            {/each}
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <div id="nextWrap">

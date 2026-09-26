@@ -277,14 +277,6 @@
 </div>
 
 <style>
-  .crumb {
-    font-size: 12.5px;
-    color: var(--ink-mute);
-    margin-bottom: 8px;
-  }
-  .crumb a:hover {
-    color: var(--ink);
-  }
   .liftmeta {
     display: flex;
     gap: 8px 18px;

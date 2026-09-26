@@ -50,7 +50,11 @@
     <a class="side-word" href={href.dash()}>reps</a>
     <nav class="sidenav">
       {#each nav as item}
-        <a href={item.href} class:on={navKey === item.key}>
+        <a
+          href={item.href}
+          class:on={navKey === item.key}
+          aria-current={navKey === item.key ? 'page' : undefined}
+        >
           <span class="side-ic"><Icon name={item.icon} size={15} /></span>{item.label}
         </a>
       {/each}
@@ -62,7 +66,11 @@
       <a class="side-word" href={href.dash()}>reps</a>
       <nav class="topnav" aria-label="Primary">
         {#each nav as item}
-          <a href={item.href} class:on={navKey === item.key}>{item.label}</a>
+          <a
+            href={item.href}
+            class:on={navKey === item.key}
+            aria-current={navKey === item.key ? 'page' : undefined}>{item.label}</a
+          >
         {/each}
       </nav>
     </header>

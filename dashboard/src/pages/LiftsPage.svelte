@@ -3,7 +3,13 @@
   import { directionArrow, directionClass, markText, markClass } from '../lib/present';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
-  import { trendMatrix, liftByName } from '../lib/select';
+  import {
+    trendMatrix,
+    liftByName,
+    orderMovementIndex,
+    groupedMusclesOf,
+    changeForMovement,
+  } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
   import { ui } from '../lib/filters.svelte';
   import PageHeader from '../components/PageHeader.svelte';
@@ -22,85 +28,11 @@
 
   const holds = $derived(snap.autoreg?.holds ?? []);
   const changes = $derived(snap.autoreg_changes);
+  const grouped = $derived(snap.autoreg?.grouped ?? {});
 
-  function heldSet(): Set<string> {
-    const out = new Set<string>();
-    for (const h of holds) {
-      for (const m of h.moves) {
-        const t = m.trim().toLowerCase();
-        if (t) out.add(t);
-      }
-    }
-    return out;
-  }
-
-  function changedSet(): Set<string> {
-    const out = new Set<string>();
-    for (const ch of changes) {
-      if (ch.reverted_on) continue;
-      for (const m of ch.after_moves) {
-        const t = m.trim().toLowerCase();
-        if (t) out.add(t);
-      }
-    }
-    return out;
-  }
-
-  function groupedOf(ex: string): string[] {
-    const out: string[] = [];
-    for (const [mus, lifts] of Object.entries(snap.autoreg?.grouped || {})) {
-      if (lifts.some(l => l.toLowerCase() === ex.toLowerCase())) out.push(mus);
-    }
-    return out;
-  }
-
-  function changeOf(ex: string) {
-    const low = ex.toLowerCase();
-    for (const ch of changes) {
-      if (ch.reverted_on) continue;
-      const moves = ch.after_moves.map(m => m.trim().toLowerCase());
-      if (moves.includes(low)) return ch;
-    }
-    return null;
-  }
-
-  function liftRank(t: string, held: Set<string>, changed: Set<string>): number {
-    if (held.has(t.toLowerCase()) || changed.has(t.toLowerCase())) return 0;
-    const lift = liftByName(snap.lifts, t);
-    const tags = new Set(lift?.tags ?? []);
-    if (tags.has('stalling') || tags.has('slipping')) return 1;
-    if (tags.has('goal')) return 2;
-    return 3;
-  }
-
-  function liftPasses(t: string, held: Set<string>, changed: Set<string>): boolean {
-    if (ui.liftQ && !t.toLowerCase().includes(ui.liftQ)) return false;
-    if (!ui.liftFacets.size) return true;
-    const lift = liftByName(snap.lifts, t);
-    const tags = new Set(lift?.tags ?? []);
-    for (const f of ui.liftFacets) {
-      if (f === 'autoreg' && (held.has(t.toLowerCase()) || changed.has(t.toLowerCase())))
-        return true;
-      if (f === 'grouped' && groupedOf(t).length) return true;
-      if (f === 'goal' && tags.has('goal')) return true;
-      if (f === 'stall' && (tags.has('stalling') || tags.has('slipping'))) return true;
-      if (f === 'focus' && tags.has('focus')) return true;
-    }
-    return false;
-  }
-
-  const order = $derived.by(() => {
-    const held = heldSet();
-    const changed = changedSet();
-    return snap.lifts
-      .slice()
-      .sort(
-        (a, b) =>
-          liftRank(a.exercise, held, changed) - liftRank(b.exercise, held, changed) ||
-          (a.exercise < b.exercise ? -1 : 1)
-      )
-      .filter(l => liftPasses(l.exercise, held, changed));
-  });
+  const order = $derived(
+    orderMovementIndex({ lifts: snap.lifts, holds, changes, grouped }, ui.liftQ, ui.liftFacets)
+  );
 
   const asOfMonth = $derived(snap.as_of.slice(0, 7));
   const prThisMonth = $derived.by(() => {
@@ -130,14 +62,15 @@
           cls: 'bad',
         })
       );
-    const change = changeOf(t);
+    const change = changeForMovement(changes, t);
     if (change)
       marks.push({
         text: 'adjusted ' + change.date + ': ' + (change.evidence || change.action),
         cls: 'plan',
       });
-    const grouped = groupedOf(t);
-    if (grouped.length) marks.push({ text: 'grouped fatigue: ' + grouped.join(', '), cls: 'bad' });
+    const groupedList = groupedMusclesOf(grouped, t);
+    if (groupedList.length)
+      marks.push({ text: 'grouped fatigue: ' + groupedList.join(', '), cls: 'bad' });
     const lift = liftByName(snap.lifts, t);
     for (const mk of lift?.marks ?? []) {
       if (mk.kind === 'stalling' || mk.kind === 'slipping' || mk.kind === 'goal')
