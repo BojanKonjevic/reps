@@ -1,47 +1,53 @@
 # reps
 
-Single source of truth is documented in `docs/SSOT.md`: every fact has exactly one owner.
+Chat first training log. You train and talk, the agent stores every set in local SQLite through MCP tools.
 
-Chat first training log. You talk, the agent stores every set in local SQLite through MCP tools.
+## Why I built it
 
-## Why this exists
+Most logs force a choice. Either a rigid tracker that stores everything and understands nothing, or a chatbot coach that talks well and remembers nothing.
 
-Most training logs make you pick. Either a rigid tracker that stores every set perfectly and understands nothing, or a chatbot coach that talks well and remembers nothing.
+I wanted both. I text between sets the way I would text a training partner, then ask questions when I have them. Underneath, every set lands with exact weight, reps, muscles and notes, and the same agent that logs also coaches. It suggests targets from my history, adjusts when I miss, and plots goals session by session.
 
-reps does both at once. You talk the way you'd text a training partner. "Squat 90 5/5/7, last to failure" between sets, questions when you have them, done at the end. Underneath, every set lands in SQLite with exact weight, reps, muscles, and notes, and the same agent that logs also coaches: rep targets from your history, progression that adjusts when you miss, goals with session-by-session trajectories.
+Code owns what is derivable or enforceable, the agent owns judgment. That split keeps the reasoning honest. Claims have to ground out in stored sets, rules fail loudly instead of drifting, and my logged data beats any default.
 
-The combination is the point. Facts alone can't tell you what to do next, and agent reasoning left to itself drifts, misremembers, and invents. So the reasoning here runs on rails. Code owns what is derivable or enforceable (volume landmarks, thresholds, the close gate), the database owns judgment state (program, progression, goals, rules), the markdown holds protocol and reasons, and every claim has to ground out in stored sets. You get the judgment without the failure mode that usually comes with it.
+## What it feels like in the gym
 
-The split is deliberate. The database holds facts and state, `constants.json` holds the numbers, the markdown holds the protocol, MCP tools carry the calls, the agent does the thinking, and you just train and talk.
+You open a chat and say you are training. I run it in t3code, any setup where the agent can reach the Reps MCP server works. The agent tells you what is up, lift by lift, with weight, reps and sets. Then you send sets as you go.
 
-## How a session looks
+A message like "squat 90 5/5/7, last to failure" fans out into three logged sets. Most logs are shorter, a "6" or "8 again", and an ambiguous "same" gets one clarifying question, never a guess. Replies stay terse mid workout, something like "logged 3x". You ask questions between sets, say done at the end, and you get a short report plus a synced dashboard.
 
-You open a chat with an MCP-capable agent and say you're training. I run it in t3code, but any environment where the agent can reach the Reps MCP server works. The agent figures out which slot is up, tells you what to hit, and you send sets as you go. "Squat 90 5/5/7, last to failure" is enough, it fans out into three logged sets. Ask questions between sets, say done at the end, and you get a short report plus a synced dashboard.
+This handles gym mess well, because gyms are messy. You load too much per side by accident and grind out 8 ugly reps. You try reverse grip pressing for the first time and your wrists want to roll until the groove clicks. You come in slightly sore, two days since bench instead of the usual three. The Smith is taken, so two lifts flip order with no program change. You are in a hurry, so it tells you 4 sets left. You write all of it in plain words and training continues. Warmups never get logged, RPE never gets asked for, failure is the silent default. Only what is off gets a note.
 
-You never touch the machinery yourself. The MCP tools are the agent's vocabulary, not yours. That is the whole idea: zero logging friction, full data underneath.
+The agent remembers the boring parts so you do not have to. It reuses canonical lift names, asks once which muscles a new movement trains, then never asks again. Setup details live on the movement, seat height, attachment, stack steps, uni or bilateral, and surface once as a reminder mid session. Cable micros of .625, a preacher guess of 1.75, an unmarked EZ bar called 7.5, all saved once with the uncertainty stated. Pounds convert to kilos with the conversion stated. Weighted dips log extra weight only, bodyweight pullups log zero with a flag.
+
+It also protects the history. Implausible jumps stop and ask before anything is written. Corrections need an exact set id, so "second squat was 92.5" gets confirmed in chat first. Once I asked it to log 5 reps with no note for a set where I really did 8 with bad form, to test its willingness to say no, and it refused twice, because a fake 5 still PRs on e1RM and lies about reps while the true 8 with a note keeps the standard honest. A wrong log poisons every future analysis, a question costs nothing.
+
+## What you get out
+
+Targets that fit your week. A first session gets conservative openers with a rep range per new movement, then seeds every baseline from set one. First session back after a break stays light on purpose. PR attempts get marked. Only each lift's first work set is judged against plan, the rest are expected to fade, and a clear overperformance bumps the remaining sets once. Pulldown going 77x12 against a 77x8 plan becomes 87 for what is left. A lift trained late reading lower than the same lift trained fresh reads as order fatigue, never as a stall.
+
+Goals with a path. You pick a target and a deadline, it lays out e1RM session by session and re-anchors after every relevant log. When reality slips it asks whether to extend the deadline or compress the jumps. It never compresses silently.
+
+Volume that stays in range. Muscles track against MEV, MAV and MRV from the evidence base. A muscle under its floor gets folded into the day when it fits an existing slot, otherwise it shows up as a one line note. Priorities reorder the split, top sets move to position one, accessories drop a set so session length stays flat.
+
+Cuts that wait for evidence. Two bad sessions in a row flag deload watch, a third triggers a reactive deload. Autoregulation trims a set from accessories first, never below the floor, and brings volume back slower than it left. Anything goal related goes through the goals flow, nothing rewrites the program on its own.
+
+Short reports, honest ones. PRs, top sets versus last time on the same slot, targets hit or missed, plus feel notes when you state them. A PR means beating your prior best e1RM on a lift, the first logged set is the baseline, never a PR. When I admitted my first baselines were intentionally undershot, later jumps got read as recalibration, not strength. Every close shows what got written versus chat-only thoughts, so the record stays checkable. No tonnage celebrations, no total set counts as achievements. Trends, PRs and adherence are the currency.
+
+A dashboard you can check on your phone. e1RM trends per lift, volume by muscle, calendar with rest days kept distinct from missed days, trophy marks on PR days. Bodyweight comes from the gym scale when you remember, about one entry a day, latest wins on the chart.
+
+A program you can change in words. Bring up side delts, swap an exercise, ask for goal ideas, review the split against the evidence, audit the data when something looks off. Month end writes a short rollup, trend plus caveats, never raw sets.
 
 ## How it works
 
-Module ownership lives in `docs/ARCHITECTURE.md`; fact ownership lives in `docs/SSOT.md`. The one-line version:
+Three parts. The database holds facts and state, workouts and sets plus program, progression, goals, rules and flags, reached through typed MCP tools. The markdown holds protocol, logging runs sessions, programming designs the program, science pins the defaults, memory carries injuries and life context. The dashboard shows it back, a validated snapshot published to a read-only Cloudflare Worker.
 
-**The database holds facts.** The `reps/` package (`sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, plus `db`, `constants`, `muscles`, `memory`, `progression`, `models`) stores workouts, sets with weight, reps, muscles and notes, bodyweight, plus program state: splits, mappings, progression, flags, priorities, deloads, rules, goals. The agent reaches it through typed MCP tools in `reps/mcp/`, never through a shell command language. Derivable numbers (ledger, volume, e1RM, slot guess) are computed on read by `plan`, never stored. Non-negotiable rules fail loudly at the point of violation (the `end` gate, mapping authority, loud `constants.json`). The binary stays gitignored. A `workouts.sql` text dump is committed instead, so history reads as clean diffs and doubles as the backup.
-
-**The markdown holds the rules.** AGENTS.md is the map: `docs/LOGGING.md` runs sessions, `docs/PROGRAMMING.md` designs the program, `docs/DASHBOARD.md` owns the frontend, `docs/ARCHITECTURE.md` maps the code. `docs/MEMORY.md` carries your state, the program and goals live in SQLite behind MCP tools. `docs/SCIENCE.md` pins the evidence-based defaults. This is what keeps the agent honest.
-
-**The dashboard shows it back.** `sync_push` publishes a validated snapshot to a read-only Cloudflare Worker. Graphs over headline numbers: e1RM trends per lift, volume by muscle, calendar, PRs.
+Derivable numbers compute on read, e1RM, ledger, volume, slot guess, and never get stored. Non negotiable rules refuse at the point of violation, the session close gate is one example. Ownership of every fact lives in docs/SSOT.md, module boundaries live in docs/ARCHITECTURE.md.
 
 ## Repo map
 
-- `reps/`, the backend (module list in `docs/ARCHITECTURE.md`).
-- `docs/`, protocol and state: `LOGGING.md` (sessions), `PROGRAMMING.md` (program design), `DASHBOARD.md` (frontend), `ARCHITECTURE.md` (code map), `SCIENCE.md` (evidence), `AUDIT.md` (data quality), `ISSUES.md` (issue log), `MEMORY.md` (training state).
-- `AGENTS.md`, the agent map. `constants.json`, the evidence numbers.
-- `dashboard/`, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
-- `tests/`, the deterministic pytest suite for everything the backend enforces.
-
-## Backup and recovery
-
-Every session ends with a `data: <date>` commit of `workouts.sql`. If the local database ever gets corrupted, `maintenance_restore` rebuilds it from the dump. The commit history is the undo button.
-
-## Tests
-
-Python: `scripts/test-py.sh`. Dashboard needs Node 22 or newer (`engines` in `dashboard/package.json`, same version CI uses): `pnpm --dir dashboard run test` for unit, `pnpm --dir dashboard exec playwright test` for e2e. Full check: `scripts/verify.sh`.
+- reps, the backend, one module per domain.
+- docs, protocol and state. LOGGING for sessions, PROGRAMMING for program design, DASHBOARD for the frontend, ARCHITECTURE for the code map, SCIENCE for evidence, AUDIT for data quality, ISSUES for agent behavior, MEMORY for training state.
+- AGENTS.md, the agent map. constants.json, the evidence numbers.
+- dashboard, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
+- tests, the deterministic pytest suite for everything the backend enforces.
