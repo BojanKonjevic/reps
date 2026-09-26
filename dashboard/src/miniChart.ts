@@ -1,9 +1,9 @@
 // SSOT owner: mini-trend geometry. Consumers: TrendMini via plot() -> HitMap.
 
 import { max, min } from 'd3-array';
-import { fit, putText, drawSingleLine, drawYAxis } from './charts';
+import { fit, putText, drawSingleLine } from './charts';
 import { centeredDomain, linearScale } from './lib/scales';
-import { fmtV, fmtD, niceTicks } from './lib/format';
+import { fmtV, fmtD, fmtTick, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
 import {
   layoutOf as baseLayout,
@@ -62,7 +62,29 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
   const xOf = (i: number) => (n <= 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - 15, 6]);
   if (single) drawSingleLine(g, W, P, L.padR, py(raw[0]), fmtV(raw[0]), H - 21);
-  else if (t) drawYAxis(g, W, H, P, t, theme.color('line'), 'right');
+  else if (t) {
+    // Gridlines on the data scale, not the shared helper's full-chart
+    // margins: mini geometry differs, and borrowed parallels drift off
+    // the plotted values.
+    const nt = Math.round((t.hi - t.lo) / t.step);
+    for (let i = 0; i <= nt; i += 1) {
+      const v = parseFloat((t.lo + i * t.step).toPrecision(12));
+      const y = py(v);
+      g.strokeStyle = theme.color('line');
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(P, y);
+      g.lineTo(W - L.padR, y);
+      g.stroke();
+      if (i % 2 === 0 || i === nt) {
+        // The x labels own the bottom row; a tick label there would collide.
+        if (y < H - 28) {
+          g.fillStyle = theme.color('ink-dim');
+          putText(g, W, fmtTick(v, t.step), P - 6, y + 4, 'right');
+        }
+      }
+    }
+  }
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';
