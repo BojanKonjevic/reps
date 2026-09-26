@@ -68,6 +68,7 @@ test.describe('Temporal context', () => {
     await expect(page.locator('#liftAsof .asofpop button[aria-label="2026-09-12"] .asofdot')).toHaveCount(0);
     const box = await page.locator('#liftAsof .asofpop').boundingBox();
     const viewport = page.viewportSize()!;
+    expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
   });
 

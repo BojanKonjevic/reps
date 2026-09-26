@@ -34,7 +34,7 @@
     subLine,
     adherenceWeeksView,
   } from '../lib/dashboard';
-  import { trendMatrix, liftByName, sessionSpans } from '../lib/select';
+  import { trendMatrix, liftByName, sessionSpans, latestE1rm } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
   import {
     defaultHide,
@@ -157,13 +157,6 @@
     if (!bundle || !bundle.rotation_known || !bundle.rotation) return null;
     return rotOrder(bundle.rotation);
   });
-
-  function latestE1rm(exercise: string): string {
-    const lift = liftByName(lifts, exercise);
-    const sess = lift?.sessions;
-    if (!sess || !sess.length) return '';
-    return fmtV(sess[sess.length - 1].e1rm);
-  }
 </script>
 
 <div id="viewDash">
@@ -321,7 +314,7 @@
             <div class="mini">
               <div class="minititle">
                 <a href={href.lift(lift.exercise)}>{lift.exercise}</a>
-                <span class="minivalue">{latestE1rm(lift.exercise)}</span>
+                <span class="minivalue">{latestE1rm(lifts, lift.exercise)}</span>
               </div>
               {#if lift.marks.length}
                 <div>

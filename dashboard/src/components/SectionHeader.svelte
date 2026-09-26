@@ -1,5 +1,6 @@
 <script lang="ts">
   // Shared visual primitive: quiet section header with optional action link.
+  // actionHref must come from a routes.ts builder (href.*), never a literal.
   interface Props {
     title: string;
     sub?: string;

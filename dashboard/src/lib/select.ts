@@ -18,6 +18,14 @@ export function liftByName(lifts: Lift[], exercise: string): Lift | null {
   return lifts.find(l => l.exercise.toLowerCase() === want) ?? null;
 }
 
+export function latestE1rm(lifts: Lift[], exercise: string): string {
+  // Latest session e1RM for small-multiple headers; the value is emitted,
+  // this only selects and formats it.
+  const sess = liftByName(lifts, exercise)?.sessions;
+  if (!sess || !sess.length) return '';
+  return fmtV(sess[sess.length - 1].e1rm);
+}
+
 export function defaultOrder(lifts: Lift[]): Lift[] {
   return lifts.slice().sort((a, b) => a.rank_default - b.rank_default);
 }

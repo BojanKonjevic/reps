@@ -30,7 +30,9 @@
   --accent-strong: #c2c8ff;
   --accent-dim: rgba(154, 164, 255, 0.12);
 
-  /* links inherit body color; accent reserved for selected/important states */
+  /* links inherit body color; accent reserved for selected/important states.
+     --link is not a body-link color: it marks extra-day dots on the
+     consistency strip, a data color alongside good/bad/warn. */
   --link: #9aa4ff;
 
   /* overlays */

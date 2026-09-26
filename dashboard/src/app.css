@@ -343,21 +343,7 @@ h3 {
   color: var(--ink);
 }
 
-/* ============ surfaces: flat default, subtle for groups ============ */
-.card {
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  margin: 10px 0;
-}
-.surface {
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  margin: 10px 0;
-}
+/* ============ surfaces: flat default, subtle only for grouping ============ */
 .surface-flat {
   margin: 10px 0;
   min-width: 0;
@@ -380,8 +366,7 @@ h3 {
 .wrap > *,
 .minigrid > *,
 .goalgrid > *,
-.surface-flat > *,
-.surface > * {
+.surface-flat > * {
   min-width: 0;
 }
 @media (max-width: 900px) {
@@ -491,11 +476,12 @@ select {
 input::placeholder {
   color: var(--ink-faint);
 }
-input[type='search']:focus,
-input[type='text']:focus,
-input[type='date']:focus,
-select:focus {
-  outline: none;
+input[type='search']:focus-visible,
+input[type='text']:focus-visible,
+input[type='date']:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
   border-color: var(--accent);
 }
 .filterbar {
@@ -685,29 +671,6 @@ canvas {
   display: block;
   margin-top: 1px;
 }
-/* Legacy inline next rows (kept for compat). */
-.nextrow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  padding: 3px 0;
-}
-.nextrow a {
-  color: inherit;
-  font-weight: 600;
-}
-.nextrow .meta {
-  color: var(--ink-faint);
-  font-size: 12px;
-  margin-left: auto;
-  text-align: right;
-}
-#nextCard h3 {
-  margin: 0 0 6px;
-  font-size: 13px;
-}
-
 /* ============ signals: severity as text label, not pill ============ */
 .sigrow {
   display: flex;
@@ -1001,12 +964,6 @@ canvas {
 }
 
 /* ============ session log ============ */
-.sesstop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
 .sesspg {
   display: flex;
   gap: 2px;
@@ -1025,9 +982,6 @@ canvas {
 }
 .exblock:first-child {
   border-top: none;
-}
-.card.ex {
-  padding: 10px 14px;
 }
 .ex h3 {
   font-size: 13.5px;
@@ -1191,13 +1145,6 @@ canvas {
   color: var(--ink-dim);
   font-weight: 600;
 }
-.future {
-  border-style: dashed;
-}
-.futurebg {
-  background-image: none;
-}
-
 /* ============ goals: separated by rules, not nested cards ============ */
 .goalgrid {
   display: flex;
@@ -1381,6 +1328,11 @@ button.evbtn:hover {
 button.evbtn.sel {
   border-color: var(--line-soft);
   background: var(--bg-raised);
+  color: var(--ink);
+}
+button.evbtn.set {
+  border-color: var(--accent);
+  background: var(--accent-dim);
   color: var(--ink);
 }
 .evbtn .evdate {

@@ -59,7 +59,16 @@
   const bestLine = $derived.by(() => {
     if (!lift || !lift.sessions.length) return 'never logged';
     const best = lift.best!;
-    return best.weight + ' x ' + best.reps + ' · e1RM ' + best.e1rm.toFixed(1);
+    return (
+      'best ' +
+      best.weight +
+      ' x ' +
+      best.reps +
+      ' · e1RM ' +
+      best.e1rm.toFixed(1) +
+      ' · ' +
+      fmtD(best.date)
+    );
   });
 
   const progLine = $derived.by(() => {
@@ -234,6 +243,7 @@
           color={vocab.liftColor(ex)}
           tops={goalTops}
         />
+        <div class="cap">Dashed line is the plan, hollow points are future.</div>
         {#if goalEvents.length}
           <div class="cap" id="liftGoalHist">Trajectory history</div>
           {#each goalEvents as ge}

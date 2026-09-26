@@ -60,7 +60,14 @@
 </script>
 
 <div class="asofctl" {id}>
-  <button type="button" class="evbtn" onclick={toggle} aria-expanded={open} aria-haspopup="dialog">
+  <button
+    type="button"
+    class="evbtn"
+    class:set={value !== null}
+    onclick={toggle}
+    aria-expanded={open}
+    aria-haspopup="dialog"
+  >
     As of {value ? fmtD(value) : 'Today'} ▾
   </button>
   {#if open}

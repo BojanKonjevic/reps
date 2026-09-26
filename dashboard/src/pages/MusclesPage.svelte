@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fmtD, fmtV } from '../lib/format';
+  import { fmtD, muscleVolLine } from '../lib/format';
   import { statusLabel } from '../lib/present';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
@@ -83,15 +83,7 @@
   function volLine(m: string): string {
     const entry = snap.muscles.find(x => x.muscle === m);
     if (!entry) return '';
-    return (
-      'last 4 weeks avg ' +
-      fmtV(entry.avg_recent) +
-      '/wk · trained ' +
-      entry.trained_weeks +
-      ' of last ' +
-      entry.weekly.length +
-      ' weeks'
-    );
+    return muscleVolLine(entry);
   }
 
   function toggleFacet(f: string) {

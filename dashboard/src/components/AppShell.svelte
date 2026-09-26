@@ -13,39 +13,47 @@
 
   let { children }: Props = $props();
 
+  interface NavItem {
+    key: string;
+    label: string;
+    icon: 'overview' | 'activity' | 'layers' | 'calendar' | 'clock';
+    href: string;
+  }
+
+  // Single nav definition rendered twice (sidebar + topbar); destinations
+  // come only from the route table in routes.ts.
+  const nav: NavItem[] = [
+    { key: 'dash', label: 'Overview', icon: 'overview', href: href.dash() },
+    { key: 'lifts', label: 'Movements', icon: 'activity', href: href.lifts() },
+    { key: 'muscles', label: 'Muscles', icon: 'layers', href: href.muscles() },
+    { key: 'prog', label: 'Program', icon: 'calendar', href: href.program() },
+    { key: 'hist', label: 'History', icon: 'clock', href: href.history() },
+  ];
+
+  const sectionOf: Record<string, string> = {
+    dash: 'dash',
+    sess: 'dash',
+    lift: 'lifts',
+    lifts: 'lifts',
+    muscle: 'muscles',
+    muscles: 'muscles',
+    prog: 'prog',
+    hist: 'hist',
+  };
+
   const view = $derived(route.view.name);
-  const navKey = $derived(
-    view === 'dash' || view === 'sess'
-      ? 'dash'
-      : view === 'lift' || view === 'lifts'
-        ? 'lifts'
-        : view === 'muscle' || view === 'muscles'
-          ? 'muscles'
-          : view === 'prog'
-            ? 'prog'
-            : 'hist'
-  );
+  const navKey = $derived(sectionOf[view] ?? 'dash');
 </script>
 
 <div class="shell">
   <aside class="sidebar" aria-label="Primary">
     <a class="side-word" href={href.dash()}>reps</a>
     <nav class="sidenav">
-      <a href={href.dash()} class:on={navKey === 'dash'}>
-        <span class="side-ic"><Icon name="overview" size={15} /></span>Overview
-      </a>
-      <a href={href.lifts()} class:on={navKey === 'lifts'}>
-        <span class="side-ic"><Icon name="activity" size={15} /></span>Movements
-      </a>
-      <a href={href.muscles()} class:on={navKey === 'muscles'}>
-        <span class="side-ic"><Icon name="layers" size={15} /></span>Muscles
-      </a>
-      <a href={href.program()} class:on={navKey === 'prog'}>
-        <span class="side-ic"><Icon name="calendar" size={15} /></span>Program
-      </a>
-      <a href={href.history()} class:on={navKey === 'hist'}>
-        <span class="side-ic"><Icon name="clock" size={15} /></span>History
-      </a>
+      {#each nav as item}
+        <a href={item.href} class:on={navKey === item.key}>
+          <span class="side-ic"><Icon name={item.icon} size={15} /></span>{item.label}
+        </a>
+      {/each}
     </nav>
     <div class="side-meta"><span class="kbd">ctrl K</span> jump anywhere</div>
   </aside>
@@ -53,11 +61,9 @@
     <header class="topbar">
       <a class="side-word" href={href.dash()}>reps</a>
       <nav class="topnav" aria-label="Primary">
-        <a href={href.dash()} class:on={navKey === 'dash'}>Overview</a>
-        <a href={href.lifts()} class:on={navKey === 'lifts'}>Movements</a>
-        <a href={href.muscles()} class:on={navKey === 'muscles'}>Muscles</a>
-        <a href={href.program()} class:on={navKey === 'prog'}>Program</a>
-        <a href={href.history()} class:on={navKey === 'hist'}>History</a>
+        {#each nav as item}
+          <a href={item.href} class:on={navKey === item.key}>{item.label}</a>
+        {/each}
       </nav>
     </header>
     <main class="content">
