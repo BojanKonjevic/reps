@@ -4,7 +4,7 @@
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { liftByName } from '../lib/select';
-  import PageShell from '../components/PageShell.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
   import Icon from '../components/Icon.svelte';
 
   interface Props {
@@ -62,8 +62,9 @@
   });
 </script>
 
-<PageShell back>
-  <div class="wrap" id="viewSession">
+<div id="viewSession">
+  <div class="crumb sessnav">
+    <a href={href.dash()}>← Overview</a>
     <span class="sesspg">
       {#if prev}
         <a
@@ -73,12 +74,8 @@
           aria-label="previous session {fmtD(prev)}"><Icon name="chevronLeft" /></a
         >
       {:else}
-        <a
-          class="iconbtn"
-          id="sessPrev"
-          href={href.dash()}
-          aria-label="previous session"
-          style="visibility: hidden"><Icon name="chevronLeft" /></a
+        <span class="iconbtn" id="sessPrev" aria-hidden="true" style="visibility: hidden"
+          ><Icon name="chevronLeft" /></span
         >
       {/if}
       {#if next}
@@ -89,24 +86,54 @@
           aria-label="next session {fmtD(next)}"><Icon name="chevronRight" /></a
         >
       {:else}
-        <a
-          class="iconbtn"
-          id="sessNext"
-          href={href.dash()}
-          aria-label="next session"
-          style="visibility: hidden"><Icon name="chevronRight" /></a
+        <span class="iconbtn" id="sessNext" aria-hidden="true" style="visibility: hidden"
+          ><Icon name="chevronRight" /></span
         >
       {/if}
     </span>
-    <h1 id="sessTitle">{title}</h1>
-    <div id="sessNotes">
-      {#if allRest}
-        <div class="card restday">rest day</div>
-      {/if}
-      {#if wnotes.length}
-        <div class="card">{wnotes.join(' / ')}</div>
-      {/if}
-      {#each blocks as b}
+  </div>
+  <PageHeader {title} titleId="sessTitle" />
+  <div id="sessNotes">
+    {#if allRest}
+      <div class="restday">rest day</div>
+    {/if}
+    {#if wnotes.length}
+      <div class="sessnotes">{wnotes.join(' / ')}</div>
+    {/if}
+  </div>
+  <div id="sessBody" class="exgrid">
+    {#if !day.length}
+      <div class="empty">no session logged this day</div>
+    {/if}
+    {#each blocks as b}
+      <section class="exblock ex">
+        <h3>
+          <a href={href.lift(b.ex)}>{b.ex}</a>
+          {#if b.prog}<span class="exsub">{b.prog}</span>{/if}
+        </h3>
+        <table class="sess">
+          <thead>
+            <tr>
+              <th scope="col">set</th>
+              <th scope="col">weight × reps</th>
+              <th scope="col" class="num">e1RM</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each b.rows as r}
+              <tr>
+                <td class="setnum">{r.n}</td>
+                <td>
+                  {r.detail}
+                  {#if r.pr}<span class="prbadge" title="personal record"
+                      ><Icon name="trophy" size={13} /></span
+                    >{/if}
+                </td>
+                <td class="num">{r.ev}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
         {#if b.notes.length}
           <div class="setnotes">
             {#each b.notes as n}
@@ -114,36 +141,20 @@
             {/each}
           </div>
         {/if}
-      {/each}
-    </div>
-    <div id="sessBody" class="exgrid">
-      {#each blocks as b}
-        <div class="card ex">
-          <h3>
-            <a href={href.lift(b.ex)}>{b.ex}</a>
-            {#if b.prog}<span class="exsub">{b.prog}</span>{/if}
-          </h3>
-          <table class="sess">
-            <thead>
-              <tr><th scope="col">set</th><th scope="col">weight</th><th scope="col">e1RM</th></tr>
-            </thead>
-            <tbody>
-              {#each b.rows as r}
-                <tr>
-                  <td>{r.n}</td>
-                  <td>
-                    {r.detail}
-                    {#if r.pr}<span class="prbadge" title="personal record"
-                        ><Icon name="trophy" size={14} /></span
-                      >{/if}
-                  </td>
-                  <td>{r.ev}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/each}
-    </div>
+      </section>
+    {/each}
   </div>
-</PageShell>
+</div>
+
+<style>
+  .sessnav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sessnotes {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 8px;
+  }
+</style>

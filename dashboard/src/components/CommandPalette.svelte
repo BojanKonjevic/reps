@@ -19,6 +19,9 @@
   let q = $state('');
   let active = $state(0);
   let input: HTMLInputElement | undefined = $state();
+  let panel: HTMLDivElement | undefined = $state();
+  let opener: Element | null = null;
+  let wasOpen = $state(false);
 
   const sections = $derived.by((): PalSection[] => {
     if (!q.trim()) return [{ header: '', rows: filterPalRows(palettePages(), '') }];
@@ -34,11 +37,17 @@
   });
 
   const flat = $derived(sections.flatMap(s => s.rows));
+  const activeId = $derived(
+    flat.length ? 'pal-' + flat[Math.min(active, flat.length - 1)].key : undefined
+  );
+
+  function restoreFocus() {
+    if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
+    opener = null;
+  }
 
   function close() {
     closePalette();
-    q = '';
-    active = 0;
   }
 
   function go(target: string) {
@@ -47,10 +56,17 @@
   }
 
   $effect(() => {
-    if (palette.open) {
+    if (palette.open && !wasOpen) {
+      wasOpen = true;
+      opener = document.activeElement;
       q = '';
       active = 0;
       requestAnimationFrame(() => input?.focus());
+    } else if (!palette.open && wasOpen) {
+      wasOpen = false;
+      q = '';
+      active = 0;
+      restoreFocus();
     }
   });
 
@@ -71,6 +87,22 @@
         e.preventDefault();
         go(row.href);
       }
+    } else if (e.key === 'Tab' && panel) {
+      // Trap Tab inside the dialog: the input owns the keyboard state,
+      // results are exposed through aria-activedescendant, never focus.
+      const items = panel.querySelectorAll<HTMLElement>(
+        'input:not([disabled]), button:not([disabled])'
+      );
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   }
 </script>
@@ -78,9 +110,20 @@
 {#if palette.open}
   <div class="pal-backdrop" onclick={close} aria-hidden="true"></div>
   <div class="pal-wrap">
-    <div class="pal-panel" role="dialog" aria-modal="true" aria-label="jump anywhere">
+    <div
+      class="pal-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="jump anywhere"
+      bind:this={panel}
+    >
       <input
         bind:this={input}
+        role="combobox"
+        aria-expanded="true"
+        aria-controls="pal-list"
+        aria-activedescendant={activeId}
+        aria-autocomplete="list"
         value={q}
         oninput={e => {
           q = (e.target as HTMLInputElement).value;
@@ -93,23 +136,28 @@
       {#if !flat.length}
         <div class="pal-empty">nothing matches</div>
       {/if}
-      {#each sections as sec}
-        {#if sec.header}
-          <div class="pal-sec">{sec.header}</div>
-        {/if}
-        {#each sec.rows as row}
-          {@const gi = flat.indexOf(row)}
-          <button
-            type="button"
-            class:pal-active={gi === active}
-            onmouseenter={() => (active = gi)}
-            onclick={() => go(row.href)}
-          >
-            <span class="pal-name">{row.label}</span>
-            <span class="pal-sub">{row.sub}</span>
-          </button>
+      <div role="listbox" id="pal-list" aria-label="results">
+        {#each sections as sec}
+          {#if sec.header}
+            <div class="pal-sec" role="presentation">{sec.header}</div>
+          {/if}
+          {#each sec.rows as row}
+            {@const gi = flat.indexOf(row)}
+            <button
+              type="button"
+              role="option"
+              id={'pal-' + row.key}
+              aria-selected={gi === active}
+              class:pal-active={gi === active}
+              onmouseenter={() => (active = gi)}
+              onclick={() => go(row.href)}
+            >
+              <span class="pal-name">{row.label}</span>
+              <span class="pal-sub">{row.sub}</span>
+            </button>
+          {/each}
         {/each}
-      {/each}
+      </div>
       <div class="pal-foot">
         <span><kbd>↑↓</kbd> move</span><span><kbd>↵</kbd> open</span><span
           ><kbd>esc</kbd> close</span

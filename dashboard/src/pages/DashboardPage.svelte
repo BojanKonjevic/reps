@@ -34,7 +34,7 @@
     subLine,
     adherenceWeeksView,
   } from '../lib/dashboard';
-  import { trendMatrix, liftByName, sessionSpans } from '../lib/select';
+  import { trendMatrix, liftByName, sessionSpans, latestE1rm, tagFacetsPass } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
   import {
     defaultHide,
@@ -45,7 +45,8 @@
     toggleHidden,
     ui,
   } from '../lib/filters.svelte';
-  import PageShell from '../components/PageShell.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
+  import SectionHeader from '../components/SectionHeader.svelte';
   import FacetChips from '../components/FacetChips.svelte';
   import TrendMini from '../components/TrendMini.svelte';
   import VolumeChart from '../components/VolumeChart.svelte';
@@ -84,14 +85,8 @@
   function passFilter(t: string): boolean {
     if (ui.trendQ && !t.toLowerCase().includes(ui.trendQ)) return false;
     if (!ui.trendFacets.size) return true;
-    const lift = liftByName(lifts, t);
-    const tags = new Set(lift?.tags ?? []);
-    for (const f of ui.trendFacets) {
-      if (f === 'goal' && tags.has('goal')) return true;
-      if (f === 'stall' && (tags.has('stalling') || tags.has('slipping'))) return true;
-      if (f === 'focus' && tags.has('focus')) return true;
-    }
-    return false;
+    const tags = new Set(liftByName(lifts, t)?.tags ?? []);
+    return tagFacetsPass(tags, ui.trendFacets);
   }
 
   const shown = $derived(
@@ -158,13 +153,10 @@
   });
 </script>
 
-<PageShell>
-  <div class="wrap" id="viewDash">
-    <div class="toprow">
-      <div>
-        <h1>Training dashboard</h1>
-        <div class="sub" id="sub">{subLine(snap)}</div>
-      </div>
+<div id="viewDash">
+  <div class="dashhead">
+    <PageHeader title="Overview" sub={subLine(snap)} subId="sub" />
+    {#if statusLines(snap).length}
       <div class="nowlines" id="nowLines">
         {#each statusLines(snap) as line}
           <div>
@@ -174,383 +166,400 @@
           </div>
         {/each}
       </div>
-    </div>
+    {/if}
+  </div>
 
-    <div id="nextWrap">
-      <h2>Next up</h2>
-      <div class="card" id="nextCard">
-        {#if next.empty}
-          <div class="empty">{next.empty}</div>
+  <div id="nextWrap">
+    <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
+    <div id="nextCard" class="surface-flat">
+      {#if next.empty}
+        <div class="empty">{next.empty}</div>
+      {:else}
+        <table class="nexttable" aria-label="Next training session">
+          <thead>
+            <tr>
+              <th scope="col">Movement</th>
+              <th scope="col">Last</th>
+              <th scope="col">Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each next.rows as row}
+              <tr class="nextline">
+                <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
+                <td class="nextnum">
+                  {#if row.last}
+                    {row.last.weight} x {row.last.reps}
+                    <span class="nextmeta">{fmtD(row.last.date)}</span>
+                  {:else}
+                    never logged
+                  {/if}
+                </td>
+                <td class="nexttarget">
+                  {#if row.target}
+                    target {row.target}
+                  {:else}
+                    —
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <div class="cap">{next.basis}</div>
+      {/if}
+    </div>
+  </div>
+
+  {#if snap.signals}
+    <div id="sigWrap">
+      <SectionHeader title="Coach notes" />
+      <div id="sigCard" class="surface-flat">
+        {#if !snap.signals.length}
+          <div class="empty">all clear, nothing flagged</div>
         {:else}
-          <h3>Next up: {next.day}</h3>
-          {#each next.rows as row}
-            <div class="nextrow">
-              <a href={href.lift(row.movement)}>{row.movement}</a>
-              <span class="meta"
-                >{row.last
-                  ? 'last ' + row.last.weight + ' x ' + row.last.reps + ' · ' + fmtD(row.last.date)
-                  : 'never logged'}{row.target
-                  ? ' → target ' + row.target
-                  : ' · no target yet'}</span
-              >
+          {#each snap.signals as r}
+            <div class="sigrow">
+              <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
+              <span>{r.text}</span>
             </div>
           {/each}
-          <div class="cap">{next.basis}</div>
         {/if}
       </div>
     </div>
+  {/if}
 
-    {#if snap.signals}
-      <div id="sigWrap">
-        <h2>Coach notes</h2>
-        <div class="card" id="sigCard">
-          {#if !snap.signals.length}
-            <div class="empty">all clear, nothing flagged</div>
-          {:else}
-            {#each snap.signals as r}
-              <div class="sigrow">
-                <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
-                <span>{r.text}</span>
-              </div>
-            {/each}
-          {/if}
-        </div>
-        <div class="cap">
-          Warning signs in words, worst first. Every line restates a computed fact.
-        </div>
-      </div>
-    {/if}
-
-    {#if changed.length}
-      <div id="changedWrap">
-        <h2>What changed</h2>
-        <div class="card" id="changedCard">
-          {#each changed as e}
-            <div class="histrow">
-              <div class="hhead">
-                <span class="hdate">{fmtD(e.date)}</span>
-                <button
-                  type="button"
-                  class="evbtn"
-                  onclick={() => sel.select(e.id)}
-                  aria-pressed={sel.selId === e.id}
-                >
-                  <b>{e.title}</b>
-                </button>
-              </div>
-              <div class="hsum">{e.summary}</div>
-              {#if selected && selected.id === e.id}
-                <ChangeDetail
-                  event={selected}
-                  events={snap.history}
-                  stateOpen={asof === selected.date}
-                  onViewState={toggleAsof}
-                />
-                <AsOfPanel
-                  {snap}
-                  date={asof}
-                  scope={scopeOf(selected)}
-                  ruleId={ruleIdOf(selected)}
-                  {states}
-                  loading={asof !== null && statesQ.isFetching}
-                  rangeMin={bounds.min}
-                />
-              {/if}
-            </div>
-          {/each}
-          <div class="cap"><a href={href.history()}>Full history</a></div>
-        </div>
-      </div>
-    {/if}
-
-    <div>
-      <h2>Estimated 1RM trend</h2>
-      <div class="card">
-        <div class="filterbar">
-          <input
-            id="trendSearch"
-            type="search"
-            placeholder="search lifts"
-            aria-label="search lifts"
-            value={ui.trendQ}
-            oninput={e => {
-              ui.trendQ = (e.target as HTMLInputElement).value.trim().toLowerCase();
-            }}
-          />
-          <span class="legend" id="trendFacets">
-            <FacetChips
-              facets={[
-                ['Goals', 'goal'],
-                ['Stalling', 'stall'],
-                ['Focus', 'focus'],
-              ]}
-              active={ui.trendFacets}
-              onToggle={f => {
-                if (ui.trendFacets.has(f)) ui.trendFacets.delete(f);
-                else ui.trendFacets.add(f);
-              }}
-              onReset={resetTrend}
-            />
-          </span>
-        </div>
-        <div class="minigrid" id="trendGrid">
-          {#if !shown.length}
-            <div class="empty">no lifts match, adjust filters or use Reset</div>
-          {:else}
-            {#each shown as lift}
-              {@const idx = matrix.top.indexOf(lift.exercise)}
-              {@const vals = matrix.series[idx]}
-              <div class="mini">
-                <div class="minititle">
-                  <a href={href.lift(lift.exercise)}>{lift.exercise}</a>
-                  {#if lift.marks.length}
-                    <span class="ministat">
-                      {#each lift.marks as m}
-                        <span class="minisub {markClass(m.kind)}">{markText(m.kind)}</span>
-                      {/each}
-                    </span>
-                  {/if}
-                </div>
-                <a href={href.lift(lift.exercise)} aria-label={lift.exercise} style="display:block">
-                  <TrendMini {lift} days={matrix.days} {vals} color={liftColor(lift.exercise)} />
-                </a>
-              </div>
-            {/each}
-          {/if}
-        </div>
-        <div class="legend" id="legTrend">
-          <button type="button" class="chip mini" onclick={showAllLifts}>All</button>
-          <button type="button" class="chip mini" onclick={() => hideAllLifts(top)}>None</button>
-          {#each top as t}
-            <button
-              type="button"
-              class="chip"
-              class:off={ui.hidden.has(t)}
-              aria-pressed={!ui.hidden.has(t)}
-              onclick={() => toggleHidden(t)}
-            >
-              <span class="sw" style:background={liftColor(t)}></span>{t}
-            </button>
-          {/each}
-        </div>
-        <div class="cap">
-          Best set per session, each lift on its own scale. Tap a lift for detail.
-        </div>
-        <Provenance def={defOf(snap, 'lift_trend')} id="trendProv" />
-      </div>
-    </div>
-
-    <div class="cols2">
-      <div>
-        <h2>Weekly volume by muscle</h2>
-        <div class="card">
-          <VolumeChart
-            labels={snap.volume_history.week_starts}
-            weeks={snap.volume_history.week_starts.map((_, i) => {
-              const row: Record<string, number> = {};
-              for (const [m, arr] of Object.entries(snap.volume_history.by_muscle))
-                row[m] = arr[i] ?? 0;
-              return row;
-            })}
-            groups={vocab.groups}
-            colors={vocab.colors}
-            {mevOf}
-            onSelect={g => (location.hash = href.muscle(g))}
-          />
-          <div class="legend" id="legMus">
-            {#each vocab.groups as g}
-              <a
-                href={href.muscle(g)}
-                class:chip={true}
-                class:focus={focus.has(g.toLowerCase())}
-                class:dim={deprio.has(g.toLowerCase())}
+  {#if changed.length}
+    <div id="changedWrap">
+      <SectionHeader title="What changed" actionLabel="Full history" actionHref={href.history()} />
+      <div id="changedCard" class="surface-flat">
+        {#each changed as e}
+          <div class="histrow">
+            <div class="hhead">
+              <span class="hdate">{fmtD(e.date)}</span>
+              <button
+                type="button"
+                class="evbtn"
+                onclick={() => sel.select(e.id)}
+                aria-pressed={sel.selId === e.id}
               >
-                <span class="sw" style:background={vocab.colors[g]}></span>{g}
-              </a>
-            {/each}
-          </div>
-          <div class="cap">One set can count for several muscles.</div>
-          <Provenance def={defOf(snap, 'muscle_volume')} id="volProv" />
-        </div>
-        <h2>Bodyweight</h2>
-        <div class="card">
-          <BodyweightChart rows={snap.bodyweight} onSelect={pickBw} />
-          <div class="cap">
-            Gym scale weigh ins, as logged in chat. Dashed spans are gaps, not measurements. Thin
-            line is the 7-day average. Tap a point to see what else was happening around then.
-          </div>
-          {#if bwRow}
-            <div class="daydetail" id="bwNear">
-              <b>Around {fmtD(bwRow.date)}</b>
-              {#each bwNear as e}
-                <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
-              {:else}
-                <div>no recorded training changes within a week of this weigh in</div>
-              {/each}
-              {#if bwNear.length}
-                <div class="cap"><a href={href.history()}>Full history</a></div>
-              {/if}
+                <b>{e.title}</b>
+              </button>
             </div>
-          {/if}
-          <Provenance def={defOf(snap, 'bodyweight_trend')} id="bwProv" />
-        </div>
-      </div>
-      <div>
-        <h2>Training calendar</h2>
-        <div class="card calcard">
-          <Calendar days={snap.calendar} />
-          <ul class="notes" id="noteList">
-            {#each snap.recent_notes as n}
-              <li class:hot={n.hot}>
-                <a href={href.session(n.date)}>{n.text}</a>
-              </li>
-            {/each}
-          </ul>
-        </div>
-        <h2>Session length</h2>
-        <div class="card" id="sessLenWrap">
-          <SessionLengthChart points={sessPoints} />
-          <div class="pielegend" id="sessLenLegend">
-            {#each sessAvgs as a}
-              <div class="row">
-                <span class="sw" style:background={dayColor(a.day)}></span>
-                <a href={href.program()}>{a.day}</a>
-                <span class="meta">avg {fmtMin(a.avg)} · {a.n} session{a.n === 1 ? '' : 's'}</span>
-              </div>
-            {/each}
-          </div>
-          <div class="cap">First set to last set. Colors mark split days.</div>
-        </div>
-        {#if adhDays.length}
-          <div id="adhWrap">
-            <h2>Consistency</h2>
-            <div class="card" id="adhCard">
-              <div class="dtstrip">
-                {#each adhDays as d}
-                  <button
-                    type="button"
-                    class="dt dt-{d.status.replace('_', '')}"
-                    class:sel={adhDate === d.date}
-                    title="{d.date}: {d.status} (expected {d.expected})"
-                    aria-label="{d.date}: {statusLabel(d.status)}, expected {d.expected}"
-                    aria-pressed={adhDate === d.date}
-                    onclick={() => (adhDate = adhDate === d.date ? null : d.date)}
-                  ></button>
-                {/each}
-              </div>
-              {#if adhDay}
-                <div class="daydetail" id="adhDetail">
-                  <b>{fmtD(adhDay.date)}</b>
-                  <div>Expected: {adhDay.expected}</div>
-                  <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
-                  <div>Status: {statusLabel(adhDay.status)}</div>
-                  {#if adhRotation}
-                    <div>Rotation at this time: {adhRotation}</div>
-                  {:else if adhDate && statesQ.isFetching}
-                    <div>Rotation at this time: loading…</div>
-                  {/if}
-                  {#each adhContext as e}
-                    <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
-                  {/each}
-                </div>
-              {/if}
-              <div class="adhweeks">
-                {#each adhWeeks as w}
-                  <div>{w.week_start} · {w.trained}/{w.expected} sessions</div>
-                {/each}
-              </div>
-              <div class="cap">
-                Green is trained as planned, red is missed, hollow is scheduled rest.
-              </div>
-              <Provenance def={defOf(snap, 'adherence_summary')} id="adhProv" />
-            </div>
-          </div>
-        {/if}
-      </div>
-    </div>
-
-    <h2>Forward</h2>
-    <div class="card future futurebg">
-      <div class="goalgrid" id="goalGrid">
-        {#each goals as g}
-          {@const acts = g.actuals.map(a => ({ date: a.date, ev: a.e1rm }))}
-          <div class="goalcard card future" style="margin: 0">
-            <h3><a href={href.lift(g.exercise)}>{g.exercise}</a></h3>
-            <GoalChartView
-              actuals={acts}
-              checkpoints={g.checkpoints}
-              color={liftColor(g.exercise)}
-              tops={Object.fromEntries(
-                Object.entries(g.top_by_date).map(([d, t]) => [d, { w: t.weight, r: t.reps }])
-              )}
-            />
-            <div class="goalmeta">
-              target e1RM {fmtV(g.target_e1rm)} by {fmtD(g.deadline)} |
-              {g.next_checkpoint !== null && g.next_checkpoint !== undefined
-                ? 'next checkpoint ' + fmtV(g.next_checkpoint)
-                : 'trajectory complete'}
-              {#if g.percent !== null}| {g.percent}% there{/if}
-              {#if g.on_track === false}| OFF TRACK{/if}
-              {#if g.slippage}| slippage: deadline needs room{/if}
-            </div>
-            {#each eventsForGoal(snap, g.exercise) as ge}
-              <div class="cap">{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
-            {/each}
+            <div class="hsum">{e.summary}</div>
+            {#if selected && selected.id === e.id}
+              <ChangeDetail
+                event={selected}
+                events={snap.history}
+                stateOpen={asof === selected.date}
+                onViewState={toggleAsof}
+              />
+              <AsOfPanel
+                {snap}
+                date={asof}
+                scope={scopeOf(selected)}
+                ruleId={ruleIdOf(selected)}
+                {states}
+                loading={asof !== null && statesQ.isFetching}
+                rangeMin={bounds.min}
+              />
+            {/if}
           </div>
         {/each}
       </div>
-      <div class="empty" id="goalEmpty" hidden={goals.length > 0}>
-        no active goals, trajectories appear here once set in chat
-      </div>
-      <h2>Progression</h2>
-      <table id="progTable">
-        <thead>
-          <tr><th>lift</th><th>verdict</th><th>next target</th><th>dir</th></tr>
-        </thead>
-        <tbody>
-          {#if !progLifts.length}
-            <tr><td colspan="4">no progression written yet, set at session end in chat</td></tr>
-          {:else}
-            {#each progLifts as lift}
-              <tr>
-                <td><a href={href.lift(lift.exercise)}>{lift.exercise}</a></td>
-                <td class={verdictClass(lift.progression!.verdict)} style:font-weight="600"
-                  >{lift.progression!.verdict}</td
-                >
-                <td>{lift.progression!.next}</td>
-                <td
-                  title={lift.progression!.direction}
-                  class={directionClass(lift.progression!.direction)}
-                  style:font-weight="600">{directionArrow(lift.progression!.direction)}</td
-                >
-              </tr>
-            {/each}
-          {/if}
-        </tbody>
-      </table>
-      <div class="cap">
-        Dashed cards are future: checkpoints, next targets, hollow points. Solid lines are logged
-        sets.
-      </div>
-      <Provenance def={defOf(snap, 'goal_trajectory')} id="goalProv" />
     </div>
+  {/if}
 
-    <h2>Best sets</h2>
-    <div class="card">
-      <table id="prs">
-        <thead>
-          <tr><th>lift</th><th>best set by e1RM</th><th>date</th></tr>
-        </thead>
-        <tbody>
-          {#each bestSetRows(snap) as row}
-            <tr>
-              <td><a href={href.lift(row.lift)}>{row.lift}</a></td>
-              <td>{row.detail}</td>
-              <td>{row.date}</td>
-            </tr>
+  <div>
+    <SectionHeader title="Estimated 1RM" sub="Best set per session, each lift on its own scale." />
+    <div class="surface-flat">
+      <div class="filterbar">
+        <input
+          id="trendSearch"
+          type="search"
+          placeholder="search lifts"
+          aria-label="search lifts"
+          value={ui.trendQ}
+          oninput={e => {
+            ui.trendQ = (e.target as HTMLInputElement).value.trim().toLowerCase();
+          }}
+        />
+        <span class="legend" id="trendFacets">
+          <FacetChips
+            facets={[
+              ['Goals', 'goal'],
+              ['Stalling', 'stall'],
+              ['Focus', 'focus'],
+            ]}
+            active={ui.trendFacets}
+            onToggle={f => {
+              if (ui.trendFacets.has(f)) ui.trendFacets.delete(f);
+              else ui.trendFacets.add(f);
+            }}
+            onReset={resetTrend}
+          />
+        </span>
+      </div>
+      <div class="minigrid" id="trendGrid">
+        {#if !shown.length}
+          <div class="empty">no lifts match, adjust filters or use Reset</div>
+        {:else}
+          {#each shown as lift}
+            {@const idx = matrix.top.indexOf(lift.exercise)}
+            {@const vals = matrix.series[idx]}
+            <div class="mini">
+              <div class="minititle">
+                <a href={href.lift(lift.exercise)}>{lift.exercise}</a>
+                <span class="minivalue">{latestE1rm(lifts, lift.exercise)}</span>
+              </div>
+              {#if lift.marks.length}
+                <div>
+                  {#each lift.marks as m}
+                    <span class="minisub {markClass(m.kind)}">{markText(m.kind)}</span>
+                  {/each}
+                </div>
+              {/if}
+              <a href={href.lift(lift.exercise)} aria-label={lift.exercise} style="display:block">
+                <TrendMini {lift} days={matrix.days} {vals} color={liftColor(lift.exercise)} />
+              </a>
+            </div>
           {/each}
-        </tbody>
-      </table>
+        {/if}
+      </div>
+      <div class="legend" id="legTrend">
+        <button type="button" class="chip mini" onclick={showAllLifts}>All</button>
+        <button type="button" class="chip mini" onclick={() => hideAllLifts(top)}>None</button>
+        {#each top as t}
+          <button
+            type="button"
+            class="chip"
+            class:off={ui.hidden.has(t)}
+            aria-pressed={!ui.hidden.has(t)}
+            onclick={() => toggleHidden(t)}
+          >
+            <span class="sw" style:background={liftColor(t)}></span>{t}
+          </button>
+        {/each}
+      </div>
+      <Provenance def={defOf(snap, 'lift_trend')} id="trendProv" />
     </div>
   </div>
-</PageShell>
+
+  <div class="cols2">
+    <div>
+      <SectionHeader
+        title="Weekly volume"
+        sub="By muscle. One set can count for several muscles."
+      />
+      <div class="surface-flat">
+        <VolumeChart
+          labels={snap.volume_history.week_starts}
+          weeks={snap.volume_history.week_starts.map((_, i) => {
+            const row: Record<string, number> = {};
+            for (const [m, arr] of Object.entries(snap.volume_history.by_muscle))
+              row[m] = arr[i] ?? 0;
+            return row;
+          })}
+          groups={vocab.groups}
+          colors={vocab.colors}
+          {mevOf}
+          onSelect={g => (location.hash = href.muscle(g))}
+        />
+        <div class="legend" id="legMus">
+          {#each vocab.groups as g}
+            <a
+              href={href.muscle(g)}
+              class:focus={focus.has(g.toLowerCase())}
+              class:dim={deprio.has(g.toLowerCase())}
+            >
+              <span class="sw" style:background={vocab.colors[g]}></span>{g}
+            </a>
+          {/each}
+        </div>
+        <Provenance def={defOf(snap, 'muscle_volume')} id="volProv" />
+      </div>
+      <SectionHeader title="Bodyweight" sub="Gym scale weigh ins, as logged in chat." />
+      <div class="surface-flat">
+        <BodyweightChart rows={snap.bodyweight} onSelect={pickBw} />
+        <div class="cap">
+          Dashed spans are gaps, not measurements. Thin line is the 7-day average. Tap a point to
+          see what else was happening around then.
+        </div>
+        {#if bwRow}
+          <div class="daydetail" id="bwNear">
+            <b>Around {fmtD(bwRow.date)}</b>
+            {#each bwNear as e}
+              <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
+            {:else}
+              <div>no recorded training changes within a week of this weigh in</div>
+            {/each}
+            {#if bwNear.length}
+              <div class="cap"><a href={href.history()}>Full history</a></div>
+            {/if}
+          </div>
+        {/if}
+        <Provenance def={defOf(snap, 'bodyweight_trend')} id="bwProv" />
+      </div>
+    </div>
+    <div>
+      <SectionHeader title="Training calendar" />
+      <div class="surface-flat calcard">
+        <Calendar days={snap.calendar} />
+        <ul class="notes" id="noteList">
+          {#each snap.recent_notes as n}
+            <li class:hot={n.hot}>
+              <a href={href.session(n.date)}>{n.text}</a>
+            </li>
+          {/each}
+        </ul>
+      </div>
+      <SectionHeader title="Session length" sub="First set to last set." />
+      <div class="surface-flat" id="sessLenWrap">
+        <SessionLengthChart points={sessPoints} />
+        <div class="pielegend" id="sessLenLegend">
+          {#each sessAvgs as a}
+            <div class="row">
+              <span class="sw" style:background={dayColor(a.day)}></span>
+              <a href={href.program()}>{a.day}</a>
+              <span class="meta">avg {fmtMin(a.avg)} · {a.n} session{a.n === 1 ? '' : 's'}</span>
+            </div>
+          {/each}
+        </div>
+      </div>
+      {#if adhDays.length}
+        <div id="adhWrap">
+          <SectionHeader title="Consistency" />
+          <div class="surface-flat" id="adhCard">
+            <div class="dtstrip">
+              {#each adhDays as d}
+                <button
+                  type="button"
+                  class="dt dt-{d.status.replace('_', '')}"
+                  class:sel={adhDate === d.date}
+                  title="{d.date}: {d.status} (expected {d.expected})"
+                  aria-label="{d.date}: {statusLabel(d.status)}, expected {d.expected}"
+                  aria-pressed={adhDate === d.date}
+                  onclick={() => (adhDate = adhDate === d.date ? null : d.date)}
+                ></button>
+              {/each}
+            </div>
+            {#if adhDay}
+              <div class="daydetail" id="adhDetail">
+                <b>{fmtD(adhDay.date)}</b>
+                <div>Expected: {adhDay.expected}</div>
+                <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
+                <div>Status: {statusLabel(adhDay.status)}</div>
+                {#if adhRotation}
+                  <div>Rotation at this time: {adhRotation}</div>
+                {:else if adhDate && statesQ.isFetching}
+                  <div>Rotation at this time: loading…</div>
+                {:else if adhDate && bounds.min && adhDate < bounds.min}
+                  <div>Rotation at this time: unavailable before {fmtD(bounds.min)}.</div>
+                {/if}
+                {#each adhContext as e}
+                  <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
+                {/each}
+              </div>
+            {/if}
+            <div class="adhweeks">
+              {#each adhWeeks as w}
+                <div>{w.week_start} · {w.trained}/{w.expected} sessions</div>
+              {/each}
+            </div>
+            <div class="cap">
+              Green is trained as planned, red is missed, hollow is scheduled rest.
+            </div>
+            <Provenance def={defOf(snap, 'adherence_summary')} id="adhProv" />
+          </div>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <SectionHeader title="Forward" sub="Checkpoints, next targets, hollow points are future." />
+  <div class="surface-flat">
+    <div class="goalgrid" id="goalGrid">
+      {#each goals as g}
+        {@const acts = g.actuals.map(a => ({ date: a.date, ev: a.e1rm }))}
+        <div class="goalcard">
+          <h3><a href={href.lift(g.exercise)}>{g.exercise}</a></h3>
+          <GoalChartView
+            actuals={acts}
+            checkpoints={g.checkpoints}
+            color={liftColor(g.exercise)}
+            tops={Object.fromEntries(
+              Object.entries(g.top_by_date).map(([d, t]) => [d, { w: t.weight, r: t.reps }])
+            )}
+          />
+          <div class="goalmeta">
+            target e1RM {fmtV(g.target_e1rm)} by {fmtD(g.deadline)} |
+            {g.next_checkpoint !== null && g.next_checkpoint !== undefined
+              ? 'next checkpoint ' + fmtV(g.next_checkpoint)
+              : 'trajectory complete'}
+            {#if g.percent !== null}| {g.percent}% there{/if}
+            {#if g.on_track === false}| OFF TRACK{/if}
+            {#if g.slippage}| slippage: deadline needs room{/if}
+          </div>
+          {#each eventsForGoal(snap, g.exercise) as ge}
+            <div class="cap">{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
+          {/each}
+        </div>
+      {/each}
+    </div>
+    <div class="empty" id="goalEmpty" hidden={goals.length > 0}>
+      no active goals, trajectories appear here once set in chat
+    </div>
+    <SectionHeader title="Progression" />
+    <table id="progTable">
+      <thead>
+        <tr
+          ><th scope="col">lift</th><th scope="col">verdict</th><th scope="col">next target</th><th
+            scope="col">dir</th
+          ></tr
+        >
+      </thead>
+      <tbody>
+        {#if !progLifts.length}
+          <tr><td colspan="4">no progression written yet, set at session end in chat</td></tr>
+        {:else}
+          {#each progLifts as lift}
+            <tr>
+              <td><a href={href.lift(lift.exercise)}>{lift.exercise}</a></td>
+              <td class={verdictClass(lift.progression!.verdict)} style:font-weight="600"
+                >{lift.progression!.verdict}</td
+              >
+              <td class="num">{lift.progression!.next}</td>
+              <td
+                title={lift.progression!.direction}
+                class={directionClass(lift.progression!.direction)}
+                style:font-weight="600">{directionArrow(lift.progression!.direction)}</td
+              >
+            </tr>
+          {/each}
+        {/if}
+      </tbody>
+    </table>
+    <Provenance def={defOf(snap, 'goal_trajectory')} id="goalProv" />
+  </div>
+
+  <SectionHeader title="Best sets" />
+  <div class="surface-flat">
+    <table id="prs">
+      <thead>
+        <tr
+          ><th scope="col">lift</th><th scope="col">best set by e1RM</th><th scope="col">date</th
+          ></tr
+        >
+      </thead>
+      <tbody>
+        {#each bestSetRows(snap) as row}
+          <tr>
+            <td><a href={href.lift(row.lift)}>{row.lift}</a></td>
+            <td class="num">{row.detail}</td>
+            <td class="num">{row.date}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+</div>

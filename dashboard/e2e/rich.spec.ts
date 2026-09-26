@@ -31,9 +31,9 @@ const goal = rich.goals[0];
 test.describe('Rich snapshot sections', () => {
   test('next session card follows last session through the rotation', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
-    await expect(page.locator('#nextCard h3')).toContainText(`Next up: ${rich.next_up.day}`);
-    const benchRow = page.locator('#nextCard .nextrow', { hasText: 'bench' });
-    await expect(benchRow).toContainText('last 100 x 5');
+    await expect(page.locator('#nextWrap')).toContainText(rich.next_up.day);
+    const benchRow = page.locator('#nextCard .nextline', { hasText: 'bench' });
+    await expect(benchRow).toContainText('100 x 5');
     await expect(benchRow).toContainText('target 102.5x5');
     await expect(page.locator('#nextCard')).toContainText('never logged');
   });
@@ -73,18 +73,18 @@ test.describe('Rich snapshot sections', () => {
   test('lift page shows time since last PR, first set is the baseline', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.goto('#/l/bench');
-    await expect(page.locator('#liftPRs')).toContainText(`last PR ${bench.days_since_pr}d ago`);
+    await expect(page.locator('#liftSub')).toContainText(`last PR ${bench.days_since_pr}d ago`);
     await expect(page.locator('#liftPRs')).toContainText('+2.9');
     await page.goto('#/l/row');
-    const rowPRs = await page.locator('#liftPRs').textContent();
+    const rowPRs = await page.locator('#liftSub').textContent();
     expect(rowPRs).toContain(`last PR ${row.days_since_pr}d ago`);
   });
 
-  test('movements page shows cards, badges and filters', async ({ page }) => {
+  test('movements page shows rows, badges and filters', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.goto('#/lifts');
     await expect(page.locator('#liftsSub')).toContainText(`${rich.lifts.length} movements`);
-    const benchCard = page.locator('#liftGrid .card', { hasText: 'bench' });
+    const benchCard = page.locator('#liftGrid .liftrow', { hasText: 'bench' });
     await expect(benchCard).toContainText(`${hold.action}, holds until ${hold.hold_until}`);
     await expect(benchCard).toContainText(`adjusted ${change.date}: ${change.evidence}`);
     await expect(benchCard).toContainText('best 100 x 5 (e1RM 116.7)');
@@ -92,23 +92,23 @@ test.describe('Rich snapshot sections', () => {
     await expect(benchCard).toContainText('102.5x5');
     await expect(benchCard).toContainText('setup: touch low');
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
-    await expect(page.locator('#liftGrid .card')).toHaveCount(1);
+    await expect(page.locator('#liftGrid .liftrow')).toHaveCount(1);
     await page.locator('#liftFacets button', { hasText: 'Autoreg' }).click();
-    await expect(page.locator('#liftGrid .card')).toHaveCount(rich.lifts.length);
+    await expect(page.locator('#liftGrid .liftrow')).toHaveCount(rich.lifts.length);
   });
 
   test('muscles page shows volume status and grouped badges', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.goto('#/muscles');
-    const side = page.locator('#musGrid .card', { hasText: 'side delts' });
+    const side = page.locator('#musGrid .musrow', { hasText: 'side delts' });
     await expect(side).toContainText('below MEV');
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     const below = rich.muscles.filter(m => m.status === 'below_mev').length;
-    await expect(page.locator('#musGrid .card')).toHaveCount(below);
+    await expect(page.locator('#musGrid .musrow')).toHaveCount(below);
     await page.locator('#musFacets button', { hasText: 'Below MEV' }).click();
     await page.locator('#musFacets button', { hasText: 'Priority' }).click();
-    await expect(page.locator('#musGrid .card')).toHaveCount(1);
-    await expect(page.locator('#musGrid .card').first()).toContainText('chest');
+    await expect(page.locator('#musGrid .musrow')).toHaveCount(1);
+    await expect(page.locator('#musGrid .musrow').first()).toContainText('chest');
   });
 
   test('coach notes read the snapshot signals aloud', async ({ page }) => {

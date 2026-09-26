@@ -19,6 +19,24 @@ export function fmtV(v: number): string {
   return v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
 
+export function muscleVolLine(entry: {
+  avg_recent: number;
+  trained_weeks: number;
+  weekly: number[];
+}): string {
+  // Index-row summary; same sentence the muscle detail page uses for its
+  // header, minus the MEV/MAV/MRV bands which the detail chart carries.
+  return (
+    'last 4 weeks avg ' +
+    fmtV(entry.avg_recent) +
+    '/wk · trained ' +
+    entry.trained_weeks +
+    ' of last ' +
+    entry.weekly.length +
+    ' weeks'
+  );
+}
+
 export function fmtD(dstr: string): string {
   if (!dstr) return '';
   return MONTHS[parseInt(dstr.slice(5, 7), 10) - 1] + ' ' + parseInt(dstr.slice(8, 10), 10);

@@ -7,6 +7,7 @@
   import { syncRoute, route } from './router.svelte';
   import { closePalette, palette } from './lib/palette.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
+  import AppShell from './components/AppShell.svelte';
   import DashboardPage from './pages/DashboardPage.svelte';
   import SessionPage from './pages/SessionPage.svelte';
   import LiftPage from './pages/LiftPage.svelte';
@@ -47,35 +48,37 @@
 </script>
 
 <QueryClientProvider client={queryClient}>
-  {#if snapshot.isPending}
-    <div class="wrap">
-      <h1>Training dashboard</h1>
-      <div class="sub">loading</div>
-    </div>
-  {:else if snapshot.isError}
-    <div class="wrap">
-      <h1>Training dashboard</h1>
-      <div class="sub">snapshot failed validation: {snapshot.error.message}</div>
-    </div>
-  {:else if snapshot.data}
-    {@const snap = snapshot.data}
-    <CommandPalette {snap} />
-    {#if route.view.name === 'sess'}
-      <SessionPage {snap} date={route.view.date} />
-    {:else if route.view.name === 'lift'}
-      <LiftPage {snap} exercise={route.view.exercise} />
-    {:else if route.view.name === 'muscle'}
-      <MusclePage {snap} muscle={route.view.muscle} />
-    {:else if route.view.name === 'prog'}
-      <ProgramPage {snap} />
-    {:else if route.view.name === 'lifts'}
-      <LiftsPage {snap} />
-    {:else if route.view.name === 'muscles'}
-      <MusclesPage {snap} />
-    {:else if route.view.name === 'hist'}
-      <HistoryPage {snap} />
-    {:else}
-      <DashboardPage {snap} />
+  <AppShell>
+    {#if snapshot.isPending}
+      <div id="viewDash">
+        <h1>Overview</h1>
+        <div class="sub">loading</div>
+      </div>
+    {:else if snapshot.isError}
+      <div id="viewDash">
+        <h1>Overview</h1>
+        <div class="sub">snapshot failed validation: {snapshot.error.message}</div>
+      </div>
+    {:else if snapshot.data}
+      {@const snap = snapshot.data}
+      <CommandPalette {snap} />
+      {#if route.view.name === 'sess'}
+        <SessionPage {snap} date={route.view.date} />
+      {:else if route.view.name === 'lift'}
+        <LiftPage {snap} exercise={route.view.exercise} />
+      {:else if route.view.name === 'muscle'}
+        <MusclePage {snap} muscle={route.view.muscle} />
+      {:else if route.view.name === 'prog'}
+        <ProgramPage {snap} />
+      {:else if route.view.name === 'lifts'}
+        <LiftsPage {snap} />
+      {:else if route.view.name === 'muscles'}
+        <MusclesPage {snap} />
+      {:else if route.view.name === 'hist'}
+        <HistoryPage {snap} />
+      {:else}
+        <DashboardPage {snap} />
+      {/if}
     {/if}
-  {/if}
+  </AppShell>
 </QueryClientProvider>

@@ -20,7 +20,8 @@
   import { createEventSelection } from '../lib/eventSelection.svelte';
   import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import { vocabOf } from '../lib/vocab.svelte';
-  import PageShell from '../components/PageShell.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
+  import SectionHeader from '../components/SectionHeader.svelte';
   import LiftDetailChart from '../components/LiftDetailChart.svelte';
   import GoalChartView from '../components/GoalChartView.svelte';
   import EventStrip from '../components/EventStrip.svelte';
@@ -55,7 +56,7 @@
 
   const prog = $derived(lift?.progression ?? null);
 
-  const sub = $derived.by(() => {
+  const bestLine = $derived.by(() => {
     if (!lift || !lift.sessions.length) return 'never logged';
     const best = lift.best!;
     return (
@@ -63,12 +64,16 @@
       best.weight +
       ' x ' +
       best.reps +
-      ' (e1RM ' +
+      ' · e1RM ' +
       best.e1rm.toFixed(1) +
-      ') on ' +
-      fmtD(best.date) +
-      (prog ? ' | progression ' + prog.verdict + ', next ' + prog.next + ' ' + prog.direction : '')
+      ' · ' +
+      fmtD(best.date)
     );
+  });
+
+  const progLine = $derived.by(() => {
+    if (!prog) return '';
+    return prog.verdict + ', next ' + prog.next + ' ' + prog.direction;
   });
 
   const goal = $derived.by(() => {
@@ -97,8 +102,7 @@
         ? ', next checkpoint ' + fmtV(goal.next_checkpoint)
         : ', trajectory complete') +
       (goal.on_track === false ? ', OFF TRACK' : '') +
-      (goal.slippage ? ', slippage: deadline needs room' : '') +
-      '. Dashed line is the plan, hollow points are future.'
+      (goal.slippage ? ', slippage: deadline needs room' : '')
     );
   });
 
@@ -166,67 +170,72 @@
   });
 </script>
 
-<PageShell back>
-  <div class="wrap" id="viewLift">
-    <h1 id="liftTitle">{ex}</h1>
-    <div class="sub" id="liftSub">{sub}</div>
-    <div class="muscles" id="liftMuscles" hidden={!trained.length}>
-      {#each trained as m, i}
-        {#if i > 0},
-        {/if}<a href={href.muscle(m)}><b>{m}</b></a>
-      {/each}
+<div id="viewLift">
+  <div class="crumb"><a href={href.lifts()}>← Movements</a></div>
+  <PageHeader title={ex} titleId="liftTitle" />
+  <div class="liftmeta" id="liftSub">
+    <span class="nextnum">{bestLine}</span>
+    <span class="cap">{prNote}</span>
+    {#if progLine}<span class="cap">{progLine}</span>{/if}
+  </div>
+  <div class="muscles" id="liftMuscles" hidden={!trained.length}>
+    {#each trained as m, i}
+      {#if i > 0},
+      {/if}<a href={href.muscle(m)}><b>{m}</b></a>
+    {/each}
+  </div>
+  <SectionHeader title="Estimated 1RM" />
+  <div class="surface-flat">
+    <LiftDetailChart
+      {pts}
+      color={vocab.liftColor(ex)}
+      futureEv={prog ? prog.next_e1rm : null}
+      asOf={snap.as_of}
+      {marks}
+      selDate={selected?.date ?? asof}
+      onSelectMark={selectMark}
+    />
+    <div class="cap">
+      Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow diamond
+      marks the progression next target. Ticks mark recorded training changes, tap one to inspect.
     </div>
-    <div class="card">
-      <LiftDetailChart
-        {pts}
-        color={vocab.liftColor(ex)}
-        futureEv={prog ? prog.next_e1rm : null}
-        asOf={snap.as_of}
-        {marks}
-        selDate={selected?.date ?? asof}
-        onSelectMark={selectMark}
+    {#if coverNote}
+      <div class="cap" id="liftHistNote">{coverNote}</div>
+    {/if}
+    <AsOfControl
+      value={asof}
+      min={bounds.min}
+      max={bounds.max}
+      eventDates={groups.map(g => g.date)}
+      onPick={d => (asof = d)}
+      id="liftAsof"
+    />
+    <EventStrip {groups} selectedId={sel.selId} onSelect={sel.select} id="liftEvents" />
+    {#if selected}
+      <ChangeDetail
+        event={selected}
+        events={snap.history}
+        stateOpen={asof === selected.date}
+        onViewState={toggleAsof}
+        id="liftChange"
       />
-      <div class="cap">
-        Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow
-        diamond marks the progression next target. Ticks mark recorded training changes, tap one to
-        inspect.
-      </div>
-      {#if coverNote}
-        <div class="cap" id="liftHistNote">{coverNote}</div>
-      {/if}
-      <AsOfControl
-        value={asof}
-        min={bounds.min}
-        max={bounds.max}
-        eventDates={groups.map(g => g.date)}
-        onPick={d => (asof = d)}
-        id="liftAsof"
-      />
-      <EventStrip {groups} selectedId={sel.selId} onSelect={sel.select} id="liftEvents" />
-      {#if selected}
-        <ChangeDetail
-          event={selected}
-          events={snap.history}
-          stateOpen={asof === selected.date}
-          onViewState={toggleAsof}
-          id="liftChange"
-        />
-      {/if}
-      <AsOfPanel
-        {snap}
-        date={asof}
-        scope={panelScope}
-        ruleId={panelRule}
-        states={statesQ.data?.states ?? null}
-        loading={asof !== null && statesQ.isFetching}
-        rangeMin={bounds.min}
-        id="liftState"
-      />
-      <Provenance def={defOf(snap, 'lift_trend')} id="liftProv" />
-    </div>
-    {#if goal && goalCps.length}
-      <div class="card future futurebg" id="liftGoalCard">
-        <h2>Trajectory</h2>
+    {/if}
+    <AsOfPanel
+      {snap}
+      date={asof}
+      scope={panelScope}
+      ruleId={panelRule}
+      states={statesQ.data?.states ?? null}
+      loading={asof !== null && statesQ.isFetching}
+      rangeMin={bounds.min}
+      id="liftState"
+    />
+    <Provenance def={defOf(snap, 'lift_trend')} id="liftProv" />
+  </div>
+  {#if goal && goalCps.length}
+    <div id="liftGoalCard">
+      <SectionHeader title="Trajectory" sub={goalCap} />
+      <div class="surface-flat">
         <GoalChartView
           id="chGoal"
           actuals={goalActs}
@@ -234,36 +243,48 @@
           color={vocab.liftColor(ex)}
           tops={goalTops}
         />
-        <div class="cap" id="liftGoalCap">{goalCap}</div>
+        <div class="cap">Dashed line is the plan, hollow points are future.</div>
         {#if goalEvents.length}
           <div class="cap" id="liftGoalHist">Trajectory history</div>
           {#each goalEvents as ge}
-            <div>{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
+            <div class="cap">{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
           {/each}
         {/if}
         <Provenance def={defOf(snap, 'goal_trajectory')} id="liftGoalProv" />
       </div>
-    {/if}
-    {#if setup.length}
-      <div class="card" id="liftSetupCard">
-        <div class="cap">Setup</div>
-        <div class="notes" id="liftSetup">
-          {#each setup as n}
-            <div>{n}</div>
-          {/each}
-        </div>
-      </div>
-    {/if}
-    <h2>PR history</h2>
-    <div id="liftPRs">
-      <div class="cap">{prNote}</div>
-      {#each prItems as item}
-        <a class="tl-item" href={item.link}>
-          <div class="tl-date">{item.date}</div>
-          <div class="tl-rail"></div>
-          <div class="tl-what"><b>{item.detail}</b><span class="tl-delta">{item.jump}</span></div>
-        </a>
-      {/each}
     </div>
+  {/if}
+  {#if setup.length}
+    <div id="liftSetupCard">
+      <SectionHeader title="Setup" />
+      <div class="notes" id="liftSetup">
+        {#each setup as n}
+          <div>{n}</div>
+        {/each}
+      </div>
+    </div>
+  {/if}
+  <SectionHeader title="PR history" />
+  <div id="liftPRs" class="surface-flat">
+    {#each prItems as item}
+      <a class="tl-item" href={item.link}>
+        <div class="tl-date">{item.date}</div>
+        <div class="tl-rail"></div>
+        <div class="tl-what"><b>{item.detail}</b><span class="tl-delta">{item.jump}</span></div>
+      </a>
+    {/each}
   </div>
-</PageShell>
+</div>
+
+<style>
+  .liftmeta {
+    display: flex;
+    gap: 8px 18px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin: -2px 0 4px;
+  }
+  .liftmeta .cap {
+    margin-top: 0;
+  }
+</style>

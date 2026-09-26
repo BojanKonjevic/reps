@@ -2,7 +2,7 @@
 // Search/facet/hidden state, tag-membership filtering, alphabetical sorts.
 // No domain math: every number rendered here was computed in Python.
 
-import type { Lift, Muscle, SessionView } from '../generated/snapshot';
+import type { AutoregChange, AutoregHold, Lift, Muscle, SessionView } from '../generated/snapshot';
 import { href } from '../routes';
 import { fmtD, fmtMin, fmtV } from './format';
 import { statusLabel } from './present';
@@ -16,6 +16,14 @@ export interface TrendMatrix {
 export function liftByName(lifts: Lift[], exercise: string): Lift | null {
   const want = exercise.toLowerCase();
   return lifts.find(l => l.exercise.toLowerCase() === want) ?? null;
+}
+
+export function latestE1rm(lifts: Lift[], exercise: string): string {
+  // Latest session e1RM for small-multiple headers; the value is emitted,
+  // this only selects and formats it.
+  const sess = liftByName(lifts, exercise)?.sessions;
+  if (!sess || !sess.length) return '';
+  return fmtV(sess[sess.length - 1].e1rm);
 }
 
 export function defaultOrder(lifts: Lift[]): Lift[] {
@@ -38,17 +46,111 @@ export function trendMatrix(lifts: Lift[]): TrendMatrix {
   return { days, series, top: ordered.map(l => l.exercise) };
 }
 
-export function filterLifts(lifts: Lift[], q: string, facets: Set<string>): Lift[] {
+export function tagFacetsPass(tags: Set<string>, facets: Set<string>): boolean {
+  // Goal/stalling/focus core shared by the trend filter and the movement
+  // index; autoreg/grouped facets live in movementPasses below.
+  for (const f of facets) {
+    if (f === 'goal' && tags.has('goal')) return true;
+    if (f === 'stall' && (tags.has('stalling') || tags.has('slipping'))) return true;
+    if (f === 'focus' && tags.has('focus')) return true;
+  }
+  return false;
+}
+
+export interface MovementIndexInput {
+  lifts: Lift[];
+  holds: AutoregHold[];
+  changes: AutoregChange[];
+  grouped: Record<string, string[]>;
+}
+
+function normMove(m: string): string {
+  return m.trim().toLowerCase();
+}
+
+export function heldMovements(holds: AutoregHold[]): Set<string> {
+  const out = new Set<string>();
+  for (const h of holds) for (const m of h.moves) if (normMove(m)) out.add(normMove(m));
+  return out;
+}
+
+export function changedMovements(changes: AutoregChange[]): Set<string> {
+  const out = new Set<string>();
+  for (const ch of changes) {
+    if (ch.reverted_on) continue;
+    for (const m of ch.after_moves) if (normMove(m)) out.add(normMove(m));
+  }
+  return out;
+}
+
+export function groupedMusclesOf(grouped: Record<string, string[]>, exercise: string): string[] {
+  const out: string[] = [];
+  for (const [mus, lifts] of Object.entries(grouped)) {
+    if (lifts.some(l => l.toLowerCase() === exercise.toLowerCase())) out.push(mus);
+  }
+  return out;
+}
+
+export function changeForMovement(
+  changes: AutoregChange[],
+  exercise: string
+): AutoregChange | null {
+  const low = exercise.toLowerCase();
+  for (const ch of changes) {
+    if (ch.reverted_on) continue;
+    if (ch.after_moves.map(normMove).includes(low)) return ch;
+  }
+  return null;
+}
+
+export function movementRank(
+  lifts: Lift[],
+  exercise: string,
+  held: Set<string>,
+  changed: Set<string>
+): number {
+  if (held.has(exercise.toLowerCase()) || changed.has(exercise.toLowerCase())) return 0;
+  const tags = new Set(liftByName(lifts, exercise)?.tags ?? []);
+  if (tags.has('stalling') || tags.has('slipping')) return 1;
+  if (tags.has('goal')) return 2;
+  return 3;
+}
+
+export function movementPasses(
+  lifts: Lift[],
+  exercise: string,
+  q: string,
+  facets: Set<string>,
+  ctx: { held: Set<string>; changed: Set<string>; grouped: Record<string, string[]> }
+): boolean {
+  if (q && !exercise.toLowerCase().includes(q)) return false;
+  if (!facets.size) return true;
+  const low = exercise.toLowerCase();
+  const tags = new Set(liftByName(lifts, exercise)?.tags ?? []);
+  for (const f of facets) {
+    if (f === 'autoreg' && (ctx.held.has(low) || ctx.changed.has(low))) return true;
+    if (f === 'grouped' && groupedMusclesOf(ctx.grouped, exercise).length) return true;
+  }
+  return tagFacetsPass(tags, facets);
+}
+
+export function orderMovementIndex(
+  input: MovementIndexInput,
+  q: string,
+  facets: Set<string>
+): Lift[] {
+  const held = heldMovements(input.holds);
+  const changed = changedMovements(input.changes);
   const query = (q || '').trim().toLowerCase();
-  return lifts.filter(l => {
-    if (query && !l.exercise.toLowerCase().includes(query)) return false;
-    if (!facets.size) return true;
-    const tags = new Set(l.tags);
-    if (facets.has('goal') && tags.has('goal')) return true;
-    if (facets.has('stall') && (tags.has('stalling') || tags.has('slipping'))) return true;
-    if (facets.has('focus') && tags.has('focus')) return true;
-    return false;
-  });
+  const ctx = { held, changed, grouped: input.grouped };
+  return input.lifts
+    .slice()
+    .sort(
+      (a, b) =>
+        movementRank(input.lifts, a.exercise, held, changed) -
+          movementRank(input.lifts, b.exercise, held, changed) || (a.exercise < b.exercise ? -1 : 1)
+    )
+    .filter(l => movementPasses(input.lifts, l.exercise, query, facets, ctx));
 }
 
 export function sortAlpha<T extends string>(names: T[]): T[] {

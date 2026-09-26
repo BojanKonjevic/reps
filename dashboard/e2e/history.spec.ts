@@ -67,7 +67,9 @@ test.describe('Temporal context', () => {
     await expect(page.locator('#liftAsof .asofpop button[aria-label="2026-09-10"] .asofdot')).toHaveCount(1);
     await expect(page.locator('#liftAsof .asofpop button[aria-label="2026-09-12"] .asofdot')).toHaveCount(0);
     const box = await page.locator('#liftAsof .asofpop').boundingBox();
-    expect(box!.x + box!.width).toBeLessThanOrEqual(400);
+    const viewport = page.viewportSize()!;
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
   });
 
   test('any date reconstructs: event date, empty date, between events', async ({ page }) => {

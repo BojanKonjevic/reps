@@ -6,6 +6,13 @@ import {
   paletteSessions,
   filterPalRows,
   sessionSpans,
+  tagFacetsPass,
+  heldMovements,
+  changedMovements,
+  groupedMusclesOf,
+  changeForMovement,
+  movementRank,
+  orderMovementIndex,
 } from '../lib/select';
 import { dayAvgs } from '../lib/dashboard';
 import type { SessionView } from '../generated/snapshot';
@@ -182,5 +189,68 @@ describe('paletteSessions', () => {
     expect(filterPalRows(rows, 'sep 22')).toHaveLength(1);
     expect(filterPalRows(rows, 'u1')).toHaveLength(1);
     expect(filterPalRows(rows, '2026-09-23')).toEqual([]);
+  });
+});
+
+describe('tagFacetsPass', () => {
+  it('matches goal, stalling/slipping via stall, and focus tags', () => {
+    expect(tagFacetsPass(new Set(['goal']), new Set(['goal']))).toBe(true);
+    expect(tagFacetsPass(new Set(['stalling']), new Set(['stall']))).toBe(true);
+    expect(tagFacetsPass(new Set(['slipping']), new Set(['stall']))).toBe(true);
+    expect(tagFacetsPass(new Set(['focus']), new Set(['focus']))).toBe(true);
+    expect(tagFacetsPass(new Set(['goal']), new Set(['focus']))).toBe(false);
+    expect(tagFacetsPass(new Set(['goal']), new Set(['autoreg']))).toBe(false);
+  });
+});
+
+describe('orderMovementIndex', () => {
+  const lifts = [
+    { exercise: 'bench', tags: ['goal'] },
+    { exercise: 'row', tags: ['stalling'] },
+    { exercise: 'curl', tags: [] },
+  ] as never;
+  const holds = [{ moves: ['Curl'], hold_until: '2026-10-02' }] as never;
+  const changes = [
+    { after_moves: ['Row'], reverted_on: null },
+    { after_moves: ['Curl'], reverted_on: '2026-09-20' },
+  ] as never;
+  const grouped = { chest: ['bench'] };
+  const input = { lifts, holds, changes, grouped };
+
+  it('ranks autoreg movements first, then stalling, goal, rest, alphabetical', () => {
+    expect(orderMovementIndex(input, '', new Set()).map(l => l.exercise)).toEqual([
+      'curl',
+      'row',
+      'bench',
+    ]);
+  });
+
+  it('reverted changes do not count as autoreg', () => {
+    expect(changedMovements(changes)).toEqual(new Set(['row']));
+    expect(heldMovements(holds)).toEqual(new Set(['curl']));
+  });
+
+  it('filters by query and facets without changing grouping semantics', () => {
+    expect(orderMovementIndex(input, 'cu', new Set()).map(l => l.exercise)).toEqual(['curl']);
+    expect(orderMovementIndex(input, '', new Set(['autoreg'])).map(l => l.exercise)).toEqual([
+      'curl',
+      'row',
+    ]);
+    expect(orderMovementIndex(input, '', new Set(['grouped'])).map(l => l.exercise)).toEqual([
+      'bench',
+    ]);
+    expect(orderMovementIndex(input, '', new Set(['goal'])).map(l => l.exercise)).toEqual([
+      'bench',
+    ]);
+    expect(orderMovementIndex(input, '', new Set(['stall'])).map(l => l.exercise)).toEqual(['row']);
+  });
+
+  it('resolves grouped muscles and the active change per movement', () => {
+    expect(groupedMusclesOf(grouped, 'bench')).toEqual(['chest']);
+    expect(groupedMusclesOf(grouped, 'row')).toEqual([]);
+    expect(changeForMovement(changes, 'row')).toBe(changes[0]);
+    expect(changeForMovement(changes, 'curl')).toBeNull();
+    expect(movementRank(lifts, 'row', new Set(), new Set(['row']))).toBe(0);
+    expect(movementRank(lifts, 'bench', new Set(), new Set())).toBe(2);
   });
 });

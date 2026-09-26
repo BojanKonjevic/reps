@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fmtD } from '../lib/format';
+  import { fmtD, muscleVolLine } from '../lib/format';
   import { statusLabel } from '../lib/present';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { ui } from '../lib/filters.svelte';
   import { vocabOf } from '../lib/vocab.svelte';
-  import PageShell from '../components/PageShell.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
   import FacetChips from '../components/FacetChips.svelte';
   import MuscleVolumeChart from '../components/MuscleVolumeChart.svelte';
 
@@ -80,6 +80,12 @@
     return marks;
   }
 
+  function volLine(m: string): string {
+    const entry = snap.muscles.find(x => x.muscle === m);
+    if (!entry) return '';
+    return muscleVolLine(entry);
+  }
+
   function toggleFacet(f: string) {
     if (ui.muscleFacets.has(f)) ui.muscleFacets.delete(f);
     else ui.muscleFacets.add(f);
@@ -90,80 +96,82 @@
   });
 </script>
 
-<PageShell back>
-  <div class="wrap" id="viewMuscles">
-    <h1>Muscles</h1>
-    <div class="sub" id="musSub2">{shown.length} muscles</div>
-    <div class="card">
-      <div class="filterbar">
-        <span class="legend" id="musFacets">
-          <FacetChips
-            facets={[
-              ['Below MEV', 'below'],
-              ['Above MRV', 'above'],
-              ['Priority', 'priority'],
-              ['Grouped', 'grouped'],
-            ]}
-            active={ui.muscleFacets}
-            onToggle={toggleFacet}
-          />
-        </span>
-      </div>
-      <div class="listgrid" id="musGrid">
-        {#each shown as m}
-          {@const entry = snap.muscles.find(x => x.muscle === m)}
-          {@const lifts = entry?.lift_share ?? []}
-          <div
-            class="card"
-            style="margin: 0"
-            role="link"
-            tabindex="0"
-            onclick={ev => {
-              if ((ev.target as HTMLElement).tagName !== 'A') location.hash = href.muscle(m);
-            }}
-            onkeydown={ev => {
-              if (ev.key === 'Enter') location.hash = href.muscle(m);
-            }}
-          >
-            <div class="listrow">
-              <div class="listinfo">
-                <div class="minititle">
-                  <a href={href.muscle(m)}>{m}</a>
-                  <span class="ministat">
-                    {#each marksFor(m) as x}
-                      <span class={'minisub ' + x.cls}>{x.text}</span>
-                    {/each}
-                  </span>
-                </div>
-                {#each lifts.slice(0, 3) as l}
-                  <div class="cap">
-                    <a href={href.lift(l.exercise)}>{l.exercise}</a>
-                    <span> {l.sets} sets · {Math.round(l.share * 100)}%</span>
-                  </div>
-                {/each}
-                {#if lifts.length > 3}
-                  <div class="cap">
-                    <a href={href.muscle(m)}>+{lifts.length - 3} more</a>
-                  </div>
-                {/if}
-              </div>
-              <div class="listchart">
-                <MuscleVolumeChart
-                  labels={wlabels}
-                  counts={entry?.weekly ?? []}
-                  bands={{
-                    mev: entry?.bands.mev ?? 0,
-                    mav: entry?.bands.mav ?? null,
-                    mrv: entry?.bands.mrv ?? null,
-                  }}
-                  color={vocab.colors[m] || ''}
-                />
-              </div>
-            </div>
-          </div>
-        {/each}
-      </div>
-      <div class="cap">Weekly sets against MEV/MAV/MRV. Tap a muscle for the full page.</div>
+<div id="viewMuscles">
+  <PageHeader title="Muscles" sub={shown.length + ' muscles'} subId="musSub2" />
+  <div class="surface-flat">
+    <div class="filterbar">
+      <span class="legend" id="musFacets">
+        <FacetChips
+          facets={[
+            ['Below MEV', 'below'],
+            ['Above MRV', 'above'],
+            ['Priority', 'priority'],
+            ['Grouped', 'grouped'],
+          ]}
+          active={ui.muscleFacets}
+          onToggle={toggleFacet}
+        />
+      </span>
     </div>
+    <div class="listgrid" id="musGrid">
+      {#each shown as m}
+        {@const entry = snap.muscles.find(x => x.muscle === m)}
+        {@const lifts = entry?.lift_share ?? []}
+        <div class="listrow musrow">
+          <div class="listinfo">
+            <div class="minititle">
+              <a href={href.muscle(m)}>{m}</a>
+            </div>
+            <div class="rowstat">
+              {#each marksFor(m) as x, i}
+                {#if i > 0}<span class="sep"> · </span>{/if}<span class={'minisub ' + x.cls}
+                  >{x.text}</span
+                >
+              {/each}
+            </div>
+            <div class="cap mono">{volLine(m)}</div>
+            {#each lifts.slice(0, 3) as l}
+              <div class="cap">
+                <a href={href.lift(l.exercise)}>{l.exercise}</a>
+                <span class="mono"> {l.sets} sets · {Math.round(l.share * 100)}%</span>
+              </div>
+            {/each}
+            {#if lifts.length > 3}
+              <div class="cap">
+                <a href={href.muscle(m)}>+{lifts.length - 3} more</a>
+              </div>
+            {/if}
+          </div>
+          <div class="listchart">
+            <MuscleVolumeChart
+              labels={wlabels}
+              counts={entry?.weekly ?? []}
+              bands={{
+                mev: entry?.bands.mev ?? 0,
+                mav: entry?.bands.mav ?? null,
+                mrv: entry?.bands.mrv ?? null,
+              }}
+              color={vocab.colors[m] || ''}
+            />
+          </div>
+        </div>
+      {/each}
+    </div>
+    <div class="cap">Weekly sets against MEV/MAV/MRV. Tap a muscle for the full page.</div>
   </div>
-</PageShell>
+</div>
+
+<style>
+  .rowstat .minisub {
+    margin-left: 0;
+  }
+  .sep {
+    color: var(--ink-faint);
+    font-size: 11.5px;
+  }
+  .cap.mono,
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+</style>
