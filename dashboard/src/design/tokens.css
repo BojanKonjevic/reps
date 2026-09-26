@@ -1,38 +1,55 @@
 /* SSOT owner: colors, fonts, radii. Consumers: app.css via var(), canvas via lib/theme.ts. */
 
 :root {
-  --bg: #0a0a0a;
-  --bg-soft: #161515;
-  --bg-card: #262524;
-  --bg-hover: #2e2d2c;
-  --ink: #f0efec;
-  --ink-dim: #cfcfcb;
-  --ink-mute: #a8a8a3;
-  --ink-faint: #82827c;
-  --line: #333332;
-  --line-soft: #63635c;
-  --good: #7fd67f;
-  --good-deep: #3d9a42;
-  --good-bright: #4cb052;
-  --bad: #f09090;
-  --bad-deep: #8a2c2c;
-  --warn: #e6c400;
-  --warn-soft: #f0d060;
-  --warn-pale: #ffe45e;
-  --accent: #f2a35e;
-  --accent-deep: #d97355;
-  --accent-rust: #a34a32;
-  --link: #42a5f5;
+  /* surfaces: small neutral steps, bg < bg-soft < bg-raised < bg-hover < bg-active */
+  --bg: #09090a;
+  --bg-soft: #111113;
+  --bg-raised: #17171a;
+  --bg-hover: #1c1c20;
+  --bg-active: #202025;
+
+  /* text */
+  --ink: #f5f5f5;
+  --ink-dim: #c8c8cc;
+  --ink-mute: #96969d;
+  --ink-faint: #66666e;
+
+  /* borders: barely perceptible */
+  --line: #26262b;
+  --line-soft: #35353b;
+
+  /* semantic: actual status/data only, never decoration */
+  --good: #7fd58a;
+  --good-deep: #3f8f49;
+  --bad: #ef8f91;
+  --bad-deep: #8b3033;
+  --warn: #d9bc49;
+
+  /* brand: one restrained accent for chrome, selected states, focus */
+  --accent: #9aa4ff;
+  --accent-strong: #c2c8ff;
+  --accent-dim: rgba(154, 164, 255, 0.12);
+
+  /* links inherit body color; accent reserved for selected/important states */
+  --link: #9aa4ff;
+
+  /* overlays */
   --overlay-dim: rgba(0, 0, 0, 0.18);
-  --overlay-backdrop: rgba(0, 0, 0, 0.5);
-  --overlay-line: rgba(148, 148, 145, 0.16);
-  --overlay-warn: rgba(230, 196, 0, 0.05);
+  --overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --overlay-line: rgba(148, 148, 155, 0.14);
+  --overlay-warn: rgba(217, 188, 73, 0.06);
   --overlay-card: rgba(255, 255, 255, 0.9);
   --overlay-tick: rgba(255, 255, 255, 0.1);
   --overlay-tick-strong: rgba(255, 255, 255, 0.35);
+
+  /* typography */
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --font-serif: 'IBM Plex Serif', Georgia, serif;
-  --font-sans: 'IBM Plex Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --radius: 10px;
-  --radius-small: 6px;
+
+  /* radii: restrained, never pills */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
 }

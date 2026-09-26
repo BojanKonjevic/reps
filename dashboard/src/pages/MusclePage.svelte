@@ -18,7 +18,8 @@
   import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import type { PieSlice } from '../pieChart';
   import { piePalette } from '../pieChart';
-  import PageShell from '../components/PageShell.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
+  import SectionHeader from '../components/SectionHeader.svelte';
   import MuscleVolumeChart from '../components/MuscleVolumeChart.svelte';
   import MusclePie from '../components/MusclePie.svelte';
   import EventStrip from '../components/EventStrip.svelte';
@@ -136,84 +137,94 @@
 </script>
 
 {#if match && entry}
-  <PageShell back>
-    <div class="wrap" id="viewMuscle">
-      <h1 id="musTitle">{match}</h1>
-      <div class="sub" id="musSub">{sub}</div>
-      <div class="card">
-        <MuscleVolumeChart
-          id="chMusVol"
-          {labels}
-          counts={entry.weekly}
-          bands={{
-            mev: entry.bands.mev,
-            mav: entry.bands.mav,
-            mrv: entry.bands.mrv,
-          }}
-          color={vocab.colors[match] || ''}
-          {marks}
-          selDate={selected?.date ?? asof}
-          onSelectMark={selectMark}
-        />
-        <div class="cap" id="musCap">
-          Weekly sets. Gold line is MEV, shaded zone is MAV, red line is MRV. Ticks mark recorded
-          priority and program changes, tap one to inspect.
-        </div>
-        {#if coverNote}
-          <div class="cap" id="musHistNote">{coverNote}</div>
-        {/if}
-        <AsOfControl
-          value={asof}
-          min={bounds.min}
-          max={bounds.max}
-          eventDates={groups.map(g => g.date)}
-          onPick={d => (asof = d)}
-          id="musAsof"
-        />
-        <EventStrip {groups} selectedId={sel.selId} onSelect={sel.select} id="musEvents" />
-        {#if selected}
-          <ChangeDetail
-            event={selected}
-            events={snap.history}
-            stateOpen={asof === selected.date}
-            onViewState={toggleAsof}
-            id="musChange"
-          />
-        {/if}
-        <AsOfPanel
-          {snap}
-          date={asof}
-          scope={panelScope}
-          ruleId={panelRule}
-          states={statesQ.data?.states ?? null}
-          loading={asof !== null && statesQ.isFetching}
-          rangeMin={bounds.min}
-          id="musState"
-        />
-        <Provenance def={defOf(snap, 'muscle_volume')} id="musProv" />
+  <div id="viewMuscle">
+    <div class="crumb"><a href={href.muscles()}>← Muscles</a></div>
+    <PageHeader title={match} {sub} titleId="musTitle" subId="musSub" />
+    <SectionHeader title="Weekly volume" />
+    <div class="surface-flat">
+      <MuscleVolumeChart
+        id="chMusVol"
+        {labels}
+        counts={entry.weekly}
+        bands={{
+          mev: entry.bands.mev,
+          mav: entry.bands.mav,
+          mrv: entry.bands.mrv,
+        }}
+        color={vocab.colors[match] || ''}
+        {marks}
+        selDate={selected?.date ?? asof}
+        onSelectMark={selectMark}
+      />
+      <div class="cap" id="musCap">
+        Weekly sets. Gold line is MEV, shaded zone is MAV, red line is MRV. Ticks mark recorded
+        priority and program changes, tap one to inspect.
       </div>
-      <h2>Where the volume comes from</h2>
-      <div class="card">
-        <div class="piewrap">
-          <MusclePie {slices} sets={sliceSets} />
-          <div class="pielegend" id="musLegend">
-            {#each slices as s, i}
-              <div class="row">
-                <span class="sw" style:background={piePalette(s.label)}></span>
-                {#if s.link}
-                  <a href={s.link}>{s.label}</a>
-                {:else}
-                  {s.label}
-                {/if}
-                <span class="meta">{sliceSets[i]} sets · {Math.round(s.frac * 100)}%</span>
-              </div>
-            {/each}
-            {#if !slices.length}
-              <div class="empty">nothing logged for this muscle yet</div>
-            {/if}
-          </div>
+      {#if coverNote}
+        <div class="cap" id="musHistNote">{coverNote}</div>
+      {/if}
+      <AsOfControl
+        value={asof}
+        min={bounds.min}
+        max={bounds.max}
+        eventDates={groups.map(g => g.date)}
+        onPick={d => (asof = d)}
+        id="musAsof"
+      />
+      <EventStrip {groups} selectedId={sel.selId} onSelect={sel.select} id="musEvents" />
+      {#if selected}
+        <ChangeDetail
+          event={selected}
+          events={snap.history}
+          stateOpen={asof === selected.date}
+          onViewState={toggleAsof}
+          id="musChange"
+        />
+      {/if}
+      <AsOfPanel
+        {snap}
+        date={asof}
+        scope={panelScope}
+        ruleId={panelRule}
+        states={statesQ.data?.states ?? null}
+        loading={asof !== null && statesQ.isFetching}
+        rangeMin={bounds.min}
+        id="musState"
+      />
+      <Provenance def={defOf(snap, 'muscle_volume')} id="musProv" />
+    </div>
+    <SectionHeader title="Where the volume comes from" />
+    <div class="surface-flat">
+      <div class="piewrap">
+        <MusclePie {slices} sets={sliceSets} />
+        <div class="pielegend" id="musLegend">
+          {#each slices as s, i}
+            <div class="row">
+              <span class="sw" style:background={piePalette(s.label)}></span>
+              {#if s.link}
+                <a href={s.link}>{s.label}</a>
+              {:else}
+                {s.label}
+              {/if}
+              <span class="meta">{sliceSets[i]} sets · {Math.round(s.frac * 100)}%</span>
+            </div>
+          {/each}
+          {#if !slices.length}
+            <div class="empty">nothing logged for this muscle yet</div>
+          {/if}
         </div>
       </div>
     </div>
-  </PageShell>
+  </div>
 {/if}
+
+<style>
+  .crumb {
+    font-size: 12.5px;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+  }
+  .crumb a:hover {
+    color: var(--ink);
+  }
+</style>

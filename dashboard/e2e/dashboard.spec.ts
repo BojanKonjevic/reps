@@ -32,7 +32,7 @@ const sessionsOf = (s: Snap) => {
 test.describe('Dashboard', () => {
   test('loads and shows dashboard title', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
-    await expect(page.locator('#viewDash h1')).toContainText('Training dashboard');
+    await expect(page.locator('#viewDash h1')).toContainText('Overview');
   });
 
   test('renders sessions, calendar and best sets', async ({ page }) => {
