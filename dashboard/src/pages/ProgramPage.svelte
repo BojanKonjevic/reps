@@ -2,12 +2,20 @@
   import { onMount } from 'svelte';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
-  import { defOf, groupByDate, programEvents, ruleIdOf, scopeOf, stateOn } from '../lib/temporal';
+  import {
+    defOf,
+    groupByDate,
+    programEvents,
+    rangeBounds,
+    ruleIdOf,
+    scopeOf,
+  } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
+  import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import PageShell from '../components/PageShell.svelte';
   import EventStrip from '../components/EventStrip.svelte';
   import ChangeDetail from '../components/ChangeDetail.svelte';
-  import TrainingState from '../components/TrainingState.svelte';
+  import AsOfPanel from '../components/AsOfPanel.svelte';
   import Provenance from '../components/Provenance.svelte';
 
   interface Props {
@@ -24,10 +32,19 @@
 
   const events = $derived(programEvents(snap));
   const groups = $derived(groupByDate(events));
+  const bounds = $derived(rangeBounds(snap));
 
   const sel = createEventSelection();
+  let asof: string | null = $state(null);
   const selected = $derived(events.find(e => e.id === sel.selId) ?? null);
-  const histState = $derived(sel.stateDate ? stateOn(snap, sel.stateDate) : null);
+  const statesQ = useHistoryStates(
+    () => asof !== null,
+    () => snap.exported
+  );
+
+  function toggleAsof(date: string) {
+    asof = asof === date ? null : date;
+  }
 
   onMount(() => {
     document.title = 'program';
@@ -46,19 +63,20 @@
           <ChangeDetail
             event={selected}
             events={snap.history}
-            stateOpen={sel.stateDate === selected.date}
-            onViewState={sel.viewState}
+            stateOpen={asof === selected.date}
+            onViewState={toggleAsof}
             id="progChange"
           />
-          {#if histState && sel.stateDate === selected.date}
-            <TrainingState
-              {histState}
-              {snap}
-              scope={scopeOf(selected)}
-              ruleId={ruleIdOf(selected)}
-              id="progState"
-            />
-          {/if}
+          <AsOfPanel
+            {snap}
+            date={asof}
+            scope={scopeOf(selected)}
+            ruleId={ruleIdOf(selected)}
+            states={statesQ.data?.states ?? null}
+            loading={asof !== null && statesQ.isFetching}
+            rangeMin={bounds.min}
+            id="progState"
+          />
         {/if}
         <Provenance def={defOf(snap, 'program_activity')} id="progProv" />
       </div>

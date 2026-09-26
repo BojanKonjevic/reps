@@ -32,14 +32,20 @@ export interface HitSlice {
   index: number;
 }
 
+export interface HitMark {
+  x: number;
+  date: string;
+}
+
 export interface HitMap {
   points: HitPoint[];
   bars: HitBar[];
   slices: HitSlice[];
+  marks: HitMark[];
 }
 
 export function emptyHit(): HitMap {
-  return { points: [], bars: [], slices: [] };
+  return { points: [], bars: [], slices: [], marks: [] };
 }
 
 export type LayoutPreset = 'full' | 'mini' | 'goal';

@@ -1,0 +1,1496 @@
+{
+  "schema_version": 3,
+  "exported": "2026-09-24T12:00:00",
+  "as_of": "2026-09-24",
+  "constants": {
+    "version": 1,
+    "muscles": {
+      "chest": {
+        "mev": 8,
+        "mav": [
+          14,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017 meta, RP synthesis",
+        "color": "#ffa726"
+      },
+      "back": {
+        "mev": 10,
+        "mav": [
+          14,
+          22
+        ],
+        "mrv": 28,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, Israetel RP",
+        "color": "#66bb6a"
+      },
+      "front delts": {
+        "mev": 0,
+        "mav": [
+          4,
+          12
+        ],
+        "mrv": 12,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "opinion",
+        "source": "RP front delts guide, no direct RCT dose-response",
+        "color": "#e6c400"
+      },
+      "side delts": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 22,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, Helms 2019",
+        "color": "#9ccc65"
+      },
+      "rear delts": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          2,
+          4
+        ],
+        "tier": "opinion",
+        "source": "RP rear delts guide, practitioner synthesis",
+        "color": "#ffab91"
+      },
+      "biceps": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#42a5f5"
+      },
+      "triceps": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#ef5350"
+      },
+      "quads": {
+        "mev": 8,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "settled",
+        "source": "Schoenfeld 2017, RP",
+        "color": "#ab47bc"
+      },
+      "hamstrings": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "contested",
+        "source": "Less direct data, extrapolated",
+        "color": "#26c6da"
+      },
+      "glutes": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24,
+        "freq": [
+          2,
+          3
+        ],
+        "tier": "contested",
+        "source": "Few direct studies, RP",
+        "color": "#ec407a"
+      },
+      "adductors": {
+        "mev": 4,
+        "mav": [
+          4,
+          8
+        ],
+        "mrv": 12,
+        "freq": [
+          2,
+          2
+        ],
+        "tier": "opinion",
+        "source": "No direct landmarks, extrapolated",
+        "color": "#5c6bc0"
+      },
+      "abs": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25,
+        "freq": [
+          3,
+          4
+        ],
+        "tier": "contested",
+        "source": "Limited hypertrophy data",
+        "color": "#b0bec5"
+      },
+      "forearms": {
+        "mev": 6,
+        "mav": null,
+        "mrv": null,
+        "freq": [
+          3,
+          3
+        ],
+        "tier": "opinion",
+        "source": "No trusted landmarks, plan uses ~6/week",
+        "color": "#8d6e63"
+      }
+    },
+    "untracked": [
+      "neck",
+      "calves",
+      "traps"
+    ],
+    "rep_bands": [
+      {
+        "max_reps": 6,
+        "jump_pct": 4.0
+      },
+      {
+        "max_reps": 10,
+        "jump_pct": 5.0
+      },
+      {
+        "max_reps": 15,
+        "jump_pct": 8.0
+      },
+      {
+        "max_reps": null,
+        "jump_pct": null
+      }
+    ],
+    "thresholds": {
+      "stale_workout_hours": 8,
+      "stale_workout_days": 1,
+      "break_days": 4,
+      "e1rm_warn_ratio": 1.5,
+      "duplicate_name_distance": 2,
+      "volume_window_weeks": 8,
+      "volume_bad_weeks": 4,
+      "ledger_retention_days": 7,
+      "default_new_slot_sets": 2,
+      "adherence_drift_days": 3,
+      "progression_drop_pct": -50,
+      "deload_watch_pct": -5,
+      "goal_divergence_pct": 5,
+      "stall_window_sessions": 3,
+      "stall_decline_pct": 1.0,
+      "stall_flat_sessions": 6,
+      "stall_min_sessions": 4,
+      "bodyweight_gap_days": 14,
+      "bodyweight_avg_days": 7,
+      "recent_notes_count": 6,
+      "trend_top_lifts": 8,
+      "deload_volume_reduction": [
+        0.4,
+        0.6
+      ]
+    },
+    "explained_keywords": [
+      "deload",
+      "return",
+      "program change",
+      "injury",
+      "technique",
+      "sick",
+      "travel"
+    ],
+    "rep_scheme_default": [
+      3,
+      8
+    ]
+  },
+  "lifts": [
+    {
+      "exercise": "squat",
+      "muscles": [
+        "quads"
+      ],
+      "notes": [],
+      "sessions": [
+        {
+          "date": "2026-09-04",
+          "workout_id": 1,
+          "weight": 100.0,
+          "reps": 5,
+          "e1rm": 116.7,
+          "is_pr": false,
+          "delta_e1rm": null
+        },
+        {
+          "date": "2026-09-14",
+          "workout_id": 2,
+          "weight": 102.5,
+          "reps": 5,
+          "e1rm": 119.6,
+          "is_pr": true,
+          "delta_e1rm": 2.9
+        },
+        {
+          "date": "2026-09-22",
+          "workout_id": 3,
+          "weight": 105.0,
+          "reps": 5,
+          "e1rm": 122.5,
+          "is_pr": true,
+          "delta_e1rm": 2.9
+        }
+      ],
+      "best": {
+        "weight": 105.0,
+        "reps": 5,
+        "e1rm": 122.5,
+        "date": "2026-09-22"
+      },
+      "last": {
+        "weight": 105.0,
+        "reps": 5,
+        "date": "2026-09-22"
+      },
+      "last_pr_date": "2026-09-22",
+      "days_since_pr": 2,
+      "progression": {
+        "verdict": "hit",
+        "next": "107.5x5",
+        "next_weight": 107.5,
+        "next_reps": 5,
+        "next_e1rm": 125.4,
+        "direction": "flat",
+        "note": ""
+      },
+      "goal_id": null,
+      "tags": [
+        "focus"
+      ],
+      "marks": [
+        {
+          "kind": "focus",
+          "payload": {
+            "muscles": "quads"
+          }
+        }
+      ],
+      "rank_default": 0,
+      "rank_attention": 0
+    }
+  ],
+  "muscles": [
+    {
+      "muscle": "chest",
+      "bands": {
+        "mev": 8,
+        "mav": [
+          14,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "back",
+      "bands": {
+        "mev": 10,
+        "mav": [
+          14,
+          22
+        ],
+        "mrv": 28
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "front delts",
+      "bands": {
+        "mev": 0,
+        "mav": [
+          4,
+          12
+        ],
+        "mrv": 12
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "in_range",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "side delts",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 22
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "rear delts",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "biceps",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "triceps",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "quads",
+      "bands": {
+        "mev": 8,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      "status": "in_range",
+      "tier": "priority",
+      "grouped": [],
+      "lift_share": [
+        {
+          "exercise": "squat",
+          "sets": 3,
+          "share": 1.0
+        }
+      ],
+      "trained_weeks": 3,
+      "avg_recent": 0.8
+    },
+    {
+      "muscle": "hamstrings",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          10,
+          16
+        ],
+        "mrv": 20
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "glutes",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          18
+        ],
+        "mrv": 24
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "adductors",
+      "bands": {
+        "mev": 4,
+        "mav": [
+          4,
+          8
+        ],
+        "mrv": 12
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "abs",
+      "bands": {
+        "mev": 6,
+        "mav": [
+          12,
+          20
+        ],
+        "mrv": 25
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    },
+    {
+      "muscle": "forearms",
+      "bands": {
+        "mev": 6,
+        "mav": null,
+        "mrv": null
+      },
+      "weekly": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "below_mev",
+      "tier": "maintain",
+      "grouped": [],
+      "lift_share": [],
+      "trained_weeks": 0,
+      "avg_recent": 0.0
+    }
+  ],
+  "sessions": [
+    {
+      "date": "2026-09-04",
+      "workout_id": 1,
+      "status": "done",
+      "slot_label": "Lower A",
+      "notes": "scenario 20d ago scenario 20d ago",
+      "exercises": [
+        {
+          "exercise": "squat",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 100.0,
+              "r": 5,
+              "e": 116.7,
+              "pr": false,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "duration_min": 0.0
+    },
+    {
+      "date": "2026-09-14",
+      "workout_id": 2,
+      "status": "done",
+      "slot_label": "Lower A",
+      "notes": "scenario 10d ago scenario 10d ago",
+      "exercises": [
+        {
+          "exercise": "squat",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 102.5,
+              "r": 5,
+              "e": 119.6,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "duration_min": 0.0
+    },
+    {
+      "date": "2026-09-22",
+      "workout_id": 3,
+      "status": "done",
+      "slot_label": "Lower A",
+      "notes": "scenario 2d ago scenario 2d ago",
+      "exercises": [
+        {
+          "exercise": "squat",
+          "deload": false,
+          "sets": [
+            {
+              "n": 1,
+              "w": 105.0,
+              "r": 5,
+              "e": 122.5,
+              "pr": true,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "duration_min": 0.0
+    }
+  ],
+  "calendar": [
+    {
+      "date": "2026-09-04",
+      "kind": "trained",
+      "slot_label": "Lower A",
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "squat 100x5"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-05",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-06",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-07",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-08",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-09",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-10",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-11",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-12",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-13",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-14",
+      "kind": "trained",
+      "slot_label": "Lower A",
+      "has_pr": true,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "squat 102.5x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-15",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-16",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-17",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-18",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-19",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-20",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-21",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "kind": "trained",
+      "slot_label": "Lower A",
+      "has_pr": true,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "squat 105x5 (PR)"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    },
+    {
+      "date": "2026-09-24",
+      "kind": "empty",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": []
+      }
+    }
+  ],
+  "status": {
+    "open_today": false,
+    "rest_today": false,
+    "last_trained": "2026-09-22",
+    "break_days": null,
+    "on_break": false
+  },
+  "volume_history": {
+    "week_starts": [
+      "2026-08-03",
+      "2026-08-10",
+      "2026-08-17",
+      "2026-08-24",
+      "2026-08-31",
+      "2026-09-07",
+      "2026-09-14",
+      "2026-09-21"
+    ],
+    "by_muscle": {
+      "chest": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "back": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "front delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "side delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rear delts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "biceps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "triceps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "quads": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      "hamstrings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "glutes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "adductors": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "abs": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forearms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "bodyweight": [],
+  "program": {
+    "rotation": [],
+    "anchor": null,
+    "days": [
+      {
+        "day": "Lower A",
+        "muscles": [
+          "quads"
+        ],
+        "slots": [
+          {
+            "slot": 1,
+            "moves": [
+              "squat"
+            ],
+            "sets": 2,
+            "muscles": [
+              "quads"
+            ],
+            "focus": [
+              "quads"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "next_up": {
+    "day": null,
+    "basis": "no rotation or no last day",
+    "rows": [],
+    "empty": "log a session and the next slot appears here"
+  },
+  "goals": [],
+  "adherence": null,
+  "signals": [
+    {
+      "severity": "high",
+      "text": "abs: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "adductors: 0 sets in 4 of last 4 weeks (MEV 4)"
+    },
+    {
+      "severity": "high",
+      "text": "back: 0 sets in 4 of last 4 weeks (MEV 10)"
+    },
+    {
+      "severity": "high",
+      "text": "biceps: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "chest: 0 sets in 4 of last 4 weeks (MEV 8)"
+    },
+    {
+      "severity": "high",
+      "text": "forearms: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "glutes: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "hamstrings: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "rear delts: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "side delts: 0 sets in 4 of last 4 weeks (MEV 6)"
+    },
+    {
+      "severity": "high",
+      "text": "triceps: 0 sets in 4 of last 4 weeks (MEV 6)"
+    }
+  ],
+  "recent_notes": [
+    {
+      "date": "2026-09-04",
+      "text": "Sep 4: scenario 20d ago scenario 20d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-14",
+      "text": "Sep 14: scenario 10d ago scenario 10d ago",
+      "hot": false
+    },
+    {
+      "date": "2026-09-22",
+      "text": "Sep 22: scenario 2d ago scenario 2d ago",
+      "hot": false
+    }
+  ],
+  "rules": [],
+  "flags": [],
+  "deload": [],
+  "priority": {
+    "quads": {
+      "tier": "priority",
+      "since": "2026-09-24",
+      "until": null
+    }
+  },
+  "autoreg": {
+    "permitted": false,
+    "holds": [],
+    "miss_streaks": [],
+    "drop_watch": [],
+    "grouped": {},
+    "program_volume": {
+      "chest": 0.0,
+      "back": 0.0,
+      "front delts": 0.0,
+      "side delts": 0.0,
+      "rear delts": 0.0,
+      "biceps": 0.0,
+      "triceps": 0.0,
+      "quads": 2.0,
+      "hamstrings": 0.0,
+      "glutes": 0.0,
+      "adductors": 0.0,
+      "abs": 0.0,
+      "forearms": 0.0
+    }
+  },
+  "autoreg_changes": [],
+  "history": [
+    {
+      "id": 1,
+      "domain": "program",
+      "subject": "active:Lower A",
+      "date": "2026-09-01",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 0,
+      "before": {
+        "variant": "active",
+        "day": "Lower A",
+        "slots": []
+      },
+      "after": {
+        "variant": "active",
+        "day": "Lower A",
+        "slots": [
+          {
+            "slot": 1,
+            "movements": "squat",
+            "sets": 3
+          }
+        ]
+      },
+      "title": "Lower A changed",
+      "summary": "added squat x3",
+      "affects_exercises": [
+        "squat"
+      ],
+      "affects_muscles": [
+        "quads"
+      ],
+      "affects_days": [
+        "Lower A"
+      ]
+    },
+    {
+      "id": 2,
+      "domain": "program",
+      "subject": "active:Lower A",
+      "date": "2026-09-10",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "repeated performance drop",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 1,
+      "before": {
+        "variant": "active",
+        "day": "Lower A",
+        "slots": [
+          {
+            "slot": 1,
+            "movements": "squat",
+            "sets": 3
+          }
+        ]
+      },
+      "after": {
+        "variant": "active",
+        "day": "Lower A",
+        "slots": [
+          {
+            "slot": 1,
+            "movements": "squat",
+            "sets": 2
+          }
+        ]
+      },
+      "title": "Lower A changed",
+      "summary": "squat: 3 sets -> 2 sets",
+      "affects_exercises": [
+        "squat"
+      ],
+      "affects_muscles": [
+        "quads"
+      ],
+      "affects_days": [
+        "Lower A"
+      ]
+    },
+    {
+      "id": 3,
+      "domain": "priority",
+      "subject": "quads",
+      "date": "2026-09-18",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "bring up",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 0,
+      "before": {
+        "tier": null,
+        "since": null,
+        "until": null
+      },
+      "after": {
+        "tier": "priority",
+        "since": "2026-09-24",
+        "until": null
+      },
+      "title": "Quads priority changed",
+      "summary": "unset -> priority",
+      "affects_exercises": [],
+      "affects_muscles": [
+        "quads"
+      ],
+      "affects_days": []
+    }
+  ],
+  "history_coverage": [
+    {
+      "domain": "priority",
+      "subject": "quads",
+      "first_date": "2026-09-18"
+    },
+    {
+      "domain": "program",
+      "subject": "active:Lower A",
+      "first_date": "2026-09-01"
+    }
+  ],
+  "observation_defs": [
+    {
+      "metric": "lift_trend",
+      "subject_kind": "exercise",
+      "sources": [
+        "sets",
+        "workouts"
+      ],
+      "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); delta is last minus first in range, best is the range max"
+    },
+    {
+      "metric": "muscle_volume",
+      "subject_kind": "muscle (empty means all tracked muscles)",
+      "sources": [
+        "sets",
+        "set_muscle",
+        "workouts"
+      ],
+      "definition": "logged working sets per muscle in range (full credit per mapped muscle); avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)"
+    },
+    {
+      "metric": "program_activity",
+      "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+      "sources": [
+        "state_change"
+      ],
+      "definition": "recorded program day-snapshot transitions in range; use history_get(change_id) for before/after detail"
+    },
+    {
+      "metric": "goal_trajectory",
+      "subject_kind": "goal id or exercise",
+      "sources": [
+        "goals",
+        "goal_checkpoints",
+        "sets",
+        "workouts",
+        "state_change"
+      ],
+      "definition": "trajectory checkpoints folded from goal history to the range end, so later rewrites do not move historical results; the trajectory itself is session-numbered, in_range marks actuals inside the range"
+    },
+    {
+      "metric": "adherence_summary",
+      "subject_kind": "rotation schedule (subject is unused)",
+      "sources": [
+        "workouts",
+        "rotation",
+        "rotation_anchor",
+        "state_change"
+      ],
+      "definition": "each date classified with the rotation/anchor/split folded from history to that date (earliest recorded image before history starts, never today's state); dates without an applicable rotation/anchor report expected None with status unknown"
+    },
+    {
+      "metric": "bodyweight_trend",
+      "subject_kind": "unused",
+      "sources": [
+        "bodyweight"
+      ],
+      "definition": "gym-scale weigh-ins in range; delta is last minus first"
+    }
+  ]
+}

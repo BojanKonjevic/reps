@@ -840,8 +840,8 @@ def constants_set(key: str, value: str) -> dict:
 
 @mcp.tool()
 def snapshot_export() -> dict:
-    """Full validated dashboard payload (history plus program and forward state).
-    For the dashboard file only, never pulled in bulk into chat.
+    """Full validated dashboard payload (current state, no per-date history
+    bundles; those serve on demand). For the dashboard file only, never pulled in bulk into chat.
     """
     return call_domain(_sync.export_snapshot)
 

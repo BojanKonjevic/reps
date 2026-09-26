@@ -44,7 +44,7 @@ def make_handler(state):
                                       "bodyweight": []})
                 return
             try:
-                tag = '"' + json.loads(state.stored)["exported"] + '"'
+                tag = '"' + json.loads(state.stored)["snapshot"]["exported"] + '"'
             except (ValueError, KeyError, TypeError):
                 tag = None
             body = state.stored.encode()
@@ -67,7 +67,7 @@ def make_handler(state):
                 return
             if state.stored is not None and self.headers.get("X-Sync-Force") != "1":
                 try:
-                    current_tag = '"' + json.loads(state.stored)["exported"] + '"'
+                    current_tag = '"' + json.loads(state.stored)["snapshot"]["exported"] + '"'
                 except (ValueError, KeyError, TypeError):
                     current_tag = None
                 stale = state.always_conflict or (
@@ -77,7 +77,7 @@ def make_handler(state):
                                     etag=current_tag)
                     return
             try:
-                tag = '"' + json.loads(raw)["exported"] + '"'
+                tag = '"' + json.loads(raw)["snapshot"]["exported"] + '"'
             except (ValueError, KeyError, TypeError):
                 tag = None
             state.stored = raw
@@ -109,8 +109,9 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
     server = start_stub(state)
     try:
         write_cfg(tmp_path, monkeypatch, log_module, server.server_port)
-        seed = json.dumps({"exported": "2026-09-17T12:00:00", "workouts": [],
-                           "sets": [], "bodyweight": []}).encode()
+        seed = json.dumps({"snapshot": {"exported": "2026-09-17T12:00:00"},
+                           "history_states": {"exported": "2026-09-17T12:00:00",
+                                              "states": []}}).encode()
         req = urllib.request.Request(
             f"http://127.0.0.1:{server.server_port}/sync", data=seed, method="PUT",
             headers={"Authorization": "Bearer test-secret"})
@@ -123,7 +124,9 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
         assert any(r["method"] == "GET" for r in state.requests)
         assert len(puts) == 1
         assert puts[0]["if_match"] == '"2026-09-17T12:00:00"'
-        assert json.loads(state.stored)["exported"] != "2026-09-17T12:00:00"
+        stored = json.loads(state.stored)
+        assert stored["snapshot"]["exported"] != "2026-09-17T12:00:00"
+        assert stored["history_states"]["states"] == []
     finally:
         server.shutdown()
 
@@ -131,8 +134,9 @@ def test_sync_sends_if_match_from_pull(log_module, tmp_path, monkeypatch):
 def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch):
     """A 412 from the server aborts loudly instead of overwriting."""
     state = SyncStubState()
-    state.stored = json.dumps({"exported": "2026-09-17T12:05:00", "workouts": [],
-                               "sets": [], "bodyweight": []})
+    state.stored = json.dumps({"snapshot": {"exported": "2026-09-17T12:05:00"},
+                               "history_states": {"exported": "2026-09-17T12:05:00",
+                                                  "states": []}})
     state.always_conflict = True
     server = start_stub(state)
     try:
@@ -150,8 +154,9 @@ def test_sync_aborts_on_stale_base(log_module, tmp_path, monkeypatch):
 def test_sync_force_skips_pull_and_overwrites(log_module, tmp_path, monkeypatch):
     """sync force pushes with X-Sync-Force and no pull-first GET."""
     state = SyncStubState()
-    state.stored = json.dumps({"exported": "2026-09-17T12:05:00", "workouts": [],
-                               "sets": [], "bodyweight": []})
+    state.stored = json.dumps({"snapshot": {"exported": "2026-09-17T12:05:00"},
+                               "history_states": {"exported": "2026-09-17T12:05:00",
+                                                  "states": []}})
     state.always_conflict = True
     server = start_stub(state)
     try:
@@ -161,6 +166,6 @@ def test_sync_force_skips_pull_and_overwrites(log_module, tmp_path, monkeypatch)
         puts = [r for r in state.requests if r["method"] == "PUT"]
         assert not [r for r in state.requests if r["method"] == "GET"]
         assert len(puts) == 1 and puts[0]["force"] == "1"
-        assert json.loads(state.stored)["exported"] != "2026-09-17T12:05:00"
+        assert json.loads(state.stored)["snapshot"]["exported"] != "2026-09-17T12:05:00"
     finally:
         server.shutdown()

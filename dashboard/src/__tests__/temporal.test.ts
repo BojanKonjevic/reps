@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { markDates } from '../liftChart';
 import {
   byNewest,
+  chartMarks,
   coverageNote,
   defOf,
   diffSlots,
@@ -16,18 +17,22 @@ import {
   filterHistory,
   groupByDate,
   nearbyEvents,
+  rangeBounds,
   recentChanges,
   reversalOf,
   rotOrder,
   ruleIdOf,
   scopeForLift,
   scopeOf,
-  stateOn,
+  selectStateForDate,
   trajectoryLines,
   weekIndexOf,
+  weekMarks,
 } from '../lib/temporal';
 import type { HistoryEvent } from '../generated/snapshot';
+import type { HistoryState } from '../generated/historyStates';
 import rich from './fixtures/rich.json';
+import richStates from './fixtures/rich.states.json';
 
 const snap = rich as unknown as Parameters<typeof eventsForLift>[0];
 
@@ -82,7 +87,7 @@ describe('before/after rendering', () => {
   it('renders program slots without raw JSON', () => {
     const e = eventsForLift(snap, 'bench').find(x => x.title === 'Upper A changed')!;
     const after = envelopeLines(e.domain, e.after);
-    expect(after.join('\n')).toContain('slot 1');
+    expect(after.join('\n')).toContain('sets');
     expect(after.join('\n')).not.toContain('{');
   });
 
@@ -131,6 +136,10 @@ describe('reversal and supersession', () => {
 });
 
 describe('unknown history', () => {
+  it('bounds the supported as-of range by recorded history and today', () => {
+    expect(rangeBounds(snap)).toEqual({ min: '2026-09-24', max: snap.as_of });
+  });
+
   it('warns when training predates recorded history', () => {
     const events = eventsForLift(snap, 'bench');
     expect(coverageNote(events, '2026-09-04')).toContain('earlier changes were not recorded');
@@ -139,8 +148,11 @@ describe('unknown history', () => {
   });
 
   it('selects folded states by date, never inventing them', () => {
-    expect(stateOn(snap, '2026-09-24')?.program.length).toBeGreaterThan(0);
-    expect(stateOn(snap, '2020-01-01')).toBeNull();
+    const states = (richStates as { states: HistoryState[] }).states;
+    expect(selectStateForDate(states, '2026-09-24')?.program.length).toBeGreaterThan(0);
+    expect(selectStateForDate(states, '2026-09-30')?.date).toBe('2026-09-24');
+    expect(selectStateForDate(states, '2020-01-01')).toBeNull();
+    expect(selectStateForDate([], '2026-09-24')).toBeNull();
   });
 });
 
@@ -173,7 +185,7 @@ describe('comparison and chart mapping', () => {
       [{ slot: 1, moves: ['squat'], sets: 2 }]
     );
     expect(diffs).toEqual([
-      { slot: 1, then: 'slot 1: squat x3', now: 'slot 1: squat x2', changed: true },
+      { slot: 1, then: 'squat · 3 sets', now: 'squat · 2 sets', changed: true },
     ]);
     expect(
       diffSlots(
@@ -194,7 +206,7 @@ describe('comparison and chart mapping', () => {
     expect(diffs[1]).toEqual({
       slot: 2,
       then: 'slot added since',
-      now: 'slot 2: lunge x2',
+      now: 'lunge · 2 sets',
       changed: true,
     });
     const gone = diffSlots(
@@ -222,7 +234,11 @@ describe('comparison and chart mapping', () => {
     const bench = snap.lifts.find(l => l.exercise === 'bench')!;
     const pts = bench.sessions.map(s => ({ date: s.date, w: 0, r: 0, ev: 0, pr: false }));
     const last = pts[pts.length - 1].date;
-    expect(markDates(pts, [last, '2020-01-01'])).toEqual([last]);
+    const found = markDates(pts, chartMarks(groupByDate(eventsForLift(snap, 'bench'))));
+    expect(found.every(m => m.date >= pts[0].date && m.date <= last)).toBe(true);
+    expect(markDates(pts, [{ date: last, titles: [] }]).map(m => m.date)).toEqual([last]);
+    const weeks = weekMarks(groupByDate(eventsForMuscle(snap, 'chest')), starts);
+    expect(weeks.every(m => m.week !== undefined && m.week >= 0)).toBe(true);
   });
 
   it('filters history by domain and range, newest first', () => {

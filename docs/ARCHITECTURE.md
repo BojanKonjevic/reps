@@ -30,7 +30,12 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
                              │
                       dashboard read model
                (snapshot views + described history
-                + folded states + observation defs)
+                + coverage + observation defs)
+                             │
+              on-demand history states
+         (one bundle per event date, fetched lazily,
+          selected by latest-event-date at or before
+          the requested as-of date)
                              │
                              ▼
                       Cloudflare Worker
@@ -61,7 +66,7 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
 - The dashboard presents backend state. It never reconstructs domain semantics that belong in Python.
 - The agent owns judgment and conversational reasoning, grounded in numbers pulled through MCP.
 
-Read-model ownership: Python owns observation semantics (`reps/observations.py`), historical reconstruction (`reps/history.py`), and state-change meaning; the snapshot read model (`reps/snapshot.py` views) embeds described history, folded per-date states, coverage, and observation defs. The Worker owns transport only and must not become a second domain engine. The frontend owns interaction state, chart rendering, responsive presentation, formatting, selection, and visual aggregation that does not alter domain meaning; it must not reimplement backend semantics. Snapshot views may carry short display strings built from domain facts (titles, summaries, signal text), rendered verbatim; that is a read-model projection, not a second definition.
+Read-model ownership: Python owns observation semantics (`reps/observations.py`), historical reconstruction (`reps/history.py`), and state-change meaning; the snapshot read model (`reps/snapshot.py` views) embeds described history, coverage, and observation defs, while fully reconstructed per-date states (`history_states_view`) are served on demand from `/history-states` and fetched lazily by the dashboard. The temporal rule lives once in the domain: a change dated D is active on D and thereafter until superseded; the frontend selects the bundle folded at the latest event date at or before the requested as-of date, proven equivalent to a direct fold by test. The Worker owns transport only and must not become a second domain engine. The frontend owns interaction state, chart rendering, responsive presentation, formatting, selection, and visual aggregation that does not alter domain meaning; it must not reimplement backend semantics. Snapshot views may carry short display strings built from domain facts (titles, summaries, signal text), rendered verbatim; that is a read-model projection, not a second definition.
 
 ## Module homes
 

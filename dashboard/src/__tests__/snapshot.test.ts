@@ -13,7 +13,7 @@ describe('snapshotSchema (generated)', () => {
   it('parses every generated fixture', () => {
     for (const f of [minimal, rich, deload, goalOffTrack, brk]) {
       const snap = snapshotSchema.parse(f);
-      expect(snap.schema_version).toBe(2);
+      expect(snap.schema_version).toBe(3);
       expect(Array.isArray(snap.sessions)).toBe(true);
     }
   });

@@ -76,8 +76,10 @@ def test_history_states_fold_to_event_dates(log_module):
     log.set_split("Lower A", 1, "squat", 2, evidence="trim")
     log.set_priority("quads", "priority")
     snap = log.export_snapshot()
-    assert len(snap["history_states"]) == 1
-    st = snap["history_states"][0]
+    assert "history_states" not in snap
+    states = log.export_history_states()["states"]
+    assert len(states) == 1
+    st = states[0]
     assert st["date"] == date.today().isoformat()
     assert st["program"] == [{"day": "Lower A",
                               "slots": [{"slot": 1, "movements": "squat", "sets": 2}],
@@ -130,9 +132,11 @@ def test_empty_db_history_is_honest(log_module, tmp_path, monkeypatch):
     c.commit()
     c.close()
     snap = log_module.export_snapshot()
-    assert snap["history"] == [] and snap["history_states"] == []
+    assert snap["history"] == []
     assert snap["history_coverage"] == []
     assert len(snap["observation_defs"]) == 6
+    states = log_module.export_history_states()
+    assert states["states"] == [] and states["exported"]
 
 
 def test_deload_state_folds_to_event_dates(log_module):
@@ -144,11 +148,10 @@ def test_deload_state_folds_to_event_dates(log_module):
     assert [(e["title"], e["summary"]) for e in deload_events] == [
         ("Squat deload started", "training volume down until cleared")]
     assert deload_events[0]["affects_exercises"] == ["squat"]
-    st = snap["history_states"][0]
+    st = log.export_history_states()["states"][0]
     assert st["deloads"] == [{"scope": "lift", "subject": "squat", "active": True,
                               "known": True, "first_date": date.today().isoformat()}]
     log.clear_deload(evidence="fresh again")
-    snap = log.export_snapshot()
-    st = snap["history_states"][0]
+    st = log.export_history_states()["states"][0]
     assert st["deloads"] == [{"scope": "lift", "subject": "squat", "active": False,
                               "known": True, "first_date": date.today().isoformat()}]

@@ -16,13 +16,16 @@
     defOf,
     eventsForGoal,
     nearbyEvents,
+    rangeBounds,
     recentChanges,
+    rotOrder,
     ruleIdOf,
     scopeOf,
-    stateOn,
+    selectStateForDate,
     trajectoryLines,
   } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
+  import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import {
     bestSetRows,
     dayAvgs,
@@ -51,7 +54,7 @@
   import GoalChartView from '../components/GoalChartView.svelte';
   import Calendar from '../components/Calendar.svelte';
   import ChangeDetail from '../components/ChangeDetail.svelte';
-  import TrainingState from '../components/TrainingState.svelte';
+  import AsOfPanel from '../components/AsOfPanel.svelte';
   import Provenance from '../components/Provenance.svelte';
 
   interface Props {
@@ -120,8 +123,13 @@
 
   const changed = $derived(recentChanges(snap, 5));
   const sel = createEventSelection();
+  let asof: string | null = $state(null);
   const selected = $derived(changed.find(e => e.id === sel.selId) ?? null);
-  const histState = $derived(sel.stateDate ? stateOn(snap, sel.stateDate) : null);
+  const bounds = $derived(rangeBounds(snap));
+
+  function toggleAsof(date: string) {
+    asof = asof === date ? null : date;
+  }
 
   let bwIdx: number | null = $state(null);
   const bwRow = $derived(bwIdx !== null ? (snap.bodyweight[bwIdx] ?? null) : null);
@@ -136,6 +144,18 @@
   const adhContext = $derived(
     adhDate ? nearbyEvents(snap, adhDate, 30).filter(e => e.domain === 'rotation') : []
   );
+
+  const statesQ = useHistoryStates(
+    () => asof !== null || adhDate !== null,
+    () => snap.exported
+  );
+  const states = $derived(statesQ.data?.states ?? null);
+  const adhRotation = $derived.by((): string | null => {
+    if (!adhDate || !states) return null;
+    const bundle = selectStateForDate(states, adhDate);
+    if (!bundle || !bundle.rotation_known || !bundle.rotation) return null;
+    return rotOrder(bundle.rotation);
+  });
 </script>
 
 <PageShell>
@@ -223,17 +243,18 @@
                 <ChangeDetail
                   event={selected}
                   events={snap.history}
-                  stateOpen={sel.stateDate === selected.date}
-                  onViewState={sel.viewState}
+                  stateOpen={asof === selected.date}
+                  onViewState={toggleAsof}
                 />
-                {#if histState && sel.stateDate === selected.date}
-                  <TrainingState
-                    {histState}
-                    {snap}
-                    scope={scopeOf(selected)}
-                    ruleId={ruleIdOf(selected)}
-                  />
-                {/if}
+                <AsOfPanel
+                  {snap}
+                  date={asof}
+                  scope={scopeOf(selected)}
+                  ruleId={ruleIdOf(selected)}
+                  {states}
+                  loading={asof !== null && statesQ.isFetching}
+                  rangeMin={bounds.min}
+                />
               {/if}
             </div>
           {/each}
@@ -423,6 +444,11 @@
                   <div>Expected: {adhDay.expected}</div>
                   <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
                   <div>Status: {statusLabel(adhDay.status)}</div>
+                  {#if adhRotation}
+                    <div>Rotation at this time: {adhRotation}</div>
+                  {:else if adhDate && statesQ.isFetching}
+                    <div>Rotation at this time: loading…</div>
+                  {/if}
                   {#each adhContext as e}
                     <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
                   {/each}

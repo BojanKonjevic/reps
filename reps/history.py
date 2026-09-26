@@ -221,11 +221,20 @@ def coverage():
 def training_state_at(day_iso):
     """Whole training-system state in effect on a date, folded from history.
 
+    Temporal rule (the single interpretation of "as of", shared with every
+    consumer): a state change with effective date D is active for queries on
+    D and thereafter, until superseded by another applicable change. So a
+    Sep 01 change followed by Sep 10 means Sep 01-09 read the first state,
+    Sep 10 onward reads the second. Folding is per subject: the latest change
+    at or before the date wins (goal chains scope to the tip's goal_id).
+
     Every section carries its own known flag: recorded subjects fold to the
     date, never-recorded ones report unknown (never today's live state),
     priority defaults to maintain by backend rule (absence means maintain).
-    The dashboard read model embeds one bundle per event date; the frontend
-    only selects by date, it never folds chains itself.
+    The dashboard read model embeds one bundle per event date and selects
+    the bundle at the latest event date at or before the requested as-of
+    date; equivalence with a direct fold is proven by test, so the selection
+    is transport, never a second folding implementation.
     """
     from .program import parse_active_split_days
 

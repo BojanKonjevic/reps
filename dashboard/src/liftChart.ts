@@ -11,6 +11,7 @@ import {
   drawPoint,
   drawHoverPoint,
   drawLine,
+  type ChartMark,
 } from './charts';
 import { centeredDomain, linearScale, padDomain, timeScale, valueExtent } from './lib/scales';
 import { fmtV, niceTicks, parseDate, type Ticks } from './lib/format';
@@ -30,23 +31,30 @@ export interface LiftModel {
   color: string;
   futureEv?: number | null;
   asOf: string;
-  marks?: string[];
+  marks?: ChartMark[];
+  selDate?: string | null;
 }
 
 export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
-// Dates carrying a state change, clamped to the plotted span, oldest first.
-export function markDates(pts: LiftPoint[], marks: string[] | undefined): string[] {
+// Marks carrying a state change, clamped to the plotted span, oldest first.
+// Same-date events collapse to one tick; the strip lists them all.
+export function markDates(pts: LiftPoint[], marks: ChartMark[] | undefined): ChartMark[] {
   if (!marks || !pts.length) return [];
   const d0 = pts[0].date;
   const d1 = pts[pts.length - 1].date;
-  return marks.filter(m => m >= d0 && m <= d1);
+  const seen = new Set<string>();
+  return marks.filter(m => {
+    if (m.date < d0 || m.date > d1 || seen.has(m.date)) return false;
+    seen.add(m.date);
+    return true;
+  });
 }
 
 export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMap {
-  const { pts, color, futureEv, asOf, marks } = model;
+  const { pts, color, futureEv, asOf, marks, selDate } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const P = L.padL;
@@ -97,11 +105,14 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
       'right'
     );
   drawLine(g, linePts, color);
+  const ticked = markDates(pts, marks);
   drawEventTicks(
     g,
-    markDates(pts, marks).map(m => xOf(m)),
-    H - P
+    ticked.map(m => xOf(m.date)),
+    H - P,
+    ticked.map(m => m.date === selDate)
   );
+  for (const m of ticked) hit.marks.push({ x: xOf(m.date), date: m.date });
   pts.forEach((p, i) => {
     const x = xOf(p.date),
       y = py(p.ev);

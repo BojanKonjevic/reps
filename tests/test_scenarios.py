@@ -20,7 +20,7 @@ def test_all_scenarios_build_and_validate(log_module):
         try:
             seed(log_module)
             snap = log_module.export_snapshot()
-            assert snap["schema_version"] == 2, name
+            assert snap["schema_version"] == 3, name
             assert snap["as_of"], name
         finally:
             reps.db.DB = live

@@ -9,8 +9,8 @@ from datetime import datetime
 from . import db
 from .db import SCHEMA, conn
 from .errors import RepsError
-from .models import validate_snapshot
-from .snapshot import build_views
+from .models import HistoryStatesPayload, validate_snapshot
+from .snapshot import build_views, history_states_view
 
 
 def build_snapshot(c=None):
@@ -32,6 +32,24 @@ def build_snapshot_validated(c=None) -> dict:
 
 def export_snapshot():
     return build_snapshot_validated()
+
+
+def build_history_states(c=None):
+    """Unvalidated per-date historical states (validate via export_history_states)."""
+    return history_states_view(c or conn())
+
+
+def export_history_states():
+    """On-demand historical states payload, validated before publication."""
+    from pydantic import ValidationError as _ValidationError
+
+    from .models import SnapshotValidationError, first_error
+    payload = history_states_view(conn())
+    try:
+        HistoryStatesPayload.model_validate(payload)
+    except _ValidationError as e:
+        raise SnapshotValidationError(f"history states invalid: {first_error(e)}")
+    return payload
 
 
 def push_snapshot(force=False):
@@ -57,7 +75,8 @@ def push_snapshot(force=False):
                 base_etag = res.headers.get("ETag")
         except OSError as e:
             raise RepsError("sync pull-first failed: " + str(e))
-    payload = json.dumps(build_snapshot_validated(c)).encode()
+    payload = json.dumps({"snapshot": build_snapshot_validated(c),
+                            "history_states": export_history_states()}).encode()
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + secret,
                "User-Agent": "reps-sync/1"}
     if base_etag:

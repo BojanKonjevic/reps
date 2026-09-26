@@ -1,0 +1,157 @@
+{
+  "exported": "2026-09-24T12:00:00",
+  "states": [
+    {
+      "date": "2026-09-24",
+      "program": [
+        {
+          "day": "Upper A",
+          "slots": [
+            {
+              "slot": 1,
+              "movements": "bench",
+              "sets": 3
+            }
+          ],
+          "known": true,
+          "first_date": "2026-09-24"
+        }
+      ],
+      "goals": [
+        {
+          "exercise": "bench",
+          "goal_id": 1,
+          "target_e1rm": 150.0,
+          "deadline": "2026-10-02",
+          "status": "active",
+          "checkpoints": [
+            116.7,
+            127.8,
+            138.9,
+            150.0
+          ],
+          "known": true,
+          "first_date": "2026-09-24"
+        }
+      ],
+      "priorities": [
+        {
+          "muscle": "abs",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "adductors",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "back",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "biceps",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "chest",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "forearms",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "front delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "glutes",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "hamstrings",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "quads",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "rear delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "side delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "triceps",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        }
+      ],
+      "rotation": [
+        "Upper A",
+        null
+      ],
+      "rotation_known": true,
+      "rotation_first_date": "2026-09-24",
+      "anchor_date": null,
+      "anchor_position": null,
+      "anchor_known": false,
+      "anchor_first_date": null,
+      "deloads": [],
+      "rules": []
+    }
+  ]
+}

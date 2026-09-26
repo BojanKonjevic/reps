@@ -9,7 +9,6 @@ import type {
   DeloadHistoryPayload,
   GoalHistoryPayload,
   HistoryEvent,
-  HistoryState,
   ObservationDef,
   PriorityHistoryPayload,
   ProgramHistoryPayload,
@@ -18,9 +17,11 @@ import type {
   RuleHistoryPayload,
   Snapshot,
 } from '../generated/snapshot';
+import type { HistoryState } from '../generated/historyStates';
+import type { ChartMark } from '../charts';
 import { daysBetween, fmtD, fmtV } from './format';
 
-export type { HistoryEvent, HistoryState };
+export type { ChartMark, HistoryEvent, HistoryState };
 
 export function historyOf(snap: Snapshot): HistoryEvent[] {
   return snap.history;
@@ -33,8 +34,26 @@ export function defOf(
   return snap.observation_defs.find(d => d.metric === metric) ?? null;
 }
 
-export function stateOn(snap: Snapshot, date: string): HistoryState | null {
-  return snap.history_states.find(s => s.date === date) ?? null;
+// Bundle selection for an arbitrary as-of date: the bundle folded at the
+// latest event date at or before the date, else null (before history).
+// This is selection over backend-folded bundles, never chain folding: the
+// backend proves training_state_at(D) == bundle(latest event date <= D).
+export function selectStateForDate(states: HistoryState[], date: string): HistoryState | null {
+  let best: HistoryState | null = null;
+  for (const s of states) {
+    if (s.date <= date && (!best || s.date > best.date)) best = s;
+  }
+  return best;
+}
+
+// Supported as-of range: earliest recorded history through today.
+// Dates before min never reconstruct (unknown); the future is refused.
+export function rangeBounds(snap: Snapshot): { min: string | null; max: string } {
+  let min: string | null = null;
+  for (const c of snap.history_coverage) {
+    if (!min || c.first_date < min) min = c.first_date;
+  }
+  return { min, max: snap.as_of };
 }
 
 function liftMuscles(snap: Snapshot, exercise: string): string[] {
@@ -140,6 +159,26 @@ export function groupByDate(events: HistoryEvent[]): DateGroup[] {
   return order.sort().map(date => ({ date, events: byDate.get(date)! }));
 }
 
+// One mark per event date for time-scale charts; same-date events share
+// the tick and the strip lists them all.
+export function chartMarks(groups: DateGroup[]): ChartMark[] {
+  return groups.map(g => ({ date: g.date, titles: g.events.map(e => e.title) }));
+}
+
+// One mark per week for week-bucket charts: same-week events share the
+// tick under the week's first event date.
+export function weekMarks(groups: DateGroup[], weekStarts: string[]): ChartMark[] {
+  const seen = new Set<number>();
+  const out: ChartMark[] = [];
+  for (const g of groups) {
+    const w = weekIndexOf(weekStarts, g.date);
+    if (w < 0 || seen.has(w)) continue;
+    seen.add(w);
+    out.push({ date: g.date, titles: g.events.map(e => e.title), week: w });
+  }
+  return out;
+}
+
 export function reversalOf(
   event: HistoryEvent,
   events: HistoryEvent[]
@@ -175,7 +214,7 @@ function fmtOpt(v: number | string | null | undefined): string {
 }
 
 function slotLine(s: ProgramSlotSnapshot): string {
-  return 'slot ' + s.slot + ': ' + s.movements + ' x' + s.sets;
+  return s.movements + ' · ' + s.sets + ' sets';
 }
 
 function slotLines(slots: ProgramSlotSnapshot[] | null | undefined): string[] {
@@ -296,7 +335,7 @@ export interface SlotDiff {
 }
 
 export function currentSlotLine(slot: number, moves: string[], sets: number): string {
-  return 'slot ' + slot + ': ' + moves.join(' / ') + ' x' + sets;
+  return moves.join(' / ') + ' · ' + sets + ' sets';
 }
 
 // Week-bucket index of a date among emitted week starts (selection over the

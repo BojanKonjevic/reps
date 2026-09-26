@@ -151,7 +151,7 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
-SNAPSHOT_SCHEMA_VERSION = 2
+SNAPSHOT_SCHEMA_VERSION = 3
 
 STRICT = ConfigDict(extra="forbid")
 
@@ -879,9 +879,23 @@ class SnapshotModel(BaseModel):
     autoreg: Optional[Autoreg]
     autoreg_changes: list[AutoregChange]
     history: list[HistoryEvent]
-    history_states: list[HistoryState]
     history_coverage: list[HistoryCoverage]
     observation_defs: list[ObservationDef]
+
+
+class HistoryStatesPayload(BaseModel):
+    """On-demand historical states, served separately from the snapshot.
+
+    One backend-folded bundle per event date (never every possible date).
+    The dashboard selects the bundle at the latest event date at or before
+    the requested as-of date; equivalence with a direct training_state_at
+    fold is proven by test, so the selection is transport, not semantics.
+    """
+
+    model_config = STRICT
+
+    exported: StrictStr
+    states: list[HistoryState]
 
 
 class SnapshotValidationError(ValueError):

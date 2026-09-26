@@ -44,19 +44,28 @@ export default {
       }
       const raw = await req.text();
       if (raw.length > 2000000) {
-        return Response.json({ error: 'snapshot too large' }, { status: 413 });
+        return Response.json({ error: 'payload too large' }, { status: 413 });
       }
+      let envelope: unknown;
       try {
-        JSON.parse(raw);
+        envelope = JSON.parse(raw);
       } catch {
         return Response.json({ error: 'not json' }, { status: 400 });
       }
-      if (schemaOf(raw) !== SNAPSHOT_SCHEMA_VERSION) {
+      const snapshotRaw =
+        envelope && typeof envelope === 'object' && 'snapshot' in envelope
+          ? JSON.stringify((envelope as { snapshot: unknown }).snapshot)
+          : raw;
+      const statesRaw =
+        envelope && typeof envelope === 'object' && 'history_states' in envelope
+          ? JSON.stringify((envelope as { history_states: unknown }).history_states)
+          : null;
+      if (schemaOf(snapshotRaw) !== SNAPSHOT_SCHEMA_VERSION) {
         return Response.json(
           {
             error:
               'schema v' +
-              schemaOf(raw) +
+              schemaOf(snapshotRaw) +
               ' != worker v' +
               SNAPSHOT_SCHEMA_VERSION +
               ' (resync needed)',
@@ -78,10 +87,15 @@ export default {
           }
         }
       }
-      await env.SNAPSHOTS.put('snapshot.json', raw, {
+      await env.SNAPSHOTS.put('snapshot.json', snapshotRaw, {
         httpMetadata: { contentType: 'application/json' },
       });
-      const tag = etagFor(raw);
+      if (statesRaw !== null) {
+        await env.SNAPSHOTS.put('history-states.json', statesRaw, {
+          httpMetadata: { contentType: 'application/json' },
+        });
+      }
+      const tag = etagFor(snapshotRaw);
       return Response.json(
         tag ? { ok: true, bytes: raw.length, etag: tag } : { ok: true, bytes: raw.length }
       );
@@ -95,6 +109,13 @@ export default {
         headers: tag
           ? { 'content-type': 'application/json', etag: tag }
           : { 'content-type': 'application/json' },
+      });
+    }
+    if (url.pathname === '/history-states') {
+      const obj = await env.SNAPSHOTS.get('history-states.json');
+      if (!obj) return Response.json({ error: 'no history states synced' }, { status: 404 });
+      return new Response(await obj.text(), {
+        headers: { 'content-type': 'application/json' },
       });
     }
     return new Response('not found', { status: 404 });
