@@ -13,7 +13,7 @@ describe('fetchSnapshot', () => {
       vi.fn(async () => ({ ok: true, json: async () => rich }) as Response)
     );
     const snap = await fetchSnapshot();
-    expect(snap.schema_version).toBe(2);
+    expect(snap.schema_version).toBe(3);
     expect(snap.sessions.length).toBeGreaterThan(0);
   });
 

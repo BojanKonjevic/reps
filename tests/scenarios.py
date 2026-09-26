@@ -107,10 +107,32 @@ def seed_goal_off_track(log):
     return {"name": "goal_off_track"}
 
 
+def seed_history_spread(log):
+    """One lift, sessions across weeks, changes on three spread dates.
+
+    Program created Sep 01, trimmed Sep 10, priority set Sep 18 (dates are
+    relative to the frozen gen day): arbitrary as-of dates between and
+    around events reconstruct honestly, including dates with no event."""
+    log.set_exercise_mapping("squat", "quads")
+    c0 = log.set_split("Lower A", 1, "squat", 3)["change_id"]
+    _session(log, 20, "squat", 100, 5)
+    _session(log, 10, "squat", 102.5, 5, "hit")
+    _session(log, 2, "squat", 105, 5, "hit")
+    c1 = log.set_split("Lower A", 1, "squat", 2, evidence="repeated performance drop")["change_id"]
+    c2 = log.set_priority("quads", "priority", evidence="bring up")["change_id"]
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(23), c0))
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(14), c1))
+    c.execute("UPDATE state_change SET date = ? WHERE id = ?", (_day(6), c2))
+    c.commit()
+    return {"name": "history_spread"}
+
+
 SCENARIOS = {
     "minimal": seed_minimal,
     "rich": seed_rich,
     "break": seed_break,
     "deload": seed_deload,
     "goal_off_track": seed_goal_off_track,
+    "history_spread": seed_history_spread,
 }

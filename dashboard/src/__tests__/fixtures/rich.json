@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -1869,7 +1869,7 @@
         ]
       },
       "title": "Upper A changed",
-      "summary": "slot 1 added: bench x3",
+      "summary": "added bench x3",
       "affects_exercises": [
         "bench"
       ],
@@ -1907,7 +1907,7 @@
         ]
       },
       "title": "Upper B changed",
-      "summary": "slot 1 added: row x3",
+      "summary": "added row x3",
       "affects_exercises": [
         "row"
       ],
@@ -2165,7 +2165,7 @@
         ]
       },
       "title": "Upper A changed",
-      "summary": "slot 2 added: incline x4",
+      "summary": "added incline x4",
       "affects_exercises": [
         "bench",
         "incline"
@@ -2175,209 +2175,6 @@
       ],
       "affects_days": [
         "Upper A"
-      ]
-    }
-  ],
-  "history_states": [
-    {
-      "date": "2026-09-24",
-      "program": [
-        {
-          "day": "Upper A",
-          "slots": [
-            {
-              "slot": 1,
-              "movements": "bench",
-              "sets": 3
-            },
-            {
-              "slot": 2,
-              "movements": "incline",
-              "sets": 4
-            }
-          ],
-          "known": true,
-          "first_date": "2026-09-24"
-        },
-        {
-          "day": "Upper B",
-          "slots": [
-            {
-              "slot": 1,
-              "movements": "row",
-              "sets": 3
-            }
-          ],
-          "known": true,
-          "first_date": "2026-09-24"
-        }
-      ],
-      "goals": [
-        {
-          "exercise": "bench",
-          "goal_id": 1,
-          "target_e1rm": 130.0,
-          "deadline": "2026-11-23",
-          "status": "active",
-          "checkpoints": [
-            116.7,
-            117.4,
-            118.1,
-            118.8,
-            119.5,
-            120.2,
-            120.9,
-            121.6,
-            122.3,
-            123.0,
-            123.7,
-            124.4,
-            125.1,
-            125.8,
-            126.5,
-            127.2,
-            127.9,
-            128.6,
-            129.3,
-            130.0
-          ],
-          "known": true,
-          "first_date": "2026-09-24"
-        }
-      ],
-      "priorities": [
-        {
-          "muscle": "abs",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "adductors",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "back",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "biceps",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "chest",
-          "tier": "priority",
-          "since": "2026-09-24",
-          "until": null,
-          "known": true,
-          "first_date": "2026-09-24"
-        },
-        {
-          "muscle": "forearms",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "front delts",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "glutes",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "hamstrings",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "quads",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "rear delts",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "side delts",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        },
-        {
-          "muscle": "triceps",
-          "tier": "maintain",
-          "since": null,
-          "until": null,
-          "known": false,
-          "first_date": null
-        }
-      ],
-      "rotation": [
-        "Upper A",
-        "Upper B",
-        null
-      ],
-      "rotation_known": true,
-      "rotation_first_date": "2026-09-24",
-      "anchor_date": "2026-09-04",
-      "anchor_position": 0,
-      "anchor_known": true,
-      "anchor_first_date": "2026-09-24",
-      "deloads": [],
-      "rules": [
-        {
-          "rule_id": 1,
-          "text": "train before work",
-          "status": "active",
-          "known": true,
-          "first_date": "2026-09-24"
-        },
-        {
-          "rule_id": 2,
-          "text": "autoreg standing permission",
-          "status": "active",
-          "known": true,
-          "first_date": "2026-09-24"
-        }
       ]
     }
   ],

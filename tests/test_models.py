@@ -115,7 +115,7 @@ def test_validate_constants_fails_loudly():
 
 def test_snapshot_validates_built_payload(log_module):
     snap = log_module.build_snapshot_validated()
-    assert snap["schema_version"] == 2
+    assert snap["schema_version"] == 3
     assert isinstance(snap["sessions"], list)
     assert isinstance(snap["lifts"], list)
 
@@ -123,6 +123,17 @@ def test_snapshot_validates_built_payload(log_module):
 def test_snapshot_rejects_missing_exported():
     with pytest.raises(SnapshotValidationError):
         validate_snapshot({"schema_version": 2})
+
+
+def test_history_states_validate_and_reject(log_module):
+    from reps.models import HistoryStatesPayload
+    states = log_module.export_history_states()
+    assert HistoryStatesPayload.model_validate(states).states == states["states"]
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        HistoryStatesPayload.model_validate({"exported": "x"})
+    with pytest.raises(ValidationError):
+        HistoryStatesPayload.model_validate({"exported": "x", "states": [{"date": "x"}]})
 
 
 def test_snapshot_rejects_string_weight(log_module):

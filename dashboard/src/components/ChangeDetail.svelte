@@ -41,8 +41,8 @@
     </div>
   </div>
   <div class="cdev">
-    <span class="cap">Evidence</span>
-    <span>{e.evidence || 'no reason recorded'}</span>
+    <span class="cap">Reason</span>
+    <span>{e.evidence || 'Not recorded.'}</span>
   </div>
   {#if rev.reverses}
     <div class="cdrev">Reversal of {rev.reverses.title} ({fmtD(rev.reverses.date)})</div>

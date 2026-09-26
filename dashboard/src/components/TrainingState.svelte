@@ -3,17 +3,19 @@
   // Shared temporal primitive: as-of bundle with then/now comparison.
   import { fmtD } from '../lib/format';
   import { diffSlots, rotOrder, type EventScope } from '../lib/temporal';
-  import type { HistoryState, Snapshot } from '../generated/snapshot';
+  import type { HistoryState } from '../generated/historyStates';
+  import type { Snapshot } from '../generated/snapshot';
 
   interface Props {
     histState: HistoryState;
+    date: string;
     snap: Snapshot;
     scope: EventScope;
     ruleId?: number | null;
     id?: string;
   }
 
-  let { histState: st, snap, scope, ruleId = null, id = undefined }: Props = $props();
+  let { histState: st, date, snap, scope, ruleId = null, id = undefined }: Props = $props();
 
   let compare = $state(false);
 
@@ -89,7 +91,6 @@
   }
 
   const rotThen = $derived(st.rotation === null ? 'not recorded' : rotOrder(st.rotation));
-  const rotShow = $derived(!compare || !st.rotation_known || rotThen !== nowRot);
   const anchorThen = $derived(
     st.anchor_known
       ? 'position ' + st.anchor_position + ' from ' + fmtD(st.anchor_date ?? '')
@@ -100,15 +101,80 @@
       ? 'position ' + snap.program.anchor.index + ' from ' + fmtD(snap.program.anchor.date)
       : 'no anchor set'
   );
+
+  const partial = $derived.by(() => {
+    if (st.program.some(d => !d.known)) return true;
+    if (st.goals.some(g => !g.known)) return true;
+    if (st.deloads.some(d => !d.known)) return true;
+    if (st.rules.some(r => !r.known)) return true;
+    if (!st.rotation_known && (st.rotation_first_date !== null || snap.program.rotation.length > 0))
+      return true;
+    if (!st.anchor_known && (st.anchor_first_date !== null || snap.program.anchor !== null))
+      return true;
+    return false;
+  });
+
+  const rotSame = $derived(
+    st.rotation_known
+      ? rotThen === nowRot
+      : st.rotation_first_date === null && snap.program.rotation.length === 0
+  );
+  const anchSame = $derived(
+    st.anchor_known
+      ? anchorThen === anchorNow
+      : st.anchor_first_date === null && snap.program.anchor === null
+  );
+
+  const noDiff = $derived.by(() => {
+    // Compare-mode emptiness: every scoped section reads identical then/now.
+    const days = dayNames.map(day => {
+      const then = st.program.find(d => d.day === day);
+      const now = nowDay(day);
+      if (!then || !then.known || !now) return false;
+      return diffSlots(then.slots, now.slots).every(d => !d.changed);
+    });
+    const goalsOk = goalEx.map(ex => {
+      const then = st.goals.find(g => g.exercise === ex);
+      if (!then) return !nowGoal(ex);
+      return then.known && goalThen(then) === goalNow(ex);
+    });
+    const pris = priMus.map(mu => {
+      const then = st.priorities.find(p => p.muscle === mu);
+      return (
+        !!then &&
+        (then.tier ?? 'maintain') === nowTier(mu) &&
+        (then.known || nowTier(mu) === 'maintain')
+      );
+    });
+    const deloadsOk = deloadScope.map(d => {
+      const now = snap.deload.find(r => r.scope === d.scope && r.subject === d.subject);
+      if (!d.known) return !now;
+      return (d.active ? 'active' : 'not active') === (now ? 'active' : 'not active');
+    });
+    return (
+      days.every(Boolean) &&
+      goalsOk.every(Boolean) &&
+      pris.every(Boolean) &&
+      deloadsOk.every(Boolean) &&
+      rotSame &&
+      anchSame
+    );
+  });
 </script>
 
 <div class="asof" {id}>
   <div class="asofhead">
-    <b>Training state · {fmtD(st.date)}</b>
+    <span><b>Training state</b> <span class="meta">As of {fmtD(date)} · historical</span></span>
     <button type="button" class="evbtn" onclick={() => (compare = !compare)} aria-pressed={compare}>
       {compare ? 'Hide comparison' : 'Compare with today'}
     </button>
   </div>
+  {#if partial}
+    <div class="cap">Some training state could not be reconstructed for {fmtD(date)}.</div>
+  {/if}
+  {#if compare && noDiff}
+    <div class="cap">No relevant changes since {fmtD(date)}.</div>
+  {/if}
 
   {#each dayNames as day}
     {@const then = st.program.find(d => d.day === day)}
@@ -122,19 +188,17 @@
           <div>{unavailable(then?.first_date ?? null)}</div>
         {:else if !compare}
           {#each then.slots as s}
-            <div>slot {s.slot}: {s.movements} x{s.sets}</div>
+            <div>{s.movements} · {s.sets} sets</div>
           {:else}
             <div>no slots recorded</div>
           {/each}
         {:else if !now}
           {#each then.slots as s}
-            <div>{fmtD(st.date)}: slot {s.slot}: {s.movements} x{s.sets} · today: day removed</div>
+            <div>{fmtD(date)}: {s.movements} · {s.sets} sets · today: day removed</div>
           {/each}
         {:else}
           {#each diffs.filter(d => d.changed) as d}
-            <div>{fmtD(st.date)}: {d.then} · today: {d.now}</div>
-          {:else}
-            <div>unchanged</div>
+            <div>{fmtD(date)}: {d.then} · today: {d.now}</div>
           {/each}
         {/if}
       </div>
@@ -143,16 +207,17 @@
 
   {#each goalEx as ex}
     {@const then = st.goals.find(g => g.exercise === ex)}
+    {@const hasNow = !!nowGoal(ex)}
     {@const now = goalNow(ex)}
     {@const t = then ? goalThen(then) : unavailable(null)}
-    {@const show = !compare || t !== now}
+    {@const show = (then || hasNow) && (!compare || t !== now)}
     {#if show}
       <div class="asofsec">
         <div class="cap">Goal · {ex}</div>
         {#if !compare}
           <div>{t}</div>
         {:else}
-          <div>{fmtD(st.date)}: {t} · today: {now}</div>
+          <div>{fmtD(date)}: {t} · today: {now}</div>
         {/if}
       </div>
     {/if}
@@ -170,27 +235,27 @@
         {#if !compare}
           <div>{t}</div>
         {:else}
-          <div>{fmtD(st.date)}: {t} · today: {n}</div>
+          <div>{fmtD(date)}: {t} · today: {n}</div>
         {/if}
       </div>
     {/if}
   {/each}
 
-  {#if rotShow}
+  {#if !compare || !rotSame}
     <div class="asofsec">
       <div class="cap">Rotation</div>
       {#if !compare}
         <div>{st.rotation_known ? rotThen : unavailable(st.rotation_first_date)}</div>
       {:else}
         <div>
-          {fmtD(st.date)}: {st.rotation_known ? rotThen : unavailable(st.rotation_first_date)} · today:
+          {fmtD(date)}: {st.rotation_known ? rotThen : unavailable(st.rotation_first_date)} · today:
           {nowRot}
         </div>
       {/if}
       {#if !compare}
         <div>Anchor: {anchorThen}</div>
-      {:else if anchorThen !== anchorNow}
-        <div>Anchor: {fmtD(st.date)}: {anchorThen} · today: {anchorNow}</div>
+      {:else if !anchSame}
+        <div>Anchor: {fmtD(date)}: {anchorThen} · today: {anchorNow}</div>
       {/if}
     </div>
   {/if}
@@ -206,7 +271,7 @@
         {#if !compare}
           <div>{t}</div>
         {:else}
-          <div>{fmtD(st.date)}: {t} · today: {n}</div>
+          <div>{fmtD(date)}: {t} · today: {n}</div>
         {/if}
       </div>
     {/if}
@@ -225,7 +290,7 @@
         {#if !compare}
           <div>{t}</div>
         {:else}
-          <div>{fmtD(st.date)}: {t} · today: {n}</div>
+          <div>{fmtD(date)}: {t} · today: {n}</div>
         {/if}
       </div>
     {/if}

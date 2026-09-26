@@ -5,26 +5,28 @@
   import type { Snapshot } from '../generated/snapshot';
   import { liftByName } from '../lib/select';
   import {
+    chartMarks,
     coverageNote,
     defOf,
     eventsForGoal,
     eventsForLift,
     groupByDate,
+    rangeBounds,
     ruleIdOf,
     scopeForLift,
     scopeOf,
-    stateOn,
     trajectoryLines,
   } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
+  import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import { vocabOf } from '../lib/vocab.svelte';
   import PageShell from '../components/PageShell.svelte';
   import LiftDetailChart from '../components/LiftDetailChart.svelte';
   import GoalChartView from '../components/GoalChartView.svelte';
   import EventStrip from '../components/EventStrip.svelte';
   import AsOfControl from '../components/AsOfControl.svelte';
+  import AsOfPanel from '../components/AsOfPanel.svelte';
   import ChangeDetail from '../components/ChangeDetail.svelte';
-  import TrainingState from '../components/TrainingState.svelte';
   import Provenance from '../components/Provenance.svelte';
   import type { LiftPoint } from '../liftChart';
 
@@ -132,20 +134,32 @@
 
   const events = $derived(ex ? eventsForLift(snap, ex) : []);
   const groups = $derived(groupByDate(events));
-  const marks = $derived(groups.map(g => g.date));
+  const marks = $derived(chartMarks(groups));
   const coverNote = $derived(coverageNote(events, lift?.sessions[0]?.date ?? null));
   const goalEvents = $derived(ex ? eventsForGoal(snap, ex) : []);
   const pageScope = $derived(
     ex ? scopeForLift(snap, ex) : { exercises: [], muscles: [], days: [] }
   );
+  const bounds = $derived(rangeBounds(snap));
 
   const sel = createEventSelection();
   let asof: string | null = $state(null);
   const selected = $derived(events.find(e => e.id === sel.selId) ?? null);
-  const panelDate = $derived(sel.stateDate ?? asof);
-  const panelState = $derived(panelDate ? stateOn(snap, panelDate) : null);
-  const panelScope = $derived(selected && sel.stateDate ? scopeOf(selected) : pageScope);
-  const panelRule = $derived(selected && sel.stateDate ? ruleIdOf(selected) : null);
+  const statesQ = useHistoryStates(
+    () => asof !== null,
+    () => snap.exported
+  );
+  const panelScope = $derived(selected ? scopeOf(selected) : pageScope);
+  const panelRule = $derived(selected ? ruleIdOf(selected) : null);
+
+  function selectMark(date: string) {
+    const hit = events.find(e => e.date === date);
+    if (hit) sel.select(hit.id);
+  }
+
+  function toggleAsof(date: string) {
+    asof = asof === date ? null : date;
+  }
 
   onMount(() => {
     document.title = ex;
@@ -169,17 +183,22 @@
         futureEv={prog ? prog.next_e1rm : null}
         asOf={snap.as_of}
         {marks}
+        selDate={selected?.date ?? asof}
+        onSelectMark={selectMark}
       />
       <div class="cap">
         Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow
-        diamond marks the progression next target. Ticks mark recorded training changes.
+        diamond marks the progression next target. Ticks mark recorded training changes, tap one to
+        inspect.
       </div>
       {#if coverNote}
         <div class="cap" id="liftHistNote">{coverNote}</div>
       {/if}
       <AsOfControl
-        dates={groups.map(g => g.date)}
         value={asof}
+        min={bounds.min}
+        max={bounds.max}
+        eventDates={groups.map(g => g.date)}
         onPick={d => (asof = d)}
         id="liftAsof"
       />
@@ -188,20 +207,21 @@
         <ChangeDetail
           event={selected}
           events={snap.history}
-          stateOpen={sel.stateDate === selected.date}
-          onViewState={sel.viewState}
+          stateOpen={asof === selected.date}
+          onViewState={toggleAsof}
           id="liftChange"
         />
       {/if}
-      {#if panelState && panelDate}
-        <TrainingState
-          histState={panelState}
-          {snap}
-          scope={panelScope}
-          ruleId={panelRule}
-          id="liftState"
-        />
-      {/if}
+      <AsOfPanel
+        {snap}
+        date={asof}
+        scope={panelScope}
+        ruleId={panelRule}
+        states={statesQ.data?.states ?? null}
+        loading={asof !== null && statesQ.isFetching}
+        rangeMin={bounds.min}
+        id="liftState"
+      />
       <Provenance def={defOf(snap, 'lift_trend')} id="liftProv" />
     </div>
     {#if goal && goalCps.length}

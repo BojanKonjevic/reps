@@ -1,7 +1,7 @@
 // SSOT owner: muscle-volume chart geometry. Consumers: MuscleVolumeChart via plot() -> HitMap.
 
 import { max } from 'd3-array';
-import { fit, putText, drawHoverLine, drawEventTicks } from './charts';
+import { fit, putText, drawHoverLine, drawEventTicks, type ChartMark } from './charts';
 import { linearScale } from './lib/scales';
 import { niceTicks } from './lib/format';
 import { theme } from './lib/theme';
@@ -25,7 +25,25 @@ export interface MuscleModel {
   counts: number[];
   bands: MuscleBands;
   color: string;
-  markWeeks?: number[];
+  marks?: ChartMark[];
+  selDate?: string | null;
+}
+
+// Marks collapsed to one tick per week: same-week events share the tick,
+// the strip lists them all. Representative date is the week's first event.
+export function markWeeks(
+  counts: number[],
+  fromWeek: number,
+  marks: ChartMark[] | undefined
+): Array<ChartMark & { week: number }> {
+  if (!marks) return [];
+  const seen = new Set<number>();
+  return marks.filter((m): m is ChartMark & { week: number } => {
+    const w = m.week ?? -1;
+    if (w < fromWeek || w >= counts.length || seen.has(w)) return false;
+    seen.add(w);
+    return true;
+  });
 }
 
 export function layoutOf(w: number, h: number): ChartLayout {
@@ -44,7 +62,7 @@ export function vertical(H: number): { padL: number; padB: number; top: number; 
 }
 
 export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): HitMap {
-  const { labels, counts, bands, color, markWeeks } = model;
+  const { labels, counts, bands, color, marks, selDate } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const V = vertical(H);
@@ -107,11 +125,14 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   line(bands.mev, theme.color('warn'), [6, 4]);
   if (bands.mrv !== null && bands.mrv !== undefined) line(bands.mrv, theme.color('bad'), [6, 4]);
   const pxi = (i: number) => P + (i - start) * bw + bw / 2;
+  const ticked = markWeeks(counts, start, marks);
   drawEventTicks(
     g,
-    (markWeeks ?? []).filter(i => i >= start && i < n).map(i => pxi(i)),
-    H - V.padB
+    ticked.map(m => pxi(m.week)),
+    H - V.padB,
+    ticked.map(m => m.date === selDate)
   );
+  for (const m of ticked) hit.marks.push({ x: pxi(m.week), date: m.date });
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';

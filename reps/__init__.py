@@ -75,8 +75,8 @@ from .weeks import monday_of, week_start_of, week_starts, weekly_counts
 from .signals import SEVERITY_ORDER, build_signals
 from .sessions import break_threshold
 from .snapshot import build_views
-from .sync import (build_snapshot, build_snapshot_validated, dump_sql,
-                   export_snapshot, push_snapshot, restore_sql)
+from .sync import (build_history_states, build_snapshot, build_snapshot_validated, dump_sql,
+                   export_history_states, export_snapshot, push_snapshot, restore_sql)
 
 __all__ = [
     "CFG", "CONSTANTS_FILE", "ConstantsModel", "DB", "MEMORY_FILE",
@@ -91,7 +91,7 @@ __all__ = [
     "append_memory_state", "apply_autoreg", "attach_muscles",
     "autoreg_active_holds", "autoreg_block", "autoreg_drop_watch",
     "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted",
-    "best_e1rm", "best_split_day", "build_checkpoints", "build_signals",
+    "best_e1rm", "best_split_day", "build_checkpoints", "build_history_states", "build_signals",
     "build_snapshot", "build_snapshot_validated", "build_views", "break_threshold", "canon_muscle_name",
     "check_constants", "check_end_gate", "classify_date", "clean_muscles",
     "clear_deload", "clear_priority", "confirm_rule", "consume_flag",
@@ -100,7 +100,7 @@ __all__ = [
     "dump_sql", "e1rm", "coverage", "observation_defs", "split_map_at", "training_state_at",
     "value_at",
     "end_gate_items", "end_workout", "ensure_lift", "expected_day",
-    "expectation_context", "export_snapshot", "first_error", "format_target",
+    "expectation_context", "export_history_states", "export_snapshot", "first_error", "format_target",
     "get_anchor", "get_calendar", "get_change", "get_compaction",
     "get_constants", "get_context", "get_goal", "get_history", "get_mapping",
     "get_notes", "get_plan", "get_progression", "get_rotation",

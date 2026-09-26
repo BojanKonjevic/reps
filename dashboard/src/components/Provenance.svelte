@@ -17,7 +17,10 @@
     <div class="provbody">
       <div><b>{def.metric}</b></div>
       <div>{def.definition}</div>
-      <div class="cap">Sources: {def.sources.join(', ')}</div>
+      <div class="cap">Sources</div>
+      {#each def.sources as s}
+        <div>{s}</div>
+      {/each}
     </div>
   </details>
 {/if}

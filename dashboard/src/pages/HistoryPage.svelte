@@ -7,16 +7,17 @@
     domainLabel,
     filterHistory,
     historyOf,
+    rangeBounds,
     ruleIdOf,
     scopeOf,
-    stateOn,
     type HistoryEvent,
   } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
+  import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import type { Snapshot } from '../generated/snapshot';
   import PageShell from '../components/PageShell.svelte';
   import ChangeDetail from '../components/ChangeDetail.svelte';
-  import TrainingState from '../components/TrainingState.svelte';
+  import AsOfPanel from '../components/AsOfPanel.svelte';
 
   interface Props {
     snap: Snapshot;
@@ -33,6 +34,8 @@
   let to = $state('');
 
   const sel = createEventSelection();
+  let asof: string | null = $state(null);
+  const bounds = $derived(rangeBounds(snap));
 
   $effect(() => {
     const key = domains.join(','); // sanctioned: SvelteSet change-key for filter reseed, not a DB column split
@@ -44,11 +47,18 @@
 
   const listed = $derived(filterHistory(events, picked, from, to));
   const selected = $derived(listed.find(e => e.id === sel.selId) ?? null);
-  const histState = $derived(sel.stateDate ? stateOn(snap, sel.stateDate) : null);
+  const statesQ = useHistoryStates(
+    () => asof !== null,
+    () => snap.exported
+  );
 
   function toggleDomain(d: string) {
     if (picked.has(d)) picked.delete(d);
     else picked.add(d);
+  }
+
+  function toggleAsof(date: string) {
+    asof = asof === date ? null : date;
   }
 
   onMount(() => {
@@ -104,12 +114,18 @@
                 <ChangeDetail
                   event={ev}
                   {events}
-                  stateOpen={sel.stateDate === ev.date}
-                  onViewState={sel.viewState}
+                  stateOpen={asof === ev.date}
+                  onViewState={toggleAsof}
                 />
-                {#if histState && sel.stateDate === ev.date}
-                  <TrainingState {histState} {snap} scope={scopeOf(ev)} ruleId={ruleIdOf(ev)} />
-                {/if}
+                <AsOfPanel
+                  {snap}
+                  date={asof}
+                  scope={scopeOf(ev)}
+                  ruleId={ruleIdOf(ev)}
+                  states={statesQ.data?.states ?? null}
+                  loading={asof !== null && statesQ.isFetching}
+                  rangeMin={bounds.min}
+                />
               {/if}
             </div>
           {:else}

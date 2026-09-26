@@ -225,19 +225,62 @@ export function drawHoverLine(g: CanvasRenderingContext2D, H: number, P: number,
 
 // Subordinate history markers: short ticks along the bottom of the plot
 // area, one per date carrying a state change. The chart stays primary;
-// selection and detail live in the HTML EventStrip beside it.
-export function drawEventTicks(g: CanvasRenderingContext2D, xs: number[], yBase: number) {
+// selection and detail live in the HTML EventStrip beside it. Ticks are
+// interactive where the component wires hit.marks (hover preview, tap to
+// select); the selected tick draws emphasized but still quiet.
+export interface ChartMark {
+  date: string;
+  titles: string[];
+  week?: number;
+}
+
+export function drawEventTicks(
+  g: CanvasRenderingContext2D,
+  xs: number[],
+  yBase: number,
+  sel: boolean[] = []
+) {
   if (!xs.length) return;
   g.save();
-  g.strokeStyle = theme.color('ink-faint');
-  g.lineWidth = 2;
-  for (const x of xs) {
+  xs.forEach((x, i) => {
+    const on = sel[i] === true;
+    g.strokeStyle = theme.color(on ? 'warn' : 'ink-faint');
+    g.lineWidth = on ? 3 : 2;
+    const len = on ? 10 : 7;
     g.beginPath();
-    g.moveTo(x, yBase - 7);
+    g.moveTo(x, yBase - len);
     g.lineTo(x, yBase);
     g.stroke();
-  }
+  });
   g.restore();
+}
+
+export function nearestMark(
+  marks: Array<{ x: number; date: string }>,
+  x: number,
+  maxDx: number
+): { x: number; date: string } | null {
+  let best: { x: number; date: string } | null = null;
+  for (const m of marks) {
+    if (Math.abs(m.x - x) <= maxDx && (!best || Math.abs(m.x - x) < Math.abs(best.x - x))) {
+      best = m;
+    }
+  }
+  return best;
+}
+
+// Shared mark interaction: resolve the hovered/clicked tick to its date
+// plus display titles. Per-chart hover and tooltip bodies stay per chart;
+// only the hit lookup is shared.
+export function markHit(
+  marks: Array<{ x: number; date: string }>,
+  titlesByDate: Map<string, ChartMark>,
+  x: number,
+  maxDx: number
+): { date: string; titles: string[] } | null {
+  const mk = nearestMark(marks, x, maxDx);
+  if (!mk) return null;
+  return { date: mk.date, titles: titlesByDate.get(mk.date)?.titles ?? [] };
 }
 
 export function drawPoint(

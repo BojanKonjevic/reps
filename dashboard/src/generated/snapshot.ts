@@ -234,14 +234,6 @@ export const HistoryCoverageSchema = z.object({
   "first_date": z.string(),
 }).strict();
 
-export const HistoryDeloadStateSchema = z.object({
-  "scope": DeloadScopeSchema.nullable(),
-  "subject": z.string().nullable(),
-  "active": z.boolean().nullable(),
-  "known": z.boolean(),
-  "first_date": z.string().nullable(),
-}).strict();
-
 export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
 
 export const PriorityHistoryPayloadSchema = z.object({
@@ -296,57 +288,6 @@ export const HistoryEventSchema = z.object({
   "affects_exercises": z.array(z.string()),
   "affects_muscles": z.array(z.string()),
   "affects_days": z.array(z.string()),
-}).strict();
-
-export const HistoryGoalStateSchema = z.object({
-  "exercise": z.string(),
-  "goal_id": z.number().int().nullable(),
-  "target_e1rm": z.union([z.number().int(), z.number()]).nullable(),
-  "deadline": z.string().nullable(),
-  "status": GoalStatusSchema.nullable(),
-  "checkpoints": z.array(z.union([z.number().int(), z.number()])).nullable(),
-  "known": z.boolean(),
-  "first_date": z.string().nullable(),
-}).strict();
-
-export const HistoryPriorityStateSchema = z.object({
-  "muscle": z.string(),
-  "tier": PriorityTierSchema.nullable(),
-  "since": z.string().nullable(),
-  "until": z.string().nullable(),
-  "known": z.boolean(),
-  "first_date": z.string().nullable(),
-}).strict();
-
-export const HistoryProgramDaySchema = z.object({
-  "day": z.string(),
-  "slots": z.array(ProgramSlotSnapshotSchema),
-  "known": z.boolean(),
-  "first_date": z.string().nullable(),
-}).strict();
-
-export const HistoryRuleStateSchema = z.object({
-  "rule_id": z.number().int().nullable(),
-  "text": z.string().nullable(),
-  "status": RuleStatusSchema.nullable(),
-  "known": z.boolean(),
-  "first_date": z.string().nullable(),
-}).strict();
-
-export const HistoryStateSchema = z.object({
-  "date": z.string(),
-  "program": z.array(HistoryProgramDaySchema),
-  "goals": z.array(HistoryGoalStateSchema),
-  "priorities": z.array(HistoryPriorityStateSchema),
-  "rotation": z.array(z.string().nullable()).nullable(),
-  "rotation_known": z.boolean(),
-  "rotation_first_date": z.string().nullable(),
-  "anchor_date": z.string().nullable(),
-  "anchor_position": z.number().int().nullable(),
-  "anchor_known": z.boolean(),
-  "anchor_first_date": z.string().nullable(),
-  "deloads": z.array(HistoryDeloadStateSchema),
-  "rules": z.array(HistoryRuleStateSchema),
 }).strict();
 
 export const LiftBestSchema = z.object({
@@ -571,7 +512,6 @@ export const snapshotSchema = z.object({
   "autoreg": AutoregSchema.nullable(),
   "autoreg_changes": z.array(AutoregChangeSchema),
   "history": z.array(HistoryEventSchema),
-  "history_states": z.array(HistoryStateSchema),
   "history_coverage": z.array(HistoryCoverageSchema),
   "observation_defs": z.array(ObservationDefSchema),
 }).strict();
@@ -608,7 +548,6 @@ export type Goal = z.infer<typeof GoalSchema>;
 export type GoalHistoryPayload = z.infer<typeof GoalHistoryPayloadSchema>;
 export type HistoryDomain = z.infer<typeof HistoryDomainSchema>;
 export type HistoryCoverage = z.infer<typeof HistoryCoverageSchema>;
-export type HistoryDeloadState = z.infer<typeof HistoryDeloadStateSchema>;
 export type PriorityTier = z.infer<typeof PriorityTierSchema>;
 export type PriorityHistoryPayload = z.infer<typeof PriorityHistoryPayloadSchema>;
 export type ProgramSlotSnapshot = z.infer<typeof ProgramSlotSnapshotSchema>;
@@ -617,11 +556,6 @@ export type RotationHistoryPayload = z.infer<typeof RotationHistoryPayloadSchema
 export type RuleStatus = z.infer<typeof RuleStatusSchema>;
 export type RuleHistoryPayload = z.infer<typeof RuleHistoryPayloadSchema>;
 export type HistoryEvent = z.infer<typeof HistoryEventSchema>;
-export type HistoryGoalState = z.infer<typeof HistoryGoalStateSchema>;
-export type HistoryPriorityState = z.infer<typeof HistoryPriorityStateSchema>;
-export type HistoryProgramDay = z.infer<typeof HistoryProgramDaySchema>;
-export type HistoryRuleState = z.infer<typeof HistoryRuleStateSchema>;
-export type HistoryState = z.infer<typeof HistoryStateSchema>;
 export type LiftBest = z.infer<typeof LiftBestSchema>;
 export type LiftLast = z.infer<typeof LiftLastSchema>;
 export type MarkKind = z.infer<typeof MarkKindSchema>;

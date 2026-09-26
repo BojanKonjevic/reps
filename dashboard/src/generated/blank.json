@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -815,7 +815,6 @@
   },
   "autoreg_changes": [],
   "history": [],
-  "history_states": [],
   "history_coverage": [],
   "observation_defs": [
     {

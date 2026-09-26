@@ -532,15 +532,15 @@ def describe_change(event, c):
 
 def _slot_diff_text(b, a):
     if b is None:
-        return f"slot {a['slot']} added: {a['movements']} x{a['sets']}"
+        return f"added {a['movements']} x{a['sets']}"
     if a is None:
-        return f"slot {b['slot']} removed: {b['movements']}"
+        return f"removed {b['movements']}"
     moves_changed = b["movements"] != a["movements"]
     sets_changed = b["sets"] != a["sets"]
     if moves_changed and sets_changed:
         return f"{b['movements']} {b['sets']} sets -> {a['movements']} {a['sets']} sets"
     if moves_changed:
-        return f"slot {b['slot']}: {b['movements']} -> {a['movements']}"
+        return f"{b['movements']} -> {a['movements']}"
     if sets_changed:
         return f"{b['movements']}: {b['sets']} sets -> {a['sets']} sets"
     return ""
@@ -548,9 +548,9 @@ def _slot_diff_text(b, a):
 
 def history_view(c):
     """Dashboard read model over state_change: described events (oldest
-    first), one folded training state per event date, and coverage dates.
-    The Worker serves this verbatim; the frontend selects, never folds."""
-    from .history import coverage, list_changes, training_state_at
+    first) plus coverage dates. Fully reconstructed per-date states live in
+    history_states_view, served on demand, not in the snapshot."""
+    from .history import coverage, list_changes
     from .observations import observation_defs
     from .vocab import HistoryDomain, values
 
@@ -561,9 +561,22 @@ def history_view(c):
     described = []
     for e in events:
         described.append({**e, **describe_change(e, c)})
-    states = [training_state_at(d) for d in sorted({e["date"] for e in events})]
-    return {"events": described, "states": states, "coverage": coverage(),
+    return {"events": described, "coverage": coverage(),
             "defs": observation_defs()}
+
+
+def history_states_view(c):
+    """One backend-folded training state per event date, for on-demand
+    historical queries. Never every possible date: the dashboard selects the
+    bundle at the latest event date at or before the requested as-of date."""
+    from .history import list_changes, training_state_at
+    from .vocab import HistoryDomain, values
+
+    dates = set()
+    for domain in values(HistoryDomain):
+        dates.update(ch["date"] for ch in list_changes(domain))
+    return {"exported": datetime.now().isoformat(timespec="seconds"),
+            "states": [training_state_at(d) for d in sorted(dates)]}
 
 
 def recent_notes_view(c, count):
@@ -650,7 +663,6 @@ def build_views(c):
             "after_movements, after_sets, evidence, reverted_on FROM autoreg_changes "
             "ORDER BY id DESC LIMIT 20").fetchall()],
         "history": hist["events"],
-        "history_states": hist["states"],
         "history_coverage": hist["coverage"],
         "observation_defs": hist["defs"],
     }

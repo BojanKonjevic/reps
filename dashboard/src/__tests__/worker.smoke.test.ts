@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import worker from '../worker';
 import blank from '../generated/blank.json';
 import rich from './fixtures/rich.json';
+import richStates from './fixtures/rich.states.json';
 
 // NOTE: this file intentionally runs in plain node with no DOM globals.
 // The worker module must stay DOM free so it can run on the Workers runtime.
@@ -48,9 +49,16 @@ describe('worker entry (no DOM globals)', () => {
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.schema_version).toBe(2);
+    expect(body.schema_version).toBe(3);
     expect(body.sessions).toEqual([]);
     expect(body).toEqual(blank);
+  });
+
+  it('reports missing history states as unavailable, not empty', async () => {
+    const res = await callFetch(new Request('http://localhost/history-states'), {
+      SNAPSHOTS: memR2(),
+    });
+    expect(res.status).toBe(404);
   });
 
   it('rejects unauthenticated sync', async () => {
@@ -78,7 +86,7 @@ describe('worker entry (no DOM globals)', () => {
 
   it('round-trips a generated fixture with data intact', async () => {
     const r2 = memR2();
-    const payload = JSON.stringify(rich);
+    const payload = JSON.stringify({ snapshot: rich, history_states: richStates });
     const put = await callFetch(
       new Request('http://localhost/sync', {
         method: 'PUT',
@@ -91,6 +99,24 @@ describe('worker entry (no DOM globals)', () => {
     const get = await callFetch(new Request('http://localhost/snapshot'), authed(r2));
     const body = (await get.json()) as Record<string, unknown>;
     expect(body).toEqual(rich);
+    const states = await callFetch(new Request('http://localhost/history-states'), authed(r2));
+    expect(states.status).toBe(200);
+    expect(await states.json()).toEqual(richStates);
+  });
+
+  it('accepts legacy snapshot-only syncs without touching states', async () => {
+    const r2 = memR2();
+    const put = await callFetch(
+      new Request('http://localhost/sync', {
+        method: 'PUT',
+        body: JSON.stringify(rich),
+        headers: { Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' },
+      }),
+      authed(r2)
+    );
+    expect(put.status).toBe(200);
+    const states = await callFetch(new Request('http://localhost/history-states'), authed(r2));
+    expect(states.status).toBe(404);
   });
 
   it('404s unknown paths', async () => {

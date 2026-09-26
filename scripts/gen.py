@@ -69,7 +69,8 @@ def zod_type(name, schema, defs):
     return "z.unknown()"
 
 
-def zod_module(schema):
+def zod_module(schema, root_schema_name="snapshotSchema", root_type_name="Snapshot",
+               skip_types=("SnapshotModel",)):
     defs = schema.get("$defs", {})
     parts = [HEADER_TS, 'import { z } from "zod";', ""]
     order = []
@@ -110,10 +111,10 @@ def zod_module(schema):
     for k in defs:
         emit(k)
     root = {k: v for k, v in schema.items() if k != "$defs"}
-    parts.append(f"export const snapshotSchema = {zod_type('snapshot', root, defs)};")
-    parts.append("export type Snapshot = z.infer<typeof snapshotSchema>;")
+    parts.append(f"export const {root_schema_name} = {zod_type('snapshot', root, defs)};")
+    parts.append(f"export type {root_type_name} = z.infer<typeof {root_schema_name}>;")
     for k in order:
-        if k == "SnapshotModel":
+        if k in skip_types:
             continue
         parts.append(f"export type {k} = z.infer<typeof {k}Schema>;")
     parts.append("")
@@ -168,13 +169,18 @@ def _freeze_time():
 def main():
     global DRIFT
     from reps.db import SCHEMA_VERSION
-    from reps.models import ConstantsModel, SnapshotModel
+    from reps.models import ConstantsModel, HistoryStatesPayload, SnapshotModel
 
     snap_schema = SnapshotModel.model_json_schema()
     const_schema = ConstantsModel.model_json_schema()
+    states_schema = HistoryStatesPayload.model_json_schema()
     write("schema/snapshot.schema.json", json.dumps(snap_schema, indent=2) + "\n")
     write("schema/constants.schema.json", json.dumps(const_schema, indent=2) + "\n")
+    write("schema/history-states.schema.json", json.dumps(states_schema, indent=2) + "\n")
     write("dashboard/src/generated/snapshot.ts", zod_module(snap_schema))
+    write("dashboard/src/generated/historyStates.ts",
+          zod_module(states_schema, "historyStatesSchema", "HistoryStates",
+                     ("SnapshotModel", "HistoryStatesPayload")))
     from reps.models import SNAPSHOT_SCHEMA_VERSION as SNAP_VER
     write("dashboard/src/generated/version.ts",
           HEADER_TS + f"export const SCHEMA_VERSION = {SCHEMA_VERSION};\n"
@@ -214,11 +220,14 @@ def main():
             seed(_reps)
             snap = _reps.export_snapshot()
             payload = json.dumps(snap, indent=2) + "\n"
+            states = json.dumps(_reps.export_history_states(), indent=2) + "\n"
         finally:
             _db.DB = url
             os.unlink(tmp)
         write(f"dashboard/e2e/fixtures/{name}.json", payload)
         write(f"dashboard/src/__tests__/fixtures/{name}.json", payload)
+        write(f"dashboard/e2e/fixtures/{name}.states.json", states)
+        write(f"dashboard/src/__tests__/fixtures/{name}.states.json", states)
 
     # Doc value markers (sync_docs.py owns the fill; --check diffs here too).
     import subprocess

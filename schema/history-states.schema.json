@@ -1,0 +1,553 @@
+{
+  "$defs": {
+    "DeloadScope": {
+      "enum": [
+        "lift",
+        "slot"
+      ],
+      "title": "DeloadScope",
+      "type": "string"
+    },
+    "GoalStatus": {
+      "enum": [
+        "active",
+        "dropped",
+        "done"
+      ],
+      "title": "GoalStatus",
+      "type": "string"
+    },
+    "HistoryDeloadState": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeloadScope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subject"
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Active"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "scope",
+        "subject",
+        "active",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryDeloadState",
+      "type": "object"
+    },
+    "HistoryGoalState": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "goal_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Goal Id"
+        },
+        "target_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target E1Rm"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deadline"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoalStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoints": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoints"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "exercise",
+        "goal_id",
+        "target_e1rm",
+        "deadline",
+        "status",
+        "checkpoints",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryGoalState",
+      "type": "object"
+    },
+    "HistoryPriorityState": {
+      "additionalProperties": false,
+      "description": "One muscle tier inside a historical training state. Absence means\nmaintain by backend rule, but known stays False until recorded, so the\nUI can tell a recorded tier from the default.",
+      "properties": {
+        "muscle": {
+          "title": "Muscle",
+          "type": "string"
+        },
+        "tier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriorityTier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "since": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Since"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Until"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "muscle",
+        "tier",
+        "since",
+        "until",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryPriorityState",
+      "type": "object"
+    },
+    "HistoryProgramDay": {
+      "additionalProperties": false,
+      "description": "One split day inside a historical training state. known False means\nthe day was never recorded: slots stay empty, never today's program.",
+      "properties": {
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/ProgramSlotSnapshot"
+          },
+          "title": "Slots",
+          "type": "array"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "day",
+        "slots",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryProgramDay",
+      "type": "object"
+    },
+    "HistoryRuleState": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rule Id"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "rule_id",
+        "text",
+        "status",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryRuleState",
+      "type": "object"
+    },
+    "HistoryState": {
+      "additionalProperties": false,
+      "description": "Whole training-system state in effect on one date, folded by\nreps/history.py. The frontend selects by date and compares with the\ncurrent snapshot sections; it never folds chains itself.",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "program": {
+          "items": {
+            "$ref": "#/$defs/HistoryProgramDay"
+          },
+          "title": "Program",
+          "type": "array"
+        },
+        "goals": {
+          "items": {
+            "$ref": "#/$defs/HistoryGoalState"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "priorities": {
+          "items": {
+            "$ref": "#/$defs/HistoryPriorityState"
+          },
+          "title": "Priorities",
+          "type": "array"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rotation"
+        },
+        "rotation_known": {
+          "title": "Rotation Known",
+          "type": "boolean"
+        },
+        "rotation_first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rotation First Date"
+        },
+        "anchor_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor Date"
+        },
+        "anchor_position": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor Position"
+        },
+        "anchor_known": {
+          "title": "Anchor Known",
+          "type": "boolean"
+        },
+        "anchor_first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor First Date"
+        },
+        "deloads": {
+          "items": {
+            "$ref": "#/$defs/HistoryDeloadState"
+          },
+          "title": "Deloads",
+          "type": "array"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/HistoryRuleState"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "program",
+        "goals",
+        "priorities",
+        "rotation",
+        "rotation_known",
+        "rotation_first_date",
+        "anchor_date",
+        "anchor_position",
+        "anchor_known",
+        "anchor_first_date",
+        "deloads",
+        "rules"
+      ],
+      "title": "HistoryState",
+      "type": "object"
+    },
+    "PriorityTier": {
+      "enum": [
+        "priority",
+        "maintain",
+        "deprioritize"
+      ],
+      "title": "PriorityTier",
+      "type": "string"
+    },
+    "ProgramSlotSnapshot": {
+      "additionalProperties": false,
+      "description": "One slot inside a program day snapshot (history before/after envelope).",
+      "properties": {
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        },
+        "movements": {
+          "title": "Movements",
+          "type": "string"
+        },
+        "sets": {
+          "title": "Sets",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slot",
+        "movements",
+        "sets"
+      ],
+      "title": "ProgramSlotSnapshot",
+      "type": "object"
+    },
+    "RuleStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "superseded",
+        "archived"
+      ],
+      "title": "RuleStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "On-demand historical states, served separately from the snapshot.\n\nOne backend-folded bundle per event date (never every possible date).\nThe dashboard selects the bundle at the latest event date at or before\nthe requested as-of date; equivalence with a direct training_state_at\nfold is proven by test, so the selection is transport, not semantics.",
+  "properties": {
+    "exported": {
+      "title": "Exported",
+      "type": "string"
+    },
+    "states": {
+      "items": {
+        "$ref": "#/$defs/HistoryState"
+      },
+      "title": "States",
+      "type": "array"
+    }
+  },
+  "required": [
+    "exported",
+    "states"
+  ],
+  "title": "HistoryStatesPayload",
+  "type": "object"
+}

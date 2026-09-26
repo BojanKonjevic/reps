@@ -1175,6 +1175,94 @@ button.evbtn.sel {
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 0.88rem;
 }
+/* As-of date control: compact button plus a small month popover. Event
+   dates carry dots as discovery aids; any in-range date is selectable. */
+.asofctl {
+  position: relative;
+  margin-top: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.85rem;
+}
+.asofback {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.asofpop {
+  position: absolute;
+  z-index: 61;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  width: 300px;
+  max-width: calc(100vw - 96px);
+  background: var(--bg-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.asofhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.asofhead button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: inherit;
+  font-size: 1.1rem;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.asofhead button:hover {
+  border-color: var(--line-soft);
+}
+.asofgrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.asofwd {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  padding: 4px 0;
+}
+button.asofday {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.85rem;
+  min-height: 36px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 0;
+}
+button.asofday:hover:enabled {
+  border-color: var(--line-soft);
+}
+button.asofday:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+button.asofday.sel {
+  border-color: var(--line-soft);
+  background: var(--bg-card);
+}
+.asofdot {
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink-mute);
+}
 @media (max-width: 900px) {
   .changedetail .cdcols {
     grid-template-columns: 1fr;

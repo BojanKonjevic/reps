@@ -68,3 +68,7 @@ Future agents changing dashboard structure follow `docs/DASHBOARD_PROTOCOL.md`. 
 8. Test phone and desktop layouts.
 9. Update documentation when introducing a reusable dashboard convention.
 10. Document justified deviations from the project protocol.
+
+Never restrict historical-state queries to event dates. Event dates are historical events, not the complete set of valid historical states.
+
+Do not add relevance metadata solely to force an event onto a chart. Relevance must represent a real domain relationship.

@@ -9,12 +9,13 @@
     defOf,
     eventsForMuscle,
     groupByDate,
+    rangeBounds,
     ruleIdOf,
     scopeOf,
-    stateOn,
-    weekIndexOf,
+    weekMarks,
   } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
+  import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import type { PieSlice } from '../pieChart';
   import { piePalette } from '../pieChart';
   import PageShell from '../components/PageShell.svelte';
@@ -22,8 +23,8 @@
   import MusclePie from '../components/MusclePie.svelte';
   import EventStrip from '../components/EventStrip.svelte';
   import AsOfControl from '../components/AsOfControl.svelte';
+  import AsOfPanel from '../components/AsOfPanel.svelte';
   import ChangeDetail from '../components/ChangeDetail.svelte';
-  import TrainingState from '../components/TrainingState.svelte';
   import Provenance from '../components/Provenance.svelte';
 
   interface Props {
@@ -95,15 +96,7 @@
 
   const events = $derived(match ? eventsForMuscle(snap, match) : []);
   const groups = $derived(groupByDate(events));
-  const markWeeks = $derived.by(() => {
-    const starts = snap.volume_history.week_starts;
-    const out = new Set<number>();
-    for (const e of events) {
-      const i = weekIndexOf(starts, e.date);
-      if (i >= 0) out.add(i);
-    }
-    return Array.from(out).sort((a, b) => a - b);
-  });
+  const marks = $derived(weekMarks(groups, snap.volume_history.week_starts));
   const firstWeek = $derived.by(() => {
     if (!entry) return null;
     const i = entry.weekly.findIndex(n => n > 0);
@@ -113,14 +106,26 @@
   const pageScope = $derived(
     match ? { exercises: [], muscles: [match], days: [] } : { exercises: [], muscles: [], days: [] }
   );
+  const bounds = $derived(rangeBounds(snap));
 
   const sel = createEventSelection();
   let asof: string | null = $state(null);
   const selected = $derived(events.find(e => e.id === sel.selId) ?? null);
-  const panelDate = $derived(sel.stateDate ?? asof);
-  const panelState = $derived(panelDate ? stateOn(snap, panelDate) : null);
-  const panelScope = $derived(selected && sel.stateDate ? scopeOf(selected) : pageScope);
-  const panelRule = $derived(selected && sel.stateDate ? ruleIdOf(selected) : null);
+  const statesQ = useHistoryStates(
+    () => asof !== null,
+    () => snap.exported
+  );
+  const panelScope = $derived(selected ? scopeOf(selected) : pageScope);
+  const panelRule = $derived(selected ? ruleIdOf(selected) : null);
+
+  function selectMark(date: string) {
+    const hit = events.find(e => e.date === date);
+    if (hit) sel.select(hit.id);
+  }
+
+  function toggleAsof(date: string) {
+    asof = asof === date ? null : date;
+  }
 
   onMount(() => {
     if (!match) location.hash = href.dash();
@@ -146,18 +151,22 @@
             mrv: entry.bands.mrv,
           }}
           color={vocab.colors[match] || ''}
-          {markWeeks}
+          {marks}
+          selDate={selected?.date ?? asof}
+          onSelectMark={selectMark}
         />
         <div class="cap" id="musCap">
           Weekly sets. Gold line is MEV, shaded zone is MAV, red line is MRV. Ticks mark recorded
-          priority and program changes.
+          priority and program changes, tap one to inspect.
         </div>
         {#if coverNote}
           <div class="cap" id="musHistNote">{coverNote}</div>
         {/if}
         <AsOfControl
-          dates={groups.map(g => g.date)}
           value={asof}
+          min={bounds.min}
+          max={bounds.max}
+          eventDates={groups.map(g => g.date)}
           onPick={d => (asof = d)}
           id="musAsof"
         />
@@ -166,20 +175,21 @@
           <ChangeDetail
             event={selected}
             events={snap.history}
-            stateOpen={sel.stateDate === selected.date}
-            onViewState={sel.viewState}
+            stateOpen={asof === selected.date}
+            onViewState={toggleAsof}
             id="musChange"
           />
         {/if}
-        {#if panelState && panelDate}
-          <TrainingState
-            histState={panelState}
-            {snap}
-            scope={panelScope}
-            ruleId={panelRule}
-            id="musState"
-          />
-        {/if}
+        <AsOfPanel
+          {snap}
+          date={asof}
+          scope={panelScope}
+          ruleId={panelRule}
+          states={statesQ.data?.states ?? null}
+          loading={asof !== null && statesQ.isFetching}
+          rangeMin={bounds.min}
+          id="musState"
+        />
         <Provenance def={defOf(snap, 'muscle_volume')} id="musProv" />
       </div>
       <h2>Where the volume comes from</h2>

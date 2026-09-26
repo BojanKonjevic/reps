@@ -48,27 +48,39 @@ The user asks for a "recovery score" on the dashboard. Do not build a score card
 
 If any step tempts a shortcut (a TS helper "just for this page", a Worker computation, a second definition), stop: that is the defect `docs/SSOT.md` describes.
 
+## Canonical example: as-of Sep 08
+
+User selects Sep 08
+        ↓
+frontend requests historical state for Sep 08
+        ↓
+domain folds state changes through Sep 08
+        ↓
+backend returns semantic state
+        ↓
+frontend renders state
+
+Concretely: the `AsOfControl` calendar offers any date in the supported range (event dates carry dots as discovery aids). The dashboard fetches `/history-states` once per snapshot stamp (TanStack, cached, never refetched for another date) and selects the bundle folded at the latest event date at or before Sep 08. That selection is transport: the temporal contract test proves it equals a direct `training_state_at` fold for every date. Frontend chain folding is prohibited: no selecting envelopes and combining them, no re-deriving program days from transitions, no projecting today's state backward. Unknown stays unknown with coverage dates; partial bundles render their available domains plus the partial notice.
+
 ## Deliberate deviations
 
 The spec behind temporal context allows documented judgment over mechanical
-compliance. These deviations shipped with the initial implementation:
+compliance. These deviations shipped with the implementation:
 
-1. **As-of offers Today plus recorded event dates, not an arbitrary date
-   picker.** The frontend never folds history chains, so only backend-folded
-   dates are selectable. A free picker would invite invented states.
-2. **Goal trajectory history reads as text, not a chart overlay.** Past and
+1. **Goal trajectory history reads as text, not a chart overlay.** Past and
    current trajectories have different session counts and cannot share the
    session-numbered axis honestly. The envelopes stay immutable and visible.
-3. **One snapshot, not range queries.** History plus folded states ride the
-   monolithic snapshot. The data is small, coherence beats cleverness, and
-   TanStack caches it. Split only when measured payloads demand it.
-4. **Rotation and anchor events stay global.** They appear on adherence,
+2. **Rotation and anchor events stay global.** They appear on adherence,
    program, and history surfaces, not on every lift and muscle chart, where
    they would be noise rather than explanation.
-5. **Event lane layout is a flat strip, not per-domain lanes.** One wrapped
-   row of date-grouped buttons plus subordinate canvas ticks carries the
-   temporal relationship without turning charts into timelines. Revisit if
+3. **Event lane layout is a flat strip plus ticks, not per-domain lanes.** One
+   wrapped row of date-grouped buttons plus subordinate canvas ticks carries
+   the temporal relationship without turning charts into timelines. Revisit if
    dense histories prove unreadable.
-6. **Snapshot display strings render verbatim.** Titles and summaries are a
+4. **Snapshot display strings render verbatim.** Titles and summaries are a
    read-model projection in `reps/snapshot.py`, not a second definition: one
    builder, every chart formats the same change the same way.
+5. **History states ride one version with the snapshot.** The states payload
+   has no independent schema version; both are built and synced together, and
+   the dashboard validates each with its generated schema. Split the versions
+   if states ever ship on a different cadence.

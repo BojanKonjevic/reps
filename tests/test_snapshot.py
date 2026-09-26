@@ -19,12 +19,12 @@ def _seeded(log):
 def test_export_v2_shape(log_module):
     """Every v2 top-level view exists and validates (extra=forbid)."""
     snap = log_module.export_snapshot()
-    assert snap["schema_version"] == 2
+    assert snap["schema_version"] == 3
     for key in ["as_of", "constants", "lifts", "muscles", "sessions", "calendar",
                 "volume_history", "bodyweight", "program", "next_up", "goals",
                 "adherence", "signals", "recent_notes", "rules", "flags",
                 "deload", "priority", "autoreg", "autoreg_changes",
-                "history", "history_states", "history_coverage", "observation_defs"]:
+                "history", "history_coverage", "observation_defs"]:
         assert key in snap, f"snapshot missing '{key}'"
     assert "workouts" not in snap and "sets" not in snap
 
