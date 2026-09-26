@@ -192,14 +192,15 @@
       {pts}
       color={vocab.liftColor(ex)}
       futureEv={prog ? prog.next_e1rm : null}
-      asOf={snap.as_of}
+      futureText={prog?.next ?? null}
       {marks}
       selDate={selected?.date ?? asof}
       onSelectMark={selectMark}
     />
     <div class="cap">
-      Best set e1RM per session. New highs are PRs. Tap a point to open the session. Hollow diamond
-      marks the progression next target. Ticks mark recorded training changes, tap one to inspect.
+      Best set e1RM per session, evenly spaced. New highs are PRs. Tap a point to open the session.
+      Hollow diamond marks the progression next target, hover it for the target set. Ticks mark
+      recorded training changes, tap one to inspect.
     </div>
     {#if coverNote}
       <div class="cap" id="liftHistNote">{coverNote}</div>

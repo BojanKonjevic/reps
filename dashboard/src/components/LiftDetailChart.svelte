@@ -12,7 +12,7 @@
     pts: LiftPoint[];
     color: string;
     futureEv?: number | null;
-    asOf: string;
+    futureText?: string | null;
     marks?: ChartMark[];
     selDate?: string | null;
     onSelectMark?: (date: string) => void;
@@ -22,7 +22,7 @@
     pts,
     color,
     futureEv = null,
-    asOf,
+    futureText = null,
     marks = [],
     selDate = null,
     onSelectMark = undefined,
@@ -32,7 +32,7 @@
   let hit: HitMap = emptyHit();
   let markByDate: Map<string, ChartMark> = new Map();
 
-  const model: LiftModel = $derived({ pts, color, futureEv, asOf, marks, selDate });
+  const model: LiftModel = $derived({ pts, color, futureEv, futureText, marks, selDate });
 
   function paint(hover = -1) {
     if (isVisible(cv)) {
@@ -63,6 +63,21 @@
       return;
     }
     paint(p.index);
+    if (p.index >= pts.length) {
+      if (futureEv !== null && futureText) {
+        showTip(
+          'next target',
+          [[null, futureText + ' (e1RM ' + futureEv.toFixed(1) + ')']],
+          cx,
+          cy
+        );
+        cv.style.cursor = 'default';
+      } else {
+        hideTip();
+        cv.style.cursor = 'default';
+      }
+      return;
+    }
     const pt = pts[p.index];
     showTip(
       pt.date,
@@ -81,7 +96,7 @@
       return;
     }
     const p = nearestPoint(hit, ev.clientX - r.left, 34);
-    if (p) location.hash = href.session(pts[p.index].date);
+    if (p && p.index < pts.length) location.hash = href.session(pts[p.index].date);
   }
 
   canvasShell(() => paint());

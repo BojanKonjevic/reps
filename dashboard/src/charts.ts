@@ -148,11 +148,11 @@ export function drawXAxisLabels(
   H: number,
   P: number,
   firstDate: string,
-  lastDate: string
+  lastDate: string | null
 ) {
   g.fillStyle = theme.color('ink-dim');
   putText(g, W, fmtD(firstDate), P, H - 8, 'left');
-  putText(g, W, fmtD(lastDate), W - 8, H - 8, 'right');
+  if (lastDate !== null) putText(g, W, fmtD(lastDate), W - 8, H - 8, 'right');
 }
 
 export function drawValueLabels(

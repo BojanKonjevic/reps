@@ -116,8 +116,9 @@ test.describe('Temporal context', () => {
     await page.goto('#/l/squat');
     const box = await page.locator('#chLift').boundingBox();
     expect(box).toBeTruthy();
-    // Time scale runs first session (Sep 04) to as-of (Sep 24): Sep 10 sits at 6/20.
-    const x = box!.x + 46 + ((box!.width - 54) * 6) / 20;
+    // Ordinal scale runs sessions Sep 04/14/22 at slots 0/1/2 with the
+    // target at 3: Sep 10 sits at slot 0.6.
+    const x = box!.x + 46 + ((box!.width - 54) * 0.6) / 3;
     await page.mouse.click(x, box!.y + box!.height / 2);
     await expect(page.locator('#liftChange')).toContainText('Lower A changed');
     await expect(
