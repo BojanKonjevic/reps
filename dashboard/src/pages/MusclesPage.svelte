@@ -130,15 +130,19 @@
               {/each}
             </div>
             <div class="cap mono">{volLine(m)}</div>
-            {#each lifts.slice(0, 3) as l}
-              <div class="cap">
-                <a href={href.lift(l.exercise)}>{l.exercise}</a>
-                <span class="mono"> {l.sets} sets · {Math.round(l.share * 100)}%</span>
-              </div>
-            {/each}
-            {#if lifts.length > 3}
-              <div class="cap">
-                <a href={href.muscle(m)}>+{lifts.length - 3} more</a>
+            {#if lifts.length}
+              <div class="volsrc">
+                {#each lifts.slice(0, 3) as l}
+                  <div class="cap">
+                    <a href={href.lift(l.exercise)}>{l.exercise}</a>
+                    <span class="mono"> {l.sets} sets · {Math.round(l.share * 100)}%</span>
+                  </div>
+                {/each}
+                {#if lifts.length > 3}
+                  <div class="cap">
+                    <a href={href.muscle(m)}>+{lifts.length - 3} more</a>
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>
@@ -164,6 +168,15 @@
 <style>
   .rowstat .minisub {
     margin-left: 0;
+  }
+  .listinfo > .cap {
+    margin-top: 3px;
+  }
+  .volsrc {
+    margin-top: 7px;
+  }
+  .volsrc .cap {
+    margin-top: 2px;
   }
   .sep {
     color: var(--ink-faint);

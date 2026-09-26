@@ -175,8 +175,10 @@
   <PageHeader title={ex} titleId="liftTitle" />
   <div class="liftmeta" id="liftSub">
     <span class="nextnum">{bestLine}</span>
-    <span class="cap">{prNote}</span>
-    {#if progLine}<span class="cap">{progLine}</span>{/if}
+    <div class="liftstat">
+      <span class="cap">{prNote}</span>
+      {#if progLine}<span class="cap">{progLine}</span>{/if}
+    </div>
   </div>
   <div class="muscles" id="liftMuscles" hidden={!trained.length}>
     {#each trained as m, i}
@@ -279,12 +281,16 @@
 <style>
   .liftmeta {
     display: flex;
-    gap: 8px 18px;
-    flex-wrap: wrap;
-    align-items: baseline;
+    flex-direction: column;
+    gap: 1px;
     margin: -2px 0 4px;
   }
   .liftmeta .cap {
     margin-top: 0;
+  }
+  .liftstat {
+    display: flex;
+    gap: 1px 14px;
+    flex-wrap: wrap;
   }
 </style>

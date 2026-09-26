@@ -481,6 +481,7 @@
     <div class="goalgrid" id="goalGrid">
       {#each goals as g}
         {@const acts = g.actuals.map(a => ({ date: a.date, ev: a.e1rm }))}
+        {@const goalEvs = eventsForGoal(snap, g.exercise)}
         <div class="goalcard">
           <h3><a href={href.lift(g.exercise)}>{g.exercise}</a></h3>
           <GoalChartView
@@ -500,9 +501,15 @@
             {#if g.on_track === false}| OFF TRACK{/if}
             {#if g.slippage}| slippage: deadline needs room{/if}
           </div>
-          {#each eventsForGoal(snap, g.exercise) as ge}
-            <div class="cap">{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
-          {/each}
+          {#if goalEvs.length}
+            <div class="goalev">
+              {#each goalEvs as ge}
+                <div class="cap">
+                  {fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
     </div>

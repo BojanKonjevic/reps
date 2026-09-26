@@ -179,9 +179,13 @@
                 {/each}
               </div>
             {/if}
-            {#each lift.notes as n}
-              <div class="cap">setup: {n}</div>
-            {/each}
+            {#if lift.notes.length}
+              <div class="noteset">
+                {#each lift.notes as n}
+                  <div class="cap">setup: {n}</div>
+                {/each}
+              </div>
+            {/if}
           </div>
           <div class="listchart">
             <a
@@ -212,10 +216,13 @@
     flex: 0 0 40%;
   }
   .rowstat {
-    margin-top: 1px;
+    margin-top: 2px;
   }
   .rowstat .minisub {
     margin-left: 0;
+  }
+  .listinfo > .cap {
+    margin-top: 3px;
   }
   .sep {
     color: var(--ink-faint);
@@ -228,10 +235,18 @@
   .liftmus {
     font-size: 12px;
     color: var(--ink-faint);
-    margin-top: 1px;
+    margin-top: 7px;
   }
   .liftmus a:hover {
     color: var(--ink-dim);
+  }
+  .noteset {
+    margin-top: 7px;
+    border-left: 2px solid var(--line-soft);
+    padding-left: 8px;
+  }
+  .noteset .cap {
+    margin-top: 2px;
   }
   .prt {
     display: inline-flex;

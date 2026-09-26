@@ -850,6 +850,11 @@ canvas {
 .calcard {
   min-width: 0;
 }
+.calcard .notes {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 12px;
+}
 .calhead {
   display: flex;
   align-items: center;
@@ -1039,6 +1044,8 @@ canvas {
 }
 .setnotes {
   margin-top: 8px;
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 6px;
   font-size: 12.5px;
   color: var(--ink-mute);
 }
@@ -1168,6 +1175,14 @@ canvas {
   margin-top: 6px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+.goalev {
+  margin-top: 8px;
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 6px;
+}
+.goalev .cap {
+  margin-top: 2px;
 }
 .piewrap {
   display: flex;
@@ -1361,6 +1376,9 @@ button.dt.sel {
   flex-direction: column;
   gap: 2px;
   font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 10px;
 }
 
 /* ============ temporal: event strips, change detail, as-of, provenance ============ */
@@ -1472,7 +1490,9 @@ button.evbtn.set {
   color: var(--ink-mute);
 }
 .prov {
-  margin-top: 10px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
   font-size: 12.5px;
   color: var(--ink-faint);
 }
@@ -1541,7 +1561,9 @@ button.evbtn.set {
   margin-top: 1px;
 }
 .daydetail {
-  margin-top: 8px;
+  margin-top: 10px;
+  border-left: 2px solid var(--line-soft);
+  padding-left: 10px;
   font-size: 13px;
 }
 .daydetail > div {
