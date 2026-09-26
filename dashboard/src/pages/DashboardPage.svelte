@@ -169,65 +169,67 @@
     {/if}
   </div>
 
-  <div id="nextWrap">
-    <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
-    <div id="nextCard" class="surface-flat">
-      {#if next.empty}
-        <div class="empty">{next.empty}</div>
-      {:else}
-        <table class="nexttable" aria-label="Next training session">
-          <thead>
-            <tr>
-              <th scope="col">Movement</th>
-              <th scope="col">Last</th>
-              <th scope="col">Target</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each next.rows as row}
-              <tr class="nextline">
-                <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
-                <td class="nextnum">
-                  {#if row.last}
-                    {row.last.weight} x {row.last.reps}
-                    <span class="nextmeta">{fmtD(row.last.date)}</span>
-                  {:else}
-                    never logged
-                  {/if}
-                </td>
-                <td class="nexttarget">
-                  {#if row.target}
-                    target {row.target}
-                  {:else}
-                    —
-                  {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-        <div class="cap">{next.basis}</div>
-      {/if}
-    </div>
-  </div>
-
-  {#if snap.signals}
-    <div id="sigWrap">
-      <SectionHeader title="Coach notes" />
-      <div id="sigCard" class="surface-flat">
-        {#if !snap.signals.length}
-          <div class="empty">all clear, nothing flagged</div>
+  <div class="cols2">
+    <div id="nextWrap">
+      <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
+      <div id="nextCard" class="surface-flat">
+        {#if next.empty}
+          <div class="empty">{next.empty}</div>
         {:else}
-          {#each snap.signals as r}
-            <div class="sigrow">
-              <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
-              <span>{r.text}</span>
-            </div>
-          {/each}
+          <table class="nexttable" aria-label="Next training session">
+            <thead>
+              <tr>
+                <th scope="col">Movement</th>
+                <th scope="col">Last</th>
+                <th scope="col">Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each next.rows as row}
+                <tr class="nextline">
+                  <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
+                  <td class="nextnum">
+                    {#if row.last}
+                      {row.last.weight} x {row.last.reps}
+                      <span class="nextmeta">{fmtD(row.last.date)}</span>
+                    {:else}
+                      never logged
+                    {/if}
+                  </td>
+                  <td class="nexttarget">
+                    {#if row.target}
+                      target {row.target}
+                    {:else}
+                      —
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+          <div class="cap">{next.basis}</div>
         {/if}
       </div>
     </div>
-  {/if}
+
+    {#if snap.signals}
+      <div id="sigWrap">
+        <SectionHeader title="Coach notes" />
+        <div id="sigCard" class="surface-flat">
+          {#if !snap.signals.length}
+            <div class="empty">all clear, nothing flagged</div>
+          {:else}
+            {#each snap.signals as r}
+              <div class="sigrow">
+                <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
+                <span>{r.text}</span>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+    {/if}
+  </div>
 
   {#if changed.length}
     <div id="changedWrap">
