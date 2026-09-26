@@ -5,18 +5,23 @@ import {
   putText,
   drawSingleLine,
   drawYAxis,
-  drawXAxisLabels,
-  drawHoverLine,
   drawEventTicks,
   drawPoint,
+  drawHoverLine,
   drawHoverPoint,
   drawLine,
   type ChartMark,
 } from './charts';
 import { centeredDomain, linearScale, padDomain, valueExtent } from './lib/scales';
-import { fmtV, niceTicks, parseDate, type Ticks } from './lib/format';
+import { fmtD, fmtV, niceTicks, parseDate, type Ticks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface LiftPoint {
   date: string;
@@ -111,7 +116,11 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
   const py = linearScale([mn, mx], [H - P, 18]);
   if (t) drawYAxis(g, W, H, P, t);
   else drawSingleLine(g, W, P, L.padR, py(pts[0].ev), fmtV(pts[0].ev), H - P - 18);
-  drawXAxisLabels(g, W, H, P, pts[0].date, single ? null : pts[n - 1].date);
+  // Session dates at readable intervals under their own slots, never
+  // just the ends: equal spacing would otherwise imply a scale that is
+  // not there.
+  g.fillStyle = theme.color('ink-dim');
+  for (const i of labelIndices(n, 6)) putText(g, W, fmtD(dates[i]), xOf(i), H - 8, 'center');
   const linePts = pts.map((p, i) => ({ x: xOf(i), y: py(p.ev) }));
   g.fillStyle = theme.color('ink-dim');
   const fy0 = showFuture ? py(futureEv as number) : null;
