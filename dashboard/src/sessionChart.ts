@@ -7,7 +7,13 @@ import { fit, putText, drawYAxis } from './charts';
 import { linearScale } from './lib/scales';
 import { fmtD, fmtMin, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface SessPoint {
   date: string;
@@ -66,8 +72,8 @@ export function plot(cv: HTMLCanvasElement, points: SessPoint[], hover = -1): Hi
   const li = points.length - 1;
   if (li > 0)
     putText(g, W, fmtMin(points[li].minutes), W - L.padR - 4, py(points[li].minutes) - 12, 'right');
-  putText(g, W, fmtD(points[0].date), P, H - 8, 'left');
-  putText(g, W, fmtD(points[li].date), W - L.padR, H - 8, 'right');
+  for (const i of labelIndices(points.length, 5))
+    putText(g, W, fmtD(points[i].date), xOf(i), H - 8, 'center');
   if (hover >= 0 && hover < points.length) {
     const x = xOf(hover);
     g.strokeStyle = theme.color('ink-dim');

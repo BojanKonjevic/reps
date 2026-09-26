@@ -7,7 +7,13 @@ import { fit, putText, LC, drawYAxis } from './charts';
 import { linearScale } from './lib/scales';
 import { fmtD, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface BwRow {
   date: string;
@@ -95,8 +101,8 @@ export function plot(cv: HTMLCanvasElement, rows: BwRow[], hover = -1): HitMap {
     g.fillStyle = LC[0];
   });
   g.fillStyle = theme.color('ink-dim');
-  putText(g, W, fmtD(rows[0].date), P, H - 8, 'left');
-  putText(g, W, fmtD(rows[rows.length - 1].date), W - L.padR, H - 8, 'right');
+  for (const i of labelIndices(rows.length, 5))
+    putText(g, W, fmtD(rows[i].date), xOf(i), H - 8, 'center');
   if (hover >= 0 && hover < rows.length) {
     const x = xOf(hover);
     g.strokeStyle = theme.color('ink-dim');

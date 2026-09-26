@@ -5,7 +5,13 @@ import { fit, putText, drawHoverLine } from './charts';
 import { linearScale } from './lib/scales';
 import { fmtV, fmtD, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface GoalPoint {
   date: string;
@@ -112,7 +118,11 @@ export function plot(cv: HTMLCanvasElement, model: GoalModel, hover = -1): HitMa
   }
   g.fillStyle = theme.color('ink-dim');
   if (actuals.length) {
-    putText(g, W, fmtD(actuals[0].date), P, H - 5, 'left');
+    const show = new Set(labelIndices(actuals.length, 3));
+    actuals.forEach((a, i) => {
+      // The goal value owns the right edge; keep date labels clear of it.
+      if (show.has(i) && xOf(i) < W - 90) putText(g, W, fmtD(a.date), xOf(i), H - 5, 'center');
+    });
     putText(g, W, fmtV(checkpoints[checkpoints.length - 1]) + ' goal', W - 6, H - 5, 'right');
   }
   return hit;

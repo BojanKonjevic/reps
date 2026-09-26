@@ -170,7 +170,7 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   }
   g.fillStyle = theme.color('ink-dim');
   const showLabel = compact
-    ? new Set([start, n - 1])
+    ? new Set(labelIndices(nv, 3).map(k => k + start))
     : new Set(labelIndices(nv).map(k => k + start));
   counts.forEach((c, i) => {
     if (i < start) return;

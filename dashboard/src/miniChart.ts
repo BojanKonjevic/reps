@@ -5,7 +5,13 @@ import { fit, putText, drawSingleLine, drawYAxis } from './charts';
 import { centeredDomain, linearScale } from './lib/scales';
 import { fmtV, fmtD, niceTicks } from './lib/format';
 import { theme } from './lib/theme';
-import { layoutOf as baseLayout, emptyHit, type ChartLayout, type HitMap } from './lib/chartLayout';
+import {
+  layoutOf as baseLayout,
+  emptyHit,
+  labelIndices,
+  type ChartLayout,
+  type HitMap,
+} from './lib/chartLayout';
 
 export interface MiniModel {
   days: string[];
@@ -96,8 +102,8 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
   }
   g.fillStyle = theme.color('ink-dim');
   if (days.length > 1) {
-    putText(g, W, fmtD(days[0]), P, H - 5, 'left');
-    putText(g, W, fmtD(days[days.length - 1]), W - L.padR, H - 5, 'right');
+    for (const i of labelIndices(days.length, 3))
+      putText(g, W, fmtD(days[i]), xOf(i), H - 5, 'center');
   }
   return hit;
 }

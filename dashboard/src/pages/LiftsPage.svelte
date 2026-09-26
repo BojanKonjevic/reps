@@ -215,6 +215,9 @@
   .trendcol {
     flex: 0 0 40%;
   }
+  .listinfo .minititle {
+    justify-content: flex-start;
+  }
   .rowstat {
     margin-top: 2px;
   }

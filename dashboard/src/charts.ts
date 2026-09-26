@@ -3,7 +3,7 @@
 // lift identity maps to color in liftColor only, split-day identity in
 // dayColor only (both presentation-only, no domain meaning).
 
-import { fmtV, fmtD, fmtTick } from './lib/format';
+import { fmtV, fmtTick } from './lib/format';
 import { icons } from './design/icons';
 import { theme } from './lib/theme';
 
@@ -140,19 +140,6 @@ export function drawYAxis(
       putText(g, W, fmtTick(v, t.step), 4, y + 4, 'left');
     }
   }
-}
-
-export function drawXAxisLabels(
-  g: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  P: number,
-  firstDate: string,
-  lastDate: string | null
-) {
-  g.fillStyle = theme.color('ink-dim');
-  putText(g, W, fmtD(firstDate), P, H - 8, 'left');
-  if (lastDate !== null) putText(g, W, fmtD(lastDate), W - 8, H - 8, 'right');
 }
 
 export function drawValueLabels(
