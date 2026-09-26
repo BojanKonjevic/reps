@@ -351,7 +351,7 @@ h3 {
 .muscles {
   font-size: 13px;
   font-weight: 500;
-  margin: -8px 0 20px;
+  margin: -8px 0 10px;
   color: var(--ink-mute);
 }
 .muscles a {

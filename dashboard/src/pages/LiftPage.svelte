@@ -173,18 +173,18 @@
 <div id="viewLift">
   <div class="crumb"><a href={href.lifts()}>← Movements</a></div>
   <PageHeader title={ex} titleId="liftTitle" />
+  <div class="muscles" id="liftMuscles" hidden={!trained.length}>
+    {#each trained as m, i}
+      {#if i > 0},
+      {/if}<a href={href.muscle(m)}><b>{m}</b></a>
+    {/each}
+  </div>
   <div class="liftmeta" id="liftSub">
     <span class="nextnum">{bestLine}</span>
     <div class="liftstat">
       <span class="cap">{prNote}</span>
       {#if progLine}<span class="cap">{progLine}</span>{/if}
     </div>
-  </div>
-  <div class="muscles" id="liftMuscles" hidden={!trained.length}>
-    {#each trained as m, i}
-      {#if i > 0},
-      {/if}<a href={href.muscle(m)}><b>{m}</b></a>
-    {/each}
   </div>
   <SectionHeader title="Estimated 1RM" />
   <div class="surface-flat">
