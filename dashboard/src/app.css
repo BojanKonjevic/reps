@@ -1251,18 +1251,15 @@ canvas {
   width: 30%;
 }
 
-/* ============ dashboard numeric columns: hug content, keep clear of neighbors ============ */
+/* ============ dashboard numeric columns ============ */
+/* phone: numeric columns hug content, keep clear of neighbors */
 #progTable td.num,
-#progTable th.num,
-#prs td.num,
-#prs th.num {
+#prs td.num {
   white-space: nowrap;
   width: 1%;
 }
 #progTable td:nth-child(3),
-#progTable th:nth-child(3),
-#prs td:nth-child(2),
-#prs th:nth-child(2) {
+#prs td:nth-child(2) {
   padding-right: 22px;
 }
 #progTable td:last-child,
@@ -1274,6 +1271,44 @@ canvas {
 #prs th:last-child {
   white-space: nowrap;
   width: 1%;
+}
+/* desktop: spread columns evenly across the row */
+@media (min-width: 700px) {
+  #progTable,
+  #prs {
+    table-layout: fixed;
+  }
+  #progTable th:nth-child(1),
+  #progTable td:nth-child(1) {
+    width: 25%;
+  }
+  #progTable th:nth-child(2),
+  #progTable td:nth-child(2) {
+    width: 25%;
+    text-align: center;
+  }
+  #progTable th:nth-child(3),
+  #progTable td:nth-child(3) {
+    width: 25%;
+    padding-right: 10px;
+  }
+  #progTable th:last-child,
+  #progTable td:last-child {
+    width: 25%;
+  }
+  #prs th:nth-child(1),
+  #prs td:nth-child(1) {
+    width: 33.3%;
+  }
+  #prs th:nth-child(2),
+  #prs td:nth-child(2) {
+    width: 33.4%;
+    padding-right: 10px;
+  }
+  #prs th:last-child,
+  #prs td:last-child {
+    width: 33.3%;
+  }
 }
 
 /* ============ consistency strip ============ */
