@@ -513,9 +513,9 @@
     <table id="progTable">
       <thead>
         <tr
-          ><th scope="col">lift</th><th scope="col">verdict</th><th scope="col">next target</th><th
-            scope="col">dir</th
-          ></tr
+          ><th scope="col">lift</th><th scope="col">verdict</th><th scope="col" class="num"
+            >next target</th
+          ><th scope="col">dir</th></tr
         >
       </thead>
       <tbody>
