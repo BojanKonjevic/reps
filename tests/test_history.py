@@ -306,3 +306,43 @@ def test_rotation_and_rule_recorded(log_module):
     assert rule_rows[0]["after"]["status"] == "active"
     log.confirm_rule(rid, archive=True)
     assert log.list_changes("rule", str(rid))[-1]["after"]["status"] == "archived"
+
+
+def test_backfill_records_effective_date(log_module):
+    """User-reported past state lands on its effective date and folds."""
+    log = log_module
+    _seeded(log)
+    out = log.backfill_change(
+        "priority", "chest", {"tier": None, "since": None, "until": None},
+        {"tier": "priority", "since": "2026-09-20", "until": None},
+        "2026-09-20", evidence="user report")
+    row = log.get_change(out["change_id"])
+    assert row["date"] == "2026-09-20" and row["reverses"] is None
+    assert row["created"][:10] == date.today().isoformat()
+    st = log.training_state_at("2026-09-22")
+    tiers = {p["muscle"]: p for p in st["priorities"]}
+    assert tiers["chest"]["tier"] == "priority" and tiers["chest"]["known"] is True
+    assert log.training_state_at("2026-09-19")["priorities"][0]["known"] is False
+
+
+def test_backfill_refuses_guesses(log_module):
+    """Bad domain, bad/empty subject, malformed dates, future dates,
+    non-objects, and envelope mismatches all refuse."""
+    log = log_module
+    _seeded(log)
+    good = ({"tier": None, "since": None, "until": None},
+            {"tier": "priority", "since": "2026-09-20", "until": None})
+    with pytest.raises(RepsError, match="domain must be"):
+        log.backfill_change("autoreg", "chest", *good, "2026-09-20")
+    with pytest.raises(RepsError, match="subject"):
+        log.backfill_change("priority", "  ", *good, "2026-09-20")
+    with pytest.raises(RepsError, match="YYYY-MM-DD"):
+        log.backfill_change("priority", "chest", *good, "Sep 20")
+    with pytest.raises(RepsError, match="future"):
+        log.backfill_change("priority", "chest", *good, "2999-01-01")
+    with pytest.raises(RepsError, match="objects"):
+        log.backfill_change("priority", "chest", [], good[1], "2026-09-20")
+    with pytest.raises(RepsError, match="invalid"):
+        log.backfill_change("priority", "chest", {"tier": "boss"}, good[1], "2026-09-20")
+    with pytest.raises(RepsError, match="invalid"):
+        log.backfill_change("program", "chest", *good, "2026-09-20")

@@ -61,6 +61,47 @@ def record_change(c, domain, subject, before, after, evidence="", reverses=None)
     return {"change_id": cur.lastrowid}
 
 
+def backfill_change(domain, subject, before, after, day, evidence=""):
+    """Append one backdated transition for user-reported past state.
+
+    Effective date is explicit (never today by default): the row is active
+    for queries on that date and thereafter until superseded, exactly like a
+    contemporaneous record. Envelopes validate against the domain shape at
+    write time, so a malformed backfill fails loudly instead of poisoning
+    the trail. Never invents state: before/after come from the caller (the
+    user report), and future dates are refused. Touches history only, never
+    live tables; set live state through the owning domain operation.
+    """
+    from .models import validate_history_payload
+
+    _check_domain(domain)
+    subject = (subject or "").strip()
+    if not subject:
+        raise RepsError("backfill needs a subject (unscoped rows cannot fold)")
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        raise RepsError("history payloads must be objects")
+    day = _check_day(day)
+    if day > date.today().isoformat():
+        raise RepsError("backfill date must not be in the future")
+    try:
+        validate_history_payload(domain, before)
+        validate_history_payload(domain, after)
+    except ValueError as e:
+        raise RepsError(f"history payload invalid: {e}")
+    c = conn()
+    now = datetime.now().isoformat(timespec="seconds")
+    seq = c.execute("SELECT COUNT(*) n FROM state_change WHERE domain = ? AND subject = ? AND date = ?",
+                    (domain, subject, day)).fetchone()["n"]
+    cur = c.execute(
+        "INSERT INTO state_change (domain, subject, date, created, before_json, after_json, "
+        "evidence, reverses, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)",
+        (domain, subject, day, now,
+         json.dumps(before, sort_keys=True), json.dumps(after, sort_keys=True),
+         evidence or "", seq))
+    c.commit()
+    return {"change_id": cur.lastrowid}
+
+
 def _shape(row):
     from .models import validate_history_payload
 

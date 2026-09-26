@@ -777,6 +777,32 @@ def history_revert(change_id: int, evidence: str = "") -> dict:
 
 
 @mcp.tool()
+def history_backfill(domain: HistoryDomain, subject: str, before: str, after: str,
+                     date: str, evidence: str = "") -> dict:
+    """Record user-reported past state as a backdated transition. Envelopes
+    are JSON objects validated against the domain shape; the effective date
+    is explicit and never in the future. Never invents state: confirm every
+    envelope and date with the user first.
+
+    Args:
+        domain: One of program, priority, goal, deload, rule, rotation.
+        subject: Domain-scoped id (program "active:Day", muscle, exercise, rule id,
+            "rotation" or "anchor").
+        before: JSON object with the prior state (empty baselines allowed).
+        after: JSON object with the reported state.
+        date: Effective date yyyy-mm-dd, the first date the state held.
+        evidence: Why/how this was established (user report).
+    """
+    try:
+        before_obj = json.loads(before)
+        after_obj = json.loads(after)
+    except ValueError:
+        return {"ok": False, "error": "before and after must be JSON objects"}
+    return call_domain(_history.backfill_change, domain, subject, before_obj,
+                       after_obj, date, evidence)
+
+
+@mcp.tool()
 def observe(metric: ObserveMetric, subject: str = "", since: str = "",
             until: str = "") -> dict:
     """One deterministic semantic observation over a date range, with provenance.

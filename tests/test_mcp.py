@@ -149,3 +149,18 @@ def test_constants_and_snapshot_through_mcp(log_module):
     assert snap["ok"] is True and "sessions" in snap["data"]
     from reps.models import SnapshotModel
     SnapshotModel.model_validate(snap["data"])
+
+
+def test_history_backfill_through_mcp(log_module):
+    before = json.dumps({"tier": None, "since": None, "until": None})
+    after = json.dumps({"tier": "priority", "since": "2026-09-20", "until": None})
+    out = call("history_backfill", {"domain": "priority", "subject": "chest",
+                                    "before": before, "after": after,
+                                    "date": "2026-09-20", "evidence": "mcp backfill"})
+    assert out["ok"] is True and isinstance(out["data"]["change_id"], int)
+    assert call("history_backfill", {"domain": "priority", "subject": "chest",
+                                     "before": "nope", "after": after,
+                                     "date": "2026-09-20"})["ok"] is False
+    assert call("history_backfill", {"domain": "priority", "subject": "chest",
+                                     "before": before, "after": after,
+                                     "date": "2999-01-01"})["ok"] is False

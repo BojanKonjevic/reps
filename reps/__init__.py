@@ -23,8 +23,8 @@ from .db import CFG, DB, SCHEMA, SCHEMA_VERSION, conn, open_workout, placeholder
 from .errors import Fix, GateItem, GateReport, Refusal, RepsError
 from .goals import (add_goal, build_checkpoints, drop_goal, get_goal,
                     goal_progress, goal_sessions, rewrite_goal)
-from .history import (coverage, get_change, list_changes, record_change, revert_change,
-                      split_map_at, state_at, training_state_at, value_at)
+from .history import (backfill_change, coverage, get_change, list_changes, record_change,
+                      revert_change, split_map_at, state_at, training_state_at, value_at)
 from .observations import observation_defs, observe
 from .memory import MEMORY_FILE, append_memory_state
 from .mcp.server import call_tool as mcp_call_tool
@@ -90,7 +90,7 @@ __all__ = [
     "add_rule", "adherence_block", "adherence_snapshot", "anchor_rotation",
     "append_memory_state", "apply_autoreg", "attach_muscles",
     "autoreg_active_holds", "autoreg_block", "autoreg_drop_watch",
-    "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted",
+    "autoreg_grouped", "autoreg_miss_streaks", "autoreg_permitted", "backfill_change",
     "best_e1rm", "best_split_day", "build_checkpoints", "build_history_states", "build_signals",
     "build_snapshot", "build_snapshot_validated", "build_views", "break_threshold", "canon_muscle_name",
     "check_constants", "check_end_gate", "classify_date", "clean_muscles",
