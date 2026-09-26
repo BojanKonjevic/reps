@@ -1265,7 +1265,7 @@ canvas {
 #progTable td:last-child,
 #progTable th:last-child {
   width: 2.5rem;
-  text-align: center;
+  text-align: right;
 }
 #prs td:last-child,
 #prs th:last-child {
@@ -1295,6 +1295,7 @@ canvas {
   #progTable th:last-child,
   #progTable td:last-child {
     width: 25%;
+    text-align: right;
   }
   #prs th:nth-child(1),
   #prs td:nth-child(1) {
