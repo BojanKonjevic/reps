@@ -43,6 +43,10 @@
 
   const view = $derived(route.view.name);
   const navKey = $derived(sectionOf[view] ?? 'dash');
+  // The palette answers to Cmd on Mac, Ctrl everywhere else; label whichever
+  // applies so the hint is never wrong.
+  const modKey =
+    typeof navigator !== 'undefined' && /mac/i.test(navigator.platform ?? '') ? 'cmd K' : 'ctrl K';
 </script>
 
 <div class="shell">
@@ -59,7 +63,7 @@
         </a>
       {/each}
     </nav>
-    <div class="side-meta"><span class="kbd">ctrl K</span> jump anywhere</div>
+    <div class="side-meta"><span class="kbd">{modKey}</span> jump anywhere</div>
   </aside>
   <div class="maincol">
     <header class="topbar">
