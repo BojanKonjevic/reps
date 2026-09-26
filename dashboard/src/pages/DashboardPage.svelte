@@ -212,62 +212,66 @@
       </div>
     </div>
 
-    {#if snap.signals}
-      <div id="sigWrap">
-        <SectionHeader title="Coach notes" />
-        <div id="sigCard" class="surface-flat">
-          {#if !snap.signals.length}
-            <div class="empty">all clear, nothing flagged</div>
-          {:else}
-            {#each snap.signals as r}
-              <div class="sigrow">
-                <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
-                <span>{r.text}</span>
+    {#if changed.length}
+      <div id="changedWrap">
+        <SectionHeader
+          title="What changed"
+          actionLabel="Full history"
+          actionHref={href.history()}
+        />
+        <div id="changedCard" class="surface-flat">
+          {#each changed as e}
+            <div class="histrow">
+              <div class="hhead">
+                <span class="hdate">{fmtD(e.date)}</span>
+                <button
+                  type="button"
+                  class="evbtn"
+                  onclick={() => sel.select(e.id)}
+                  aria-pressed={sel.selId === e.id}
+                >
+                  <b>{e.title}</b>
+                </button>
               </div>
-            {/each}
-          {/if}
+              <div class="hsum">{e.summary}</div>
+              {#if selected && selected.id === e.id}
+                <ChangeDetail
+                  event={selected}
+                  events={snap.history}
+                  stateOpen={asof === selected.date}
+                  onViewState={toggleAsof}
+                />
+                <AsOfPanel
+                  {snap}
+                  date={asof}
+                  scope={scopeOf(selected)}
+                  ruleId={ruleIdOf(selected)}
+                  {states}
+                  loading={asof !== null && statesQ.isFetching}
+                  rangeMin={bounds.min}
+                />
+              {/if}
+            </div>
+          {/each}
         </div>
       </div>
     {/if}
   </div>
 
-  {#if changed.length}
-    <div id="changedWrap">
-      <SectionHeader title="What changed" actionLabel="Full history" actionHref={href.history()} />
-      <div id="changedCard" class="surface-flat">
-        {#each changed as e}
-          <div class="histrow">
-            <div class="hhead">
-              <span class="hdate">{fmtD(e.date)}</span>
-              <button
-                type="button"
-                class="evbtn"
-                onclick={() => sel.select(e.id)}
-                aria-pressed={sel.selId === e.id}
-              >
-                <b>{e.title}</b>
-              </button>
+  {#if snap.signals}
+    <div id="sigWrap">
+      <SectionHeader title="Coach notes" />
+      <div id="sigCard" class="surface-flat">
+        {#if !snap.signals.length}
+          <div class="empty">all clear, nothing flagged</div>
+        {:else}
+          {#each snap.signals as r}
+            <div class="sigrow">
+              <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
+              <span>{r.text}</span>
             </div>
-            <div class="hsum">{e.summary}</div>
-            {#if selected && selected.id === e.id}
-              <ChangeDetail
-                event={selected}
-                events={snap.history}
-                stateOpen={asof === selected.date}
-                onViewState={toggleAsof}
-              />
-              <AsOfPanel
-                {snap}
-                date={asof}
-                scope={scopeOf(selected)}
-                ruleId={ruleIdOf(selected)}
-                {states}
-                loading={asof !== null && statesQ.isFetching}
-                rangeMin={bounds.min}
-              />
-            {/if}
-          </div>
-        {/each}
+          {/each}
+        {/if}
       </div>
     </div>
   {/if}
