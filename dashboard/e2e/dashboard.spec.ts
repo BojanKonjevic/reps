@@ -84,7 +84,7 @@ test.describe('Dashboard', () => {
     await page.keyboard.press('Control+k');
     await expect(page.locator('.pal-panel')).toBeVisible();
     const rows = page.locator('.pal-panel button');
-    for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowDown');
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowDown');
     await expect(rows.first()).toHaveClass(/pal-active/);
     await page.keyboard.press('ArrowUp');
     await expect(rows.last()).toHaveClass(/pal-active/);
@@ -95,11 +95,16 @@ test.describe('Dashboard', () => {
 
   test('going back returns to the saved scroll position', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
+    // Webfont swaps shift absolute offsets: wait for fonts so the test
+    // verifies the router restore, not font timing.
+    await page.evaluate(() => document.fonts.ready);
     const link = page.locator('#trendGrid .mini a').first();
     await link.scrollIntoViewIfNeeded();
     await page.waitForTimeout(100);
     const y0 = await page.evaluate(() => window.scrollY);
-    await link.click();
+    // Synthetic click: Playwright's real-click pipeline scrolls the element
+    // into view first, which races the router save this test verifies.
+    await link.evaluate(el => (el as HTMLAnchorElement).click());
     await expect(page.locator('#viewLift')).toBeVisible();
     await page.goBack();
     await expect(page.locator('#viewDash')).toBeVisible();

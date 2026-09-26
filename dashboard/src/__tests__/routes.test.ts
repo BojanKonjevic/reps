@@ -9,6 +9,7 @@ describe('routes', () => {
     expect(parse(href.program())).toEqual({ name: 'program' });
     expect(parse(href.lifts())).toEqual({ name: 'lifts' });
     expect(parse(href.muscles())).toEqual({ name: 'muscles' });
+    expect(parse(href.history())).toEqual({ name: 'history' });
     expect(parse(href.dash())).toEqual({ name: 'dash' });
   });
 

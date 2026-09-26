@@ -14,6 +14,7 @@
   import ProgramPage from './pages/ProgramPage.svelte';
   import LiftsPage from './pages/LiftsPage.svelte';
   import MusclesPage from './pages/MusclesPage.svelte';
+  import HistoryPage from './pages/HistoryPage.svelte';
 
   const snapshot = createQuery(
     () => ({ queryKey: snapshotKey, queryFn: fetchSnapshot }),
@@ -71,6 +72,8 @@
       <LiftsPage {snap} />
     {:else if route.view.name === 'muscles'}
       <MusclesPage {snap} />
+    {:else if route.view.name === 'hist'}
+      <HistoryPage {snap} />
     {:else}
       <DashboardPage {snap} />
     {/if}

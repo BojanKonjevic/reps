@@ -178,6 +178,13 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 0 20px;
 }
+/* Grid items default to min-width auto: a wide intrinsic child (canvas,
+   table, legend row) would force the column past a phone viewport. */
+.cols2 > *,
+.minigrid > *,
+.goalgrid > * {
+  min-width: 0;
+}
 @media (max-width: 900px) {
   .cols2 {
     grid-template-columns: 1fr;
@@ -314,6 +321,16 @@ canvas {
 }
 .dt-restlogged {
   background: var(--line-soft);
+}
+button.dt {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+button.dt.sel {
+  outline: 2px solid var(--ink-mute);
+  outline-offset: 1px;
 }
 .adhweeks {
   font-family: 'IBM Plex Sans', sans-serif;
@@ -999,4 +1016,167 @@ thead th {
 }
 .cal a.cd.r:visited {
   color: var(--ink-mute);
+}
+
+/* Temporal context: event strips, change detail, as-of state, provenance.
+   Markers on canvas stay subordinate ticks; these HTML companions carry the
+   accessible text, selection, and detail. Plain text, no pills. */
+.evstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.85rem;
+}
+button.evbtn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+}
+button.evbtn:hover {
+  border-color: var(--line-soft);
+}
+button.evbtn.sel {
+  border-color: var(--line-soft);
+  background: var(--bg-soft);
+}
+.evbtn .evdate {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--ink-mute);
+  margin-right: 6px;
+}
+.changedetail {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.88rem;
+}
+.changedetail .cdhead {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.changedetail .cdomain {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--ink-mute);
+}
+.changedetail .meta {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+.changedetail .cdcols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 18px;
+  margin-top: 6px;
+}
+.changedetail .cdev {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.changedetail .cdev .cap {
+  margin-top: 0;
+}
+.changedetail .cdrev {
+  margin-top: 4px;
+  color: var(--ink-mute);
+}
+.asof {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.88rem;
+}
+.asof .asofhead {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.asof .asofsec {
+  margin-top: 8px;
+}
+.asof .asofsec .cap {
+  margin-top: 0;
+}
+.prov {
+  margin-top: 8px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.85rem;
+  color: var(--ink-mute);
+}
+.prov summary {
+  cursor: pointer;
+}
+.prov .provbody {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prov .provbody .cap {
+  margin-top: 2px;
+}
+.histfilters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.85rem;
+}
+.histfilters select,
+.histfilters input[type='date'] {
+  background: var(--bg);
+  border: 1px solid var(--bg-hover);
+  border-radius: 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}
+.histrow {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.88rem;
+}
+.histrow .hhead {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.histrow .hdate {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--ink-mute);
+  font-size: 0.8rem;
+}
+.histrow .hsum {
+  color: var(--ink-mute);
+}
+.daydetail {
+  margin-top: 8px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.88rem;
+}
+@media (max-width: 900px) {
+  .changedetail .cdcols {
+    grid-template-columns: 1fr;
+  }
 }

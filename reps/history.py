@@ -170,6 +170,167 @@ def _fold(domain, subject, changes):
     return changes[-1]["after"]
 
 
+def value_at(change_list, day_iso, key):
+    """State value in effect on a date: fold history to that date, else the
+    earliest recorded before-image (stable under later changes, flagged as
+    pre-history by the caller via coverage dates), else None."""
+    past = [ch for ch in change_list if ch["date"] <= day_iso]
+    if past:
+        return past[-1]["after"].get(key)
+    if change_list:
+        return change_list[0]["before"].get(key)
+    return None
+
+
+def split_map_at(prog_hist, day_iso, c):
+    """Active split daymap in effect on a date: per-day snapshots folded from
+    program history (earliest before-image before history starts), current
+    days for never-recorded days. Never today's edited split."""
+    from .program import parse_active_split_days, parse_movements
+
+    by_subject: dict = {}
+    for ch in prog_hist:
+        if ch["subject"].startswith("active:"):
+            by_subject.setdefault(ch["subject"], []).append(ch)
+    covered = {sub.partition(":")[2] for sub in by_subject}
+    daymap: dict = {}
+    for sub, changes in by_subject.items():
+        dayname = sub.partition(":")[2]
+        past = [ch for ch in changes if ch["date"] <= day_iso]
+        snap = (past[-1]["after"] if past else changes[0]["before"])["slots"]
+        moves = []
+        for s in snap:
+            moves.extend(parse_movements(s["movements"]))
+        if moves:
+            daymap[dayname] = moves
+    for dayname, moves in parse_active_split_days(c).items():
+        if dayname not in covered:
+            daymap[dayname] = moves
+    return daymap
+
+
+def coverage():
+    """Earliest recorded date per (domain, subject): the UI reads this to
+    say 'historical state unavailable before X' instead of guessing."""
+    c = conn()
+    return [{"domain": r["domain"], "subject": r["subject"], "first_date": r["first_date"]}
+            for r in c.execute("SELECT domain, subject, MIN(date) AS first_date FROM state_change "
+                               "GROUP BY domain, subject ORDER BY domain, subject").fetchall()]
+
+
+def training_state_at(day_iso):
+    """Whole training-system state in effect on a date, folded from history.
+
+    Every section carries its own known flag: recorded subjects fold to the
+    date, never-recorded ones report unknown (never today's live state),
+    priority defaults to maintain by backend rule (absence means maintain).
+    The dashboard read model embeds one bundle per event date; the frontend
+    only selects by date, it never folds chains itself.
+    """
+    from .program import parse_active_split_days
+
+    at = _check_day(day_iso)
+    c = conn()
+    cov = {(e["domain"], e["subject"]): e["first_date"] for e in coverage()}
+
+    def _first(domain, subject):
+        return cov.get((domain, subject))
+
+    prog_hist = list_changes("program")
+    recorded_days = sorted({ch["subject"].partition(":")[2] for ch in prog_hist
+                            if ch["subject"].startswith("active:")})
+    current_days = sorted(parse_active_split_days(c))
+    program = []
+    for day in sorted(set(recorded_days) | set(current_days)):
+        st = state_at("program", f"active:{day}", at)
+        if st["reconstructible"]:
+            program.append({"day": day, "slots": st["state"]["slots"], "known": True,
+                            "first_date": _first("program", f"active:{day}")})
+        else:
+            program.append({"day": day, "slots": [], "known": False,
+                            "first_date": _first("program", f"active:{day}")})
+
+    goal_subjects = sorted({ch["subject"] for ch in list_changes("goal")}
+                           | {r["exercise"] for r in
+                              c.execute("SELECT exercise FROM goals WHERE status = 'active'").fetchall()})
+    goals = []
+    for ex in goal_subjects:
+        st = state_at("goal", ex, at)
+        if st["reconstructible"]:
+            s = st["state"]
+            goals.append({"exercise": ex, "goal_id": s.get("goal_id"),
+                          "target_e1rm": s.get("target_e1rm"), "deadline": s.get("deadline"),
+                          "status": s.get("status"), "checkpoints": s.get("checkpoints"),
+                          "known": True, "first_date": _first("goal", ex)})
+        else:
+            goals.append({"exercise": ex, "goal_id": None, "target_e1rm": None,
+                          "deadline": None, "status": None, "checkpoints": None,
+                          "known": False, "first_date": _first("goal", ex)})
+
+    from .constants import load_constants
+    priorities = []
+    for muscle in sorted(load_constants().muscles):
+        st = state_at("priority", muscle, at)
+        first = _first("priority", muscle)
+        if st["reconstructible"] and first is not None and first <= at:
+            s = st["state"]
+            priorities.append({"muscle": muscle, "tier": s.get("tier"),
+                               "since": s.get("since"), "until": s.get("until"),
+                               "known": True, "first_date": first})
+        else:
+            # Absence means maintain by rule, but nothing was recorded:
+            # the default reads honestly, never as a recorded tier.
+            priorities.append({"muscle": muscle, "tier": "maintain",
+                               "since": None, "until": None,
+                               "known": False, "first_date": first})
+
+    rot = state_at("rotation", "rotation", at)
+    anch = state_at("rotation", "anchor", at)
+    rotation = rot["state"].get("rotation") if rot["reconstructible"] else None
+    anchor_date = anch["state"].get("anchor_date") if anch["reconstructible"] else None
+    anchor_position = anch["state"].get("position") if anch["reconstructible"] else None
+
+    rule_ids = sorted({ch["subject"] for ch in list_changes("rule")}
+                      | {str(r["id"]) for r in c.execute("SELECT id FROM rules").fetchall()},
+                      key=lambda x: (0, int(x)) if x.isdigit() else (1, x))
+    rules = []
+    for rid in rule_ids:
+        st = state_at("rule", rid, at)
+        if st["reconstructible"]:
+            s = st["state"]
+            rules.append({"rule_id": s.get("rule_id"), "text": s.get("text"),
+                          "status": s.get("status"), "known": True,
+                          "first_date": _first("rule", rid)})
+        else:
+            rules.append({"rule_id": int(rid) if rid.isdigit() else None, "text": None,
+                          "status": None, "known": False, "first_date": _first("rule", rid)})
+
+    deload_subjects = sorted({ch["subject"] for ch in list_changes("deload")}
+                             | {f"{r['scope']}:{r['subject']}" for r in
+                                c.execute("SELECT scope, subject FROM deload_state").fetchall()})
+    deloads = []
+    for sub in deload_subjects:
+        scope, _, name = sub.partition(":")
+        st = state_at("deload", sub, at)
+        if st["reconstructible"]:
+            s = st["state"]
+            deloads.append({"scope": s.get("scope"), "subject": s.get("subject"),
+                            "active": s.get("active"), "known": True,
+                            "first_date": _first("deload", sub)})
+        else:
+            deloads.append({"scope": scope or None, "subject": name or None,
+                            "active": None, "known": False,
+                            "first_date": _first("deload", sub)})
+
+    return {"date": at, "program": program, "goals": goals, "priorities": priorities,
+            "rotation": rotation, "rotation_known": rot["reconstructible"],
+            "rotation_first_date": _first("rotation", "rotation"),
+            "anchor_date": anchor_date, "anchor_position": anchor_position,
+            "anchor_known": anch["reconstructible"],
+            "anchor_first_date": _first("rotation", "anchor"),
+            "deloads": deloads, "rules": rules}
+
+
 def revert_change(change_id, evidence=""):
     """Create the inverse transition of a recorded change, if currently valid.
 

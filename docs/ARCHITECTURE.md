@@ -17,32 +17,39 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
          "when / why"              "how / what"
                 │                       │
                 └───────────┬───────────┘
-                            ▼
-                     Reps Domain Core
-                     /      |       \
-                    /       |        \
-                 SQLite   models     tests
-                            │
-                         Pydantic
-                            │
-                     serialized state
-                            │
-                            ▼
-                     Cloudflare Worker
-                            │
-                         snapshot
-                            │
-                     TanStack Query
-                            │
-                           Zod
-                            │
-                         Svelte 5
-                       /    │     \
-                  pages  components  charts
-                                        │
-                                   D3 primitives
-                                        │
-                                     Canvas
+                             ▼
+                      Reps Domain Core
+                      /      |       \
+                     /       |        \
+                  SQLite   models     tests
+                             │
+                          Pydantic
+                             │
+                  observations + history
+                  (semantic reads, point-in-time folds)
+                             │
+                      dashboard read model
+               (snapshot views + described history
+                + folded states + observation defs)
+                             │
+                             ▼
+                      Cloudflare Worker
+                      (transport only: serves the
+                      snapshot verbatim, no domain engine)
+                             │
+                          snapshot
+                             │
+                      TanStack Query
+                             │
+                            Zod
+                             │
+                          Svelte 5
+                        /    │     \
+                   pages  components  charts
+                                         │
+                                    D3 primitives
+                                         │
+                                      Canvas
 ```
 
 - SQLite owns durable facts and state. Explicit SQL, no ORM. Derivable values are computed on read, never stored redundantly.
@@ -53,6 +60,8 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
 - `docs/` owns protocol and reasoning rules: when a capability is used, how capabilities sequence, domain concepts, safety requirements.
 - The dashboard presents backend state. It never reconstructs domain semantics that belong in Python.
 - The agent owns judgment and conversational reasoning, grounded in numbers pulled through MCP.
+
+Read-model ownership: Python owns observation semantics (`reps/observations.py`), historical reconstruction (`reps/history.py`), and state-change meaning; the snapshot read model (`reps/snapshot.py` views) embeds described history, folded per-date states, coverage, and observation defs. The Worker owns transport only and must not become a second domain engine. The frontend owns interaction state, chart rendering, responsive presentation, formatting, selection, and visual aggregation that does not alter domain meaning; it must not reimplement backend semantics. Snapshot views may carry short display strings built from domain facts (titles, summaries, signal text), rendered verbatim; that is a read-model projection, not a second definition.
 
 ## Module homes
 

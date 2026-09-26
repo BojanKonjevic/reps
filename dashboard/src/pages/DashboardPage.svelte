@@ -8,9 +8,21 @@
     directionClass,
     markText,
     markClass,
+    statusLabel,
   } from '../lib/present';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
+  import {
+    defOf,
+    eventsForGoal,
+    nearbyEvents,
+    recentChanges,
+    ruleIdOf,
+    scopeOf,
+    stateOn,
+    trajectoryLines,
+  } from '../lib/temporal';
+  import { createEventSelection } from '../lib/eventSelection.svelte';
   import {
     bestSetRows,
     dayAvgs,
@@ -38,6 +50,9 @@
   import SessionLengthChart from '../components/SessionLengthChart.svelte';
   import GoalChartView from '../components/GoalChartView.svelte';
   import Calendar from '../components/Calendar.svelte';
+  import ChangeDetail from '../components/ChangeDetail.svelte';
+  import TrainingState from '../components/TrainingState.svelte';
+  import Provenance from '../components/Provenance.svelte';
 
   interface Props {
     snap: Snapshot;
@@ -102,6 +117,25 @@
   const progLifts = $derived(
     lifts.filter(l => l.progression).sort((a, b) => (a.exercise < b.exercise ? -1 : 1))
   );
+
+  const changed = $derived(recentChanges(snap, 5));
+  const sel = createEventSelection();
+  const selected = $derived(changed.find(e => e.id === sel.selId) ?? null);
+  const histState = $derived(sel.stateDate ? stateOn(snap, sel.stateDate) : null);
+
+  let bwIdx: number | null = $state(null);
+  const bwRow = $derived(bwIdx !== null ? (snap.bodyweight[bwIdx] ?? null) : null);
+  const bwNear = $derived(bwRow ? nearbyEvents(snap, bwRow.date, 7) : []);
+
+  function pickBw(i: number | null) {
+    bwIdx = i === null || i === bwIdx ? null : i;
+  }
+
+  let adhDate: string | null = $state(null);
+  const adhDay = $derived(adhDays.find(d => d.date === adhDate) ?? null);
+  const adhContext = $derived(
+    adhDate ? nearbyEvents(snap, adhDate, 30).filter(e => e.domain === 'rotation') : []
+  );
 </script>
 
 <PageShell>
@@ -163,6 +197,47 @@
         </div>
         <div class="cap">
           Warning signs in words, worst first. Every line restates a computed fact.
+        </div>
+      </div>
+    {/if}
+
+    {#if changed.length}
+      <div id="changedWrap">
+        <h2>What changed</h2>
+        <div class="card" id="changedCard">
+          {#each changed as e}
+            <div class="histrow">
+              <div class="hhead">
+                <span class="hdate">{fmtD(e.date)}</span>
+                <button
+                  type="button"
+                  class="evbtn"
+                  onclick={() => sel.select(e.id)}
+                  aria-pressed={sel.selId === e.id}
+                >
+                  <b>{e.title}</b>
+                </button>
+              </div>
+              <div class="hsum">{e.summary}</div>
+              {#if selected && selected.id === e.id}
+                <ChangeDetail
+                  event={selected}
+                  events={snap.history}
+                  stateOpen={sel.stateDate === selected.date}
+                  onViewState={sel.viewState}
+                />
+                {#if histState && sel.stateDate === selected.date}
+                  <TrainingState
+                    {histState}
+                    {snap}
+                    scope={scopeOf(selected)}
+                    ruleId={ruleIdOf(selected)}
+                  />
+                {/if}
+              {/if}
+            </div>
+          {/each}
+          <div class="cap"><a href={href.history()}>Full history</a></div>
         </div>
       </div>
     {/if}
@@ -240,6 +315,7 @@
         <div class="cap">
           Best set per session, each lift on its own scale. Tap a lift for detail.
         </div>
+        <Provenance def={defOf(snap, 'lift_trend')} id="trendProv" />
       </div>
     </div>
 
@@ -273,14 +349,29 @@
             {/each}
           </div>
           <div class="cap">One set can count for several muscles.</div>
+          <Provenance def={defOf(snap, 'muscle_volume')} id="volProv" />
         </div>
         <h2>Bodyweight</h2>
         <div class="card">
-          <BodyweightChart rows={snap.bodyweight} />
+          <BodyweightChart rows={snap.bodyweight} onSelect={pickBw} />
           <div class="cap">
             Gym scale weigh ins, as logged in chat. Dashed spans are gaps, not measurements. Thin
-            line is the 7-day average.
+            line is the 7-day average. Tap a point to see what else was happening around then.
           </div>
+          {#if bwRow}
+            <div class="daydetail" id="bwNear">
+              <b>Around {fmtD(bwRow.date)}</b>
+              {#each bwNear as e}
+                <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
+              {:else}
+                <div>no recorded training changes within a week of this weigh in</div>
+              {/each}
+              {#if bwNear.length}
+                <div class="cap"><a href={href.history()}>Full history</a></div>
+              {/if}
+            </div>
+          {/if}
+          <Provenance def={defOf(snap, 'bodyweight_trend')} id="bwProv" />
         </div>
       </div>
       <div>
@@ -315,12 +406,28 @@
             <div class="card" id="adhCard">
               <div class="dtstrip">
                 {#each adhDays as d}
-                  <span
+                  <button
+                    type="button"
                     class="dt dt-{d.status.replace('_', '')}"
+                    class:sel={adhDate === d.date}
                     title="{d.date}: {d.status} (expected {d.expected})"
-                  ></span>
+                    aria-label="{d.date}: {statusLabel(d.status)}, expected {d.expected}"
+                    aria-pressed={adhDate === d.date}
+                    onclick={() => (adhDate = adhDate === d.date ? null : d.date)}
+                  ></button>
                 {/each}
               </div>
+              {#if adhDay}
+                <div class="daydetail" id="adhDetail">
+                  <b>{fmtD(adhDay.date)}</b>
+                  <div>Expected: {adhDay.expected}</div>
+                  <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
+                  <div>Status: {statusLabel(adhDay.status)}</div>
+                  {#each adhContext as e}
+                    <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
+                  {/each}
+                </div>
+              {/if}
               <div class="adhweeks">
                 {#each adhWeeks as w}
                   <div>{w.week_start} · {w.trained}/{w.expected} sessions</div>
@@ -329,6 +436,7 @@
               <div class="cap">
                 Green is trained as planned, red is missed, hollow is scheduled rest.
               </div>
+              <Provenance def={defOf(snap, 'adherence_summary')} id="adhProv" />
             </div>
           </div>
         {/if}
@@ -359,6 +467,9 @@
               {#if g.on_track === false}| OFF TRACK{/if}
               {#if g.slippage}| slippage: deadline needs room{/if}
             </div>
+            {#each eventsForGoal(snap, g.exercise) as ge}
+              <div class="cap">{fmtD(ge.date)}: {trajectoryLines(ge).join('; ') || ge.summary}</div>
+            {/each}
           </div>
         {/each}
       </div>
@@ -395,6 +506,7 @@
         Dashed cards are future: checkpoints, next targets, hollow points. Solid lines are logged
         sets.
       </div>
+      <Provenance def={defOf(snap, 'goal_trajectory')} id="goalProv" />
     </div>
 
     <h2>Best sets</h2>

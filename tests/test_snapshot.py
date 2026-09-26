@@ -23,7 +23,8 @@ def test_export_v2_shape(log_module):
     for key in ["as_of", "constants", "lifts", "muscles", "sessions", "calendar",
                 "volume_history", "bodyweight", "program", "next_up", "goals",
                 "adherence", "signals", "recent_notes", "rules", "flags",
-                "deload", "priority", "autoreg", "autoreg_changes"]:
+                "deload", "priority", "autoreg", "autoreg_changes",
+                "history", "history_states", "history_coverage", "observation_defs"]:
         assert key in snap, f"snapshot missing '{key}'"
     assert "workouts" not in snap and "sets" not in snap
 

@@ -48,6 +48,64 @@ def _wrap(metric, subject, since, until, result, sources, definition):
             "provenance": {"sources": sources, "definition": definition}}
 
 
+# Backend-owned definitions and provenance for every observation metric.
+# The dashboard renders these verbatim (Provenance disclosure) instead of
+# restating them; each observe() implementation below reads its own entry,
+# so the strings exist exactly once.
+_OBSERVATION_DEFS = {
+    "lift_trend": {
+        "subject_kind": "exercise",
+        "sources": ["sets", "workouts"],
+        "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); "
+                      "delta is last minus first in range, best is the range max",
+    },
+    "muscle_volume": {
+        "subject_kind": "muscle (empty means all tracked muscles)",
+        "sources": ["sets", "set_muscle", "workouts"],
+        "definition": "logged working sets per muscle in range (full credit per mapped muscle); "
+                      "avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)",
+    },
+    "program_activity": {
+        "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+        "sources": ["state_change"],
+        "definition": "recorded program day-snapshot transitions in range; "
+                      "use history_get(change_id) for before/after detail",
+    },
+    "goal_trajectory": {
+        "subject_kind": "goal id or exercise",
+        "sources": ["goals", "goal_checkpoints", "sets", "workouts", "state_change"],
+        "definition": "trajectory checkpoints folded from goal history to the range end, "
+                      "so later rewrites do not move historical results; the trajectory "
+                      "itself is session-numbered, in_range marks actuals inside the range",
+    },
+    "adherence_summary": {
+        "subject_kind": "rotation schedule (subject is unused)",
+        "sources": ["workouts", "rotation", "rotation_anchor", "state_change"],
+        "definition": "each date classified with the rotation/anchor/split folded from history "
+                      "to that date (earliest recorded image before history starts, "
+                      "never today's state); dates without an applicable rotation/anchor "
+                      "report expected None with status unknown",
+    },
+    "bodyweight_trend": {
+        "subject_kind": "unused",
+        "sources": ["bodyweight"],
+        "definition": "gym-scale weigh-ins in range; delta is last minus first",
+    },
+}
+
+
+def _def(metric):
+    d = _OBSERVATION_DEFS[metric]
+    return d["sources"], d["definition"]
+
+
+def observation_defs():
+    """One entry per metric: subject kind plus the exact definition and
+    sources observe() reports. The dashboard read model embeds these so the
+    frontend never restates domain meaning."""
+    return [{"metric": m, **_OBSERVATION_DEFS[m]} for m in values(ObserveMetric)]
+
+
 def observe(metric, subject="", since="", until=""):
     """Compute one semantic observation over a date range."""
     _check_metric(metric)
@@ -87,9 +145,7 @@ def _lift_trend(subject, since, until):
                   "delta_e1rm": round(end - start, 1),
                   "delta_pct": round((end - start) / start * 100, 1) if start else None,
                   "best_e1rm": best}
-    return _wrap("lift_trend", exercise, since, until, result, ["sets", "workouts"],
-                 "per-date top-set e1RM (Epley via reps/e1rm.py); "
-                 "delta is last minus first in range, best is the range max")
+    return _wrap("lift_trend", exercise, since, until, result, *_def("lift_trend"))
 
 
 def _top_set(c, exercise, day):
@@ -125,9 +181,7 @@ def _muscle_volume(subject, since, until):
               "avg_per_week": ({m: round(n / (span_days / 7), 1) for m, n in totals.items()}
                                if span_days >= 7 else None),
               "span_days": span_days}
-    return _wrap("muscle_volume", subject, since, until, result, ["sets", "set_muscle", "workouts"],
-                 "logged working sets per muscle in range (full credit per mapped muscle); "
-                 "avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)")
+    return _wrap("muscle_volume", subject, since, until, result, *_def("muscle_volume"))
 
 
 def _program_activity(subject, since, until):
@@ -138,9 +192,7 @@ def _program_activity(subject, since, until):
     result = {"changes": len(changes), "subjects": subjects,
               "change_ids": [ch["id"] for ch in changes],
               "evidence": [ch["evidence"] for ch in changes if ch["evidence"]]}
-    return _wrap("program_activity", subject, since, until, result, ["state_change"],
-                 "recorded program day-snapshot transitions in range; "
-                 "use history_get(change_id) for before/after detail")
+    return _wrap("program_activity", subject, since, until, result, *_def("program_activity"))
 
 
 def _not_in_effect(subject, exercise, since, until, goal_id):
@@ -210,56 +262,13 @@ def _goal_trajectory(subject, since, until):
               "completed": prog["completed"], "consecutive_misses": prog["consecutive_misses"],
               "on_track": prog["on_track"], "slippage": prog["slippage"],
               "effective": {"as_of": until, "from_history": from_history}}
-    return _wrap("goal_trajectory", subject, since, until, result,
-                 ["goals", "goal_checkpoints", "sets", "workouts", "state_change"],
-                 "trajectory checkpoints folded from goal history to the range end, "
-                 "so later rewrites do not move historical results; the trajectory "
-                 "itself is session-numbered, in_range marks actuals inside the range")
-
-
-def _value_at(change_list, day_iso, key):
-    """State value in effect on a date: fold history to that date, else the
-    earliest recorded before-image (stable under later changes, flagged as
-    pre-history by the caller via coverage dates), else None."""
-    past = [ch for ch in change_list if ch["date"] <= day_iso]
-    if past:
-        return past[-1]["after"].get(key)
-    if change_list:
-        return change_list[0]["before"].get(key)
-    return None
-
-
-def _split_map_at(prog_hist, day_iso, c):
-    """Active split daymap in effect on a date: per-day snapshots folded from
-    program history (earliest before-image before history starts), current
-    days for never-recorded days. Never today's edited split."""
-    from .program import parse_active_split_days, parse_movements
-
-    by_subject: dict = {}
-    for ch in prog_hist:
-        if ch["subject"].startswith("active:"):
-            by_subject.setdefault(ch["subject"], []).append(ch)
-    covered = {sub.partition(":")[2] for sub in by_subject}
-    daymap: dict = {}
-    for sub, changes in by_subject.items():
-        dayname = sub.partition(":")[2]
-        past = [ch for ch in changes if ch["date"] <= day_iso]
-        snap = (past[-1]["after"] if past else changes[0]["before"])["slots"]
-        moves = []
-        for s in snap:
-            moves.extend(parse_movements(s["movements"]))
-        if moves:
-            daymap[dayname] = moves
-    for dayname, moves in parse_active_split_days(c).items():
-        if dayname not in covered:
-            daymap[dayname] = moves
-    return daymap
+    return _wrap("goal_trajectory", subject, since, until, result, *_def("goal_trajectory"))
 
 
 def _adherence_summary(subject, since, until):
     from .adherence import (classify_date, drift_days, get_anchor, match_day,
                             trained_exercises)
-    from .history import list_changes
+    from .history import list_changes, split_map_at, value_at
     from .program import get_rotation
 
     c = conn()
@@ -277,11 +286,11 @@ def _adherence_summary(subject, since, until):
     end = date.fromisoformat(until)
     while day <= end:
         d = day.isoformat()
-        rot = _value_at(rot_hist, d, "rotation")
+        rot = value_at(rot_hist, d, "rotation")
         if rot is None and not rot_hist:
             rot = [None if x == "rest" else x for x in cur_rot]
-        anch = _value_at(anch_hist, d, "anchor_date")
-        anch_pos = _value_at(anch_hist, d, "position")
+        anch = value_at(anch_hist, d, "anchor_date")
+        anch_pos = value_at(anch_hist, d, "position")
         if anch is None and not anch_hist and cur_anch is not None:
             anch, anch_pos = cur_anch["date"], cur_anch["index"]
         rot_names = ([r if r is not None else "rest" for r in rot]
@@ -290,7 +299,7 @@ def _adherence_summary(subject, since, until):
                   if anch is not None and anch_pos is not None
                   and rot_names is not None and anch_pos < len(rot_names) else None)
         trained = trained_exercises(c, d)
-        daymap = _split_map_at(prog_hist, d, c)
+        daymap = split_map_at(prog_hist, d, c)
         if rot_names is not None and anchor is not None:
             days.append(classify_date(c, rot_names, anchor, d, daymap))
         else:
@@ -307,12 +316,7 @@ def _adherence_summary(subject, since, until):
                            "anchor_history_since": anch_hist[0]["date"] if anch_hist else None},
               "verdicts": [{"date": v["date"], "expected": v.get("expected"),
                             "trained": v.get("trained"), "status": v["status"]} for v in days]}
-    return _wrap("adherence_summary", subject, since, until, result,
-                 ["workouts", "rotation", "rotation_anchor", "state_change"],
-                 "each date classified with the rotation/anchor/split folded from history "
-                 "to that date (earliest recorded image before history starts, "
-                 "never today's state); dates without an applicable rotation/anchor "
-                 "report expected None with status unknown")
+    return _wrap("adherence_summary", subject, since, until, result, *_def("adherence_summary"))
 
 
 def _bodyweight_trend(subject, since, until):
@@ -326,5 +330,4 @@ def _bodyweight_trend(subject, since, until):
         delta = round(rows[-1]["kg"] - rows[0]["kg"], 1)
         result = {"entries": rows, "n": len(rows), "start_kg": rows[0]["kg"],
                   "end_kg": rows[-1]["kg"], "delta_kg": delta}
-    return _wrap("bodyweight_trend", subject, since, until, result, ["bodyweight"],
-                 "gym-scale weigh-ins in range; delta is last minus first")
+    return _wrap("bodyweight_trend", subject, since, until, result, *_def("bodyweight_trend"))

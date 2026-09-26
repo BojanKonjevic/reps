@@ -396,6 +396,176 @@ def _fmt_d(dstr):
     return f"{months[int(dstr[5:7]) - 1]} {int(dstr[8:10])}"
 
 
+def _fmt_num(v):
+    if v is None:
+        return "unset"
+    return str(round(v)) if v >= 100 else f"{v:.1f}"
+
+
+def _human_name(name):
+    return (name or "").title()
+
+
+def _out(title, summary, exercises=None, muscles=None, days=None):
+    return {"title": title, "summary": summary,
+            "affects_exercises": exercises or [], "affects_muscles": muscles or [],
+            "affects_days": days or []}
+
+
+def _describe_program(event, c):
+    from .program import lift_muscles, parse_movements
+
+    subject, before, after = event["subject"], event["before"], event["after"]
+    day = subject.partition(":")[2] or subject
+    b_slots = {s["slot"]: s for s in before.get("slots") or []}
+    a_slots = {s["slot"]: s for s in after.get("slots") or []}
+    diffs = [_slot_diff_text(b_slots.get(k), a_slots.get(k))
+             for k in sorted(set(b_slots) | set(a_slots))]
+    diffs = [d for d in diffs if d]
+    summary = "; ".join(diffs[:2]) + ("; ..." if len(diffs) > 2 else "") \
+        or "no slot changes"
+    exercises = sorted({m for s in list(b_slots.values()) + list(a_slots.values())
+                        for m in parse_movements(s["movements"])})
+    muscles = sorted({mu for m in exercises for mu in lift_muscles(c, m) or []})
+    return _out(f"{day} changed", summary, exercises, muscles, [day])
+
+
+def _describe_priority(event, c):
+    subject, before, after = event["subject"], event["before"], event["after"]
+    before_t = before.get("tier") or "unset"
+    after_t = after.get("tier") or "cleared"
+    return _out(f"{_human_name(subject)} priority changed",
+                f"{before_t} -> {after_t}", muscles=[subject])
+
+
+def _describe_goal(event, c):
+    from .program import lift_muscles
+
+    subject, before, after = event["subject"], event["before"], event["after"]
+    exercise = after.get("exercise") or before.get("exercise") or subject
+    action = after.get("action") or "changed"
+    muscles = lift_muscles(c, exercise) or []
+    if action == "add":
+        summary = (f"target {_fmt_num(after.get('target_e1rm'))} e1RM"
+                   + (f" by {_fmt_d(after['deadline'])}" if after.get("deadline") else ""))
+        return _out(f"{_human_name(exercise)} goal set", summary, [exercise], muscles)
+    if action == "drop":
+        summary = (f"was {_fmt_num(before.get('target_e1rm'))} e1RM"
+                   + (f" by {_fmt_d(before['deadline'])}" if before.get("deadline") else ""))
+        return _out(f"{_human_name(exercise)} goal dropped", summary, [exercise], muscles)
+    parts = []
+    if before.get("target_e1rm") != after.get("target_e1rm"):
+        parts.append(f"{_fmt_num(before.get('target_e1rm'))} -> "
+                     f"{_fmt_num(after.get('target_e1rm'))} e1RM")
+    if before.get("deadline") != after.get("deadline"):
+        old = _fmt_d(before["deadline"]) if before.get("deadline") else "unset"
+        new = _fmt_d(after["deadline"]) if after.get("deadline") else "unset"
+        parts.append(f"by {old} -> by {new}")
+    if action == "rewrite" and not parts:
+        parts.append("trajectory recut")
+    return _out(f"{_human_name(exercise)} goal revised", "; ".join(parts),
+                [exercise], muscles)
+
+
+def _describe_deload(event, c):
+    from .program import day_movements, lift_muscles
+
+    subject, after = event["subject"], event["after"]
+    scope, _, name = subject.partition(":")
+    if scope == "lift":
+        out = _out("", "", [name], lift_muscles(c, name) or [], [])
+    else:
+        moves = day_movements(name) or []
+        muscles = sorted({mu for m in moves for mu in lift_muscles(c, m) or []})
+        out = _out("", "", moves, muscles, [name])
+    if after.get("action") == "clear":
+        return {**out, "title": f"{_human_name(name)} deload cleared",
+                "summary": "full volume resumed"}
+    return {**out, "title": f"{_human_name(name)} deload started",
+            "summary": "training volume down until cleared"}
+
+
+def _describe_rule(event, c):
+    from .program import lift_muscles
+
+    before, after = event["before"], event["after"]
+    action = after.get("action") or "changed"
+    text = after.get("text") or before.get("text") or ""
+    summary = text if len(text) <= 80 else text[:77] + "..."
+    subj = (after.get("subject") or "").lower()
+    exercises = [r["exercise"] for r in c.execute("SELECT exercise FROM lift").fetchall()]
+    if subj in exercises:
+        out = _out("", summary, [subj], lift_muscles(c, subj) or [])
+    else:
+        from .constants import load_constants
+        out = _out("", summary, [], [subj] if subj in load_constants().muscles else [])
+    titles = {"add": "Rule added", "archive": "Rule archived", "extend": "Rule extended"}
+    return {**out, "title": titles.get(action, f"Rule {action}")}
+
+
+def _describe_rotation(event, c):
+    _ = c
+    subject, before, after = event["subject"], event["before"], event["after"]
+    if subject == "anchor":
+        pos = after.get("position")
+        when = _fmt_d(after["anchor_date"]) if after.get("anchor_date") else "unset"
+        return _out("Schedule re-anchored", f"position {pos} from {when}")
+    fmt = lambda rot: " / ".join(d if d is not None else "rest" for d in rot or [])
+    if not before.get("rotation"):
+        return _out("Rotation changed", f"set to {fmt(after.get('rotation'))}")
+    return _out("Rotation changed",
+                f"{fmt(before.get('rotation'))} -> {fmt(after.get('rotation'))}")
+
+
+def describe_change(event, c):
+    """Read-model projection of one state transition: human title, one-line
+    before/after summary, and affected lifts/muscles/days for chart relevance.
+    Titles and summaries render verbatim in the dashboard; the envelopes stay
+    available for the expandable detail. One describer per domain, dispatched
+    like history's revert appliers; names stay lowercase except display titles.
+    """
+    describer = {"program": _describe_program, "priority": _describe_priority,
+                 "goal": _describe_goal, "deload": _describe_deload,
+                 "rule": _describe_rule, "rotation": _describe_rotation}[event["domain"]]
+    return describer(event, c)
+
+
+def _slot_diff_text(b, a):
+    if b is None:
+        return f"slot {a['slot']} added: {a['movements']} x{a['sets']}"
+    if a is None:
+        return f"slot {b['slot']} removed: {b['movements']}"
+    moves_changed = b["movements"] != a["movements"]
+    sets_changed = b["sets"] != a["sets"]
+    if moves_changed and sets_changed:
+        return f"{b['movements']} {b['sets']} sets -> {a['movements']} {a['sets']} sets"
+    if moves_changed:
+        return f"slot {b['slot']}: {b['movements']} -> {a['movements']}"
+    if sets_changed:
+        return f"{b['movements']}: {b['sets']} sets -> {a['sets']} sets"
+    return ""
+
+
+def history_view(c):
+    """Dashboard read model over state_change: described events (oldest
+    first), one folded training state per event date, and coverage dates.
+    The Worker serves this verbatim; the frontend selects, never folds."""
+    from .history import coverage, list_changes, training_state_at
+    from .observations import observation_defs
+    from .vocab import HistoryDomain, values
+
+    events = []
+    for domain in values(HistoryDomain):
+        events.extend(list_changes(domain))
+    events.sort(key=lambda e: (e["date"], e["sequence"], e["id"]))
+    described = []
+    for e in events:
+        described.append({**e, **describe_change(e, c)})
+    states = [training_state_at(d) for d in sorted({e["date"] for e in events})]
+    return {"events": described, "states": states, "coverage": coverage(),
+            "defs": observation_defs()}
+
+
 def recent_notes_view(c, count):
     noted: dict = {}
     for w in c.execute("SELECT date, notes FROM workouts WHERE notes != '' ORDER BY date, id").fetchall():
@@ -444,6 +614,7 @@ def build_views(c):
     sessions = sessions_view(c, days, flags)
     gap_threshold = break_threshold()
     goals = goals_view(c, prog)
+    hist = history_view(c)
     snap = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "exported": datetime.now().isoformat(timespec="seconds"),
@@ -478,5 +649,9 @@ def build_views(c):
             "SELECT id, date, action, day, slot, before_movements, before_sets, "
             "after_movements, after_sets, evidence, reverted_on FROM autoreg_changes "
             "ORDER BY id DESC LIMIT 20").fetchall()],
+        "history": hist["events"],
+        "history_states": hist["states"],
+        "history_coverage": hist["coverage"],
+        "observation_defs": hist["defs"],
     }
     return snap

@@ -97,6 +97,7 @@ export function palettePages(): PalRow[] {
     palRow('page:lifts', 'Movements', 'every lift', href.lifts(), 'lifts'),
     palRow('page:muscles', 'Muscles', 'volume vs MEV', href.muscles(), 'muscles'),
     palRow('page:program', 'Program', 'the split', href.program(), 'program'),
+    palRow('page:history', 'History', 'recorded changes', href.history(), 'history'),
   ];
 }
 

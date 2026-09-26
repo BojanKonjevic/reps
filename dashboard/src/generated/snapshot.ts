@@ -166,6 +166,13 @@ export const DeloadSchema = z.object({
   "cleared_on": z.string().nullable(),
 }).strict();
 
+export const DeloadHistoryPayloadSchema = z.object({
+  "scope": DeloadScopeSchema.nullable().optional(),
+  "subject": z.string().nullable().optional(),
+  "action": z.string(),
+  "active": z.boolean().nullable().optional(),
+}).strict();
+
 export const DirectionSchema = z.enum(["up", "flat", "down"]);
 
 export const FlagSchema = z.object({
@@ -206,6 +213,140 @@ export const GoalSchema = z.object({
   "next_checkpoint": z.union([z.number().int(), z.number()]).nullable(),
   "percent": z.union([z.number().int(), z.number()]).nullable(),
   "top_by_date": z.record(z.string(), GoalTopSchema),
+}).strict();
+
+export const GoalHistoryPayloadSchema = z.object({
+  "goal_id": z.number().int(),
+  "exercise": z.string(),
+  "action": z.string(),
+  "checkpoints": z.array(z.union([z.number().int(), z.number()])).nullable().optional(),
+  "target_e1rm": z.union([z.number().int(), z.number()]).nullable().optional(),
+  "deadline": z.string().nullable().optional(),
+  "status": GoalStatusSchema.nullable().optional(),
+  "target_desc": z.string().nullable().optional(),
+}).strict();
+
+export const HistoryDomainSchema = z.enum(["program", "priority", "goal", "deload", "rule", "rotation"]);
+
+export const HistoryCoverageSchema = z.object({
+  "domain": HistoryDomainSchema,
+  "subject": z.string(),
+  "first_date": z.string(),
+}).strict();
+
+export const HistoryDeloadStateSchema = z.object({
+  "scope": DeloadScopeSchema.nullable(),
+  "subject": z.string().nullable(),
+  "active": z.boolean().nullable(),
+  "known": z.boolean(),
+  "first_date": z.string().nullable(),
+}).strict();
+
+export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
+
+export const PriorityHistoryPayloadSchema = z.object({
+  "tier": PriorityTierSchema.nullable(),
+  "since": z.string().nullable(),
+  "until": z.string().nullable(),
+}).strict();
+
+export const ProgramSlotSnapshotSchema = z.object({
+  "slot": z.number().int(),
+  "movements": z.string(),
+  "sets": z.number().int(),
+}).strict();
+
+export const ProgramHistoryPayloadSchema = z.object({
+  "variant": z.string(),
+  "day": z.string(),
+  "slots": z.array(ProgramSlotSnapshotSchema),
+}).strict();
+
+export const RotationHistoryPayloadSchema = z.object({
+  "rotation": z.array(z.string().nullable()).nullable().optional(),
+  "anchor_date": z.string().nullable().optional(),
+  "position": z.number().int().nullable().optional(),
+}).strict();
+
+export const RuleStatusSchema = z.enum(["active", "expired", "superseded", "archived"]);
+
+export const RuleHistoryPayloadSchema = z.object({
+  "rule_id": z.number().int(),
+  "action": z.string(),
+  "text": z.string().nullable().optional(),
+  "subject": z.string().nullable().optional(),
+  "expiry": z.string().nullable().optional(),
+  "status": RuleStatusSchema.nullable().optional(),
+}).strict();
+
+export const HistoryEventSchema = z.object({
+  "id": z.number().int(),
+  "domain": HistoryDomainSchema,
+  "subject": z.string(),
+  "date": z.string(),
+  "created": z.string(),
+  "evidence": z.string(),
+  "superseded_by": z.number().int().nullable(),
+  "reverses": z.number().int().nullable(),
+  "sequence": z.number().int(),
+  "before": z.union([ProgramHistoryPayloadSchema, GoalHistoryPayloadSchema, DeloadHistoryPayloadSchema, RuleHistoryPayloadSchema, PriorityHistoryPayloadSchema, RotationHistoryPayloadSchema]),
+  "after": z.union([ProgramHistoryPayloadSchema, GoalHistoryPayloadSchema, DeloadHistoryPayloadSchema, RuleHistoryPayloadSchema, PriorityHistoryPayloadSchema, RotationHistoryPayloadSchema]),
+  "title": z.string(),
+  "summary": z.string(),
+  "affects_exercises": z.array(z.string()),
+  "affects_muscles": z.array(z.string()),
+  "affects_days": z.array(z.string()),
+}).strict();
+
+export const HistoryGoalStateSchema = z.object({
+  "exercise": z.string(),
+  "goal_id": z.number().int().nullable(),
+  "target_e1rm": z.union([z.number().int(), z.number()]).nullable(),
+  "deadline": z.string().nullable(),
+  "status": GoalStatusSchema.nullable(),
+  "checkpoints": z.array(z.union([z.number().int(), z.number()])).nullable(),
+  "known": z.boolean(),
+  "first_date": z.string().nullable(),
+}).strict();
+
+export const HistoryPriorityStateSchema = z.object({
+  "muscle": z.string(),
+  "tier": PriorityTierSchema.nullable(),
+  "since": z.string().nullable(),
+  "until": z.string().nullable(),
+  "known": z.boolean(),
+  "first_date": z.string().nullable(),
+}).strict();
+
+export const HistoryProgramDaySchema = z.object({
+  "day": z.string(),
+  "slots": z.array(ProgramSlotSnapshotSchema),
+  "known": z.boolean(),
+  "first_date": z.string().nullable(),
+}).strict();
+
+export const HistoryRuleStateSchema = z.object({
+  "rule_id": z.number().int().nullable(),
+  "text": z.string().nullable(),
+  "status": RuleStatusSchema.nullable(),
+  "known": z.boolean(),
+  "first_date": z.string().nullable(),
+}).strict();
+
+export const HistoryStateSchema = z.object({
+  "date": z.string(),
+  "program": z.array(HistoryProgramDaySchema),
+  "goals": z.array(HistoryGoalStateSchema),
+  "priorities": z.array(HistoryPriorityStateSchema),
+  "rotation": z.array(z.string().nullable()).nullable(),
+  "rotation_known": z.boolean(),
+  "rotation_first_date": z.string().nullable(),
+  "anchor_date": z.string().nullable(),
+  "anchor_position": z.number().int().nullable(),
+  "anchor_known": z.boolean(),
+  "anchor_first_date": z.string().nullable(),
+  "deloads": z.array(HistoryDeloadStateSchema),
+  "rules": z.array(HistoryRuleStateSchema),
 }).strict();
 
 export const LiftBestSchema = z.object({
@@ -279,8 +420,6 @@ export const MuscleLiftShareSchema = z.object({
   "share": z.number(),
 }).strict();
 
-export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
-
 export const VolumeStatusSchema = z.enum(["below_mev", "in_range", "above_mrv"]);
 
 export const MuscleSchema = z.object({
@@ -306,6 +445,15 @@ export const NextUpSchema = z.object({
   "basis": z.string(),
   "rows": z.array(NextUpRowSchema),
   "empty": z.string().nullable(),
+}).strict();
+
+export const ObserveMetricSchema = z.enum(["lift_trend", "muscle_volume", "program_activity", "goal_trajectory", "adherence_summary", "bodyweight_trend"]);
+
+export const ObservationDefSchema = z.object({
+  "metric": ObserveMetricSchema,
+  "subject_kind": z.string(),
+  "definition": z.string(),
+  "sources": z.array(z.string()),
 }).strict();
 
 export const PrioritySchema = z.object({
@@ -422,6 +570,10 @@ export const snapshotSchema = z.object({
   "priority": z.record(z.string(), PrioritySchema),
   "autoreg": AutoregSchema.nullable(),
   "autoreg_changes": z.array(AutoregChangeSchema),
+  "history": z.array(HistoryEventSchema),
+  "history_states": z.array(HistoryStateSchema),
+  "history_coverage": z.array(HistoryCoverageSchema),
+  "observation_defs": z.array(ObservationDefSchema),
 }).strict();
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type AdherenceStatus = z.infer<typeof AdherenceStatusSchema>;
@@ -446,12 +598,30 @@ export type Thresholds = z.infer<typeof ThresholdsSchema>;
 export type ConstantsModel = z.infer<typeof ConstantsModelSchema>;
 export type DeloadScope = z.infer<typeof DeloadScopeSchema>;
 export type Deload = z.infer<typeof DeloadSchema>;
+export type DeloadHistoryPayload = z.infer<typeof DeloadHistoryPayloadSchema>;
 export type Direction = z.infer<typeof DirectionSchema>;
 export type Flag = z.infer<typeof FlagSchema>;
 export type GoalActual = z.infer<typeof GoalActualSchema>;
 export type GoalStatus = z.infer<typeof GoalStatusSchema>;
 export type GoalTop = z.infer<typeof GoalTopSchema>;
 export type Goal = z.infer<typeof GoalSchema>;
+export type GoalHistoryPayload = z.infer<typeof GoalHistoryPayloadSchema>;
+export type HistoryDomain = z.infer<typeof HistoryDomainSchema>;
+export type HistoryCoverage = z.infer<typeof HistoryCoverageSchema>;
+export type HistoryDeloadState = z.infer<typeof HistoryDeloadStateSchema>;
+export type PriorityTier = z.infer<typeof PriorityTierSchema>;
+export type PriorityHistoryPayload = z.infer<typeof PriorityHistoryPayloadSchema>;
+export type ProgramSlotSnapshot = z.infer<typeof ProgramSlotSnapshotSchema>;
+export type ProgramHistoryPayload = z.infer<typeof ProgramHistoryPayloadSchema>;
+export type RotationHistoryPayload = z.infer<typeof RotationHistoryPayloadSchema>;
+export type RuleStatus = z.infer<typeof RuleStatusSchema>;
+export type RuleHistoryPayload = z.infer<typeof RuleHistoryPayloadSchema>;
+export type HistoryEvent = z.infer<typeof HistoryEventSchema>;
+export type HistoryGoalState = z.infer<typeof HistoryGoalStateSchema>;
+export type HistoryPriorityState = z.infer<typeof HistoryPriorityStateSchema>;
+export type HistoryProgramDay = z.infer<typeof HistoryProgramDaySchema>;
+export type HistoryRuleState = z.infer<typeof HistoryRuleStateSchema>;
+export type HistoryState = z.infer<typeof HistoryStateSchema>;
 export type LiftBest = z.infer<typeof LiftBestSchema>;
 export type LiftLast = z.infer<typeof LiftLastSchema>;
 export type MarkKind = z.infer<typeof MarkKindSchema>;
@@ -462,11 +632,12 @@ export type LiftSession = z.infer<typeof LiftSessionSchema>;
 export type Lift = z.infer<typeof LiftSchema>;
 export type MuscleBands = z.infer<typeof MuscleBandsSchema>;
 export type MuscleLiftShare = z.infer<typeof MuscleLiftShareSchema>;
-export type PriorityTier = z.infer<typeof PriorityTierSchema>;
 export type VolumeStatus = z.infer<typeof VolumeStatusSchema>;
 export type Muscle = z.infer<typeof MuscleSchema>;
 export type NextUpRow = z.infer<typeof NextUpRowSchema>;
 export type NextUp = z.infer<typeof NextUpSchema>;
+export type ObserveMetric = z.infer<typeof ObserveMetricSchema>;
+export type ObservationDef = z.infer<typeof ObservationDefSchema>;
 export type Priority = z.infer<typeof PrioritySchema>;
 export type ProgramSlot = z.infer<typeof ProgramSlotSchema>;
 export type ProgramDay = z.infer<typeof ProgramDaySchema>;

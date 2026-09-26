@@ -20,5 +20,6 @@ describe('parseHash', () => {
     expect(parseHash('#/program')).toEqual({ name: 'prog' });
     expect(parseHash('#/lifts')).toEqual({ name: 'lifts' });
     expect(parseHash('#/muscles')).toEqual({ name: 'muscles' });
+    expect(parseHash('#/history')).toEqual({ name: 'hist' });
   });
 });

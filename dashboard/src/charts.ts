@@ -223,6 +223,23 @@ export function drawHoverLine(g: CanvasRenderingContext2D, H: number, P: number,
   g.globalAlpha = 1;
 }
 
+// Subordinate history markers: short ticks along the bottom of the plot
+// area, one per date carrying a state change. The chart stays primary;
+// selection and detail live in the HTML EventStrip beside it.
+export function drawEventTicks(g: CanvasRenderingContext2D, xs: number[], yBase: number) {
+  if (!xs.length) return;
+  g.save();
+  g.strokeStyle = theme.color('ink-faint');
+  g.lineWidth = 2;
+  for (const x of xs) {
+    g.beginPath();
+    g.moveTo(x, yBase - 7);
+    g.lineTo(x, yBase);
+    g.stroke();
+  }
+  g.restore();
+}
+
 export function drawPoint(
   g: CanvasRenderingContext2D,
   x: number,

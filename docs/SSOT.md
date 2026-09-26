@@ -47,7 +47,9 @@
 | Lift registry, mapping, alternates   | `lift`, `lift_muscle`, `split_slot_lift`                                  | FKs                                              | T1    | G12                |
 | Autoreg history movements            | `autoreg_holds`/`autoreg_changes` TEXT (immutable point-in-time record)   | snapshot `moves`/`before_moves`/`after_moves` arrays | T2    | tests              |
 | State-change history                 | `reps/history.py` over `state_change` (append-only, domain as data)       | MCP `history_list`/`history_get`/`history_state`/`history_revert` | T2 | tests |
-| Observations                         | `reps/observations.py` (derived on read, never stored)                    | MCP `observe(metric, subject, since, until)` | T2 | tests |
+| History read model                   | `reps/snapshot.py` `history_view`/`describe_change` over `reps/history.py` folds | snapshot `history`/`history_states`/`history_coverage` (titles, summaries, `affects_*`, per-date bundles) | T2 | tests |
+| Temporal context UI                  | `dashboard/src/lib/temporal.ts` (relevance, grouping, envelopes, comparison) + `dashboard/src/lib/eventSelection.svelte.ts` (shared selection) + `ChangeDetail`/`EventStrip`/`TrainingState`/`Provenance` | every annotated chart, `#/history` | T2 | tests |
+| Observations                         | `reps/observations.py` (derived on read, never stored)                    | MCP `observe(metric, subject, since, until)`; snapshot `observation_defs` (verbatim `Provenance`) | T2 | tests |
 | Snapshot shape                       | `reps/models.py`                                                          | generated `snapshot.ts`, blank, fixtures         | T2    | G3, G11            |
 | Snapshot views                       | `reps/snapshot.py`                                                        | `sync.build_snapshot`, dashboard views           | T1    | tests              |
 | Colors, fonts                        | `design/tokens.css`                                                       | `theme.ts` for canvas                            | T1/T2 | G6                 |

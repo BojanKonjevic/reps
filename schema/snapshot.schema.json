@@ -646,6 +646,55 @@
       "title": "Deload",
       "type": "object"
     },
+    "DeloadHistoryPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeloadScope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "DeloadHistoryPayload",
+      "type": "object"
+    },
     "DeloadScope": {
       "enum": [
         "lift",
@@ -875,6 +924,103 @@
       "title": "GoalActual",
       "type": "object"
     },
+    "GoalHistoryPayload": {
+      "additionalProperties": false,
+      "description": "Goal trajectory before/after; action names which transition this envelope is.",
+      "properties": {
+        "goal_id": {
+          "title": "Goal Id",
+          "type": "integer"
+        },
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "checkpoints": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checkpoints"
+        },
+        "target_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target E1Rm"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deadline"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoalStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "target_desc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Desc"
+        }
+      },
+      "required": [
+        "goal_id",
+        "exercise",
+        "action"
+      ],
+      "title": "GoalHistoryPayload",
+      "type": "object"
+    },
     "GoalStatus": {
       "enum": [
         "active",
@@ -908,6 +1054,659 @@
         "reps"
       ],
       "title": "GoalTop",
+      "type": "object"
+    },
+    "HistoryCoverage": {
+      "additionalProperties": false,
+      "description": "Earliest recorded date per (domain, subject). Unknown stays unknown:\nthe UI reads this to say 'unavailable before X', never a guess.",
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/HistoryDomain"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "first_date": {
+          "title": "First Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain",
+        "subject",
+        "first_date"
+      ],
+      "title": "HistoryCoverage",
+      "type": "object"
+    },
+    "HistoryDeloadState": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeloadScope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subject"
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Active"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "scope",
+        "subject",
+        "active",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryDeloadState",
+      "type": "object"
+    },
+    "HistoryDomain": {
+      "enum": [
+        "program",
+        "priority",
+        "goal",
+        "deload",
+        "rule",
+        "rotation"
+      ],
+      "title": "HistoryDomain",
+      "type": "string"
+    },
+    "HistoryEvent": {
+      "additionalProperties": false,
+      "description": "One recorded training-system transition for the dashboard read model.\n\nbefore/after are the validated domain envelopes; title/summary/affects\nare the read-model projection built once in reps/snapshot.py so every\nchart formats the same change the same way.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "domain": {
+          "$ref": "#/$defs/HistoryDomain"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "created": {
+          "title": "Created",
+          "type": "string"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        },
+        "superseded_by": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Superseded By"
+        },
+        "reverses": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reverses"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/GoalHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/DeloadHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/RuleHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/PriorityHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/RotationHistoryPayload"
+            }
+          ],
+          "title": "Before"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/GoalHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/DeloadHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/RuleHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/PriorityHistoryPayload"
+            },
+            {
+              "$ref": "#/$defs/RotationHistoryPayload"
+            }
+          ],
+          "title": "After"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "affects_exercises": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affects Exercises",
+          "type": "array"
+        },
+        "affects_muscles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affects Muscles",
+          "type": "array"
+        },
+        "affects_days": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affects Days",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "domain",
+        "subject",
+        "date",
+        "created",
+        "evidence",
+        "superseded_by",
+        "reverses",
+        "sequence",
+        "before",
+        "after",
+        "title",
+        "summary",
+        "affects_exercises",
+        "affects_muscles",
+        "affects_days"
+      ],
+      "title": "HistoryEvent",
+      "type": "object"
+    },
+    "HistoryGoalState": {
+      "additionalProperties": false,
+      "properties": {
+        "exercise": {
+          "title": "Exercise",
+          "type": "string"
+        },
+        "goal_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Goal Id"
+        },
+        "target_e1rm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target E1Rm"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deadline"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoalStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoints": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoints"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "exercise",
+        "goal_id",
+        "target_e1rm",
+        "deadline",
+        "status",
+        "checkpoints",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryGoalState",
+      "type": "object"
+    },
+    "HistoryPriorityState": {
+      "additionalProperties": false,
+      "description": "One muscle tier inside a historical training state. Absence means\nmaintain by backend rule, but known stays False until recorded, so the\nUI can tell a recorded tier from the default.",
+      "properties": {
+        "muscle": {
+          "title": "Muscle",
+          "type": "string"
+        },
+        "tier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriorityTier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "since": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Since"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Until"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "muscle",
+        "tier",
+        "since",
+        "until",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryPriorityState",
+      "type": "object"
+    },
+    "HistoryProgramDay": {
+      "additionalProperties": false,
+      "description": "One split day inside a historical training state. known False means\nthe day was never recorded: slots stay empty, never today's program.",
+      "properties": {
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/ProgramSlotSnapshot"
+          },
+          "title": "Slots",
+          "type": "array"
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "day",
+        "slots",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryProgramDay",
+      "type": "object"
+    },
+    "HistoryRuleState": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rule Id"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "known": {
+          "title": "Known",
+          "type": "boolean"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "rule_id",
+        "text",
+        "status",
+        "known",
+        "first_date"
+      ],
+      "title": "HistoryRuleState",
+      "type": "object"
+    },
+    "HistoryState": {
+      "additionalProperties": false,
+      "description": "Whole training-system state in effect on one date, folded by\nreps/history.py. The frontend selects by date and compares with the\ncurrent snapshot sections; it never folds chains itself.",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "program": {
+          "items": {
+            "$ref": "#/$defs/HistoryProgramDay"
+          },
+          "title": "Program",
+          "type": "array"
+        },
+        "goals": {
+          "items": {
+            "$ref": "#/$defs/HistoryGoalState"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "priorities": {
+          "items": {
+            "$ref": "#/$defs/HistoryPriorityState"
+          },
+          "title": "Priorities",
+          "type": "array"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rotation"
+        },
+        "rotation_known": {
+          "title": "Rotation Known",
+          "type": "boolean"
+        },
+        "rotation_first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rotation First Date"
+        },
+        "anchor_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor Date"
+        },
+        "anchor_position": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor Position"
+        },
+        "anchor_known": {
+          "title": "Anchor Known",
+          "type": "boolean"
+        },
+        "anchor_first_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anchor First Date"
+        },
+        "deloads": {
+          "items": {
+            "$ref": "#/$defs/HistoryDeloadState"
+          },
+          "title": "Deloads",
+          "type": "array"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/HistoryRuleState"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "program",
+        "goals",
+        "priorities",
+        "rotation",
+        "rotation_known",
+        "rotation_first_date",
+        "anchor_date",
+        "anchor_position",
+        "anchor_known",
+        "anchor_first_date",
+        "deloads",
+        "rules"
+      ],
+      "title": "HistoryState",
       "type": "object"
     },
     "Lift": {
@@ -1609,6 +2408,50 @@
       "title": "NextUpRow",
       "type": "object"
     },
+    "ObservationDef": {
+      "additionalProperties": false,
+      "description": "Backend-owned definition and provenance for one observation metric.\nThe dashboard renders these verbatim; it never restates domain meaning.",
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/ObserveMetric"
+        },
+        "subject_kind": {
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "metric",
+        "subject_kind",
+        "definition",
+        "sources"
+      ],
+      "title": "ObservationDef",
+      "type": "object"
+    },
+    "ObserveMetric": {
+      "enum": [
+        "lift_trend",
+        "muscle_volume",
+        "program_activity",
+        "goal_trajectory",
+        "adherence_summary",
+        "bodyweight_trend"
+      ],
+      "title": "ObserveMetric",
+      "type": "string"
+    },
     "Priority": {
       "additionalProperties": false,
       "properties": {
@@ -1637,6 +2480,51 @@
         "until"
       ],
       "title": "Priority",
+      "type": "object"
+    },
+    "PriorityHistoryPayload": {
+      "additionalProperties": false,
+      "description": "Priority tier before/after; all-None means no tier (maintain by absence).",
+      "properties": {
+        "tier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PriorityTier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "since": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Since"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Until"
+        }
+      },
+      "required": [
+        "tier",
+        "since",
+        "until"
+      ],
+      "title": "PriorityHistoryPayload",
       "type": "object"
     },
     "PriorityTier": {
@@ -1697,6 +2585,34 @@
       "title": "ProgramDay",
       "type": "object"
     },
+    "ProgramHistoryPayload": {
+      "additionalProperties": false,
+      "description": "Full day snapshot before/after a program edit (set/move/reconcile/revert).",
+      "properties": {
+        "variant": {
+          "title": "Variant",
+          "type": "string"
+        },
+        "day": {
+          "title": "Day",
+          "type": "string"
+        },
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/ProgramSlotSnapshot"
+          },
+          "title": "Slots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "variant",
+        "day",
+        "slots"
+      ],
+      "title": "ProgramHistoryPayload",
+      "type": "object"
+    },
     "ProgramSlot": {
       "additionalProperties": false,
       "properties": {
@@ -1738,6 +2654,31 @@
         "focus"
       ],
       "title": "ProgramSlot",
+      "type": "object"
+    },
+    "ProgramSlotSnapshot": {
+      "additionalProperties": false,
+      "description": "One slot inside a program day snapshot (history before/after envelope).",
+      "properties": {
+        "slot": {
+          "title": "Slot",
+          "type": "integer"
+        },
+        "movements": {
+          "title": "Movements",
+          "type": "string"
+        },
+        "sets": {
+          "title": "Sets",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slot",
+        "movements",
+        "sets"
+      ],
+      "title": "ProgramSlotSnapshot",
       "type": "object"
     },
     "ProgramView": {
@@ -1835,6 +2776,60 @@
       "title": "RepBand",
       "type": "object"
     },
+    "RotationHistoryPayload": {
+      "additionalProperties": false,
+      "description": "Rotation order and anchor before/after; None entries are rest.\n\nOrder changes carry rotation with anchor fields None; anchor changes\ncarry anchor_date/position with rotation None. The two live under\nseparate history subjects (\"rotation\", \"anchor\") so folds stay homogeneous.",
+      "properties": {
+        "rotation": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rotation"
+        },
+        "anchor_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Date"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        }
+      },
+      "title": "RotationHistoryPayload",
+      "type": "object"
+    },
     "Rule": {
       "additionalProperties": false,
       "properties": {
@@ -1890,6 +2885,82 @@
       ],
       "title": "Rule",
       "type": "object"
+    },
+    "RuleHistoryPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "integer"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "expiry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expiry"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "rule_id",
+        "action"
+      ],
+      "title": "RuleHistoryPayload",
+      "type": "object"
+    },
+    "RuleStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "superseded",
+        "archived"
+      ],
+      "title": "RuleStatus",
+      "type": "string"
     },
     "SessionExercise": {
       "additionalProperties": false,
@@ -2512,6 +3583,34 @@
       },
       "title": "Autoreg Changes",
       "type": "array"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/HistoryEvent"
+      },
+      "title": "History",
+      "type": "array"
+    },
+    "history_states": {
+      "items": {
+        "$ref": "#/$defs/HistoryState"
+      },
+      "title": "History States",
+      "type": "array"
+    },
+    "history_coverage": {
+      "items": {
+        "$ref": "#/$defs/HistoryCoverage"
+      },
+      "title": "History Coverage",
+      "type": "array"
+    },
+    "observation_defs": {
+      "items": {
+        "$ref": "#/$defs/ObservationDef"
+      },
+      "title": "Observation Defs",
+      "type": "array"
     }
   },
   "required": [
@@ -2537,7 +3636,11 @@
     "deload",
     "priority",
     "autoreg",
-    "autoreg_changes"
+    "autoreg_changes",
+    "history",
+    "history_states",
+    "history_coverage",
+    "observation_defs"
   ],
   "title": "SnapshotModel",
   "type": "object"

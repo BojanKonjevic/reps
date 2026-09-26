@@ -1064,5 +1064,329 @@
       "forearms": 0.0
     }
   },
-  "autoreg_changes": []
+  "autoreg_changes": [],
+  "history": [
+    {
+      "id": 1,
+      "domain": "program",
+      "subject": "active:Upper A",
+      "date": "2026-09-24",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 0,
+      "before": {
+        "variant": "active",
+        "day": "Upper A",
+        "slots": []
+      },
+      "after": {
+        "variant": "active",
+        "day": "Upper A",
+        "slots": [
+          {
+            "slot": 1,
+            "movements": "bench",
+            "sets": 3
+          }
+        ]
+      },
+      "title": "Upper A changed",
+      "summary": "slot 1 added: bench x3",
+      "affects_exercises": [
+        "bench"
+      ],
+      "affects_muscles": [
+        "chest"
+      ],
+      "affects_days": [
+        "Upper A"
+      ]
+    },
+    {
+      "id": 2,
+      "domain": "rotation",
+      "subject": "rotation",
+      "date": "2026-09-24",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 0,
+      "before": {
+        "rotation": [],
+        "anchor_date": null,
+        "position": null
+      },
+      "after": {
+        "rotation": [
+          "Upper A",
+          null
+        ],
+        "anchor_date": null,
+        "position": null
+      },
+      "title": "Rotation changed",
+      "summary": "set to Upper A / rest",
+      "affects_exercises": [],
+      "affects_muscles": [],
+      "affects_days": []
+    },
+    {
+      "id": 3,
+      "domain": "deload",
+      "subject": "lift:bench",
+      "date": "2026-09-24",
+      "created": "2026-09-24T12:00:00",
+      "evidence": "",
+      "superseded_by": null,
+      "reverses": null,
+      "sequence": 0,
+      "before": {
+        "scope": "lift",
+        "subject": "bench",
+        "action": "set",
+        "active": false
+      },
+      "after": {
+        "scope": "lift",
+        "subject": "bench",
+        "action": "set",
+        "active": true
+      },
+      "title": "Bench deload started",
+      "summary": "training volume down until cleared",
+      "affects_exercises": [
+        "bench"
+      ],
+      "affects_muscles": [
+        "chest"
+      ],
+      "affects_days": []
+    }
+  ],
+  "history_states": [
+    {
+      "date": "2026-09-24",
+      "program": [
+        {
+          "day": "Upper A",
+          "slots": [
+            {
+              "slot": 1,
+              "movements": "bench",
+              "sets": 3
+            }
+          ],
+          "known": true,
+          "first_date": "2026-09-24"
+        }
+      ],
+      "goals": [],
+      "priorities": [
+        {
+          "muscle": "abs",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "adductors",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "back",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "biceps",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "chest",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "forearms",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "front delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "glutes",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "hamstrings",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "quads",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "rear delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "side delts",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        },
+        {
+          "muscle": "triceps",
+          "tier": "maintain",
+          "since": null,
+          "until": null,
+          "known": false,
+          "first_date": null
+        }
+      ],
+      "rotation": [
+        "Upper A",
+        null
+      ],
+      "rotation_known": true,
+      "rotation_first_date": "2026-09-24",
+      "anchor_date": null,
+      "anchor_position": null,
+      "anchor_known": false,
+      "anchor_first_date": null,
+      "deloads": [
+        {
+          "scope": "lift",
+          "subject": "bench",
+          "active": true,
+          "known": true,
+          "first_date": "2026-09-24"
+        }
+      ],
+      "rules": []
+    }
+  ],
+  "history_coverage": [
+    {
+      "domain": "deload",
+      "subject": "lift:bench",
+      "first_date": "2026-09-24"
+    },
+    {
+      "domain": "program",
+      "subject": "active:Upper A",
+      "first_date": "2026-09-24"
+    },
+    {
+      "domain": "rotation",
+      "subject": "rotation",
+      "first_date": "2026-09-24"
+    }
+  ],
+  "observation_defs": [
+    {
+      "metric": "lift_trend",
+      "subject_kind": "exercise",
+      "sources": [
+        "sets",
+        "workouts"
+      ],
+      "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); delta is last minus first in range, best is the range max"
+    },
+    {
+      "metric": "muscle_volume",
+      "subject_kind": "muscle (empty means all tracked muscles)",
+      "sources": [
+        "sets",
+        "set_muscle",
+        "workouts"
+      ],
+      "definition": "logged working sets per muscle in range (full credit per mapped muscle); avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)"
+    },
+    {
+      "metric": "program_activity",
+      "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+      "sources": [
+        "state_change"
+      ],
+      "definition": "recorded program day-snapshot transitions in range; use history_get(change_id) for before/after detail"
+    },
+    {
+      "metric": "goal_trajectory",
+      "subject_kind": "goal id or exercise",
+      "sources": [
+        "goals",
+        "goal_checkpoints",
+        "sets",
+        "workouts",
+        "state_change"
+      ],
+      "definition": "trajectory checkpoints folded from goal history to the range end, so later rewrites do not move historical results; the trajectory itself is session-numbered, in_range marks actuals inside the range"
+    },
+    {
+      "metric": "adherence_summary",
+      "subject_kind": "rotation schedule (subject is unused)",
+      "sources": [
+        "workouts",
+        "rotation",
+        "rotation_anchor",
+        "state_change"
+      ],
+      "definition": "each date classified with the rotation/anchor/split folded from history to that date (earliest recorded image before history starts, never today's state); dates without an applicable rotation/anchor report expected None with status unknown"
+    },
+    {
+      "metric": "bodyweight_trend",
+      "subject_kind": "unused",
+      "sources": [
+        "bodyweight"
+      ],
+      "definition": "gym-scale weigh-ins in range; delta is last minus first"
+    }
+  ]
 }

@@ -64,8 +64,20 @@ describe('dayAvgs', () => {
 describe('palettePages', () => {
   it('lists the four top-level pages with working hashes', () => {
     const pages = palettePages();
-    expect(pages.map(p => p.label)).toEqual(['Dashboard', 'Movements', 'Muscles', 'Program']);
-    expect(pages.map(p => p.href)).toEqual(['#/', '#/lifts', '#/muscles', '#/program']);
+    expect(pages.map(p => p.label)).toEqual([
+      'Dashboard',
+      'Movements',
+      'Muscles',
+      'Program',
+      'History',
+    ]);
+    expect(pages.map(p => p.href)).toEqual([
+      '#/',
+      '#/lifts',
+      '#/muscles',
+      '#/program',
+      '#/history',
+    ]);
   });
 });
 
@@ -77,6 +89,7 @@ describe('filterPalRows', () => {
       'page:lifts',
       'page:muscles',
       'page:program',
+      'page:history',
     ]);
     expect(filterPalRows(pages, 'mov').map(p => p.key)).toEqual(['page:lifts']);
     expect(filterPalRows(pages, 'MUSCLES').map(p => p.key)).toEqual(['page:muscles']);
