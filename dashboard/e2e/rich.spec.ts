@@ -73,10 +73,10 @@ test.describe('Rich snapshot sections', () => {
   test('lift page shows time since last PR, first set is the baseline', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await page.goto('#/l/bench');
-    await expect(page.locator('#liftPRs')).toContainText(`last PR ${bench.days_since_pr}d ago`);
+    await expect(page.locator('#liftSub')).toContainText(`last PR ${bench.days_since_pr}d ago`);
     await expect(page.locator('#liftPRs')).toContainText('+2.9');
     await page.goto('#/l/row');
-    const rowPRs = await page.locator('#liftPRs').textContent();
+    const rowPRs = await page.locator('#liftSub').textContent();
     expect(rowPRs).toContain(`last PR ${row.days_since_pr}d ago`);
   });
 

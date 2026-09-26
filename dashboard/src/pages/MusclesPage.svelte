@@ -117,18 +117,7 @@
       {#each shown as m}
         {@const entry = snap.muscles.find(x => x.muscle === m)}
         {@const lifts = entry?.lift_share ?? []}
-        <div
-          class="listrow musrow"
-          role="link"
-          tabindex="0"
-          aria-label={m}
-          onclick={ev => {
-            if ((ev.target as HTMLElement).tagName !== 'A') location.hash = href.muscle(m);
-          }}
-          onkeydown={ev => {
-            if (ev.key === 'Enter') location.hash = href.muscle(m);
-          }}
-        >
+        <div class="listrow musrow">
           <div class="listinfo">
             <div class="minititle">
               <a href={href.muscle(m)}>{m}</a>
@@ -184,8 +173,5 @@
   .mono {
     font-family: var(--font-mono);
     font-size: 12px;
-  }
-  .musrow {
-    cursor: pointer;
   }
 </style>

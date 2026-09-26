@@ -212,19 +212,7 @@
         {@const marks = marksFor(lift.exercise)}
         {@const lb = lastBest(lift.exercise)}
         {@const p = lift.progression}
-        <div
-          class="listrow liftrow"
-          role="link"
-          tabindex="0"
-          aria-label={lift.exercise}
-          onclick={ev => {
-            if ((ev.target as HTMLElement).tagName !== 'A')
-              location.hash = href.lift(lift.exercise);
-          }}
-          onkeydown={ev => {
-            if (ev.key === 'Enter') location.hash = href.lift(lift.exercise);
-          }}
-        >
+        <div class="listrow liftrow">
           <div class="listinfo">
             <div class="minititle">
               <a href={href.lift(lift.exercise)}>{lift.exercise}</a>
@@ -311,9 +299,6 @@
   }
   .liftmus a:hover {
     color: var(--ink-dim);
-  }
-  .liftrow {
-    cursor: pointer;
   }
   .prt {
     display: inline-flex;

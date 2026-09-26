@@ -266,7 +266,6 @@
   {/if}
   <SectionHeader title="PR history" />
   <div id="liftPRs" class="surface-flat">
-    <div class="cap">{prNote}</div>
     {#each prItems as item}
       <a class="tl-item" href={item.link}>
         <div class="tl-date">{item.date}</div>

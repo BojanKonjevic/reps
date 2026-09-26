@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fmtD, fmtV } from '../lib/format';
+  import { fmtD, muscleVolLine } from '../lib/format';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { vocabOf } from '../lib/vocab.svelte';
@@ -52,13 +52,8 @@
       mav +
       ' · MRV ' +
       mrv +
-      ' · last 4 weeks avg ' +
-      fmtV(entry.avg_recent) +
-      '/wk · trained ' +
-      entry.trained_weeks +
-      ' of last ' +
-      entry.weekly.length +
-      ' weeks' +
+      ' · ' +
+      muscleVolLine(entry) +
       (isFocus ? ' · focus' : '')
     );
   });
