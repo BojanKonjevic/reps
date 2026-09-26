@@ -122,7 +122,8 @@ export function drawYAxis(
   H: number,
   P: number,
   t: { lo: number; hi: number; step: number },
-  color = theme.color('line')
+  color = theme.color('line'),
+  labelAlign: 'left' | 'right' = 'left'
 ) {
   const nt = Math.round((t.hi - t.lo) / t.step);
   const TC = theme.color('ink-dim');
@@ -137,7 +138,7 @@ export function drawYAxis(
     g.stroke();
     if (i % 2 === 0 || i === nt) {
       g.fillStyle = TC;
-      putText(g, W, fmtTick(v, t.step), 4, y + 4, 'left');
+      putText(g, W, fmtTick(v, t.step), labelAlign === 'right' ? P - 6 : 4, y + 4, labelAlign);
     }
   }
 }

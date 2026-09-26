@@ -52,7 +52,7 @@ export type LayoutPreset = 'full' | 'mini' | 'goal';
 
 const PRESETS: Record<LayoutPreset, { padL: number; padR: number; padT: number; padB: number }> = {
   full: { padL: 46, padR: 8, padT: 14, padB: 30 },
-  mini: { padL: 30, padR: 6, padT: 10, padB: 22 },
+  mini: { padL: 46, padR: 6, padT: 10, padB: 22 },
   goal: { padL: 40, padR: 10, padT: 12, padB: 26 },
 };
 
