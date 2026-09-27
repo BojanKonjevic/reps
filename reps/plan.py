@@ -82,30 +82,47 @@ def get_plan(slot=None, verbose=False):
 
     retention = thresholds.ledger_retention_days
     cutoff = (today - timedelta(days=retention - 1)).isoformat()
+    # One GROUP BY over (muscle, day): previously one query per muscle plus
+    # two per lift below. Shape is unchanged.
+    ledger_rows = c.execute("""
+        SELECT sm.muscle as muscle, w.date as day, COUNT(*) as sets
+        FROM sets s
+        JOIN workouts w ON w.id = s.workout_id
+        JOIN set_muscle sm ON sm.set_id = s.id
+        WHERE date(w.date) >= ?
+        GROUP BY sm.muscle, day ORDER BY day
+    """, (cutoff,)).fetchall()
+    by_muscle: dict = {}
+    for r in ledger_rows:
+        by_muscle.setdefault(r["muscle"], []).append(r)
     ledger = {}
     for muscle in constants.muscles:
-        rows = c.execute("""
-            SELECT w.date as day, COUNT(*) as sets
-            FROM sets s
-            JOIN workouts w ON w.id = s.workout_id
-            JOIN set_muscle sm ON sm.set_id = s.id
-            WHERE sm.muscle = ? AND date(w.date) >= ?
-            GROUP BY day ORDER BY day
-        """, (muscle, cutoff)).fetchall()
+        rows = by_muscle.get(muscle, [])
         ledger[muscle] = {"sessions": len(rows), "sets": sum(r["sets"] for r in rows),
                           "last_hit": rows[-1]["day"] if rows else None}
 
+    best_rows = {r["exercise"]: r for r in c.execute(
+        "SELECT exercise, MAX(e1rm(weight, reps)) AS e1rm "
+        "FROM sets WHERE reps <= ? GROUP BY exercise",
+        (constants.thresholds.e1rm_cap_reps,)).fetchall()}
+    last_rows = {r["exercise"]: r for r in c.execute(
+        # Latest performed set per exercise: max workout date, tie-break max
+        # set id. Matches the old per-lift ORDER BY w.date DESC, s.id DESC
+        # LIMIT 1 exactly, in one round trip instead of one per lift.
+        "SELECT s.exercise, s.weight, s.reps FROM sets s "
+        "JOIN (SELECT s2.exercise AS ex, MAX(s2.id) AS id FROM sets s2 "
+        "JOIN workouts w2 ON w2.id = s2.workout_id "
+        "JOIN (SELECT s3.exercise AS ex3, MAX(w3.date) AS day FROM sets s3 "
+        "JOIN workouts w3 ON w3.id = s3.workout_id GROUP BY s3.exercise) m "
+        "ON m.ex3 = s2.exercise AND w2.date = m.day "
+        "GROUP BY s2.exercise) l ON l.id = s.id").fetchall()}
     lifts = []
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
-        top = c.execute(
-            "SELECT weight, reps, e1rm(weight, reps) AS e1rm "
-            "FROM sets WHERE exercise = ? AND reps <= ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"], constants.thresholds.e1rm_cap_reps)).fetchone()
-        last = c.execute(
-            "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id "
-            "WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)).fetchone()
+        top = best_rows.get(r["exercise"])
+        last = last_rows.get(r["exercise"])
         lifts.append({"exercise": r["exercise"], "sets": r["n"],
-                      "best_e1rm": round(top["e1rm"], 1) if top else None,
-                      "last": dict(last) if last else None})
+                      "best_e1rm": round(top["e1rm"], 1) if top and top["e1rm"] is not None else None,
+                      "last": {"weight": last["weight"], "reps": last["reps"]} if last else None})
 
     progression = {r["exercise"]: {"verdict": r["verdict"], "next": f"{r['next_weight']:g}x{r['next_reps']}",
                                                 "direction": r["direction"], "workout_id": r["workout_id"]}

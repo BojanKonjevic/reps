@@ -95,5 +95,5 @@ Pain is free-text in set and workout notes plus a `NOTE_HOT_KEYWORDS` scan (pain
 - Sep 20 2026: not training calves, not as important for aesthetics, Opinion
 - Sep 18 2026: delts tracked as front/side/rear heads; front MEV 0 via pressing volume, rear MEV 6 direct, Opinion
 - Sep 18 2026: adductors tracked at ~4 direct sets/week across 2 exposures plus leg press/hack squat indirect work, Opinion
-- Sep 18 2026: no direct glute work, RDL plus leg press judged sufficient, Opinion
+- Sep 18 2026: no direct glute work, RDL plus leg press judged sufficient, Opinion. Mechanism if volume ever flags below MEV: the `deprioritize` tier (`program_priority_set`), which audit and coach notes both read as intentional and downgrade one severity level, never a silent `mev` edit. `constants.json` keeps `mev: 6` as the unadjusted reference.
 - Sep 17 2026: Every set taken to failure (my style right now) → volume managed accordingly, Opinion

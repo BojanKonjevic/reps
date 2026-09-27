@@ -72,8 +72,15 @@ export function fit(cv: HTMLCanvasElement): ChartContext {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(50, cv.clientWidth),
     h = Math.max(50, cv.clientHeight);
-  cv.width = Math.round(w * dpr);
-  cv.height = Math.round(h * dpr);
+  const bw = Math.round(w * dpr),
+    bh = Math.round(h * dpr);
+  // Assigning width/height reallocates (and clears) the bitmap even when
+  // unchanged: hover repaints and resize storms used to pay that every
+  // paint. Skip when the bitmap already matches.
+  if (cv.width !== bw || cv.height !== bh) {
+    cv.width = bw;
+    cv.height = bh;
+  }
   const g = cv.getContext('2d')!;
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { g, W: w, H: h };

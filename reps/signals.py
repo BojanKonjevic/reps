@@ -13,7 +13,7 @@ from .constants import load_constants
 from .db import conn
 from .goals import goal_progress
 from .program import (active_deloads, classify_volume, count_bad_weeks,
-                      recent_average, weekly_volume)
+                      recent_average)
 from .sessions import break_threshold, last_done
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
@@ -40,23 +40,29 @@ def build_signals(c=None):
                             f"in {vol_weeks} weeks)"})
     else:
         vol_bad = thresholds.volume_bad_weeks
-        from .program import span_start
-        span_weeklies = {m: weekly_volume(c, m, week_starts) for m in constants.muscles}
+        from .program import span_start, weekly_volumes
+        span_weeklies = weekly_volumes(c, list(constants.muscles), week_starts)
         gstart = span_start(list(span_weeklies.values()))
+        from .program import read_priorities as _priorities
+        tiers = {m: p.get("tier") for m, p in _priorities(c).items()}
         for muscle, entry in constants.muscles.items():
             weekly = span_weeklies[muscle][gstart:]
             status = classify_volume(weekly, entry.mev, entry.mrv, vol_bad)
             if status == "below_mev":
                 zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev, vol_bad)
                 tier_note = f" (MEV tier: {entry.tier})" if entry.tier != "settled" else ""
+                # Parity with audit check 8: a deprioritize muscle still
+                # reads, one severity lower and annotated, never silenced.
+                demoted = tiers.get(muscle) == "deprioritize"
+                intent = " (priority: deprioritize, intentional)" if demoted else ""
                 if zero_weeks >= vol_bad:
-                    out.append({"severity": "high",
+                    out.append({"severity": "medium" if demoted else "high",
                                 "text": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} "
-                                        f"weeks (MEV {entry.mev}){tier_note}"})
+                                        f"weeks (MEV {entry.mev}){tier_note}{intent}"})
                 else:
-                    out.append({"severity": "medium",
+                    out.append({"severity": "low" if demoted else "medium",
                                 "text": f"{muscle}: under MEV in {low_weeks} of last {len(weekly)} "
-                                        f"weeks (MEV {entry.mev})"})
+                                        f"weeks (MEV {entry.mev}){intent}"})
             elif status == "above_mrv":
                 avg = recent_average(weekly)
                 out.append({"severity": "medium",

@@ -19,7 +19,8 @@ from .constants import (CONSTANTS_FILE, canon_muscle_name, check_constants,
                         clean_muscles, get_constants, load_constants,
                         parse_mev_from_science, rep_band_bound, set_constant,
                         tracked_muscles, validate_constants)
-from .db import CFG, DB, SCHEMA, SCHEMA_VERSION, conn, open_workout, placeholders
+from .db import (CFG, DB, SCHEMA, SCHEMA_VERSION, close_all, closing_conn, conn,
+                   open_workout, placeholders)
 from .errors import Fix, GateItem, GateReport, Refusal, RepsError
 from .goals import (add_goal, build_checkpoints, drop_goal, get_goal,
                     goal_progress, goal_sessions, rewrite_goal)
@@ -94,6 +95,7 @@ __all__ = [
     "best_e1rm", "best_split_day", "build_checkpoints", "build_history_states", "build_signals",
     "build_snapshot", "build_snapshot_validated", "build_views", "break_threshold", "canon_muscle_name",
     "check_constants", "check_end_gate", "classify_date", "clean_muscles",
+    "close_all", "closing_conn",
     "clear_deload", "clear_priority", "confirm_rule", "consume_flag",
     "consume_session_flags", "day_movements", "delete_set", "delete_workout",
     "deload_covers", "diff_split", "drift_days", "drop_goal", "drop_watch",

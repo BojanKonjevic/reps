@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from contextlib import contextmanager
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -233,12 +234,21 @@ AUTOREG_CHANGE_COLS = {"id", "date", "action", "day", "slot", "before_movements"
                        "before_sets", "after_movements", "after_sets", "evidence", "reverted_on"}
 
 
+# Open-connection registry: every conn() registers here. sqlite3.Connection
+# does not support weak references, so this is a strong set: entries live
+# until close_all() (MCP edge, test teardown) or closing_conn() exit.
+# Request-scoped owners close explicitly; close_all() is the backstop, never
+# a substitute for closing inside long-lived loops.
+_OPEN: set = set()
+
+
 def conn():
     import logging as _logging
     from .e1rm import e1rm as _e1rm
 
     c = sqlite3.connect(DB, timeout=30.0)
     c.row_factory = sqlite3.Row
+    _OPEN.add(c)
     try:
         c.execute("PRAGMA busy_timeout = 30000")
     except sqlite3.Error:
@@ -281,8 +291,42 @@ def conn():
             f"schema version {row['version']} != code {SCHEMA_VERSION}; "
             "refusing to migrate automatically (policy: refuse + restore). "
             "Restore a matching workouts.sql dump or reconcile the schema manually")
-    c.executescript(SCHEMA)
+    # Version matches: tables exist (they are stamped only after creation),
+    # so skip the redundant DDL pass. It reparsed the whole schema and took
+    # a lock on every open; pragmas and the UDF above are per-connection and
+    # stay. Fresh databases still build through the executescript path above.
     return c
+
+
+# Open-connection registry lives above conn() (single definition).
+
+
+def close_all() -> int:
+    """Close every tracked connection. Returns the count closed."""
+    conns = list(_OPEN)
+    _OPEN.clear()
+    n = 0
+    for c in conns:
+        try:
+            c.close()
+            n += 1
+        except Exception:
+            pass
+    return n
+
+
+@contextmanager
+def closing_conn():
+    """Request-scoped connection: use as `with closing_conn() as c:`."""
+    c = conn()
+    try:
+        yield c
+    finally:
+        _OPEN.discard(c)
+        try:
+            c.close()
+        except Exception:
+            pass
 
 
 def active_paths() -> dict:

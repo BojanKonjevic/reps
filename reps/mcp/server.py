@@ -54,12 +54,21 @@ def call_domain(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> dict[str, 
     """Call one domain operation and shape its return into the result contract.
 
     This translates values and domain exceptions only; it never parses
-    output text, because domain functions return data directly.
+    output text, because domain functions return data directly. Connections
+    opened by the domain call are closed here: MCP is the sole normal agent
+    interface, so one backstop per tool call covers all agent traffic
+    (direct Python callers own their own connections via closing_conn()).
     """
     try:
         result = fn(*args, **kwargs)
     except RepsError as e:
         return {"ok": False, "error": str(e)}
+    finally:
+        try:
+            from reps.db import close_all as _close_all
+            _close_all()
+        except Exception:
+            pass
     return {"ok": True, "data": result}
 
 

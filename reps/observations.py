@@ -285,10 +285,11 @@ def _goal_trajectory(subject, since, until):
 
 
 def _adherence_summary(subject, since, until):
-    from .adherence import (classify_date, drift_days, get_anchor, match_day,
-                            trained_exercises)
+    from .adherence import (_classify_one, _rest_set, _trained_by_date,
+                            drift_days, expected_day, get_anchor)
     from .history import list_changes, split_map_at, value_at
     from .program import get_rotation
+    from .slots import slot_of_session as _match
 
     c = conn()
     rot_hist = list_changes("rotation", "rotation")
@@ -300,6 +301,11 @@ def _adherence_summary(subject, since, until):
         raise RepsError("rotation adherence needs a rotation and an anchor")
     if not anch_hist and cur_anch is None:
         raise RepsError("rotation adherence needs a rotation and an anchor")
+    # Prefetch once for the whole range: per-date trained sets and rest rows.
+    # The rotation/anchor/split still fold per date (history can change them),
+    # but those folds are in-Python over already-fetched change lists.
+    trained_map = _trained_by_date(c, since, until)
+    rest_days = _rest_set(c, since, until)
     days = []
     day = date.fromisoformat(since)
     end = date.fromisoformat(until)
@@ -317,13 +323,15 @@ def _adherence_summary(subject, since, until):
         anchor = ({"date": anch, "index": anch_pos}
                   if anch is not None and anch_pos is not None
                   and rot_names is not None and anch_pos < len(rot_names) else None)
-        trained = trained_exercises(c, d)
+        trained = trained_map.get(d, set())
         daymap = split_map_at(prog_hist, d, c)
         if rot_names is not None and anchor is not None:
-            days.append(classify_date(c, rot_names, anchor, d, daymap))
+            matched = _match(list(trained), daymap)["day"] if trained else None
+            days.append(_classify_one(d, expected_day(rot_names, anchor, d),
+                                      trained, d in rest_days, matched))
         else:
             days.append({"date": d, "expected": None,
-                         "trained": match_day(c, trained, daymap) if trained else None,
+                         "trained": _match(list(trained), daymap)["day"] if trained else None,
                          "status": "unknown"})
         day += timedelta(days=1)
     counts: dict = {}

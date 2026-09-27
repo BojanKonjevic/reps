@@ -5,7 +5,7 @@
 
 from datetime import date, datetime
 
-from .adherence import adherence_snapshot, classify_date
+from .adherence import adherence_snapshot
 from .autoreg import autoreg_block
 from .constants import load_constants
 from .models import SNAPSHOT_SCHEMA_VERSION
@@ -219,23 +219,37 @@ def status_view(sessions, as_of, break_threshold):
 
 
 def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
+    from .adherence import _classify_one, _rest_set, _trained_by_date, expected_day
+    from .program import parse_active_split_days
+    from .slots import slot_of_session as _match
     trained_dates = sorted({s["date"] for s in sessions if s["exercises"]})
-    rest_dates = {r["date"] for r in
-                  c.execute("SELECT date FROM workouts WHERE status = 'rest'").fetchall()}
-    if not trained_dates and not rest_dates:
+    rest_all = sorted(r["date"] for r in c.execute(
+        "SELECT date FROM workouts WHERE status = 'rest'").fetchall())
+    if not trained_dates and not rest_all:
         return []
-    first = min((trained_dates + sorted(rest_dates)) or [as_of])
-    days = []
+    first = min(trained_dates + rest_all or [as_of])
     d0 = date.fromisoformat(first)
     d1 = date.fromisoformat(as_of)
+    # One prefetch per fact (trained map, rest set, split map), then pure
+    # Python per date. Previously every date paid classify_date's ~4 queries
+    # plus an O(n) reversed scan for the previous trained date: ~1100 dates x
+    # queries at 3-year scale. Shape below is unchanged.
+    trained_map = _trained_by_date(c, first, as_of)
+    rest_dates = _rest_set(c, first, as_of)
+    day_map = parse_active_split_days(c) if (anchor and rotation) else {}
     by_date = {s["date"]: s for s in sessions if s["exercises"]}
+    days = []
     step = d0
+    prev = None
     while step <= d1:
         iso = step.isoformat()
         sess = by_date.get(iso)
         status = expected = None
         if anchor and rotation:
-            verdict = classify_date(c, rotation, anchor, iso)
+            exp = expected_day(rotation, anchor, iso)
+            trained = trained_map.get(iso, set())
+            matched = _match(list(trained), day_map)["day"] if trained else None
+            verdict = _classify_one(iso, exp, trained, iso in rest_dates, matched)
             status, expected = verdict["status"], verdict["expected"]
         if sess:
             kind = "trained"
@@ -245,7 +259,6 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
             kind = "missed"
         else:
             kind = "empty"
-        prev = next((t for t in reversed(trained_dates) if t < iso), None)
         gap = (step - date.fromisoformat(prev)).days if prev else 0
         lines: list[str] = []
         if sess:
@@ -270,21 +283,42 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
                      "break_after_gap": prev is not None and gap >= break_threshold,
                      "adherence_status": status, "expected": expected,
                      "hover": {"lines": lines}})
+        if iso in by_date:
+            prev = iso
         step = date.fromordinal(step.toordinal() + 1)
     return days
 
 
 def bodyweight_view(c, avg_days, gap_days):
     rows = c.execute("SELECT date, kg FROM bodyweight ORDER BY date, id").fetchall()
+    # Sliding window over distinct dates with prefix sums: O(n). The window
+    # depends only on the date (same-date rows share it), so per-date averages
+    # are computed once. Previously every row rescanned every row (O(n^2))
+    # with a fromisoformat parse per pair.
+    by_date: dict = {}
+    for r in rows:
+        by_date.setdefault(r["date"], []).append(r["kg"])
+    dates = sorted(by_date)
+    ords = [date.fromisoformat(d).toordinal() for d in dates]
+    prefix_n = [0]
+    prefix_kg = [0.0]
+    for d in dates:
+        prefix_n.append(prefix_n[-1] + len(by_date[d]))
+        prefix_kg.append(prefix_kg[-1] + sum(by_date[d]))
+    avg_of: dict = {}
+    lo = 0
+    for i, d in enumerate(dates):
+        while ords[i] - ords[lo] >= avg_days:
+            lo += 1
+        n = prefix_n[i + 1] - prefix_n[lo]
+        avg_of[d] = round((prefix_kg[i + 1] - prefix_kg[lo]) / n, 1) if n else None
     out = []
     prev = None
     for r in rows:
         d = date.fromisoformat(r["date"])
-        win = [q["kg"] for q in rows
-               if 0 <= (d - date.fromisoformat(q["date"])).days < avg_days]
         gap_before = (d - date.fromisoformat(prev)).days if prev else None
         out.append({"date": r["date"], "kg": r["kg"],
-                    "avg7": round(sum(win) / len(win), 1) if win else None,
+                    "avg7": avg_of[r["date"]],
                     "gap_before": gap_before,
                     "gap": bool(gap_before is not None and gap_before > gap_days)})
         prev = r["date"]

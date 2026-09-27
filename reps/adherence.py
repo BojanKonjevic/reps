@@ -101,8 +101,17 @@ def classify_date(c, rotation, anchor, day_iso, day_map=None):
     trained = trained_exercises(c, day_iso)
     rest_row = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest'",
                          (day_iso,)).fetchone() is not None
+    if day_map is None:
+        from .program import parse_active_split_days
+        day_map = parse_active_split_days(c)
+    matched = slot_of_session(list(trained), day_map)["day"] if trained else None
+    return _classify_one(day_iso, exp, trained, rest_row, matched)
+
+
+def _classify_one(day_iso, exp, trained, rest_row, matched):
+    """Pure verdict from prefetched facts (no DB). Batch paths prefetch once
+    per range instead of paying 3+ queries per date."""
     if trained:
-        matched = match_day(c, trained, day_map)
         if is_rest_day(exp):
             status = "extra"
         elif matched is not None and matched.lower() == exp.lower():
@@ -114,16 +123,49 @@ def classify_date(c, rotation, anchor, day_iso, day_map=None):
     else:
         status = "rest_ok" if is_rest_day(exp) else "missed"
     return {"date": day_iso, "expected": exp,
-            "trained": match_day(c, trained, day_map) if trained else None, "status": status}
+            "trained": matched if trained else None, "status": status}
+
+
+def _trained_by_date(c, from_iso, to_iso):
+    """Done-session exercises per date over a range, one query."""
+    rows = c.execute(
+        "SELECT w.date as day, s.exercise FROM sets s "
+        "JOIN workouts w ON w.id = s.workout_id "
+        "WHERE w.date >= ? AND w.date <= ? AND w.status = 'done'",
+        (from_iso, to_iso)).fetchall()
+    out: dict = {}
+    for r in rows:
+        out.setdefault(r["day"], set()).add(r["exercise"])
+    return out
+
+
+def _rest_set(c, from_iso, to_iso):
+    """Rest-logged dates over a range, one query."""
+    return {r["date"] for r in c.execute(
+        "SELECT date FROM workouts WHERE date >= ? AND date <= ? AND status = 'rest'",
+        (from_iso, to_iso)).fetchall()}
 
 
 def status_range(c, rotation, anchor, from_iso, to_iso):
-    """Classify every date in [from, to] inclusive."""
+    """Classify every date in [from, to] inclusive.
+
+    Three prefetches (trained map, rest set, split map) then pure Python per
+    date: O(1) round trips however long the range, instead of ~4 queries per
+    date through classify_date."""
+    from .program import parse_active_split_days
+    from .slots import slot_of_session as _match
+    trained_map = _trained_by_date(c, from_iso, to_iso)
+    rest_days = _rest_set(c, from_iso, to_iso)
+    day_map = parse_active_split_days(c)
     out = []
     day = date.fromisoformat(from_iso)
     end = date.fromisoformat(to_iso)
     while day <= end:
-        out.append(classify_date(c, rotation, anchor, day.isoformat()))
+        iso = day.isoformat()
+        trained = trained_map.get(iso, set())
+        matched = _match(list(trained), day_map)["day"] if trained else None
+        out.append(_classify_one(iso, expected_day(rotation, anchor, iso),
+                                 trained, iso in rest_days, matched))
         day += timedelta(days=1)
     return out
 

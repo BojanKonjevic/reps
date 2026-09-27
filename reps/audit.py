@@ -121,12 +121,12 @@ def run_audit():
     # when long enough to judge. A good week in between does not reset
     # anything. Bucketing is owned by reps/weeks.py; per-muscle counts by
     # weekly_volume; the span rules by span_start/trim_leading_zeros.
-    from .program import weekly_volume as _weekly_volume, span_start as _span_start
+    from .program import weekly_volumes as _weekly_volumes, span_start as _span_start
     from .weeks import week_starts as _week_starts
     starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
     mev_bounds = {m: e.mev for m, e in constants.muscles.items()}
     priorities = read_priorities(c)
-    span_weeklies = {m: _weekly_volume(c, m, starts) for m in mev_bounds}
+    span_weeklies = _weekly_volumes(c, list(mev_bounds), starts)
     gstart = _span_start(list(span_weeklies.values()))
     for muscle, mev in mev_bounds.items():
         weekly = span_weeklies[muscle][gstart:]

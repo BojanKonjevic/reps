@@ -25,6 +25,10 @@ def tmp_db(monkeypatch, tmp_path):
     monkeypatch.setattr(reps.memory, "MEMORY_FILE", str(mem))
     yield path
     try:
+        reps.db.close_all()
+    except Exception:
+        pass
+    try:
         os.unlink(path)
     except OSError:
         pass
@@ -38,6 +42,17 @@ def log_module(tmp_db):
     agents use the same operations through MCP tools.
     """
     return reps
+
+
+@pytest.fixture(autouse=True)
+def _close_conns():
+    """Bound connection leaks per test: every fixture (tmp_db, audit_db,
+    hand-rolled) leaves its handles here; the registry closes them."""
+    yield
+    try:
+        reps.db.close_all()
+    except Exception:
+        pass
 
 
 def close_session(log, note="done"):

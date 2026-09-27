@@ -390,6 +390,36 @@ def classify_volume(weekly, mev, mrv, vol_bad):
     return "in_range"
 
 
+def weekly_volumes(c, muscles, week_starts):
+    """Weekly set counts for many muscles in two round trips.
+
+    One GROUP BY over (muscle, day), bucketed in Python against the same
+    week boundaries weekly_volume uses. volume_block and signals share this
+    instead of paying one query per muscle (13+ round trips per call)."""
+    from datetime import timedelta
+    base = week_starts[0].isoformat()
+    per_day: dict = {}
+    for r in c.execute("""
+        SELECT sm.muscle as muscle, date(w.date) as day, COUNT(*) as sets
+        FROM sets s
+        JOIN workouts w ON w.id = s.workout_id
+        JOIN set_muscle sm ON sm.set_id = s.id
+        WHERE date(w.date) >= ?
+        GROUP BY sm.muscle, day
+    """, (base,)).fetchall():
+        per_day.setdefault(r["muscle"], {})[r["day"]] = r["sets"]
+    out = {}
+    for muscle in muscles:
+        days = per_day.get(muscle, {})
+        weekly = []
+        for ws in week_starts:
+            we = ws + timedelta(days=7)
+            lo, hi = ws.isoformat(), we.isoformat()
+            weekly.append(sum(n for d, n in days.items() if lo <= d < hi))
+        out[muscle] = weekly
+    return out
+
+
 def volume_block(c):
     """Per-muscle weekly counts plus bounds and status, the same shape plan builds.
 
@@ -401,8 +431,7 @@ def volume_block(c):
     thresholds = constants.thresholds
     starts = [date.fromisoformat(s) for s in _week_starts(thresholds.volume_window_weeks)]
     vol_bad = thresholds.volume_bad_weeks
-    weeklies = {muscle: weekly_volume(c, muscle, starts)
-                for muscle in constants.muscles}
+    weeklies = weekly_volumes(c, list(constants.muscles), starts)
     start = span_start(list(weeklies.values()))
     volume = {}
     for muscle, entry in constants.muscles.items():
