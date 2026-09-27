@@ -108,6 +108,7 @@ INSERT INTO "lift" VALUES('seated leg curl',0);
 INSERT INTO "lift" VALUES('smith jm press',0);
 INSERT INTO "lift" VALUES('straight bar pulldown',0);
 INSERT INTO "lift" VALUES('unilateral cable pushdown',0);
+INSERT INTO "lift" VALUES('dumbbell reverse curl',0);
 CREATE TABLE lift_muscle (
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE ON DELETE CASCADE,
   muscle TEXT NOT NULL,
@@ -157,6 +158,7 @@ INSERT INTO "lift_muscle" VALUES('hanging leg raise','abs');
 INSERT INTO "lift_muscle" VALUES('rear delt cable fly','rear delts');
 INSERT INTO "lift_muscle" VALUES('machine preacher curl','biceps');
 INSERT INTO "lift_muscle" VALUES('cable crunch','abs');
+INSERT INTO "lift_muscle" VALUES('dumbbell reverse curl','forearms');
 CREATE TABLE movement_note (
   id INTEGER PRIMARY KEY,
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE,
@@ -186,6 +188,7 @@ INSERT INTO "movement_note" VALUES(21,'machine preacher curl','top 2 micros gues
 INSERT INTO "movement_note" VALUES(22,'ezbar skullcrusher','ez bar guessed 7.5, totals include bar','2026-09-24T10:13:38');
 INSERT INTO "movement_note" VALUES(23,'rear delt cable fly','height under 6','2026-09-24T10:24:48');
 INSERT INTO "movement_note" VALUES(24,'cable crunch','height just under 6','2026-09-27T09:41:46');
+INSERT INTO "movement_note" VALUES(25,'dumbbell reverse curl','dumbbells, both arms at once, each wrist tracks free; log weaker side with L/R when sides diverge','2026-09-27T10:30:13');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL CHECK (tier IN ('priority', 'maintain', 'deprioritize')),
@@ -574,7 +577,6 @@ INSERT INTO "split_slot_lift" VALUES(13,0,'cable crunch');
 INSERT INTO "split_slot_lift" VALUES(14,0,'hanging leg raise');
 INSERT INTO "split_slot_lift" VALUES(15,0,'cable wrist curl');
 INSERT INTO "split_slot_lift" VALUES(16,0,'cable wrist curl');
-INSERT INTO "split_slot_lift" VALUES(17,0,'cable reverse curl');
 INSERT INTO "split_slot_lift" VALUES(18,0,'cable reverse curl');
 INSERT INTO "split_slot_lift" VALUES(19,0,'rdl');
 INSERT INTO "split_slot_lift" VALUES(20,0,'rdl');
@@ -679,7 +681,8 @@ INSERT INTO "split_slot_lift" VALUES(119,0,'unilateral cable pushdown');
 INSERT INTO "split_slot_lift" VALUES(120,0,'ezbar skullcrusher');
 INSERT INTO "split_slot_lift" VALUES(121,0,'rear delt cable fly');
 INSERT INTO "split_slot_lift" VALUES(122,0,'rear delt cable fly');
-INSERT INTO "split_slot_lift" VALUES(35,0,'cable reverse curl');
+INSERT INTO "split_slot_lift" VALUES(17,0,'dumbbell reverse curl');
+INSERT INTO "split_slot_lift" VALUES(35,0,'dumbbell reverse curl');
 CREATE TABLE state_change (
   id INTEGER PRIMARY KEY,
   domain TEXT NOT NULL CHECK (domain IN ('program', 'priority', 'goal', 'deload', 'rule', 'rotation')),
@@ -704,6 +707,8 @@ INSERT INTO "state_change" VALUES(8,'rotation','anchor','2026-09-22','2026-09-26
 INSERT INTO "state_change" VALUES(9,'rotation','anchor','2026-09-26','2026-09-26T10:12:48','{"anchor_date": null, "position": null, "rotation": null}','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','mid-rotation anchor, verified against logged sessions',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(10,'rule','9','2026-09-27','2026-09-27T08:58:57','{"action": "add", "expiry": null, "rule_id": 9, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 9, "status": "active", "subject": "coaching", "text": "got it / done means hit the prescribed target exactly, log it as-is"}','',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(11,'program','active:L2','2026-09-27','2026-09-27T09:53:03','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable wrist extension", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','wrist extension ROM feels off, no pain, swap to reverse curl',NULL,NULL,0);
+INSERT INTO "state_change" VALUES(12,'program','active:L1','2026-09-27','2026-09-27T10:30:13','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "crunch machine", "sets": 2, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "cable reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "crunch machine", "sets": 2, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','cable EZ flips on swivel, wrists fight path; dumbbells free',NULL,NULL,0);
+INSERT INTO "state_change" VALUES(13,'program','active:L2','2026-09-27','2026-09-27T10:30:13','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','cable EZ flips on swivel, wrists fight path; dumbbells free',NULL,NULL,1);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
