@@ -99,6 +99,8 @@ def check_g12() -> None:
 def check_g13() -> None:
     """No sys.exit/print in domain modules."""
     for ln in rg(r"sys\.exit|print\(", ["reps"], ["!log.py"]):
+        if "reps/mcp/__main__.py" in ln:
+            continue  # sanctioned: stdio entrypoint is the process edge, like log.py
         fail("G13", f"process-edge call in domain: {ln} (use Refusal/returned models)")
 
 

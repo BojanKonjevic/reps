@@ -71,13 +71,13 @@ def lift_is_bodyweight_only(c, exercise):
 
 def rename_lift(c, old, new):
     """Rename a lift: one UPDATE, FK cascades re-point every child row."""
+    if not c.execute("SELECT exercise FROM lift WHERE exercise = ?", (old,)).fetchone():
+        raise RepsError(f"no lift '{old}'")
     try:
-        cur = c.execute("UPDATE lift SET exercise = ? WHERE exercise = ?", (new, old))
+        c.execute("UPDATE lift SET exercise = ? WHERE exercise = ?", (new, old))
     except sqlite3.IntegrityError:
         raise RepsError(f"'{new}' already exists, merge instead of renaming")
-    if cur.rowcount == 0:
-        raise RepsError(f"no lift '{old}'")
-    return cur.rowcount
+    return 1
 
 
 def merge_lifts(c, old, new):
@@ -94,7 +94,9 @@ def merge_lifts(c, old, new):
     if set(old_m) != set(new_m):
         raise RepsError(f"'{new}' maps to {new_m}, not {old_m}; retag one of them first, then merge")
     moved = c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = ?", (old,)).fetchone()["n"]
+    from .db import check_table
     for table, col in [("sets", "exercise"), ("goals", "exercise"), ("movement_note", "exercise")]:
+        check_table(table)
         c.execute(f"UPDATE {table} SET {col} = ? WHERE {col} = ?", (new, old))
     # Progression is unique per (workout, exercise): carry old verdicts only
     # where the survivor has none, drop the shadowed duplicates.
@@ -491,6 +493,12 @@ def priority_needs_confirm(c):
 
 
 def set_priority(muscle, tier, until=None, evidence=""):
+    if not isinstance(muscle, str):
+        raise RepsError("muscle must be a string")
+    if not isinstance(tier, str):
+        raise RepsError("tier must be one of priority maintain deprioritize")
+    if evidence is not None and not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     muscle = muscle.strip().lower()
     if tier not in values(PriorityTier):
         raise RepsError("tier must be one of priority maintain deprioritize")
@@ -540,9 +548,15 @@ def list_priorities():
 
 
 def set_deload(scope, subject, evidence=""):
+    if not isinstance(scope, str):
+        raise RepsError("scope must be lift or slot")
+    if not isinstance(subject, str):
+        raise RepsError("deload subject is required")
+    if evidence is not None and not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     if scope not in values(DeloadScope):
         raise RepsError("scope must be lift or slot")
-    if not subject:
+    if not subject.strip():
         raise RepsError("deload subject is required")
     c = conn()
     today = date.today().isoformat()
@@ -571,24 +585,35 @@ def set_deload(scope, subject, evidence=""):
 
 
 def clear_deload(evidence=""):
-    # Prose first: if the State write fails, the DB is untouched and a retry
-    # is safe. A markdown edit must never break a DB command halfway.
+    # DB commits first, MEMORY.md after: a DB failure leaves memory untouched,
+    # a memory failure after commit is reported (retry is idempotent, rows stay cleared).
+    if evidence is not None and not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     c = conn()
     rows = c.execute("SELECT scope, subject FROM deload_state WHERE cleared_on IS NULL ORDER BY id").fetchall()
     today = date.today().isoformat()
+    try:
+        c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
+        change_ids = []
+        for r in rows:
+            change = record_change(c, "deload", f"{r['scope']}:{r['subject']}",
+                                   {"scope": r["scope"], "subject": r["subject"],
+                                    "action": "clear", "active": True},
+                                   {"scope": r["scope"], "subject": r["subject"],
+                                    "action": "clear", "active": False},
+                                   evidence or "")
+            change_ids.append(change["change_id"])
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
     for r in rows:
-        append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
-    c.execute("UPDATE deload_state SET cleared_on = ? WHERE cleared_on IS NULL", (today,))
-    change_ids = []
-    for r in rows:
-        change = record_change(c, "deload", f"{r['scope']}:{r['subject']}",
-                               {"scope": r["scope"], "subject": r["subject"],
-                                "action": "clear", "active": True},
-                               {"scope": r["scope"], "subject": r["subject"],
-                                "action": "clear", "active": False},
-                               evidence)
-        change_ids.append(change["change_id"])
-    c.commit()
+        try:
+            append_memory_state(f"{today}: deload completed for {r['scope']} {r['subject']}")
+        except OSError as e:
+            # DB is already committed; surface the file failure honestly so the
+            # caller can retry the writeback without re-clearing.
+            raise RepsError(f"deload cleared in DB but MEMORY.md write failed ({e}); re-run to retry writeback")
     out = {"cleared": len(rows)}
     if change_ids:
         out["change_ids"] = change_ids
@@ -675,13 +700,26 @@ def set_split(day, slot, movements, sets, variant="active", evidence=""):
     c = conn()
     if variant not in values(SplitVariant):
         raise RepsError("variant must be active or baseline")
+    if not isinstance(day, str) or not day.strip():
+        raise RepsError("day is required")
+    day = day.strip()
+    # Normalize day case against known days so "upper a" cannot duplicate "Upper A".
+    known_days = [r["name"] for r in c.execute("SELECT name FROM split_day").fetchall()]
+    hit = next((k for k in known_days if k.lower() == day.lower()), None)
+    day = hit if hit is not None else day
+    if not isinstance(movements, str):
+        raise RepsError("movements must be a string")
+    if evidence is not None and not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     try:
         slot = int(slot)
         sets = int(sets)
     except (TypeError, ValueError):
         raise RepsError("slot and sets must be integers")
-    if sets <= 0:
-        raise RepsError("sets must be positive")
+    if slot <= 0 or slot > 50:
+        raise RepsError("slot must be between 1 and 50")
+    if sets <= 0 or sets > 50:
+        raise RepsError("sets must be between 1 and 50")
     movements = movements.strip().lower()
     if not movements:
         raise RepsError("movements cannot be empty")
@@ -754,9 +792,7 @@ def reconcile_split(day, after=None, evidence=""):
         raise RepsError(f"no active split day '{day}'")
     w = open_workout(c)
     if not w:
-        w = c.execute("SELECT * FROM workouts WHERE status = 'done' ORDER BY date DESC, id DESC LIMIT 1").fetchone()
-    if not w:
-        raise RepsError("no workout to reconcile from")
+        raise RepsError("no open workout to reconcile from; start a workout first (refusing to guess from history)")
     trained = [r["exercise"] for r in c.execute(
         "SELECT exercise, MIN(id) m FROM sets WHERE workout_id = ? GROUP BY exercise ORDER BY m",
         (w["id"],)).fetchall()]
@@ -840,7 +876,9 @@ def consume_session_flags(c, workout_id):
 
 
 def add_flag(subject, reason):
-    if not reason:
+    if not isinstance(subject, str) or not subject.strip():
+        raise RepsError("flag subject is required")
+    if not isinstance(reason, str) or not reason:
         raise RepsError("flag reason is required")
     c = conn()
     created = datetime.now().isoformat(timespec="seconds")
@@ -862,10 +900,14 @@ def consume_flag(flag_id):
         flag_id = int(flag_id)
     except (TypeError, ValueError):
         raise RepsError("no such flag")
-    cur = c.execute("UPDATE flags SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL",
-                    (datetime.now().isoformat(timespec="seconds"), flag_id))
-    if cur.rowcount == 0:
+    # Check-then-act: the refusal below must never follow a write, or the
+    # uncommitted transaction holds the DB lock for later writers (busy_timeout).
+    row = c.execute("SELECT id FROM flags WHERE id = ? AND consumed_at IS NULL",
+                    (flag_id,)).fetchone()
+    if not row:
         raise RepsError("no such unconsumed flag")
+    c.execute("UPDATE flags SET consumed_at = ? WHERE id = ?",
+              (datetime.now().isoformat(timespec="seconds"), flag_id))
     c.commit()
     return {"consumed": flag_id}
 

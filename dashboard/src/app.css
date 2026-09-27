@@ -1365,7 +1365,10 @@ canvas {
 }
 button.dt {
   border: none;
-  padding: 0;
+  /* 11px dot keeps the strip compact; 6px padding + content-box clip keeps
+     the visual while the hit target reaches ~23px for touch/mouse users. */
+  padding: 6px;
+  background-clip: content-box;
   cursor: pointer;
   font: inherit;
 }

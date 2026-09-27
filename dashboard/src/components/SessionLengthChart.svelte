@@ -55,4 +55,10 @@
   });
 </script>
 
-<canvas bind:this={cv} id="chSessLen" width="860" height="250"></canvas>
+<canvas
+  aria-label="Session length chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  id="chSessLen"
+  width="860"
+  height="250"
+></canvas>

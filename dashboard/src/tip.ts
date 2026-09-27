@@ -18,6 +18,10 @@ export function showTip(title: string, rows: Array<[string | null, string]>, x: 
     TIP = document.createElement('div');
     TIP.className = 'tip';
     TIP.style.display = 'none';
+    // Hover tips mirror data available through adjacent links and tables;
+    // the live region announces the same values to screen readers.
+    TIP.setAttribute('role', 'status');
+    TIP.setAttribute('aria-live', 'polite');
     document.body.appendChild(TIP);
   }
   const el = TIP;

@@ -51,3 +51,7 @@ Derivable numbers compute on read, e1RM, ledger, volume, slot guess, and never g
 - AGENTS.md, the agent map. constants.json, the evidence numbers.
 - dashboard, the Cloudflare Worker frontend, live at https://reps.bojan-dev.workers.dev.
 - tests, the deterministic pytest suite for everything the backend enforces.
+
+## Data lives in git (intentional)
+
+`workouts.sql` is tracked alongside code with daily `data:` commits; the live `workouts.db` is gitignored and rebuilt from the dump. This is the backup and the undo button, not an accident. Guardrails: every `sync_push` re-dumps atomically (crash never leaves a truncated backup); `maintenance_restore` rebuilds into a temp file and replaces the live DB only after integrity, foreign-key, table-set, and schema-version checks pass; sync secrets live in `~/.config/reps/config.json`, never in the repo; `audit.log` (destructive-op record) stays local and untracked. No forward migrations exist by policy: version mismatch refuses loudly, restore a matching dump.

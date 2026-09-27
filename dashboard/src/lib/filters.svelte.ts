@@ -53,8 +53,10 @@ export function pruneHidden(known: string[]) {
 }
 
 // First visit hides everything past the default visible cutoff from
-// snapshot constants (trend_top_lifts); afterwards the saved picks rule.
-export function defaultHide(names: string[], cutoff = 8) {
+// snapshot constants (trend_top_lifts, the single owner); afterwards the
+// saved picks rule. No fallback number lives here: the caller passes the
+// snapshot value, which Python always emits.
+export function defaultHide(names: string[], cutoff: number) {
   if (!ui.hiddenTouched) names.slice(cutoff).forEach(n => ui.hidden.add(n));
   persist();
 }

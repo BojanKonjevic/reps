@@ -125,7 +125,9 @@
                 <td class="setnum">{r.n}</td>
                 <td>
                   {r.detail}
-                  {#if r.pr}<span class="prbadge" title="personal record"
+                  {#if r.pr}<span
+                      class="prbadge"
+                      title="personal record: first set above the prior best e1RM for this lift"
                       ><Icon name="trophy" size={13} /></span
                     >{/if}
                 </td>

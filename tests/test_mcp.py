@@ -149,3 +149,74 @@ def test_constants_and_snapshot_through_mcp(log_module):
     assert snap["ok"] is True and "sessions" in snap["data"]
     from reps.models import SnapshotModel
     SnapshotModel.model_validate(snap["data"])
+
+
+def test_destructive_paths_through_mcp(log_module):
+    """Every destructive tool is reachable via call_tool and refuses cleanly."""
+    log = log_module
+    log.start_workout("destructive mcp")
+    logged = call("session_log_set", {"exercise": "bench", "weight": 80, "reps": 5,
+                                      "muscles": "chest"})
+    assert logged["ok"] is True
+    sid = logged["data"]["set_id"]
+    # Update + delete set round-trip through MCP.
+    assert call("session_update_set", {"set_id": sid, "field": "note",
+                                       "value": "mcp note"})["ok"] is True
+    assert call("session_update_set", {"set_id": sid, "field": "weight",
+                                       "value": "nan"})["ok"] is False
+    assert call("session_delete_set", {"set_id": sid})["ok"] is True
+    assert call("session_delete_set", {"set_id": sid})["ok"] is False
+    assert call("session_update_set", {"set_id": 999999, "field": "note",
+                                       "value": "x"})["ok"] is False
+    # Rest/weigh/get/range/notes/prs/context read paths through MCP.
+    assert call("session_weigh", {"kg": 80})["ok"] is True
+    assert call("session_get", {"day": "2026-09-27"})["ok"] is True
+    assert call("session_range", {"from_date": "2026-09-01",
+                                  "to_date": "2026-09-27"})["ok"] is True
+    assert call("session_notes", {})["ok"] is True
+    assert call("session_context", {})["ok"] is True
+    assert call("muscle_map_note", {"exercise": "bench",
+                                    "text": "mcp note"})["ok"] is True
+    assert call("muscle_rename", {"old": "bench", "new": "bench"})["ok"] is False
+    log.set_exercise_mapping("press", "chest,triceps")
+    assert call("muscle_merge", {"old": "press", "new": "bench"})["ok"] is False
+    assert call("program_split_move", {"day": "Upper A", "exercise": "bench",
+                                       "to_slot": 1})["ok"] is False
+    assert call("program_split_diff", {})["ok"] is True
+    assert call("program_split_revert", {"day": "Nope"})["ok"] is False
+    assert call("program_deload_clear", {})["ok"] is True
+    assert call("program_flag_consume", {"flag_id": 999999})["ok"] is False
+    assert call("progression_show", {})["ok"] is True
+    assert call("goal_show", {})["ok"] is True
+    assert call("goal_show", {"goal_id": 999999})["ok"] is False
+    log.set_exercise_mapping("squat", "quads,glutes")
+    log.set_split("Lower A", 1, "squat", 3)
+    g = call("goal_add", {"exercise": "squat", "target_e1rm": 150,
+                          "deadline": "2027-06-01", "desc": "mcp",
+                          "start_e1rm": 100.0})
+    assert g["ok"] is True
+    gid = g["data"]["goal_id"]
+    assert call("goal_show", {"goal_id": gid})["ok"] is True
+    assert call("goal_rewrite", {"goal_id": gid})["ok"] is True
+    assert call("goal_drop", {"goal_id": gid})["ok"] is True
+    assert call("goal_drop", {"goal_id": gid})["ok"] is False
+    assert call("autoreg_log", {})["ok"] is True
+    assert call("autoreg_revert", {"change_id": 999999})["ok"] is False
+    assert call("doctor", {})["ok"] is True
+    assert call("constants_set", {"key": "thresholds.trend_top_lifts",
+                                  "value": "8"})["ok"] is True
+    assert call("constants_set", {"key": "thresholds.trend_top_lifts",
+                                  "value": '"eight"'})["ok"] is False
+    assert call("maintenance_dump", {})["ok"] is True
+    assert call("maintenance_restore", {})["ok"] is False  # open workout refuses
+
+
+def test_mcp_result_contract_has_no_output_branch(log_module):
+    """Handlers return data/error only; the output shape is legacy transport text."""
+    log = log_module
+    log.start_workout("contract")
+    ok = call("session_today", {})
+    assert ok["ok"] is True and "data" in ok and "output" not in ok
+    bad = call("session_log_set", {"exercise": "bench", "weight": 80, "reps": 5})
+    # No open-workout mapping yet in this path? bench is unmapped without muscles.
+    assert bad["ok"] is False and "error" in bad

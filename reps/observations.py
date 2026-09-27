@@ -34,11 +34,19 @@ def _check_day(day, name):
 
 
 def _range(since, until):
+    from .constants import load_constants as _lc
+    try:
+        max_days = 366
+    except Exception:
+        max_days = 366
     today = date.today().isoformat()
     since = _check_day(since, "since") if since else (date.today() - timedelta(days=90)).isoformat()
     until = _check_day(until, "until") if until else today
     if since > until:
         raise RepsError("since must not be after until")
+    span = (date.fromisoformat(until) - date.fromisoformat(since)).days
+    if span > max_days:
+        raise RepsError(f"range is {span} days, over the {max_days}-day cap; narrow since/until or page the query")
     return since, until
 
 

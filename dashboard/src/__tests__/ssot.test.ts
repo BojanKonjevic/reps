@@ -57,6 +57,17 @@ describe('SSOT gates', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('G6b: no hsl() outside charts.ts (sanctioned palette owner: LC, DAY_HUES, dayColor)', () => {
+    const offenders: string[] = [];
+    for (const f of [...TS(), ...CSS()]) {
+      if (f.endsWith('/charts.ts')) continue;
+      const text = readFileSync(f, 'utf8');
+      const hits = text.match(/\bhsl\(/g);
+      if (hits) offenders.push(`${f}: ${hits.length}x hsl(`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('G7: no route literals or encodeURIComponent outside routes.ts', () => {
     const offenders = TS().filter(f => {
       if (f.endsWith('routes.ts')) return false;

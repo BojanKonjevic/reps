@@ -62,7 +62,3 @@ export function pieHitFromPoint(
   }
   return slices.length - 1;
 }
-
-export function piePalette(label: string): string {
-  return liftColor(label);
-}

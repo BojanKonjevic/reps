@@ -4,9 +4,24 @@
 
 """Single trend-classification implementation."""
 
+PLATE_KG = 2.5
 
-def _pct(a: float, b: float) -> float:
-    return (b - a) / a * 100 if a else 0.0
+
+def _pct(a: float, b: float):
+    """Percent change from a to b, or None when the base is zero/corrupt."""
+    if not a:
+        return None
+    return (b - a) / a * 100
+
+
+def _effective_decline(decline_pct: float, peak: float) -> float:
+    """Plate-aware stall band: the configured pct or one plate step at peak,
+    whichever is wider. A 1% band sits below plate granularity (2.5kg at
+    100kg is 2.5%), so rep-noise wiggles read as flat; the band never
+    resolves finer than the smallest load jump."""
+    if peak > 0:
+        return max(float(decline_pct), PLATE_KG / peak * 100)
+    return float(decline_pct)
 
 
 def _need(t: dict, key: str):
@@ -34,12 +49,14 @@ def is_stalling(e1rms: list[float], t: dict) -> bool:
     flat_n = int(_need(t, "stall_flat_sessions"))
     tail = e1rms[-window:]
     peak = max(tail)
-    if peak > 0 and all((peak - v) / peak * 100 <= decline for v in tail):
+    band = _effective_decline(decline, peak)
+    if peak > 0 and all((peak - v) / peak * 100 <= band for v in tail):
         return True
     if n >= flat_n:
         tail6 = e1rms[-flat_n:]
         peak6 = max(tail6)
-        if peak6 > 0 and all((peak6 - v) / peak6 * 100 <= decline for v in tail6):
+        band6 = _effective_decline(decline, peak6)
+        if peak6 > 0 and all((peak6 - v) / peak6 * 100 <= band6 for v in tail6):
             return True
     return False
 
@@ -49,10 +66,12 @@ def is_slipping(e1rms: list[float], t: dict) -> dict | None:
     pct = float(_need(t, "deload_watch_pct"))
     if len(e1rms) < 3:
         return None
-    (_, a), (_, b), (_, c) = [(0, e1rms[-3]), (0, e1rms[-2]), (0, e1rms[-1])]
+    a, b, c = e1rms[-3], e1rms[-2], e1rms[-1]
     if a <= 0 or b <= 0:
         return None
     p1, p2 = _pct(a, b), _pct(b, c)
+    if p1 is None or p2 is None:
+        return None
     if p1 <= pct and p2 <= pct:
         return {"drops_pct": [round(p1, 1), round(p2, 1)]}
     return None

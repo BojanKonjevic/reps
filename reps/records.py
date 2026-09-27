@@ -4,22 +4,28 @@
 
 """Single PR computation."""
 
-from .e1rm import e1rm
+from .e1rm import e1rm, is_e1rm_counting_set
 
 
 def personal_records(sets: list[dict]) -> dict:
     """Map set id -> bool is_pr for one exercise's sets in chronological order.
 
     Caller passes sets for a single exercise ordered by (created, id).
-    First set is baseline (False). Later sets are True iff e1RM strictly
-    exceeds the running best before them.
+    First counting set is baseline (False). Later counting sets are True iff
+    e1RM strictly exceeds the running best before them. Sets above the
+    e1RM rep cap (>12, out-of-domain for Epley) never PR and never move the
+    running best: they are stored and charted as raw volume, excluded from
+    every e1RM-derived decision.
     """
     ordered = sorted(sets, key=lambda s: (s.get("created", ""), s.get("id", 0)))
     out: dict = {}
     best = None
-    for i, s in enumerate(ordered):
+    for s in ordered:
+        if not is_e1rm_counting_set(s["reps"]):
+            out[s["id"]] = False
+            continue
         v = e1rm(s["weight"], s["reps"])
-        if i == 0:
+        if best is None:
             out[s["id"]] = False
             best = v
         else:

@@ -17,7 +17,8 @@
   import { createEventSelection } from '../lib/eventSelection.svelte';
   import { useHistoryStates } from '../queries/useHistoryStates.svelte';
   import type { PieSlice } from '../pieChart';
-  import { piePalette } from '../pieChart';
+  import { liftColor } from '../charts';
+  import { SMALL_SHARE } from '../lib/dashboard';
   import PageHeader from '../components/PageHeader.svelte';
   import SectionHeader from '../components/SectionHeader.svelte';
   import MuscleVolumeChart from '../components/MuscleVolumeChart.svelte';
@@ -61,8 +62,8 @@
   const slices = $derived.by((): PieSlice[] => {
     if (!entry) return [];
     const ranked = entry.lift_share;
-    const big = ranked.filter(l => l.share >= 0.04);
-    const small = ranked.filter(l => l.share < 0.04);
+    const big = ranked.filter(l => l.share >= SMALL_SHARE);
+    const small = ranked.filter(l => l.share < SMALL_SHARE);
     const smallSets = small.reduce((a, l) => a + l.sets, 0);
     const total = ranked.reduce((a, l) => a + l.sets, 0);
     const out: PieSlice[] = big.map(l => ({
@@ -82,8 +83,8 @@
 
   const sliceSets = $derived.by(() => {
     if (!entry) return [];
-    const big = entry.lift_share.filter(l => l.share >= 0.04);
-    const small = entry.lift_share.filter(l => l.share < 0.04);
+    const big = entry.lift_share.filter(l => l.share >= SMALL_SHARE);
+    const small = entry.lift_share.filter(l => l.share < SMALL_SHARE);
     const smallSets = small.reduce((a, l) => a + l.sets, 0);
     return slices.map((_, i) => (i < big.length ? big[i].sets : smallSets));
   });
@@ -124,8 +125,10 @@
   }
 
   onMount(() => {
-    if (!match) location.hash = href.dash();
-    else {
+    // Unknown muscles render the not-found block below (consistent with
+    // LiftPage's "never logged"); no redirect here, routing side effects
+    // belong in the router, not in page mount.
+    if (match) {
       document.title = match;
     }
   });
@@ -195,7 +198,7 @@
         <div class="pielegend" id="musLegend">
           {#each slices as s, i}
             <div class="row">
-              <span class="sw" style:background={piePalette(s.label)}></span>
+              <span class="sw" style:background={liftColor(s.label)}></span>
               {#if s.link}
                 <a href={s.link}>{s.label}</a>
               {:else}
@@ -210,5 +213,15 @@
         </div>
       </div>
     </div>
+  </div>
+{:else}
+  <div id="viewMuscle">
+    <div class="crumb"><a href={href.muscles()}>← Muscles</a></div>
+    <PageHeader
+      title="Unknown muscle"
+      sub="not tracked in this snapshot"
+      titleId="musTitle"
+      subId="musSub"
+    />
   </div>
 {/if}

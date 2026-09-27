@@ -89,8 +89,9 @@ def _checkpoint_list(c, goal_id):
 
 
 def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None, evidence=""):
+    import math
     c = conn()
-    exercise = (exercise or "").strip().lower()
+    exercise = (exercise or "").strip().lower() if isinstance(exercise, str) else ""
     if not exercise:
         raise RepsError("goal exercise is required")
     if not c.execute("SELECT exercise FROM lift WHERE exercise = ?", (exercise,)).fetchone():
@@ -99,18 +100,21 @@ def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None, e
         target_e1rm = float(target_e1rm)
     except (TypeError, ValueError):
         raise RepsError("target e1RM must be a number")
-    if target_e1rm <= 0:
-        raise RepsError("target e1RM must be positive")
+    if not math.isfinite(target_e1rm):
+        raise RepsError("target e1RM must be finite (nan/inf rejected)")
+    if target_e1rm <= 0 or target_e1rm > 1000:
+        raise RepsError("target e1RM must be positive and plausible (under 1000kg)")
     try:
-        deadline = date.fromisoformat(deadline).isoformat()
-    except ValueError:
+        deadline = date.fromisoformat(deadline).isoformat() if isinstance(deadline, str) else (_ for _ in ()).throw(ValueError())
+    except (ValueError, TypeError, AttributeError):
         raise RepsError("deadline must be YYYY-MM-DD")
     if date.fromisoformat(deadline) <= date.today():
         raise RepsError("deadline must be in the future")
     if start_e1rm is None:
+        from .e1rm import cap_reps as _cap
         top = c.execute(
             "SELECT e1rm(weight, reps) AS e1rm "
-            "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (exercise,)).fetchone()
+            "FROM sets WHERE exercise = ? AND reps <= ? ORDER BY e1rm DESC LIMIT 1", (exercise, _cap())).fetchone()
         if not top:
             raise RepsError(f"no logged sets for '{exercise}', pass start_e1rm to seed the trajectory")
         start_e1rm = top["e1rm"]
@@ -126,6 +130,10 @@ def add_goal(exercise, target_e1rm, deadline, target_desc="", start_e1rm=None, e
     n = sessions_possible_before(c, exercise, deadline)
     if n < 1:
         raise RepsError(f"no '{exercise}' sessions fit before {deadline} at the current split frequency")
+    if not isinstance(target_desc, str):
+        raise RepsError("target description must be a string")
+    if not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     now = datetime.now().isoformat(timespec="seconds")
     cur = c.execute("INSERT INTO goals (exercise, target_e1rm, target_desc, deadline, status, created) "
                     "VALUES (?, ?, ?, ?, 'active', ?)",
@@ -213,11 +221,12 @@ def drop_goal(goal_id, evidence=""):
     before = _goal_image(goal_id, goal["exercise"], "drop", _checkpoint_list(c, goal_id),
                          goal["target_e1rm"], goal["deadline"], goal["status"],
                          goal["target_desc"])
-    cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ? AND status != 'dropped'",
-                    (goal_id,))
-    if cur.rowcount == 0:
-        raise RepsError("goal is already dropped")
+    cur = c.execute("UPDATE goals SET status = 'dropped' WHERE id = ?", (goal_id,))
     after = dict(before, status="dropped")
-    change = record_change(c, "goal", goal["exercise"], before, after, evidence)
-    c.commit()
+    try:
+        change = record_change(c, "goal", goal["exercise"], before, after, evidence)
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
     return {"dropped": goal_id, "change_id": change["change_id"]}

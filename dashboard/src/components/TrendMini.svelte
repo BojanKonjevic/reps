@@ -80,4 +80,7 @@
   });
 </script>
 
-<canvas bind:this={cv}></canvas>
+<canvas
+  bind:this={cv}
+  aria-label={'e1RM mini trend for ' + lift.exercise + '. Values available in adjacent links.'}
+></canvas>

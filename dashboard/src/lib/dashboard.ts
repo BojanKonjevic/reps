@@ -7,6 +7,11 @@ import type { Snapshot } from '../generated/snapshot';
 import { fmtD } from './format';
 import type { SessionSpan } from './select';
 
+// SSOT owner: small-share cutoff for lift-share grouping (presentation only,
+// no domain meaning: shares below this fold into "smaller lifts").
+// Consumers: MusclePage slices/sliceSets. Python never sees this number.
+export const SMALL_SHARE = 0.04;
+
 export interface NowSeg {
   t: string;
   b: boolean;
@@ -76,11 +81,11 @@ export function bestSetRows(snap: Snapshot): PrRow[] {
   return snap.lifts
     .slice()
     .sort((a, b) => (a.exercise < b.exercise ? -1 : 1))
-    .filter(l => l.best)
+    .filter((l): l is typeof l & { best: NonNullable<typeof l.best> } => !!l.best)
     .map(l => ({
       lift: l.exercise,
-      detail: l.best!.weight + ' x ' + l.best!.reps + ' (' + l.best!.e1rm.toFixed(1) + ' e1RM)',
-      date: fmtD(l.best!.date),
+      detail: l.best.weight + ' x ' + l.best.reps + ' (' + l.best.e1rm.toFixed(1) + ' e1RM)',
+      date: fmtD(l.best.date),
     }));
 }
 
@@ -105,6 +110,8 @@ export interface DayAvg {
 }
 
 export function dayAvgs(spans: SessionSpan[]): DayAvg[] {
+  // Presentation grouping of emitted per-session minutes (no domain math:
+  // durations arrive computed from the snapshot, this only regroups by label).
   const acc = new Map<string, { sum: number; n: number }>();
   for (const s of spans) {
     const e = acc.get(s.day) || { sum: 0, n: 0 };
@@ -115,4 +122,17 @@ export function dayAvgs(spans: SessionSpan[]): DayAvg[] {
   return Array.from(acc.entries())
     .map(([day, e]) => ({ day, avg: Math.round((e.sum / e.n) * 10) / 10, n: e.n }))
     .sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
+export function weeklyRows(
+  weekStarts: string[],
+  byMuscle: Record<string, number[]>
+): Array<Record<string, number>> {
+  // Presentation pivot of the emitted volume_history grid (no computation:
+  // values copy straight across, missing cells read 0 for the chart).
+  return weekStarts.map((_, i) => {
+    const row: Record<string, number> = {};
+    for (const [m, arr] of Object.entries(byMuscle)) row[m] = arr[i] ?? 0;
+    return row;
+  });
 }

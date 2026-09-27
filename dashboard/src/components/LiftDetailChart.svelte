@@ -121,4 +121,10 @@
   });
 </script>
 
-<canvas bind:this={cv} id="chLift" width="860" height="260"></canvas>
+<canvas
+  aria-label="Lift progress chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  id="chLift"
+  width="860"
+  height="260"
+></canvas>

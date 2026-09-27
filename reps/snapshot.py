@@ -51,9 +51,14 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
             (ex,)).fetchall()
         hist = [dict(s) for s in rows]
         pr = personal_records(hist)
+        cap = constants.thresholds.e1rm_cap_reps
         by_day: dict = {}
         for s in hist:
-            ev = e1rm(s["weight"], s["reps"])
+            try:
+                ev = e1rm(s["weight"], s["reps"])
+            except Exception:
+                # Corrupt row: chart position unknown, never a PR input.
+                continue
             d = s["date"]
             if d not in by_day or ev > by_day[d]["e1rm"]:
                 by_day[d] = {"date": d, "workout_id": s["workout_id"], "weight": s["weight"],
@@ -62,12 +67,19 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
         running = None
         for d in sorted(by_day):
             b = by_day[d]
+            non_counting = b["reps"] > cap
             sessions.append({"date": d, "workout_id": b["workout_id"], "weight": b["weight"],
                              "reps": b["reps"], "e1rm": b["e1rm"], "is_pr": pr.get(b["set_id"], False),
-                             "delta_e1rm": round(b["e1rm"] - running, 1) if running is not None else None})
-            running = max(running, b["e1rm"]) if running is not None else b["e1rm"]
-        series = [s["e1rm"] for s in sessions]
-        best_row = max(hist, key=lambda s: e1rm(s["weight"], s["reps"]))
+                             "delta_e1rm": round(b["e1rm"] - running, 1) if running is not None else None,
+                             "non_counting": non_counting})
+            # Running best tracks counting sets only: a 13+ rep day never
+            # becomes the baseline a heavy day must beat (or vice versa).
+            if not non_counting:
+                running = max(running, b["e1rm"]) if running is not None else b["e1rm"]
+        series = [s["e1rm"] for s in sessions if not s["non_counting"]]
+        counting_hist = [s for s in hist if s["reps"] <= cap]
+        pool = counting_hist or hist
+        best_row = max(pool, key=lambda s: e1rm(s["weight"], s["reps"]))
         best_ev = e1rm(best_row["weight"], best_row["reps"])
         last_row = hist[-1]
         last_pr = next((s["date"] for s in reversed(hist) if pr.get(s["id"])), None)
@@ -637,10 +649,10 @@ def recent_notes_view(c, count):
 
 
 def _split_moves(text):
-    # History rows (autoreg holds/changes) store the slot content as an
-    # immutable TEXT fact; the live relation owner is split_slot_lift.
-    # Splitting here is a sanctioned read-model projection for the snapshot.
-    return [m.strip().lower() for m in text.split("/") if m.strip()]  # sanctioned: history read-model split
+    # Single splitter owner is program.parse_movements (SSOT); history rows
+    # store the slot content as immutable TEXT, this is the read-model projection.
+    from .program import parse_movements
+    return parse_movements(text)
 
 
 def build_views(c):
@@ -652,7 +664,7 @@ def build_views(c):
     try:
         from .adherence import get_anchor
         anchor = get_anchor(c)
-    except Exception:
+    except (RepsError, ValueError):
         anchor = None
     prog = latest_progression(c)
     goals_active = [dict(g) for g in

@@ -108,7 +108,7 @@
 </script>
 
 {#if palette.open}
-  <div class="pal-backdrop" onclick={close} aria-hidden="true"></div>
+  <button class="pal-backdrop" onclick={close} aria-label="close search"></button>
   <div class="pal-wrap">
     <div
       class="pal-panel"

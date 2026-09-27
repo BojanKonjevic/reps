@@ -13,6 +13,7 @@
     "lint": "eslint \"src/**/*.{ts,svelte}\"",
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
+    "e2e": "playwright test",
     "format:check": "prettier --check \"src/**/*.{ts,svelte,html,css,json}\""
   },
   "devDependencies": {

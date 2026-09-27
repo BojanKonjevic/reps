@@ -61,7 +61,7 @@ Fact ownership (which module owns each formula, enum, color, route, threshold) l
 - `reps/` owns deterministic business logic and enforced invariants, behind plain functions. One module per domain: `sessions`, `program`, `plan`, `goals`, `autoreg`, `adherence`, `signals`, `audit`, `sync`, plus `db`, `constants`, `muscles`, `memory`, `progression`, `errors`, `models`, and the single-owner computation modules `e1rm`, `weeks`, `slots`, `records`, `trends`, `vocab`, `snapshot` (fact ownership in `docs/SSOT.md`).
 - Domain functions return structured values and raise `RepsError` on refusal. Nothing in `reps/` prints or exits; `log.py` (maintenance) and MCP translate at the process and protocol edges. A refusal that used to exit still refuses, it just arrives as an exception.
 - `reps/models.py` owns structural validation (Pydantic): `ConstantsModel` for constants.json, `SnapshotModel` for the published payload. `load_constants()` returns the model; attribute access is the only read path. Domain and business rules stay out; they live in the domain modules.
-- `reps/mcp/` is the sole normal agent interface: thin tools calling domain operations directly through the shared `_ok` adapter, which shapes returns and translates `RepsError` into error results. No business logic in handlers, no shell command language anywhere. Closed domain vocabularies (verdicts, tiers, directions, scopes, variants) are `Literal` types in tool signatures.
+- `reps/mcp/` is the sole normal agent interface: thin tools calling domain operations directly through the shared `call_domain` adapter, which shapes returns and translates `RepsError` into error results. No business logic in handlers, no shell command language anywhere. Closed domain vocabularies (verdicts, tiers, directions, scopes, variants) are `Literal` types in tool signatures.
 - `docs/` owns protocol and reasoning rules: when a capability is used, how capabilities sequence, domain concepts, safety requirements.
 - The dashboard presents backend state. It never reconstructs domain semantics that belong in Python.
 - The agent owns judgment and conversational reasoning, grounded in numbers pulled through MCP.
@@ -77,7 +77,7 @@ Read-model ownership: Python owns observation semantics (`reps/observations.py`)
 - Runtime schemas: `dashboard/src/generated/` (Zod generated from `reps/models.py`; inferred types flow into components, no redundant interfaces). Python validates strictly before publication; the worker rejects wrong versions.
 - Formatting and presentation helpers: `dashboard/src/lib/` alongside chart math.
 - Charting: D3 (`d3-scale`, `d3-array`) for scales, domains, extents, ticks; Reps owns canvas rendering, PR and goal visuals, hit testing, tooltips, styling.
-- MCP tools: `reps/mcp/server.py`, one thin function per domain operation, sharing the `_ok` adapter. New capability means a domain function first, then a tool. Handlers must stay thin adapters and must not accumulate business logic: no SQL, no domain computation, no output parsing, no `RepsError` construction. Future agent-facing capabilities are exposed through MCP by default.
+- MCP tools: `reps/mcp/server.py`, one thin function per domain operation, sharing the `call_domain` adapter. New capability means a domain function first, then a tool. Handlers must stay thin adapters and must not accumulate business logic: no SQL, no domain computation, no output parsing, no `RepsError` construction. Future agent-facing capabilities are exposed through MCP by default.
 - Tests: backend invariants in `tests/` (pytest), dashboard unit in `dashboard/src/__tests__/` (vitest), e2e in `dashboard/e2e/` (playwright). MCP tools are tested through the MCP interface (`call_tool`/`list_tool_names`), not just via the domain functions underneath. `tests/test_architecture.py` pins the boundaries structurally (no command-style names, no `sys.exit`/`print` in `reps/`, no SQL in MCP, legacy entrypoints absent, docs teach MCP).
 
 ## Validation boundaries
@@ -109,9 +109,15 @@ Verify with `scripts/verify.sh` (Python: `scripts/test-py.sh` alone). Dashboard:
 - e2e fixtures must keep exercise names coherent across sets, split, holds, and grouped lists, or list pages silently show nothing the test expects.
 
 ## What not to bypass or rebuild
-
 - Do not add business logic to MCP handlers, the Worker, or the frontend. Domain questions get answered in `reps/`, exposed through MCP, presented by the dashboard.
 - Do not add a second agent interface: no CLI framework (Click, Typer, argparse wrappers), no textual RPC, no generic execute-command or run-arbitrary-SQL tool. `log.py` stays four maintenance ops (doctor, dump, restore, export) for local recovery.
 - Do not make domain functions print or exit. Returns flow up, `RepsError` flows up, and only `log.py` turns them into process output. The old CLI is intentionally gone: no command-style names, no stdout APIs, no shell parsing anywhere.
 - Do not replace explicit SQL with an ORM query builder, and do not replace the canvas renderer with a full charting framework.
 - Do not duplicate MCP tool schemas in prose docs. Docs teach when and why; MCP declares how and what.
+
+## Conventions that stay stable
+
+- Tool naming is historical, not systematic: bare `plan`, `observe`, `doctor` sit beside `program_*`, `session_*`, `history_*`. Do not rename tools (agents and docs memorize them); group new tools under the existing per-domain prefix and note bare-name exceptions here when adding one.
+- MCP forwards stay positional through `call_domain`; the drift gate is behavioral, not stylistic: every tool must be reachable through `call_tool` in `tests/test_mcp.py` (destructive paths first), and domain renames must update the handler in the same commit. Keyword forwards are welcome but not required.
+- Destructive and force operations (`session_delete_*`, `session_end` with force, `sync_push` force, `maintenance_restore`, `constants_set`) log to `audit.log` via `reps/auditlog.py` (timestamp + args, log-only by policy, no confirm param). The log file stays local and untracked.
+- Python dependencies: `pyproject.toml` lower bounds only (`pydantic>=2.0,mcp>=2.0`), `uv.lock` is truth. Upgrades are deliberate lockfile bumps with a full `scripts/verify.sh` run, never silent major bumps. Node side: `pnpm@11.25.0` pinned with `pnpm-lock.yaml`, `engines: node >=22` plus `.nvmrc`.

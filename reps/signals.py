@@ -28,8 +28,8 @@ def build_signals(c=None):
     out = []
 
     vol_weeks = thresholds.volume_window_weeks
-    week_starts = [today - timedelta(days=today.weekday() + 7 * i)
-                   for i in range(vol_weeks - 1, -1, -1)]
+    from .weeks import week_starts as _week_starts
+    week_starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
     sessions = c.execute(
         "SELECT COUNT(DISTINCT w.date) n FROM sets s "
         "JOIN workouts w ON w.id = s.workout_id WHERE date(w.date) >= ?",
@@ -48,10 +48,11 @@ def build_signals(c=None):
             status = classify_volume(weekly, entry.mev, entry.mrv, vol_bad)
             if status == "below_mev":
                 zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev, vol_bad)
+                tier_note = f" (MEV tier: {entry.tier})" if entry.tier != "settled" else ""
                 if zero_weeks >= vol_bad:
                     out.append({"severity": "high",
                                 "text": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} "
-                                        f"weeks (MEV {entry.mev})"})
+                                        f"weeks (MEV {entry.mev}){tier_note}"})
                 else:
                     out.append({"severity": "medium",
                                 "text": f"{muscle}: under MEV in {low_weeks} of last {len(weekly)} "
@@ -76,7 +77,8 @@ def build_signals(c=None):
     for d in auto["drop_watch"]:
         out.append({"severity": "high",
                     "text": f"{d['exercise']}: e1RM down {abs(d['drops_pct'][0]):.1f}% then "
-                            f"{abs(d['drops_pct'][1]):.1f}% back to back"})
+                            f"{abs(d['drops_pct'][1]):.1f}% back to back (3 counting sessions, "
+                            f"reps <= {thresholds.e1rm_cap_reps}; normal variation can mimic this)"})
     for m in auto["miss_streaks"]:
         out.append({"severity": "medium",
                     "text": f"{m['exercise']}: {m['streak']} misses running"})

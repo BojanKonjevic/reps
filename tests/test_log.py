@@ -95,7 +95,7 @@ def test_update_workout_rejects_bad_status(log_module):
         log_module.update_workout(str(wid), "status", "invalid")
         assert False, "should have refused"
     except RepsError as e:
-        assert "status must be open, done or rest" in str(e).lower()
+        assert "status must be one of open, done, rest" in str(e).lower()
 
 
 def test_update_workout_validates_date_format(log_module):

@@ -114,12 +114,12 @@ export const MuscleEntrySchema = z.object({
   "tier": EvidenceTierSchema,
   "source": z.string(),
   "color": z.string(),
-});
+}).strict();
 
 export const RepBandSchema = z.object({
   "max_reps": z.number().int().nullable().optional(),
   "jump_pct": z.union([z.number().int(), z.number()]).nullable().optional(),
-});
+}).strict();
 
 export const ThresholdsSchema = z.object({
   "stale_workout_hours": z.union([z.number().int(), z.number()]),
@@ -142,9 +142,10 @@ export const ThresholdsSchema = z.object({
   "bodyweight_gap_days": z.number().int().optional(),
   "bodyweight_avg_days": z.number().int().optional(),
   "recent_notes_count": z.number().int().optional(),
-  "trend_top_lifts": z.number().int().optional(),
+  "trend_top_lifts": z.number().int(),
+  "e1rm_cap_reps": z.number().int().optional(),
   "deload_volume_reduction": z.array(z.union([z.number().int(), z.number()])).optional(),
-});
+}).strict();
 
 export const ConstantsModelSchema = z.object({
   "version": z.number().int().optional(),
@@ -154,7 +155,7 @@ export const ConstantsModelSchema = z.object({
   "thresholds": ThresholdsSchema,
   "explained_keywords": z.array(z.string()).optional(),
   "rep_scheme_default": z.array(z.number().int()).optional(),
-});
+}).strict();
 
 export const DeloadScopeSchema = z.enum(["lift", "slot"]);
 
@@ -331,6 +332,7 @@ export const LiftSessionSchema = z.object({
   "e1rm": z.union([z.number().int(), z.number()]),
   "is_pr": z.boolean(),
   "delta_e1rm": z.union([z.number().int(), z.number()]).nullable(),
+  "non_counting": z.boolean().optional(),
 }).strict();
 
 export const LiftSchema = z.object({

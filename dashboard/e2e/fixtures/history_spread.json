@@ -16,8 +16,8 @@
           2,
           3
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017 meta, RP synthesis",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + RP guides; no RCT prescribes these set counts",
         "color": "#ffa726"
       },
       "back": {
@@ -31,8 +31,8 @@
           2,
           3
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017, Israetel RP",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + RP guides; no RCT prescribes these set counts",
         "color": "#66bb6a"
       },
       "front delts": {
@@ -61,8 +61,8 @@
           2,
           3
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017, Helms 2019",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + Helms 2019; no RCT prescribes these set counts",
         "color": "#9ccc65"
       },
       "rear delts": {
@@ -91,8 +91,8 @@
           2,
           3
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017, RP",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + RP guides; no RCT prescribes these set counts",
         "color": "#42a5f5"
       },
       "triceps": {
@@ -106,8 +106,8 @@
           2,
           3
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017, RP",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + RP guides; no RCT prescribes these set counts",
         "color": "#ef5350"
       },
       "quads": {
@@ -121,8 +121,8 @@
           2,
           2
         ],
-        "tier": "settled",
-        "source": "Schoenfeld 2017, RP",
+        "tier": "contested",
+        "source": "Dose landmarks synthesized from Schoenfeld 2016/2017 volume work + RP guides; no RCT prescribes these set counts",
         "color": "#ab47bc"
       },
       "hamstrings": {
@@ -243,6 +243,7 @@
       "bodyweight_avg_days": 7,
       "recent_notes_count": 6,
       "trend_top_lifts": 8,
+      "e1rm_cap_reps": 12,
       "deload_volume_reduction": [
         0.4,
         0.6
@@ -277,7 +278,8 @@
           "reps": 5,
           "e1rm": 116.7,
           "is_pr": false,
-          "delta_e1rm": null
+          "delta_e1rm": null,
+          "non_counting": false
         },
         {
           "date": "2026-09-14",
@@ -286,7 +288,8 @@
           "reps": 5,
           "e1rm": 119.6,
           "is_pr": true,
-          "delta_e1rm": 2.9
+          "delta_e1rm": 2.9,
+          "non_counting": false
         },
         {
           "date": "2026-09-22",
@@ -295,7 +298,8 @@
           "reps": 5,
           "e1rm": 122.5,
           "is_pr": true,
-          "delta_e1rm": 2.9
+          "delta_e1rm": 2.9,
+          "non_counting": false
         }
       ],
       "best": {
@@ -1216,47 +1220,47 @@
   "signals": [
     {
       "severity": "high",
-      "text": "abs: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "abs: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "adductors: 0 sets in 4 of last 4 weeks (MEV 4)"
+      "text": "adductors: 0 sets in 4 of last 4 weeks (MEV 4) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "back: 0 sets in 4 of last 4 weeks (MEV 10)"
+      "text": "back: 0 sets in 4 of last 4 weeks (MEV 10) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "biceps: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "biceps: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "chest: 0 sets in 4 of last 4 weeks (MEV 8)"
+      "text": "chest: 0 sets in 4 of last 4 weeks (MEV 8) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "forearms: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "forearms: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "glutes: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "glutes: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "hamstrings: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "hamstrings: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "rear delts: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "rear delts: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "side delts: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "side delts: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "triceps: 0 sets in 4 of last 4 weeks (MEV 6)"
+      "text": "triceps: 0 sets in 4 of last 4 weeks (MEV 6) (MEV tier: contested)"
     }
   ],
   "recent_notes": [

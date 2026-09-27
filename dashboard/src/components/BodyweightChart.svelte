@@ -73,4 +73,10 @@
   });
 </script>
 
-<canvas bind:this={cv} id="chBw" width="860" height="250"></canvas>
+<canvas
+  aria-label="Bodyweight trend chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  id="chBw"
+  width="860"
+  height="250"
+></canvas>

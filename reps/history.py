@@ -44,21 +44,30 @@ def _check_day(day):
 
 def record_change(c, domain, subject, before, after, evidence="", reverses=None):
     """Append one state transition. before/after are per-domain dicts."""
+    import sqlite3 as _sqlite3
     _check_domain(domain)
     subject = (subject or "").strip()
     if not isinstance(before, dict) or not isinstance(after, dict):
         raise RepsError("history payloads must be objects")
+    if not isinstance(evidence, str):
+        raise RepsError("evidence must be a string")
     now = datetime.now().isoformat(timespec="seconds")
     today = date.today().isoformat()
-    seq = c.execute("SELECT COUNT(*) n FROM state_change WHERE domain = ? AND subject = ? AND date = ?",
-                    (domain, subject, today)).fetchone()["n"]
-    cur = c.execute(
-        "INSERT INTO state_change (domain, subject, date, created, before_json, after_json, "
-        "evidence, reverses, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (domain, subject, today, now,
-         json.dumps(before, sort_keys=True), json.dumps(after, sort_keys=True),
-         evidence or "", reverses, seq))
-    return {"change_id": cur.lastrowid}
+    for attempt in range(3):
+        seq = c.execute("SELECT COALESCE(MAX(sequence), -1) + 1 AS nxt FROM state_change WHERE domain = ? AND subject = ? AND date = ?",
+                        (domain, subject, today)).fetchone()["nxt"]
+        try:
+            cur = c.execute(
+                "INSERT INTO state_change (domain, subject, date, created, before_json, after_json, "
+                "evidence, reverses, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (domain, subject, today, now,
+                 json.dumps(before, sort_keys=True), json.dumps(after, sort_keys=True),
+                 evidence or "", reverses, seq))
+            return {"change_id": cur.lastrowid}
+        except _sqlite3.IntegrityError:
+            # Concurrent writer won the sequence slot; retry with a fresh MAX.
+            continue
+    raise RepsError("history write collided repeatedly, retry the operation")
 
 
 def _shape(row):
@@ -132,14 +141,6 @@ def state_at(domain, subject="", at=""):
                 "reconstructible": False, "as_of_change_id": None,
                 "reason": "no recorded history for this subject"}
     changes = [ch for ch in all_changes if ch["date"] <= at]
-    if not all_changes:
-        if domain == "priority":
-            return {"domain": domain, "subject": subject, "at": at,
-                    "reconstructible": True, "as_of_change_id": None,
-                    "state": {"tier": "maintain", "since": None, "until": None}}
-        return {"domain": domain, "subject": subject, "at": at,
-                "reconstructible": False, "as_of_change_id": None,
-                "reason": "no recorded history for this subject"}
     first = all_changes[0]["date"]
     if not changes:
         if domain == "priority":
@@ -357,12 +358,16 @@ def revert_change(change_id, evidence=""):
     applier = {"program": _revert_program, "priority": _revert_priority,
                "goal": _revert_goal, "deload": _revert_deload,
                "rule": _revert_rule, "rotation": _revert_rotation}[domain]
-    inverse_after = applier(c, subject, before, after)
-    out = record_change(c, domain, subject, after, inverse_after,
-                        evidence or f"revert of change {change_id}", reverses=change_id)
-    c.execute("UPDATE state_change SET superseded_by = ? WHERE id = ? AND superseded_by IS NULL",
-              (out["change_id"], change_id))
-    c.commit()
+    try:
+        inverse_after = applier(c, subject, before, after)
+        out = record_change(c, domain, subject, after, inverse_after,
+                            evidence or f"revert of change {change_id}", reverses=change_id)
+        c.execute("UPDATE state_change SET superseded_by = ? WHERE id = ? AND superseded_by IS NULL",
+                  (out["change_id"], change_id))
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
     out["reverses"] = change_id
     return out
 

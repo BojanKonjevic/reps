@@ -35,7 +35,7 @@ class MuscleEntry(BaseModel):
     """Per-muscle dose landmarks. mav/mrv stay optional: some groups
     (e.g. forearms) have no trusted landmarks, plan falls back to mev."""
 
-    model_config = ConfigDict(extra="allow", strict=False)
+    model_config = ConfigDict(extra="forbid", strict=False)
 
     mev: StrictInt = Field(ge=0)
     mav: Optional[list[Union[StrictInt, StrictFloat]]] = None
@@ -74,7 +74,7 @@ class RepBand(BaseModel):
     terminator above the top band; otherwise max_reps ascends and
     jump_pct is positive."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     max_reps: Optional[StrictInt] = None
     jump_pct: Optional[Union[StrictInt, StrictFloat]] = None
@@ -92,9 +92,16 @@ class RepBand(BaseModel):
 
 class Thresholds(BaseModel):
     """Numeric guardrails. Only the invariants the backend enforces are
-    constrained here; keys the code reads opaquely stay permissive."""
+    constrained here; keys the code reads opaquely stay permissive.
 
-    model_config = ConfigDict(extra="allow")
+    Fallback policy: defaults below exist for backward compatibility with
+    payloads synced before a key existed (the worker serves the last synced
+    payload, which can predate new fields). constants.json always carries
+    every key and is the single owner; code never invents a threshold the
+    file does not have, except when reading a stale payload. New tunables
+    with no old-payload readers SHOULD be required (see trend_top_lifts)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     stale_workout_hours: Union[StrictInt, StrictFloat] = Field(gt=0)
     stale_workout_days: Union[StrictInt, StrictFloat] = Field(gt=0)
@@ -116,7 +123,10 @@ class Thresholds(BaseModel):
     bodyweight_gap_days: StrictInt = 14
     bodyweight_avg_days: StrictInt = 7
     recent_notes_count: StrictInt = 6
-    trend_top_lifts: StrictInt = 8
+    # No default: the visible-lift cutoff has exactly one owner
+    # (constants.json via the snapshot); a missing key fails loudly.
+    trend_top_lifts: StrictInt
+    e1rm_cap_reps: StrictInt = 12
     deload_volume_reduction: list[Union[StrictInt, StrictFloat]] = Field(
         default_factory=lambda: [0.4, 0.6])
 
@@ -124,7 +134,7 @@ class Thresholds(BaseModel):
 class ConstantsModel(BaseModel):
     """Canonical validated form of constants.json."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     version: StrictInt = 1
     muscles: dict[str, MuscleEntry] = Field(min_length=1)
@@ -168,6 +178,7 @@ class LiftSession(BaseModel):
     e1rm: Real
     is_pr: bool
     delta_e1rm: Optional[Real]
+    non_counting: bool = False
 
 
 class LiftBest(BaseModel):

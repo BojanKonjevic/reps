@@ -2,7 +2,7 @@
 
 Session protocol for the logging agent. This plus `AGENTS.md` is everything needed to run a session. Program design lives in `PROGRAMMING.md`, dashboard work in `DASHBOARD.md`.
 
-All operations are MCP tools (`reps/mcp/`). Tool results carry `ok` plus `data` or `output`; a refusal (`ok: false`) names the reason, never guess past it.
+All operations are MCP tools (`reps/mcp/`). Tool results carry `ok` plus `data`; a refusal (`ok: false`) names the reason, never guess past it.
 
 ## Session start
 

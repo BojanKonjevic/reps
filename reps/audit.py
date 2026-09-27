@@ -28,20 +28,20 @@ def run_audit():
     # Rep-band thresholds (same scale as the planning confidence bands): a +1
     # rep gain is always 2.2%+ e1RM, so flat science-rate bounds would flag
     # every routine rep PR. Band is read off the current session best's reps;
-    # above 15 reps e1RM is informational only and never flags.
+    # above-cap reps are out-of-domain for Epley and excluded from aggregates.
     # Jumps explained by set/workout notes are skipped.
+    constants = load_constants()
     sets = c.execute("""
         SELECT s.id, s.exercise, s.weight, s.reps, w.date, s.note AS set_note, w.notes AS workout_notes,
                e1rm(s.weight, s.reps) as e1rm
         FROM sets s JOIN workouts w ON w.id = s.workout_id
-        WHERE s.weight > 0 ORDER BY s.exercise, w.date, s.id
-    """).fetchall()
+        WHERE s.weight > 0 AND s.reps <= ? ORDER BY s.exercise, w.date, s.id
+    """, (constants.thresholds.e1rm_cap_reps,)).fetchall()
 
     by_ex = {}
     for s in sets:
         by_ex.setdefault(s["exercise"], []).append(s)
 
-    constants = load_constants()
     explained = tuple(constants.explained_keywords)
     thresholds = constants.thresholds
     drop_pct = thresholds.progression_drop_pct
@@ -50,12 +50,8 @@ def run_audit():
     vol_bad = thresholds.volume_bad_weeks
 
     def jump_bound(reps):
-        for band in constants.rep_bands:
-            if band.max_reps is None:
-                return None
-            if reps <= band.max_reps:
-                return band.jump_pct
-        return None
+        from .constants import rep_band_bound
+        return rep_band_bound(reps)
 
     for ex, ex_sets in by_ex.items():
         by_date = {}

@@ -55,9 +55,28 @@
         <div class="sub">loading</div>
       </div>
     {:else if snapshot.isError}
+      {@const msg = snapshot.error?.message ?? ''}
+      {@const offline =
+        !navigator.onLine || msg.includes('Failed to fetch') || msg.includes('NetworkError')}
+      {@const invalid =
+        msg.includes('schema v') || msg.includes('Invalid') || msg.includes('validation')}
       <div id="viewDash">
         <h1>Overview</h1>
-        <div class="sub">snapshot failed validation: {snapshot.error.message}</div>
+        {#if offline}
+          <div class="sub">
+            offline: could not reach the dashboard worker. Check your connection.
+          </div>
+        {:else if invalid}
+          <div class="sub">
+            synced data failed validation (stale or mismatched publish). Re-run sync_push, then
+            reload.
+          </div>
+        {:else}
+          <div class="sub">
+            snapshot unavailable (server error). Nothing is lost, the log lives in the repo.
+          </div>
+        {/if}
+        <button onclick={() => snapshot.refetch()}>Retry</button>
       </div>
     {:else if snapshot.data}
       {@const snap = snapshot.data}

@@ -87,4 +87,10 @@
   });
 </script>
 
-<canvas bind:this={cv} id="chMus" width="860" height="250"></canvas>
+<canvas
+  aria-label="Weekly volume by muscle chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  id="chMus"
+  width="860"
+  height="250"
+></canvas>

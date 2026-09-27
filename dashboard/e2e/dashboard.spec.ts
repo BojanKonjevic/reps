@@ -163,4 +163,41 @@ test.describe('Dashboard', () => {
       threshold: 0.2,
     });
   });
+
+  test('snapshot 500 shows a retryable error, never a raw dump', async ({ page }) => {
+    await page.clock.install({ time: new Date(rich.as_of + 'T12:00:00Z') });
+    await page.route('**/snapshot', r =>
+      r.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+    );
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#viewDash')).toContainText('snapshot unavailable');
+    await expect(page.locator('#viewDash')).toContainText('Retry');
+    await expect(page.locator('#viewDash')).not.toContainText('snapshot fetch failed');
+  });
+
+  test('invalid snapshot schema explains resync instead of dumping zod', async ({ page }) => {
+    await page.clock.install({ time: new Date(rich.as_of + 'T12:00:00Z') });
+    await page.route('**/snapshot', r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: '{"bogus":true}' })
+    );
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#viewDash')).toContainText('failed validation');
+  });
+
+  test('unknown lift and muscle routes explain instead of blanking', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    await page.goto('/#/l/never-heard-of-it');
+    await expect(page.locator('#viewLift')).toContainText('never logged');
+    await page.goto('/#/m/not-a-muscle');
+    await expect(page.locator('#viewMuscle')).toContainText('Unknown muscle');
+  });
+
+  test('no horizontal overflow on mobile', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', 'overflow check is mobile-only');
+    await gotoFixture(page, rich, rich.as_of);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
 });

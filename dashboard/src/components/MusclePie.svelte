@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { plot, pieHitFromPoint, piePalette, type PieSlice } from '../pieChart';
+  import { plot, pieHitFromPoint, type PieSlice } from '../pieChart';
+  import { liftColor } from '../charts';
   import { bindHover, hideTip, showTip } from '../tip';
   import { canvasShell, isVisible } from '../lib/canvas';
 
@@ -34,7 +35,7 @@
       slices[bi].label,
       [
         [
-          piePalette(slices[bi].label),
+          liftColor(slices[bi].label),
           sets[bi] + ' sets · ' + Math.round(slices[bi].frac * 100) + '%',
         ],
       ],
@@ -71,4 +72,10 @@
   });
 </script>
 
-<canvas bind:this={cv} id="chMusPie" width="240" height="240"></canvas>
+<canvas
+  aria-label="Lift share pie chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  id="chMusPie"
+  width="240"
+  height="240"
+></canvas>

@@ -48,8 +48,33 @@ function read(): Record<string, string> {
   return out;
 }
 
+export type TokenName =
+  | 'bg'
+  | 'bg-soft'
+  | 'bg-raised'
+  | 'bg-hover'
+  | 'bg-active'
+  | 'ink'
+  | 'ink-dim'
+  | 'ink-mute'
+  | 'ink-faint'
+  | 'line'
+  | 'line-soft'
+  | 'good'
+  | 'good-deep'
+  | 'bad'
+  | 'bad-deep'
+  | 'warn'
+  | 'accent'
+  | 'accent-strong'
+  | 'accent-dim'
+  | 'link'
+  | 'overlay-dim'
+  | 'overlay-tick'
+  | 'overlay-tick-strong';
+
 export const theme = {
-  color(name: string): string {
+  color(name: TokenName): string {
     // No hex fallback here by design: token values live only in
     // design/tokens.css. Outside a DOM with the tokens loaded (unit tests,
     // which never paint canvas) this resolves to transparent.

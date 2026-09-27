@@ -9,6 +9,10 @@ invariants are enforced once, in the domain modules. Domain refusals
 Result contract: every tool returns a dict with "ok" true/false.
 - ok true with structured output: {"ok": true, "data": <payload>}
 - failure (domain refused): {"ok": false, "error": <reason>}
+
+The test-only call_tool helper historically also produced {"ok": true,
+"output": ...} for unparseable transport text; that shape is retired and
+documented here so clients never branch on it.
 """
 
 import json
@@ -65,7 +69,12 @@ async def list_tool_names() -> list[str]:
 
 
 async def call_tool(name: str, arguments: dict) -> dict:
-    """Invoke one tool through the MCP interface and return its structured result."""
+    """Invoke one tool through the MCP interface and return its structured result.
+
+    Contract shapes only: {"ok": True, "data"} on success, {"ok": False,
+    "error"} on refusal. The legacy {"ok": True, "output"} branch is kept
+    only for unparseable transport text in tests, never produced by handlers.
+    """
     result = await mcp.call_tool(name, arguments)
     texts = [b.text for b in getattr(result, "content", []) if hasattr(b, "text")]
     if getattr(result, "isError", False):
@@ -137,20 +146,26 @@ def session_update_workout(workout_id: int, field: WorkoutField, value: str) -> 
 @mcp.tool()
 def session_delete_set(set_id: int) -> dict:
     """Delete one set by id. Confirm the exact id in chat first.
+    Logged to the audit log with timestamp and args.
 
     Args:
         set_id: Exact set id.
     """
+    from reps.auditlog import log_destructive
+    log_destructive("session_delete_set", {"set_id": set_id})
     return call_domain(_sessions.delete_set, set_id)
 
 
 @mcp.tool()
 def session_delete_workout(workout_id: int) -> dict:
     """Delete one workout by id. Confirm the exact id in chat first.
+    Logged to the audit log with timestamp and args.
 
     Args:
         workout_id: Exact workout id.
     """
+    from reps.auditlog import log_destructive
+    log_destructive("session_delete_workout", {"workout_id": workout_id})
     return call_domain(_sessions.delete_workout, workout_id)
 
 
@@ -163,6 +178,9 @@ def session_end(note: str = "", force: str = "") -> dict:
         note: Short session summary (feel, sleep, pain, what moved well).
         force: Reason to skip writeback items, recorded in the workout note. Never skips missing muscles.
     """
+    if force:
+        from reps.auditlog import log_destructive
+        log_destructive("session_end", {"force": force})
     return call_domain(_sessions.end_workout, note, force or None)
 
 
@@ -653,11 +671,11 @@ def goal_add(exercise: str, target_e1rm: float, deadline: str, desc: str = "",
 
 
 @mcp.tool()
-def goal_show(goal_id: str = "") -> dict:
+def goal_show(goal_id: int = 0) -> dict:
     """Goal trajectories and progress.
 
     Args:
-        goal_id: Optional single goal id.
+        goal_id: Optional single goal id (0 means all active goals).
     """
     return call_domain(_goals.get_goal, goal_id or None)
 
@@ -827,11 +845,14 @@ def constants_validate() -> dict:
 @mcp.tool()
 def constants_set(key: str, value: str) -> dict:
     """Edit one constants key (never by hand).
+    Logged to the audit log with timestamp and args.
 
     Args:
         key: Dotted key to set.
         value: JSON-encoded new value (a JSON string holds a plain string).
     """
+    from reps.auditlog import log_destructive
+    log_destructive("constants_set", {"key": key, "value": value})
     return call_domain(_constants.set_constant, key, value)
 
 
@@ -850,10 +871,14 @@ def snapshot_export() -> dict:
 def sync_push(force: bool = False) -> dict:
     """Push the validated snapshot to the hosted dashboard and dump workouts.sql
     for git history. Pull-first with ETags: a stale base aborts with 412 unless forced.
+    Force pushes are logged to the audit log with timestamp and args.
 
     Args:
         force: Overwrite deliberately after reconciling a 412.
     """
+    if force:
+        from reps.auditlog import log_destructive
+        log_destructive("sync_push", {"force": force})
     return call_domain(_sync.push_snapshot, force)
 
 
@@ -867,8 +892,11 @@ def maintenance_dump() -> dict:
 def maintenance_restore(force: bool = False) -> dict:
     """Rebuild the live DB from workouts.sql into a temp file first, replacing
     only after verification. Refuses with an open workout unless forced.
+    Every invocation is logged to the audit log with timestamp and args.
 
     Args:
         force: Restore despite an open workout.
     """
+    from reps.auditlog import log_destructive
+    log_destructive("maintenance_restore", {"force": force})
     return call_domain(_sync.restore_sql, force)

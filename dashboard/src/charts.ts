@@ -55,7 +55,8 @@ export function dayColor(name: string): string {
   }
   if (alpha && DAY_HUES[letters]) {
     const hues = DAY_HUES[letters];
-    const n = cut < key.length ? parseInt(key.slice(cut), 10) : 1;
+    const raw = cut < key.length ? parseInt(key.slice(cut), 10) : 1;
+    const n = Number.isNaN(raw) ? 1 : raw;
     return 'hsl(' + hues[(Math.max(1, n) - 1) % hues.length] + ',72%,62%)';
   }
   return liftColor(name);

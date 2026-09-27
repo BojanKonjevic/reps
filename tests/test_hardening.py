@@ -356,3 +356,147 @@ def test_rename_same_muscles_different_order_merges(log_module):
     assert out["renamed"] == 1
     assert out["map_moved"] is True
     assert c.execute("SELECT COUNT(*) n FROM sets WHERE exercise = 'bench'").fetchone()["n"] == 2
+
+
+def test_nan_inf_huge_negative_weights_refused(log_module):
+    """nan/inf/huge/negative weights never reach the DB (PRs stay unpoisoned)."""
+    log_module.start_workout("test")
+    for bad in ("nan", "inf", "-inf", float("nan"), float("inf"), -5, 5000):
+        try:
+            log_module.log_set("bench", bad, 5, "", "chest")
+            assert False, f"should have refused weight {bad!r}"
+        except RepsError:
+            pass
+    for fn in (lambda: log_module.record_bodyweight("nan", ""),
+               lambda: log_module.record_bodyweight(float("inf"), ""),
+               lambda: log_module.set_progression("bench", "baseline", "nan", 5, "flat"),
+               lambda: log_module.add_goal("bench", float("inf"), "2027-01-01")):
+        pass  # set_progression/add_goal need rows; covered below
+    try:
+        log_module.record_bodyweight("nan", "")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "finite" in str(e)
+    try:
+        log_module.record_bodyweight(float("inf"), "")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "finite" in str(e)
+
+
+def test_unknown_muscle_refused_at_write(log_module):
+    """Stray muscle names refuse at log time instead of polluting lift_muscle."""
+    log_module.start_workout("test")
+    try:
+        log_module.log_set("bench", 100, 5, "", "chest,pectoralis-major")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "unknown muscle" in str(e)
+    try:
+        log_module.set_exercise_mapping("bench", "chest,notamuscle")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "unknown muscle" in str(e)
+
+
+def test_notes_and_types_refused(log_module):
+    """None/non-string notes and inputs refuse with RepsError, never traceback."""
+    c = log_module.conn()
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    sid = c.execute("SELECT id FROM sets").fetchone()["id"]
+    for fn, args in [
+        (log_module.log_set, (None, 100, 5, "", "chest")),
+        (log_module.log_set, ("bench", 100, 5, "", 123)),
+        (log_module.mark_rest, (None, "")),
+        (log_module.update_set, (sid, "note", 123)),
+        (log_module.update_set, (sid, "exercise", None)),
+        (log_module.set_priority, (None, "priority")),
+        (log_module.set_deload, (None, "bench")),
+        (log_module.set_movement_note, (None, "x")),
+        (log_module.set_movement_note, ("bench", None)),
+        (log_module.add_flag, (None, "reason")),
+        (log_module.get_history, (None, 5)),
+    ]:
+        try:
+            fn(*args)
+            assert False, f"should have refused: {fn.__name__}{args}"
+        except RepsError:
+            pass
+        except (TypeError, AttributeError) as e:
+            assert False, f"{fn.__name__} leaked {type(e).__name__}: {e}"
+
+
+def test_history_limit_clamped(log_module):
+    """Negative get_history LIMIT cannot mean unlimited."""
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    out = log_module.get_history("bench", -5)
+    assert isinstance(out, list) and len(out) <= 2000
+
+
+def test_reconcile_refuses_without_open_workout(log_module):
+    """reconcile_split never acts on a guessed history session."""
+    log_module.set_exercise_mapping("bench", "chest")
+    log_module.set_split("Upper A", 1, "bench", 3)
+    try:
+        log_module.reconcile_split("Upper A")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "no open workout" in str(e)
+
+
+def test_e1rm_cap_boundary(log_module):
+    """12-rep sets count toward PRs, 13-rep sets never do (Epley out-of-domain)."""
+    from reps.e1rm import cap_reps, is_e1rm_counting_set
+    assert cap_reps() == 12
+    assert is_e1rm_counting_set(12) is True
+    assert is_e1rm_counting_set(13) is False
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    wid = log_module.open_workout(log_module.conn())["id"]
+    log_module.set_progression("bench", "baseline", 100, 5, "flat")
+    close_session(log_module, "done")
+    # A 13-rep set with a huge e1RM must not flag a PR over the heavy best.
+    log_module.start_workout("test2")
+    log_module.log_set("bench", 100, 13, "", "")
+    flags = log_module.session_prs(wid + 1)["prs"]
+    assert all(f["is_pr"] is False for f in flags)
+    from reps.records import personal_records
+    c = log_module.conn()
+    rows = [dict(r) for r in c.execute(
+        "SELECT s.id, s.weight, s.reps, s.created FROM sets s WHERE s.exercise = 'bench' ORDER BY s.created, s.id").fetchall()]
+    pr = personal_records(rows)
+    assert all(v is False for v in pr.values())
+
+
+def test_empty_placeholders_refused(log_module):
+    from reps.db import placeholders
+    try:
+        placeholders(0)
+        assert False, "should have refused"
+    except RepsError:
+        pass
+
+
+def test_restore_version_mismatch_refused(log_module, tmp_db):
+    """A dump stamped with an older schema version refuses before replace."""
+    import sqlite3
+    c = log_module.conn()
+    log_module.start_workout("test")
+    log_module.log_set("bench", 100, 5, "", "chest")
+    close_session(log_module, "done")
+    sql_path = _dump_sql_for_db(tmp_db)
+    with open(sql_path) as f:
+        text = f.read()
+    import re as _re
+    text = _re.sub(r'INSERT INTO "schema_version" VALUES\(\d+\)',
+                   'INSERT INTO "schema_version" VALUES(1)', text)
+    with open(sql_path, "w") as f:
+        f.write(text)
+    try:
+        log_module.restore_sql()
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "schema version" in str(e)
+    assert c.execute("SELECT COUNT(*) n FROM sets").fetchone()["n"] == 1

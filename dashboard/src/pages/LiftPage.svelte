@@ -184,6 +184,11 @@
     <div class="liftstat">
       <span class="cap">{prNote}</span>
       {#if progLine}<span class="cap">{progLine}</span>{/if}
+      {#if lift?.sessions.some(s => s.non_counting)}
+        <span class="cap"
+          >13+ rep sets chart as volume only, they never PR (Epley out of range past 12 reps).</span
+        >
+      {/if}
     </div>
   </div>
   <SectionHeader title="Estimated 1RM" />

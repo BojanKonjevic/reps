@@ -149,7 +149,9 @@
           <div class="listinfo">
             <div class="minititle">
               <a href={href.lift(lift.exercise)}>{lift.exercise}</a>
-              {#if prThisMonth[lift.exercise]}<span class="prt" title="PR'd this month"
+              {#if prThisMonth[lift.exercise]}<span
+                  class="prt"
+                  title="PR this month: beat the prior best e1RM on a 12-or-fewer rep set"
                   ><Icon name="trophy" size={13} /></span
                 >{/if}
             </div>

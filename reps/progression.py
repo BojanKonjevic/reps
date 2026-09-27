@@ -9,12 +9,14 @@ from .vocab import Direction, Verdict, values
 
 
 def top_e1rm_by_date(c, exercise):
+    from .e1rm import cap_reps
+    cap = cap_reps()
     sql = ("SELECT w.date as day, MAX(e1rm(s.weight, s.reps)) as e1rm, "
            "GROUP_CONCAT(DISTINCT w.notes) as notes, GROUP_CONCAT(DISTINCT s.note) as set_notes, "
            "MAX(s.created) as max_created FROM sets s JOIN workouts w ON w.id = s.workout_id "
-           "WHERE s.exercise = ? AND w.status = 'done' GROUP BY day ORDER BY day")
+           "WHERE s.exercise = ? AND s.reps <= ? AND w.status = 'done' GROUP BY day ORDER BY day")
     return [(r["day"], r["e1rm"], " ".join(n for n in (r["notes"], r["set_notes"]) if n),
-             r["max_created"]) for r in c.execute(sql, (exercise,)).fetchall()]
+             r["max_created"]) for r in c.execute(sql, (exercise, cap)).fetchall()]
 
 
 def latest(c):
@@ -29,6 +31,7 @@ def format_target(weight, reps):
 
 
 def set_progression(exercise, verdict, next_weight, next_reps, direction, note="", workout_id=None):
+    import math
     if verdict not in values(Verdict):
         raise RepsError("verdict must be one of hit miss hold baseline")
     if direction not in values(Direction):
@@ -37,16 +40,26 @@ def set_progression(exercise, verdict, next_weight, next_reps, direction, note="
         next_weight = float(next_weight)
     except (TypeError, ValueError):
         raise RepsError("next weight must be a number")
+    if not math.isfinite(next_weight):
+        raise RepsError("next weight must be finite (nan/inf rejected)")
     try:
         next_reps = int(next_reps)
     except (TypeError, ValueError):
         raise RepsError("next reps must be an integer")
-    if next_weight < 0:
-        raise RepsError("next weight must be positive")
+    if isinstance(next_reps, bool):
+        raise RepsError("next reps must be an integer")
+    if next_weight < 0 or next_weight > 1000:
+        raise RepsError("next weight must be positive and plausible (under 1000kg)")
+    if next_weight == 0:
+        pass  # bodyweight check below needs the exercise row
     if next_reps <= 0:
         raise RepsError("next reps must be a positive integer")
+    if not isinstance(note, str):
+        raise RepsError("note must be a string")
     c = conn()
-    exercise = exercise.strip().lower()
+    exercise = exercise.strip().lower() if isinstance(exercise, str) else ""
+    if not exercise:
+        raise RepsError("exercise is required")
     if next_weight == 0:
         from .program import lift_is_bodyweight_only
         if not lift_is_bodyweight_only(c, exercise):

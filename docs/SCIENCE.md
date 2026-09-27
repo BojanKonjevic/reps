@@ -55,6 +55,12 @@ No magic threshold; 5–20 all work if RPE 8–10. Below 5 shifts to strength, a
 
 Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (intermediate). 5 kg on legs ≈ 2–4% at 100–150 kg. A 20% jump (e.g., 100 → 120) exceeds any level's typical single-session progression.
 
+Why `rep_bands` in `constants.json` (4/5/8%) differ from the bounds above (0.25–2%/session): the bands are jump-detection thresholds for audit flags, not progression targets. A +1 rep gain is always 2.2%+ e1RM by Epley arithmetic, so flagging every routine rep PR against a 1% science-rate bound would cry wolf on normal training. The bands answer "is this jump implausible", the table answers "how fast should I expect to gain". Different questions, different numbers, Opinion.
+
+## e1RM validity range (Epley)
+
+e1RM = w × (1 + r/30), single owner `reps/e1rm.py`. Validity range: reps ≤ <!--const thresholds.e1rm_cap_reps-->12<!--/const--> (Contested boundary, practitioner consensus: Epley overpredicts past ~12 and is out of scope there). Sets above the cap are stored and charted as raw volume but excluded from every e1RM-derived decision: PR flags, progression tops, stall/slip inputs, goal and audit aggregates. Any e1RM improvement on a counting set is a PR, including +0.1 kg (no min-jump, no plate-aware epsilon on the PR rule itself). Rationale: training tops out ~12, so no history rewrite; >12 is out-of-domain and must not fake-PR over heavy bests.
+
 ## Deload / fatigue management
 
 | Guidance                                                                                 | Tier      | Source                                    |
@@ -63,6 +69,8 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | Reactive deload: when performance drops <!--const thresholds.deload_watch_pct|pctabs-->5%<!--/const-->+ across 2 sessions                            | Opinion   | RP, Helms autoregulation                  |
 | Passive rest after U2 and after U4 (2 per 8-day rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
 | No evidence for "deload week" vs "deload session" superiority                            | Opinion   | Unstudied                                 |
+| Deload duration: one full rotation (8 days) at reduced volume, then ramp back over the next rotation (first session back stays light, no PR attempts until the second rotation) | Opinion | Practitioner consensus, fits 8-day structure |
+| Strength-loss guard: if top sets are still >5% down after the ramp-back rotation, that is not residual fatigue, investigate programming, sleep, or pain before adding volume | Opinion | Helms autoregulation |
 
 ## Exercise selection principles
 
@@ -74,9 +82,15 @@ Reference: 2.5 kg jump on upper compounds ≈ 2–3% at 80–100 kg loads (inter
 | Lengthened-position bias for hypertrophy (stretch under load)                                               | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
 | Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023                    |
 
-## Personal deviations
+## Bodyweight protocol
 
-- Sep 20 2026: 8-day rotation U1, L1, U2, rest, U3, L2, U4, rest (uppers every 2 days, lowers every 4), Opinion
+Gym scale, shoes on, non-fasted, sporadic entries (MEMORY.md). The dashboard 7-day average implies continuity it does not have: treat `avg7` as a rough smoother, not a trend. Rules: one entry per day max, latest wins; a <!--const thresholds.bodyweight_gap_days-->14<!--/const-->-day gap breaks continuity (no interpolation across it); single weigh-ins more than ±3% off the recent average get a confirming re-weigh note, not silent acceptance. No cut/bulk decisions off fewer than 14 days of entries.
+
+## Pain and confounder policy
+
+Pain is free-text in set and workout notes plus a `NOTE_HOT_KEYWORDS` scan (pain, sleep, sore, injury), no severity scale. Red flags that stop training talk and refer out: sharp or shooting pain, joint swelling, numbness/tingling, chest pain, head injury, pain that worsens across sets. Anything else trains around, never through: form breakdown or pain ends the lift for the day, logged with a note. Confounders (sleep, illness, travel, stress) are captured only if volunteered in notes, never prompted; systemic overtraining reads (3 lifts/2 patterns in PROGRAMMING.md) always carry the caveat that confounders were not systematically screened. Level-aware progression bounds from the table above apply to `progression_set` targets and goal trajectories: a target implying faster than the lifter's level band needs an explanatory note, never silent acceptance.
+
+## Personal deviations- Sep 20 2026: 8-day rotation U1, L1, U2, rest, U3, L2, U4, rest (uppers every 2 days, lowers every 4), Opinion
 - Sep 20 2026: side delts 4x per 8 days (~3.5x/week), 16 sets per 8 days (14 weekly) across cable/machine/dumbbell pool, inside MAV <!--const muscles.side delts.mav-->[12, 18]<!--/const-->, Opinion
 - Sep 20 2026: not training calves, not as important for aesthetics, Opinion
 - Sep 18 2026: delts tracked as front/side/rear heads; front MEV 0 via pressing volume, rear MEV 6 direct, Opinion

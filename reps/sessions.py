@@ -14,32 +14,42 @@ from .program import (active_deloads, best_split_day, consume_session_flags,
 from .records import personal_records
 
 
-def staleness(workout, today=None):
+def staleness(workout, today=None, c=None):
     """One stale-workout computation for plan, audit, and start.
 
     Assembly: threshold reads live here so the three callers cannot drift.
-    Returns {"is_stale", "age_days", "last_set_created"}.
+    Returns {"is_stale", "age_days", "last_set_created"}. Pass c to reuse
+    the caller's connection; otherwise a short-lived one is opened and closed.
     """
-    from .db import conn as _conn
     today = today or date.today()
-    c = _conn()
+    own = c is None
+    if own:
+        from .db import conn as _conn
+        c = _conn()
     try:
-        age_days = (today - date.fromisoformat(workout["date"])).days
-    except ValueError:
-        age_days = 0
-    last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1",
-                     (workout["id"],)).fetchone()
-    last_created = last["created"] if last else None
-    thresholds = load_constants().thresholds
-    gap_over = False
-    if last_created:
         try:
-            gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds.stale_workout_hours * 3600
+            age_days = (today - date.fromisoformat(workout["date"])).days
         except ValueError:
-            gap_over = False
-    return {"is_stale": workout["date"] != today.isoformat()
-            or age_days >= thresholds.stale_workout_days or gap_over,
-            "age_days": age_days, "last_set_created": last_created}
+            age_days = 0
+        last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1",
+                         (workout["id"],)).fetchone()
+        last_created = last["created"] if last else None
+        thresholds = load_constants().thresholds
+        gap_over = False
+        if last_created:
+            try:
+                gap_over = (datetime.now() - datetime.fromisoformat(last_created)).total_seconds() > thresholds.stale_workout_hours * 3600
+            except ValueError:
+                gap_over = False
+        return {"is_stale": workout["date"] != today.isoformat()
+                or age_days >= thresholds.stale_workout_days or gap_over,
+                "age_days": age_days, "last_set_created": last_created}
+    finally:
+        if own:
+            try:
+                c.close()
+            except Exception:
+                pass
 
 
 def last_done(c):
@@ -104,6 +114,10 @@ def session_prs(workout_id):
 
 
 def start_workout(note):
+    if note is None:
+        note = ""
+    if not isinstance(note, str):
+        raise RepsError("note must be a string")
     c = conn()
     existing = open_workout(c)
     if existing:
@@ -122,25 +136,43 @@ def start_workout(note):
     return {"workout_id": cur.lastrowid, "reused": False, "date": today}
 
 
+def _check_note(note, field="note", max_len=2000):
+    if note is None:
+        return ""
+    if not isinstance(note, str):
+        raise RepsError(f"{field} must be a string")
+    if len(note) > max_len:
+        raise RepsError(f"{field} is too long ({len(note)} > {max_len} chars)")
+    return note
+
+
 def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
+    from .e1rm import check_reps_entry, check_weight_entry
     c = conn()
     w = open_workout(c)
     if not w:
         raise RepsError("no open workout, run start first (workouts are only created explicitly)")
+    if not isinstance(exercise, str):
+        raise RepsError("exercise must be a string")
     exercise = exercise.strip().lower()
-    try:
-        weight = float(weight)
-    except (TypeError, ValueError):
-        raise RepsError("weight must be a number")
-    try:
-        reps = int(reps)
-    except (TypeError, ValueError):
-        raise RepsError("reps must be an integer")
-    if weight < 0:
-        raise RepsError("weight cannot be negative")
-    if reps <= 0:
-        raise RepsError("reps must be a positive integer")
+    if not exercise:
+        raise RepsError("exercise is required")
+    weight = check_weight_entry(weight)
+    reps = check_reps_entry(reps)
+    note = _check_note(note, "note")
+    if not isinstance(muscles, str):
+        raise RepsError("muscles must be a comma-separated string")
     muscles = clean_muscles(muscles)
+    # Fail closed on unknown muscles: strays never reach lift_muscle.
+    if muscles:
+        from .constants import load_constants as _lc
+        try:
+            known = set(_lc().muscles) | set(_lc().untracked)
+        except RepsError:
+            known = set()
+        strays = [m for m in muscles.split(",") if m and m not in known]  # sanctioned: input-boundary parse of a validated arg
+        if strays:
+            raise RepsError(f"unknown muscle(s) {strays}; use a tracked/untracked name from constants.json")
 
     mapping = lift_muscles(c, exercise)
     if weight == 0:
@@ -204,6 +236,7 @@ def log_set(exercise, weight, reps, note, muscles, bodyweight=False):
 
 
 def update_set(set_id, field, value):
+    from .e1rm import check_reps_entry, check_weight_entry
     allowed = {"weight", "reps", "exercise", "note"}
     if field == "muscles":
         raise RepsError("per-set muscles are gone, the mapping is authoritative; run muscle_map_set for the exercise")
@@ -218,29 +251,25 @@ def update_set(set_id, field, value):
     if not existing:
         raise RepsError("no such set")
     if field == "exercise":
+        if not isinstance(value, str):
+            raise RepsError("exercise must be a string")
         value = value.strip().lower()
+        if not value:
+            raise RepsError("exercise is required")
         if lift_muscles(c, value) is None:
             raise RepsError(f"exercise '{value}' is not a known lift")
     if field == "weight":
         if value == "":
             raise RepsError("weight cannot be empty, pass a number or delete the set")
-        try:
-            value = float(value)
-        except (TypeError, ValueError):
-            raise RepsError("weight must be a number")
-        if value < 0:
-            raise RepsError("weight cannot be negative")
+        value = check_weight_entry(value)
         # Validate zero-weight against exercise type
         if value == 0:
             if not lift_is_bodyweight_only(c, existing["exercise"]):
                 raise RepsError(f"zero weight not allowed for '{existing['exercise']}' (not a bodyweight-only exercise)")
     if field == "reps":
-        try:
-            value = int(value)
-        except (TypeError, ValueError):
-            raise RepsError("reps must be an integer")
-        if value <= 0:
-            raise RepsError("reps must be a positive integer")
+        value = check_reps_entry(value)
+    if field == "note":
+        value = _check_note(value, "note")
     warnings = []
     if field in ("weight", "reps"):
         new_weight = value if field == "weight" else existing["weight"]
@@ -251,7 +280,11 @@ def update_set(set_id, field, value):
             warn_ratio = load_constants().thresholds.e1rm_warn_ratio
             if best > 0 and new_e1rm > best * warn_ratio:
                 warnings.append(f"e1RM {new_e1rm:.1f} is over {round((warn_ratio - 1) * 100)}% above best {best:.1f} for '{existing['exercise']}'; confirm weight and reps")
-    c.execute("UPDATE sets SET {} = ? WHERE id = ?".format(field), (value, int(set_id)))
+    _SET_FIELD_SQL = {"weight": "UPDATE sets SET weight = ? WHERE id = ?",
+                        "reps": "UPDATE sets SET reps = ? WHERE id = ?",
+                        "exercise": "UPDATE sets SET exercise = ? WHERE id = ?",
+                        "note": "UPDATE sets SET note = ? WHERE id = ?"}
+    c.execute(_SET_FIELD_SQL[field], (value, int(set_id)))
     c.commit()
     out = {"updated": int(set_id)}
     if warnings:
@@ -297,9 +330,10 @@ def end_workout(note, force=None):
 
 def mark_rest(day, note):
     try:
-        day = date.fromisoformat(day).isoformat()
-    except ValueError:
+        day = date.fromisoformat(day).isoformat() if isinstance(day, str) else (_ for _ in ()).throw(ValueError())
+    except (ValueError, TypeError, AttributeError):
         raise RepsError("date must be YYYY-MM-DD")
+    note = _check_note(note, "note")
     c = conn()
     if date.fromisoformat(day) > date.today():
         raise RepsError("rest date cannot be in the future")
@@ -344,9 +378,11 @@ def list_exercises():
 
 def get_history(exercise, limit):
     try:
-        limit = int(limit)
+        limit = max(1, min(2000, int(limit)))
     except (TypeError, ValueError):
         raise RepsError("limit must be an integer")
+    if not isinstance(exercise, str):
+        raise RepsError("exercise must be a string")
     c = conn()
     rows = c.execute(
         "SELECT s.*, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY s.id DESC LIMIT ?",
@@ -362,21 +398,27 @@ def get_stats():
     rows = c.execute("SELECT exercise, COUNT(*) n, MAX(e1rm(weight, reps)) max_e1rm, MAX(weight) max_w FROM sets GROUP BY exercise").fetchall()
 
     for r in rows:
-        out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(r["max_e1rm"], 1)}
+        max_e1rm = r["max_e1rm"]
+        # Corrupt rows yield NULL e1RM via the UDF; surface honestly, never traceback.
+        out["by_exercise"][r["exercise"]] = {"sets": r["n"], "max_weight": r["max_w"], "max_e1rm": round(max_e1rm, 1) if max_e1rm is not None else None}
     return out
 
 
 def record_bodyweight(kg, note):
+    import math
     c = conn()
     today = date.today().isoformat()
     try:
         kg = float(kg)
     except (TypeError, ValueError):
         raise RepsError("bodyweight must be a number")
+    if not math.isfinite(kg):
+        raise RepsError("bodyweight must be finite (nan/inf rejected)")
     if kg <= 0:
         raise RepsError("bodyweight must be positive")
     if kg < 20 or kg > 300:
         raise RepsError(f"bodyweight {kg}kg is implausible, confirm the value")
+    note = _check_note(note, "note")
     cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, kg, note))
     c.commit()
     return {"weigh_id": cur.lastrowid, "date": today, "kg": kg}
@@ -490,12 +532,14 @@ def update_workout(workout_id, field, value):
     if field == "date":
         try:
             date.fromisoformat(value)
-        except ValueError:
+        except (ValueError, TypeError, AttributeError):
             raise RepsError("date must be YYYY-MM-DD")
         if date.fromisoformat(value) > date.today():
             raise RepsError("workout date cannot be in the future")
     if field == "status" and value not in values(WorkoutStatus):
-        raise RepsError("status must be open, done or rest")
+        raise RepsError(f"status must be one of {', '.join(values(WorkoutStatus))}")
+    if field == "notes":
+        value = _check_note(value, "notes")
     c = conn()
     if field == "status" and value == "open":
         other = c.execute("SELECT id FROM workouts WHERE status = 'open' AND id != ?", (int(workout_id),)).fetchone()
@@ -512,17 +556,22 @@ def update_workout(workout_id, field, value):
                         (row["date"], int(workout_id))).fetchone()
         if dup:
             raise RepsError(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
-    cur = c.execute(f"UPDATE workouts SET {field} = ? WHERE id = ?", (value, int(workout_id)))
-    if cur.rowcount == 0:
+    _WORKOUT_FIELD_SQL = {"notes": "UPDATE workouts SET notes = ? WHERE id = ?",
+                            "date": "UPDATE workouts SET date = ? WHERE id = ?",
+                            "status": "UPDATE workouts SET status = ? WHERE id = ?"}
+    # Check-then-act: the no-such-workout refusal must precede the write, or
+    # the uncommitted transaction holds the DB lock for later writers.
+    if not c.execute("SELECT id FROM workouts WHERE id = ?", (int(workout_id),)).fetchone():
         raise RepsError("no such workout")
+    c.execute(_WORKOUT_FIELD_SQL[field], (value, int(workout_id)))
     c.commit()
     return {"updated_workout": int(workout_id), "field": field}
 
 
 def get_session(datestr):
     try:
-        day = date.fromisoformat(datestr).isoformat()
-    except ValueError:
+        day = date.fromisoformat(datestr).isoformat() if isinstance(datestr, str) else (_ for _ in ()).throw(ValueError())
+    except (ValueError, TypeError, AttributeError):
         raise RepsError("date must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date = ? ORDER BY id", (day,)).fetchall()
@@ -535,9 +584,9 @@ def get_session(datestr):
 
 def get_session_range(fromstr, tostr):
     try:
-        d0 = date.fromisoformat(fromstr).isoformat()
-        d1 = date.fromisoformat(tostr).isoformat()
-    except ValueError:
+        d0 = date.fromisoformat(fromstr).isoformat() if isinstance(fromstr, str) else (_ for _ in ()).throw(ValueError())
+        d1 = date.fromisoformat(tostr).isoformat() if isinstance(tostr, str) else (_ for _ in ()).throw(ValueError())
+    except (ValueError, TypeError, AttributeError):
         raise RepsError("dates must be YYYY-MM-DD")
     c = conn()
     wrows = c.execute("SELECT * FROM workouts WHERE date >= ? AND date <= ? ORDER BY date, id", (d0, d1)).fetchall()
@@ -568,9 +617,11 @@ def get_calendar():
     for w in wrows:
         d = by_date.setdefault(w["date"], {"date": w["date"], "workouts": [], "sets": 0})
         d["workouts"].append(w["id"])
+    counts = {r["date"]: r["n"] for r in c.execute(
+        "SELECT w.date AS date, COUNT(*) n FROM sets s "
+        "JOIN workouts w ON w.id = s.workout_id GROUP BY w.date").fetchall()}
     for d in by_date.values():
-        n = c.execute("SELECT COUNT(*) n FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE w.date = ?", (d["date"],)).fetchone()["n"]
-        d["sets"] = n
+        d["sets"] = counts.get(d["date"], 0)
     statuses: dict = {}
     for r in c.execute("SELECT date, status FROM workouts").fetchall():
         statuses.setdefault(r["date"], []).append(r["status"])
@@ -600,9 +651,11 @@ def get_context(n):
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         recent.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
     best = []
+    from .e1rm import cap_reps as _cap
+    _cap_n = _cap()
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         top = c.execute(
-            "SELECT weight, reps, e1rm(weight, reps) AS e1rm FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)
+            "SELECT weight, reps, e1rm(weight, reps) AS e1rm FROM sets WHERE exercise = ? AND reps <= ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"], _cap_n)
         ).fetchone()
         last = c.execute(
             "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)

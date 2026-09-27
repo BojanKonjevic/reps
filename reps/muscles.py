@@ -34,10 +34,12 @@ def attach_muscles(c, sets):
 
 
 def best_e1rm(c, exercise, exclude_set=None):
+    from .e1rm import cap_reps
+    cap = cap_reps()
     row = c.execute(
-        "SELECT MAX(e1rm(weight, reps)) AS best FROM sets WHERE exercise = ?"
+        "SELECT MAX(e1rm(weight, reps)) AS best FROM sets WHERE exercise = ? AND reps <= ?"
         + (" AND id != ?" if exclude_set is not None else ""),
-        [exercise] + ([exclude_set] if exclude_set is not None else []),
+        [exercise, cap] + ([exclude_set] if exclude_set is not None else []),
     ).fetchone()
     return row["best"] or 0.0
 
@@ -76,7 +78,9 @@ def get_mapping(exercise=None):
 
 
 def set_movement_note(exercise, text):
-    if not text:
+    if not isinstance(exercise, str) or not exercise.strip():
+        raise RepsError("exercise is required")
+    if not isinstance(text, str) or not text:
         raise RepsError("note text is required")
     c = conn()
     created = datetime.now().isoformat(timespec="seconds")
@@ -91,10 +95,21 @@ def set_movement_note(exercise, text):
 
 def set_exercise_mapping(exercise, muscles, bodyweight=False):
     c = conn()
+    if not isinstance(exercise, str):
+        raise RepsError("exercise must be a string")
     exercise = exercise.strip().lower()
+    if not exercise:
+        raise RepsError("exercise is required")
+    if not isinstance(muscles, str):
+        raise RepsError("muscles must be a comma-separated string")
     muscles = clean_muscles(muscles)
     if not muscles:
         raise RepsError("muscles cannot be empty, pass at least one group")
+    from .constants import load_constants as _lc
+    known = set(_lc().muscles) | set(_lc().untracked)
+    strays = [m for m in muscles.split(",") if m and m not in known]  # sanctioned: input-boundary parse of a validated arg
+    if strays:
+        raise RepsError(f"unknown muscle(s) {strays}; use a tracked/untracked name from constants.json")
     existing = lift_muscles(c, exercise)
     is_bw = lift_is_bodyweight_only(c, exercise) if existing is not None else False
     if bodyweight:

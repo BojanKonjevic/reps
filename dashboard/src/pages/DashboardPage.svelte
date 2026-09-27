@@ -33,6 +33,7 @@
     statusLines,
     subLine,
     adherenceWeeksView,
+    weeklyRows,
   } from '../lib/dashboard';
   import { trendMatrix, liftByName, sessionSpans, latestE1rm, tagFacetsPass } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
@@ -91,8 +92,11 @@
 
   const shown = $derived(
     top
-      .map(t => liftByName(lifts, t)!)
-      .filter(l => l && !ui.hidden.has(l.exercise) && passFilter(l.exercise))
+      .map(t => liftByName(lifts, t))
+      .filter(
+        (l): l is NonNullable<typeof l> =>
+          !!l && !ui.hidden.has(l.exercise) && passFilter(l.exercise)
+      )
   );
 
   const focus = $derived(
@@ -113,7 +117,11 @@
   );
   const sessAvgs = $derived(dayAvgs(spans));
   const progLifts = $derived(
-    lifts.filter(l => l.progression).sort((a, b) => (a.exercise < b.exercise ? -1 : 1))
+    lifts
+      .filter(
+        (l): l is typeof l & { progression: NonNullable<typeof l.progression> } => !!l.progression
+      )
+      .sort((a, b) => (a.exercise < b.exercise ? -1 : 1))
   );
 
   const changed = $derived(recentChanges(snap, 5));
@@ -260,7 +268,10 @@
 
   {#if snap.signals}
     <div id="sigWrap">
-      <SectionHeader title="Coach notes" />
+      <SectionHeader
+        title="Coach notes"
+        sub="Plain words: MEV is the minimum weekly sets that grow a muscle, MRV the most you can recover from, e1RM your estimated one-rep max."
+      />
       <div id="sigCard" class="surface-flat">
         {#if !snap.signals.length}
           <div class="empty">all clear, nothing flagged</div>
@@ -325,9 +336,9 @@
                   {/each}
                 </div>
               {/if}
-              <a href={href.lift(lift.exercise)} aria-label={lift.exercise} style="display:block">
+              <div style="display:block">
                 <TrendMini {lift} days={matrix.days} {vals} color={liftColor(lift.exercise)} />
-              </a>
+              </div>
             </div>
           {/each}
         {/if}
@@ -360,12 +371,7 @@
       <div class="surface-flat">
         <VolumeChart
           labels={snap.volume_history.week_starts}
-          weeks={snap.volume_history.week_starts.map((_, i) => {
-            const row: Record<string, number> = {};
-            for (const [m, arr] of Object.entries(snap.volume_history.by_muscle))
-              row[m] = arr[i] ?? 0;
-            return row;
-          })}
+          weeks={weeklyRows(snap.volume_history.week_starts, snap.volume_history.by_muscle)}
           groups={vocab.groups}
           colors={vocab.colors}
           {mevOf}
@@ -538,14 +544,14 @@
           {#each progLifts as lift}
             <tr>
               <td><a href={href.lift(lift.exercise)}>{lift.exercise}</a></td>
-              <td class={verdictClass(lift.progression!.verdict)} style:font-weight="600"
-                >{lift.progression!.verdict}</td
+              <td class={verdictClass(lift.progression.verdict)} style:font-weight="600"
+                >{lift.progression.verdict}</td
               >
-              <td class="num">{lift.progression!.next}</td>
+              <td class="num">{lift.progression.next}</td>
               <td
-                title={lift.progression!.direction}
-                class={directionClass(lift.progression!.direction)}
-                style:font-weight="600">{directionArrow(lift.progression!.direction)}</td
+                title={lift.progression.direction}
+                class={directionClass(lift.progression.direction)}
+                style:font-weight="600">{directionArrow(lift.progression.direction)}</td
               >
             </tr>
           {/each}

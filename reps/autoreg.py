@@ -50,8 +50,15 @@ def autoreg_drop_watch(c):
     """
     t = load_constants().thresholds.model_dump()
     out = []
+    from .program import active_deloads, deload_covers, parse_active_split_days
+    deloads = active_deloads(c)
+    day_moves = parse_active_split_days(c) if deloads else {}
     for r in c.execute("SELECT DISTINCT exercise FROM sets").fetchall():
         ex = r["exercise"]
+        if deloads and deload_covers(deloads, ex, day_moves):
+            # Structured deload state excludes, not just a "deload" substring
+            # in notes (misspellings used to break the filter).
+            continue
         clean = [e for day, e, notes, _ in top_e1rm_by_date(c, ex)
                  if "deload" not in (notes or "").lower()]
         if len(clean) < 3:
@@ -136,6 +143,16 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
     below = mev_floor_warnings(programmed_weekly_volume(c, simulated), affected)
     if below:
         raise RepsError("below MEV, refusing: " + "; ".join(below))
+    # MRV ceiling: the add path must not push a muscle past its recoverable max.
+    from .constants import load_constants as _lc
+    _constants = _lc()
+    _after_vol = programmed_weekly_volume(c, simulated)
+    _over = sorted(m for m in affected
+                   if (e := _constants.muscles.get(m)) is not None
+                   and e.mrv is not None and _after_vol.get(m, 0) > e.mrv)
+    if _over:
+        raise RepsError("above MRV, refusing: " + "; ".join(
+            f"{m}: programmed {_after_vol.get(m, 0)}/wk over MRV {_constants.muscles[m].mrv}" for m in _over))
     if parse_movements(to_movements) != parse_movements(cur["movements"]):
         action = "swap"
     elif to_sets < cur["sets"]:
@@ -143,9 +160,10 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
     else:
         action = "add"
     from .program import _write_slot
+    import sqlite3 as _sqlite3
     try:
         _write_slot(c, "active", day, slot, parse_movements(to_movements), to_sets)
-    except Exception as e:
+    except (_sqlite3.IntegrityError, RepsError) as e:
         c.rollback()
         raise RepsError(f"split write refused: {e}")
     hold_until = None

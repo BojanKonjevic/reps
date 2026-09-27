@@ -25,6 +25,9 @@ def usage() -> NoReturn:
 
 
 def emit(result: Any) -> None:
+    # Maintenance return contract: domain fns return bare payloads (no "ok"
+    # wrapper); run_doctor returns {"ok": ...} explicitly. emit prints JSON
+    # and exits 1 only on an explicit ok:false refusal, never on a bare dict.
     if isinstance(result, str):
         print(result)
     else:

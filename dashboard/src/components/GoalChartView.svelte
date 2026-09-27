@@ -83,4 +83,10 @@
   });
 </script>
 
-<canvas bind:this={cv} {id} width="860" height="200"></canvas>
+<canvas
+  aria-label="Goal trajectory chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  {id}
+  width="860"
+  height="200"
+></canvas>

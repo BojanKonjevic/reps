@@ -218,6 +218,8 @@ CREATE TABLE IF NOT EXISTS state_change (
 );
 CREATE INDEX IF NOT EXISTS idx_state_change_domain_subject_date
   ON state_change(domain, subject, date, created, id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_state_change_sequence
+  ON state_change(domain, subject, date, sequence);
 """
 
 
@@ -232,13 +234,28 @@ AUTOREG_CHANGE_COLS = {"id", "date", "action", "day", "slot", "before_movements"
 
 
 def conn():
+    import logging as _logging
     from .e1rm import e1rm as _e1rm
 
-    c = sqlite3.connect(DB)
+    c = sqlite3.connect(DB, timeout=30.0)
     c.row_factory = sqlite3.Row
+    try:
+        c.execute("PRAGMA busy_timeout = 30000")
+    except sqlite3.Error:
+        pass
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA foreign_keys=ON")
-    c.create_function("e1rm", 2, lambda w, r: _e1rm(w, r), deterministic=True)
+
+    def _e1rm_udf(w, r):
+        # Corrupt rows (reps<=0, non-finite weight) return NULL instead of
+        # raising through SQLite as OperationalError. Aggregates skip NULL,
+        # so one bad row cannot poison MAX(e1rm) for the lift.
+        try:
+            return _e1rm(w, r)
+        except Exception:
+            return None
+
+    c.create_function("e1rm", 2, _e1rm_udf, deterministic=True)
     tables = {r[0] for r in c.execute(
         "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     if "schema_version" not in tables:
@@ -262,15 +279,46 @@ def conn():
         c.close()
         raise RuntimeError(
             f"schema version {row['version']} != code {SCHEMA_VERSION}; "
-            "migrate the database, there is no auto-migrate path")
+            "refusing to migrate automatically (policy: refuse + restore). "
+            "Restore a matching workouts.sql dump or reconcile the schema manually")
     c.executescript(SCHEMA)
     return c
 
 
+def active_paths() -> dict:
+    """Which DB/constants/config paths are active (for env-divergence diagnostics)."""
+    from .constants import CONSTANTS_FILE as _CF
+    return {"db": DB, "constants": _CF, "config": CFG}
+
+
 def placeholders(n):
-    return ",".join("?" * max(1, n))
+    if n <= 0:
+        from .errors import RepsError
+        raise RepsError("internal error: empty placeholder list (refusing to build ambiguous SQL)")
+    return ",".join("?" * n)
+
+
+# Central allowlist for the few places that interpolate table/column names
+# into SQL (string assembly is allowlist-safe today, fragile tomorrow: every
+# future interpolation must go through here so a typo cannot become injection).
+_TABLE_ALLOWLIST = frozenset({
+    "sets", "goals", "movement_note", "progression",
+    "workouts", "bodyweight", "lift", "lift_muscle",
+})
+
+
+def check_table(name):
+    if name not in _TABLE_ALLOWLIST:
+        from .errors import RepsError
+        raise RepsError(f"internal error: unexpected table '{name}' (allowlist refused)")
+    return name
 
 
 def open_workout(c):
-    row = c.execute("SELECT * FROM workouts WHERE status = 'open' ORDER BY id DESC LIMIT 1").fetchone()
-    return row
+    rows = c.execute("SELECT * FROM workouts WHERE status = 'open' ORDER BY id DESC LIMIT 2").fetchall()
+    if len(rows) > 1:
+        from .errors import RepsError
+        raise RepsError(
+            f"data corruption: {len(rows)}+ open workouts (ids {[r['id'] for r in rows]} and possibly more); "
+            "run doctor, keep the newest, end or delete the rest before logging")
+    return rows[0] if rows else None

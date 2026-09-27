@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import BLANK from './generated/blank.json';
 import { SCHEMA_VERSION, SNAPSHOT_SCHEMA_VERSION } from './generated/version';
+import { historyStatesSchema } from './generated/historyStates';
 
 interface Env {
   SNAPSHOTS: R2Bucket;
@@ -91,6 +92,15 @@ export default {
         httpMetadata: { contentType: 'application/json' },
       });
       if (statesRaw !== null) {
+        let states: unknown;
+        try {
+          states = JSON.parse(statesRaw);
+        } catch {
+          return Response.json({ error: 'history_states not json' }, { status: 400 });
+        }
+        if (!historyStatesSchema.safeParse(states).success) {
+          return Response.json({ error: 'history_states invalid' }, { status: 400 });
+        }
         await env.SNAPSHOTS.put('history-states.json', statesRaw, {
           httpMetadata: { contentType: 'application/json' },
         });
@@ -105,18 +115,28 @@ export default {
       if (!obj) return Response.json(BLANK);
       const raw = await obj.text();
       const tag = etagFor(raw);
-      return new Response(raw, {
-        headers: tag
-          ? { 'content-type': 'application/json', etag: tag }
-          : { 'content-type': 'application/json' },
-      });
+      // Published-snapshot caching: 30s public cache matches the client's
+      // staleTime; revalidation via ETag. Same-origin app + API, so no CORS
+      // headers; abuse throttling is Cloudflare's edge default, no custom
+      // rate-limit layer here by design.
+      const headers: Record<string, string> = {
+        'content-type': 'application/json',
+        'cache-control': 'public, max-age=30',
+      };
+      if (tag) headers['etag'] = tag;
+      return new Response(raw, { headers });
     }
     if (url.pathname === '/history-states') {
       const obj = await env.SNAPSHOTS.get('history-states.json');
       if (!obj) return Response.json({ error: 'no history states synced' }, { status: 404 });
-      return new Response(await obj.text(), {
-        headers: { 'content-type': 'application/json' },
-      });
+      const raw = await obj.text();
+      const tag = etagFor(raw);
+      const headers: Record<string, string> = {
+        'content-type': 'application/json',
+        'cache-control': 'public, max-age=300',
+      };
+      if (tag) headers['etag'] = tag;
+      return new Response(raw, { headers });
     }
     return new Response('not found', { status: 404 });
   },

@@ -99,7 +99,7 @@ def get_plan(slot=None, verbose=False):
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         top = c.execute(
             "SELECT weight, reps, e1rm(weight, reps) AS e1rm "
-            "FROM sets WHERE exercise = ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"],)).fetchone()
+            "FROM sets WHERE exercise = ? AND reps <= ? ORDER BY e1rm DESC LIMIT 1", (r["exercise"], constants.thresholds.e1rm_cap_reps)).fetchone()
         last = c.execute(
             "SELECT s.weight, s.reps FROM sets s JOIN workouts w ON w.id = s.workout_id "
             "WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (r["exercise"],)).fetchone()

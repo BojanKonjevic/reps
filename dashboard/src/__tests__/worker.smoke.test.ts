@@ -125,4 +125,37 @@ describe('worker entry (no DOM globals)', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it('rejects invalid history_states instead of storing them', async () => {
+    const r2 = memR2();
+    const put = await callFetch(
+      new Request('http://localhost/sync', {
+        method: 'PUT',
+        body: JSON.stringify({ snapshot: rich, history_states: { exported: 'x', states: 'nope' } }),
+        headers: { Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' },
+      }),
+      authed(r2)
+    );
+    expect(put.status).toBe(400);
+    const states = await callFetch(new Request('http://localhost/history-states'), authed(r2));
+    expect(states.status).toBe(404);
+  });
+
+  it('serves cache and etag headers on state reads', async () => {
+    const r2 = memR2();
+    const payload = JSON.stringify({ snapshot: rich, history_states: richStates });
+    await callFetch(
+      new Request('http://localhost/sync', {
+        method: 'PUT',
+        body: payload,
+        headers: { Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' },
+      }),
+      authed(r2)
+    );
+    const snap = await callFetch(new Request('http://localhost/snapshot'), authed(r2));
+    expect(snap.headers.get('cache-control')).toContain('max-age=30');
+    expect(snap.headers.get('etag')).toBeTruthy();
+    const states = await callFetch(new Request('http://localhost/history-states'), authed(r2));
+    expect(states.headers.get('cache-control')).toContain('max-age=300');
+  });
 });

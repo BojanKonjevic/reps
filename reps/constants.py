@@ -32,16 +32,35 @@ def load_constants() -> ConstantsModel:
     The single source of truth for taxonomy and thresholds. Fails loudly
     on parse error or constraint violation. No silent fallback, no raw
     dict: attribute access on the model is the only read path.
+
+    Per-request memoization: repeated loads within one process reuse the
+    parsed model while the file mtime is unchanged, so a snapshot/plan
+    build reads one consistent thresholds image     per request.
     """
+    global _CONST_CACHE, _CONST_MTIME
+    try:
+        mtime = os.path.getmtime(CONSTANTS_FILE)
+    except OSError:
+        mtime = -1
+    cached = globals().get("_CONST_CACHE")
+    if cached is not None and globals().get("_CONST_MTIME") == mtime:
+        return cached
+    if CONSTANTS_FILE != os.path.join(ROOT, "constants.json"):
+        import logging as _logging
+        _logging.getLogger("reps.constants").warning(
+            "reading constants from override %s", CONSTANTS_FILE)
     try:
         with open(CONSTANTS_FILE, 'r') as f:
             raw = json.load(f)
     except (OSError, ValueError) as e:
         raise RepsError(f"constants.json unreadable at {CONSTANTS_FILE} ({e}), fix or restore it")
     try:
-        return ConstantsModel.model_validate(raw)
+        model = ConstantsModel.model_validate(raw)
     except ValidationError as e:
         raise RepsError(f"constants invalid at {CONSTANTS_FILE}: {first_error(e)}")
+    globals()["_CONST_CACHE"] = model
+    globals()["_CONST_MTIME"] = mtime
+    return model
 
 
 def parse_mev_from_science():
@@ -114,6 +133,26 @@ def clean_muscles(value):
     return ",".join(out)
 
 
+def _dump_compact(raw) -> str:
+    """Serialize constants.json preserving the repo's compact style.
+
+    Short numeric/string arrays and rep-band objects stay on one line;
+    everything else uses indent 2. Without this every set_constant call
+    rewrites the whole file into expanded form (noisy diffs).
+    """
+    import re as _re
+    text = json.dumps(raw, indent=2)
+    text = _re.sub(r'\[\s*(?:-?\d+(?:\.\d+)?(?:,\s*)?\s*)+\s*\]',
+                   lambda m: '[' + ', '.join(_re.findall(r'-?\d+(?:\.\d+)?', m.group(0))) + ']',
+                   text)
+    text = _re.sub(r'\[\s*(?:"[^"]*"(?:,\s*)?\s*)+\s*\]',
+                   lambda m: '[' + ', '.join(f'"{s}"' for s in _re.findall(r'"([^"]*)"', m.group(0))) + ']',
+                   text)
+    text = _re.sub(r'\{\s*"max_reps": (\d+|null),\s*"jump_pct": ([\d.]+|null)\s*\}',
+                   r'{"max_reps": \1, "jump_pct": \2}', text)
+    return text + "\n"
+
+
 def get_constants(key=None):
     constants = load_constants().model_dump()
     if not key:
@@ -157,8 +196,7 @@ def set_constant(key, value):
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(CONSTANTS_FILE)), suffix=".constants")
     try:
         with os.fdopen(fd, 'w') as f:
-            json.dump(raw, f, indent=2)
-            f.write("\n")
+            f.write(_dump_compact(raw))
         os.replace(tmp, CONSTANTS_FILE)
     finally:
         try:

@@ -549,7 +549,7 @@
       "type": "string"
     },
     "ConstantsModel": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "description": "Canonical validated form of constants.json.",
       "properties": {
         "version": {
@@ -1603,6 +1603,11 @@
             }
           ],
           "title": "Delta E1Rm"
+        },
+        "non_counting": {
+          "default": false,
+          "title": "Non Counting",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1755,7 +1760,7 @@
       "type": "object"
     },
     "MuscleEntry": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "description": "Per-muscle dose landmarks. mav/mrv stay optional: some groups\n(e.g. forearms) have no trusted landmarks, plan falls back to mev.",
       "properties": {
         "mev": {
@@ -2288,7 +2293,7 @@
       "type": "object"
     },
     "RepBand": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "description": "One progression jump band. Both fields null is the open-ended\nterminator above the top band; otherwise max_reps ascends and\njump_pct is positive.",
       "properties": {
         "max_reps": {
@@ -2730,8 +2735,8 @@
       "type": "object"
     },
     "Thresholds": {
-      "additionalProperties": true,
-      "description": "Numeric guardrails. Only the invariants the backend enforces are\nconstrained here; keys the code reads opaquely stay permissive.",
+      "additionalProperties": false,
+      "description": "Numeric guardrails. Only the invariants the backend enforces are\nconstrained here; keys the code reads opaquely stay permissive.\n\nFallback policy: defaults below exist for backward compatibility with\npayloads synced before a key existed (the worker serves the last synced\npayload, which can predate new fields). constants.json always carries\nevery key and is the single owner; code never invents a threshold the\nfile does not have, except when reading a stale payload. New tunables\nwith no old-payload readers SHOULD be required (see trend_top_lifts).",
       "properties": {
         "stale_workout_hours": {
           "anyOf": [
@@ -2897,8 +2902,12 @@
           "type": "integer"
         },
         "trend_top_lifts": {
-          "default": 8,
           "title": "Trend Top Lifts",
+          "type": "integer"
+        },
+        "e1rm_cap_reps": {
+          "default": 12,
+          "title": "E1Rm Cap Reps",
           "type": "integer"
         },
         "deload_volume_reduction": {
@@ -2927,7 +2936,8 @@
         "ledger_retention_days",
         "default_new_slot_sets",
         "adherence_drift_days",
-        "progression_drop_pct"
+        "progression_drop_pct",
+        "trend_top_lifts"
       ],
       "title": "Thresholds",
       "type": "object"

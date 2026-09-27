@@ -154,3 +154,31 @@ def test_fix_tool_names_are_registered():
     src = inspect.getsource(sessions.end_gate_items)
     for m in re.finditer(r'"fix_tool": "([^"]+)"', src):
         assert m.group(1) in TOOLS, f"fix_tool {m.group(1)} is not a registered tool"
+
+
+def test_plan_bundle_keys_pinned(log_module):
+    """LOGGING.md teaches plan bundle keys in prose; the bundle shape is pinned
+    here so docs cannot drift from code (F38/F69)."""
+    bundle = log_module.get_plan()
+    expected = {"today", "slot_guess", "split", "goals", "rules", "volume",
+                "ledger", "lifts", "progression", "flags", "priority",
+                "deload", "autoreg", "adherence", "compaction"}
+    assert set(bundle) == expected, f"plan bundle drift: {set(bundle) ^ expected}"
+
+
+def test_end_gate_behavior_literal(log_module):
+    """session_end gate prose in MCP docstrings stays honest: missing
+    progression blocks close, force skips writeback items only (F38)."""
+    from reps.errors import RepsError
+    log = log_module
+    log.start_workout("gate check")
+    log.log_set("bench", 80, 5, "", "chest")
+    try:
+        log.end_workout("done")
+        assert False, "should have refused"
+    except RepsError as e:
+        assert "missing progression" in str(e)
+    log.set_progression("bench", "baseline", 82.5, 5, "flat")
+    log.set_split("Upper A", 1, "bench", 3)
+    out = log.end_workout("done")
+    assert out["closed"] >= 1

@@ -37,6 +37,10 @@
 | Concept                              | Owner                                                                     | Consumers derive via                             | Tier  | Gate               |
 | ------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------ | ----- | ------------------ |
 | e1RM                                 | `reps/e1rm.py`                                                            | SQL UDF `e1rm`; snapshot fields                  | T1    | G1                 |
+| e1RM counting rule (>cap excluded)   | `reps/e1rm.py` `is_e1rm_counting_set` + `thresholds.e1rm_cap_reps`        | PRs, progression tops, stall/slip, goals, audit, snapshot `non_counting` | T1 | tests |
+| Destructive-op audit log             | `reps/auditlog.py` (`audit.log`, local, untracked)                       | MCP destructive/force handlers                   | T2    | tests              |
+| SQL table allowlist                  | `reps/db.py` `check_table`                                                | `merge_lifts`, any future table interpolation    | T1    | tests              |
+| Movement splitter                    | `reps/program.py` `parse_movements`                                       | split writes, snapshot `_split_moves`, autoreg   | T1    | tests              |
 | Personal record                      | `reps/records.py`                                                         | snapshot `is_pr`; MCP                            | T1    | G1 (no TS PR code) |
 | Slot match / next slot               | `reps/slots.py`                                                           | plan, adherence, snapshot                        | T1    | tests              |
 | Stall / slipping                     | `reps/trends.py` + constants                                              | snapshot `tags`                                  | T1    | tests              |

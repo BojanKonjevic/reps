@@ -27,5 +27,14 @@ def append_memory_state(line):
     if not block.endswith("\n"):
         line = "\n" + line
     text = text[:insert_at] + ("" if block.endswith("\n") else "\n") + line + "\n" + text[insert_at:]
-    with open(MEMORY_FILE, 'w') as f:
-        f.write(text)
+    import tempfile
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(MEMORY_FILE)), suffix=".memory")
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(text)
+        os.replace(tmp, MEMORY_FILE)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass

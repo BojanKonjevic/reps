@@ -97,4 +97,11 @@
   });
 </script>
 
-<canvas bind:this={cv} {id} width="860" height="250" style:height></canvas>
+<canvas
+  aria-label="Muscle volume chart. Values available in adjacent tables and links."
+  bind:this={cv}
+  {id}
+  width="860"
+  height="250"
+  style:height
+></canvas>

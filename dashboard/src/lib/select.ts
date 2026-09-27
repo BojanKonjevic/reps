@@ -166,11 +166,15 @@ export interface SessionSpan {
 export function sessionSpans(sessions: SessionView[]): SessionSpan[] {
   // Done sessions with a derived span only: open workouts are partial,
   // rest rows carry no sets. Unmatched days group under one label.
+  // The filter narrows null/undefined away; the map reads the narrowed value.
   return sessions
-    .filter(s => s.status === 'done' && s.duration_min !== null && s.duration_min !== undefined)
+    .filter(
+      (s): s is SessionView & { duration_min: number } =>
+        s.status === 'done' && typeof s.duration_min === 'number'
+    )
     .map(s => ({
       date: s.date,
-      minutes: s.duration_min as number,
+      minutes: s.duration_min,
       day: s.slot_label || 'unscheduled',
     }))
     .sort((a, b) => (a.date < b.date ? -1 : 1));
