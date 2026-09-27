@@ -39,22 +39,22 @@ const snap = rich as unknown as Parameters<typeof eventsForLift>[0];
 describe('event relevance', () => {
   it('keeps lift-relevant changes off unrelated lifts', () => {
     const bench = eventsForLift(snap, 'bench').map(e => e.title);
-    expect(bench).toContain('Upper A changed');
+    expect(bench).toContain('Upper A recorded');
     expect(bench).toContain('Bench goal set');
     expect(bench).toContain('Chest priority changed');
-    expect(bench).not.toContain('Upper B changed');
-    expect(bench.every(e => e !== 'Rotation changed')).toBe(true);
-    expect(bench.every(e => e !== 'Schedule re-anchored')).toBe(true);
+    expect(bench).not.toContain('Upper B recorded');
+    expect(bench.every(e => !e.startsWith('Training week order'))).toBe(true);
+    expect(bench.every(e => !e.startsWith('Schedule counting'))).toBe(true);
   });
 
   it('keeps muscle-relevant changes off unrelated muscles', () => {
     const chest = eventsForMuscle(snap, 'chest').map(e => e.title);
     expect(chest).toContain('Chest priority changed');
-    expect(chest).toContain('Upper A changed');
-    expect(chest).not.toContain('Upper B changed');
+    expect(chest).toContain('Upper A recorded');
+    expect(chest).not.toContain('Upper B recorded');
     const back = eventsForMuscle(snap, 'back').map(e => e.title);
-    expect(back).toContain('Upper B changed');
-    expect(back).not.toContain('Upper A changed');
+    expect(back).toContain('Upper B recorded');
+    expect(back).not.toContain('Upper A recorded');
   });
 
   it('scopes goal charts to their own exercise', () => {
@@ -85,7 +85,7 @@ describe('grouping and recency', () => {
 
 describe('before/after rendering', () => {
   it('renders program slots without raw JSON', () => {
-    const e = eventsForLift(snap, 'bench').find(x => x.title === 'Upper A changed')!;
+    const e = eventsForLift(snap, 'bench').find(x => x.title === 'Upper A recorded')!;
     const after = envelopeLines(e.domain, e.after);
     expect(after.join('\n')).toContain('sets');
     expect(after.join('\n')).not.toContain('{');
@@ -159,22 +159,44 @@ describe('unknown history', () => {
 describe('provenance', () => {
   it('serves backend-owned definitions per metric', () => {
     const def = defOf(snap, 'lift_trend')!;
-    expect(def.definition).toContain('e1RM');
+    expect(def.definition).toContain('best set');
+    expect(def.based_on).toContain('your logged sets');
     expect(def.sources).toContain('sets');
     expect(defOf(snap, 'muscle_volume')?.sources).toContain('set_muscle');
+    expect(def.definition).not.toContain('reps/');
     // Unknown metrics cannot typecheck: probe with a cast, expect null.
     expect(defOf(snap, 'nope' as 'lift_trend')).toBeNull();
   });
 
-  it('labels every history domain', () => {
+  it('labels every history domain in plain language', () => {
     expect(['program', 'goal', 'priority', 'rotation', 'rule', 'deload'].map(domainLabel)).toEqual([
       'Program',
       'Goal',
       'Priority',
-      'Rotation',
-      'Rule',
+      'Schedule',
+      'Coaching note',
       'Deload',
     ]);
+  });
+
+  it('keeps user facing strings free of dev terms', () => {
+    for (const e of snap.history) {
+      for (const s of [e.title, e.summary, e.impact]) {
+        expect(s).not.toContain('rotation_anchor');
+        expect(s).not.toContain('state_change');
+        expect(s).not.toContain('position 0');
+      }
+      expect(e.impact.length).toBeGreaterThan(0);
+    }
+    const anchor = snap.history.find(e => e.domain === 'rotation' && e.subject === 'anchor')!;
+    expect(anchor.title).toContain('Schedule counting');
+    expect(anchor.summary).toContain('counting from');
+  });
+
+  it('renders anchor envelopes without position jargon', () => {
+    const anchor = snap.history.find(e => e.domain === 'rotation' && e.subject === 'anchor')!;
+    expect(envelopeLines(anchor.domain, anchor.after).join(' | ')).toContain('counting from');
+    expect(envelopeLines(anchor.domain, anchor.after).join(' | ')).not.toContain('position');
   });
 });
 

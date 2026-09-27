@@ -285,6 +285,7 @@ export const HistoryEventSchema = z.object({
   "after": z.union([ProgramHistoryPayloadSchema, GoalHistoryPayloadSchema, DeloadHistoryPayloadSchema, RuleHistoryPayloadSchema, PriorityHistoryPayloadSchema, RotationHistoryPayloadSchema]),
   "title": z.string(),
   "summary": z.string(),
+  "impact": z.string(),
   "affects_exercises": z.array(z.string()),
   "affects_muscles": z.array(z.string()),
   "affects_days": z.array(z.string()),
@@ -395,6 +396,7 @@ export const ObservationDefSchema = z.object({
   "subject_kind": z.string(),
   "definition": z.string(),
   "sources": z.array(z.string()),
+  "based_on": z.array(z.string()),
 }).strict();
 
 export const PrioritySchema = z.object({

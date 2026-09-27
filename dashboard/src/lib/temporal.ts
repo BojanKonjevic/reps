@@ -209,7 +209,7 @@ export function coverageNote(relevant: HistoryEvent[], dataStart: string | null)
 }
 
 function fmtOpt(v: number | string | null | undefined): string {
-  if (v === null || v === undefined) return 'unset';
+  if (v === null || v === undefined) return 'not set';
   return typeof v === 'number' ? fmtV(v) : v;
 }
 
@@ -227,14 +227,15 @@ function slotLines(slots: ProgramSlotSnapshot[] | null | undefined): string[] {
 
 // Narrow the unmarked before/after union by domain through the generated
 // payload types: a backend field rename fails the build here instead of
-// rendering silently wrong.
+// rendering silently wrong. Lines stay in training language, never raw
+// field names.
 export function envelopeLines(domain: string, payload: HistoryEvent['before']): string[] {
   if (domain === 'program') {
     return slotLines((payload as ProgramHistoryPayload).slots ?? null);
   }
   if (domain === 'priority') {
     const p = payload as PriorityHistoryPayload;
-    return ['tier: ' + fmtOpt(p.tier), 'since: ' + fmtOpt(p.since), 'until: ' + fmtOpt(p.until)];
+    return ['focus: ' + fmtOpt(p.tier), 'since: ' + fmtOpt(p.since), 'until: ' + fmtOpt(p.until)];
   }
   if (domain === 'goal') {
     const p = payload as GoalHistoryPayload;
@@ -250,7 +251,7 @@ export function envelopeLines(domain: string, payload: HistoryEvent['before']): 
   if (domain === 'deload') {
     const p = payload as DeloadHistoryPayload;
     return [
-      (p.scope ?? 'unset') + ' ' + (p.subject ?? 'unset'),
+      (p.scope ?? 'not set') + ' ' + (p.subject ?? 'not set'),
       (p.active ? 'active' : 'not active') + ' (' + p.action + ')',
     ];
   }
@@ -261,10 +262,10 @@ export function envelopeLines(domain: string, payload: HistoryEvent['before']): 
   if (domain === 'rotation') {
     const p = payload as RotationHistoryPayload;
     if (p.anchor_date !== undefined || p.position !== undefined) {
-      return ['anchor: ' + fmtOpt(p.anchor_date), 'position: ' + fmtOpt(p.position)];
+      return p.anchor_date ? ['counting from ' + fmtOpt(p.anchor_date)] : ['no start date'];
     }
-    if (!Array.isArray(p.rotation)) return ['no rotation recorded'];
-    return ['order: ' + rotOrder(p.rotation)];
+    if (!Array.isArray(p.rotation)) return ['no week order recorded'];
+    return ['week order: ' + rotOrder(p.rotation)];
   }
   return ['change recorded'];
 }
@@ -277,8 +278,8 @@ const DOMAIN_LABELS: Record<string, string> = {
   program: 'Program',
   goal: 'Goal',
   priority: 'Priority',
-  rotation: 'Rotation',
-  rule: 'Rule',
+  rotation: 'Schedule',
+  rule: 'Coaching note',
   deload: 'Deload',
 };
 
@@ -293,7 +294,7 @@ export function trajectoryLines(event: HistoryEvent): string[] {
   if (event.domain !== 'goal') return [];
   const b = event.before as GoalHistoryPayload;
   const a = event.after as GoalHistoryPayload;
-  const f = (d: string | null | undefined) => (d ? fmtD(d) : 'unset');
+  const f = (d: string | null | undefined) => (d ? fmtD(d) : 'not set');
   if (a.action === 'add') {
     return ['target ' + fmtOpt(a.target_e1rm) + ' e1RM', 'by ' + f(a.deadline)];
   }

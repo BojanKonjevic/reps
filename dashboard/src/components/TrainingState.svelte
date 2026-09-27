@@ -93,13 +93,11 @@
   const rotThen = $derived(st.rotation === null ? 'not recorded' : rotOrder(st.rotation));
   const anchorThen = $derived(
     st.anchor_known
-      ? 'position ' + st.anchor_position + ' from ' + fmtD(st.anchor_date ?? '')
+      ? 'counting from ' + fmtD(st.anchor_date ?? '')
       : unavailable(st.anchor_first_date)
   );
   const anchorNow = $derived(
-    snap.program.anchor
-      ? 'position ' + snap.program.anchor.index + ' from ' + fmtD(snap.program.anchor.date)
-      : 'no anchor set'
+    snap.program.anchor ? 'counting from ' + fmtD(snap.program.anchor.date) : 'no start date set'
   );
 
   const partial = $derived.by(() => {
@@ -243,7 +241,7 @@
 
   {#if !compare || !rotSame}
     <div class="asofsec">
-      <div class="cap">Rotation</div>
+      <div class="cap">Week order</div>
       {#if !compare}
         <div>{st.rotation_known ? rotThen : unavailable(st.rotation_first_date)}</div>
       {:else}
@@ -253,9 +251,9 @@
         </div>
       {/if}
       {#if !compare}
-        <div>Anchor: {anchorThen}</div>
+        <div>Counting: {anchorThen}</div>
       {:else if !anchSame}
-        <div>Anchor: {fmtD(date)}: {anchorThen} · today: {anchorNow}</div>
+        <div>Counting: {fmtD(date)}: {anchorThen} · today: {anchorNow}</div>
       {/if}
     </div>
   {/if}

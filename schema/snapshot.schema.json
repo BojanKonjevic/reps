@@ -1094,7 +1094,7 @@
     },
     "HistoryEvent": {
       "additionalProperties": false,
-      "description": "One recorded training-system transition for the dashboard read model.\n\nbefore/after are the validated domain envelopes; title/summary/affects\nare the read-model projection built once in reps/snapshot.py so every\nchart formats the same change the same way.",
+      "description": "One recorded training-system transition for the dashboard read model.\n\nbefore/after are the validated domain envelopes; title/summary/impact and\naffects are the read-model projection built once in reps/snapshot.py so\nevery chart formats the same change the same way. impact is the plain\nlanguage effect on training, evidence stays the verbatim agent motive.",
       "properties": {
         "id": {
           "title": "Id",
@@ -1199,6 +1199,10 @@
           "title": "Summary",
           "type": "string"
         },
+        "impact": {
+          "title": "Impact",
+          "type": "string"
+        },
         "affects_exercises": {
           "items": {
             "type": "string"
@@ -1235,6 +1239,7 @@
         "after",
         "title",
         "summary",
+        "impact",
         "affects_exercises",
         "affects_muscles",
         "affects_days"
@@ -1943,7 +1948,7 @@
     },
     "ObservationDef": {
       "additionalProperties": false,
-      "description": "Backend-owned definition and provenance for one observation metric.\nThe dashboard renders these verbatim; it never restates domain meaning.",
+      "description": "Backend-owned definition and provenance for one observation metric.\nThe dashboard renders definition and based_on verbatim; sources stay as\nthe raw audit trail and render only inside the collapsed technical line.",
       "properties": {
         "metric": {
           "$ref": "#/$defs/ObserveMetric"
@@ -1962,13 +1967,21 @@
           },
           "title": "Sources",
           "type": "array"
+        },
+        "based_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Based On",
+          "type": "array"
         }
       },
       "required": [
         "metric",
         "subject_kind",
         "definition",
-        "sources"
+        "sources",
+        "based_on"
       ],
       "title": "ObservationDef",
       "type": "object"

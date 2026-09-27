@@ -37,11 +37,15 @@ def test_observation_defs_match_observe_provenance(log_module):
             continue  # adherence needs rotation+anchor; def still embedded
         assert out["provenance"]["sources"] == defs[metric]["sources"]
         assert out["provenance"]["definition"] == defs[metric]["definition"]
-    assert defs["lift_trend"]["subject_kind"] == "exercise"
+        assert out["provenance"]["based_on"] == defs[metric]["based_on"]
+    assert defs["lift_trend"]["subject_kind"] == "exercise, like bench"
+    assert defs["lift_trend"]["based_on"] == ["your logged sets"]
+    assert "reps/" not in defs["lift_trend"]["definition"]
+    assert "history_get" not in defs["program_activity"]["definition"]
 
 
 def test_history_events_are_described(log_module):
-    """Titles, summaries, and relevance hints with literal oracles."""
+    """Titles, summaries, impacts, and relevance hints with literal oracles."""
     log = _seeded(log_module)
     log.set_split("Lower A", 1, "squat", 2, evidence="repeated performance drop")
     log.set_priority("quads", "priority", evidence="bring up")
@@ -52,9 +56,11 @@ def test_history_events_are_described(log_module):
     assert by_title["Lower A changed"]["affects_muscles"] == ["quads"]
     assert by_title["Lower A changed"]["affects_days"] == ["Lower A"]
     assert by_title["Lower A changed"]["evidence"] == "repeated performance drop"
-    assert by_title["Quads priority changed"]["summary"] == "unset -> priority"
+    assert "Lower A" in by_title["Lower A changed"]["impact"]
+    assert by_title["Quads priority changed"]["summary"] == "was not set, now priority"
     assert by_title["Quads priority changed"]["affects_muscles"] == ["quads"]
     assert by_title["Quads priority changed"]["affects_exercises"] == []
+    assert by_title["Quads priority changed"]["impact"] != ""
 
 
 def test_goal_event_titles_and_summaries(log_module):
@@ -120,6 +126,35 @@ def test_reversal_linkage_survives_snapshot(log_module):
     inverse = by_id[by_id[cid]["superseded_by"]]
     assert inverse["reverses"] == cid
     assert inverse["summary"] == "squat: 2 sets -> 3 sets"
+
+
+def test_backfill_and_schedule_read_plain(log_module):
+    """First-time records read as recorded/started, never as dev terms."""
+    log = _seeded(log_module)
+    log.set_rotation(["Lower A", "rest"])
+    log.anchor_rotation(date.today().isoformat(), "Lower A")
+    rid = log.add_rule("train before work", "schedule", None)["rule_id"]
+    _ = rid
+    snap = log.export_snapshot()
+    by_title = {e["title"]: e for e in snap["history"]}
+    assert "Lower A recorded" in by_title
+    assert "recorded" in by_title["Lower A recorded"]["summary"]
+    assert "Nothing changed in the gym" in by_title["Lower A recorded"]["impact"]
+    anchor = [e for e in snap["history"] if e["domain"] == "rotation"
+              and e["subject"] == "anchor"][0]
+    assert anchor["title"] == "Schedule counting started"
+    assert "position" not in anchor["summary"]
+    assert "counting from" in anchor["summary"]
+    order = [e for e in snap["history"] if e["domain"] == "rotation"
+             and e["subject"] == "rotation"][0]
+    assert order["title"] == "Training week order recorded"
+    rule = [e for e in snap["history"] if e["domain"] == "rule"][0]
+    assert rule["title"] == "Coaching note added"
+    assert rule["impact"] == "The app follows this from now on."
+    for e in snap["history"]:
+        assert "position" not in e["title"]
+        assert "rotation_anchor" not in e["title"]
+        assert "state_change" not in e["title"]
 
 
 def test_empty_db_history_is_honest(log_module, tmp_path, monkeypatch):

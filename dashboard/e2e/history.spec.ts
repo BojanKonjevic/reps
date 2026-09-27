@@ -46,11 +46,12 @@ test.describe('Temporal context', () => {
     await gotoFixture(page, rich, richStates, rich.as_of);
     await page.goto('#/l/bench');
     await expect(page.locator('#chLift')).toBeVisible();
-    await expect(page.locator('#liftEvents')).toContainText('Upper A changed');
-    await expect(page.locator('#liftEvents')).not.toContainText('Upper B changed');
-    await expect(page.locator('#liftEvents')).not.toContainText('Rotation changed');
+    await expect(page.locator('#liftEvents')).toContainText('Upper A recorded');
+    await expect(page.locator('#liftEvents')).not.toContainText('Upper B recorded');
+    await expect(page.locator('#liftEvents')).not.toContainText('Training week order');
     await page.locator('#liftEvents button', { hasText: 'Bench goal set' }).click();
     await expect(page.locator('#liftChange')).toContainText('Bench goal set');
+    await expect(page.locator('#liftChange')).toContainText('What this means');
     await expect(page.locator('#liftChange')).toContainText('Before');
     await expect(page.locator('#liftChange')).toContainText('After');
     await expect(page.locator('#liftChange')).toContainText('e1RM');
@@ -102,11 +103,11 @@ test.describe('Temporal context', () => {
   test('event flows into as-of: detail carries the date', async ({ page }) => {
     await gotoFixture(page, spread, spreadStates, spread.as_of);
     await page.goto('#/l/squat');
-    await page.locator('#liftEvents button', { hasText: 'Lower A changed' }).nth(1).click();
+    await page.locator('#liftEvents button', { hasText: 'Lower A changed' }).click();
     await page.locator('#liftChange button', { hasText: 'View training state' }).click();
     await expect(page.locator('#liftState')).toContainText('Training state');
     await expect(page.locator('#liftAsof > button')).toContainText('Sep 10');
-    await page.locator('#liftEvents button', { hasText: 'Lower A changed' }).nth(1).click();
+    await page.locator('#liftEvents button', { hasText: 'Lower A changed' }).click();
     await expect(page.locator('#liftChange')).toHaveCount(0);
     await expect(page.locator('#chLift')).toBeVisible();
   });
@@ -129,7 +130,7 @@ test.describe('Temporal context', () => {
   test('missing evidence reads as not recorded, never invented', async ({ page }) => {
     await gotoFixture(page, spread, spreadStates, spread.as_of);
     await page.goto('#/l/squat');
-    await page.locator('#liftEvents button', { hasText: 'Lower A changed' }).first().click();
+    await page.locator('#liftEvents button', { hasText: 'Lower A recorded' }).first().click();
     await expect(page.locator('#liftChange')).toContainText('Reason');
     await expect(page.locator('#liftChange')).toContainText('Not recorded.');
   });
@@ -192,9 +193,9 @@ test.describe('Temporal context', () => {
     await expect(page.locator('#musEvents')).toContainText('Chest priority changed');
     await page.locator('#musEvents button', { hasText: 'Chest priority changed' }).click();
     await expect(page.locator('#musChange')).toContainText('Reason');
-    await expect(page.locator('#musProv summary')).toContainText('How this is calculated');
-    await page.locator('#musProv summary').click();
-    await expect(page.locator('#musProv')).toContainText('Sources');
+    await expect(page.locator('#musProv > summary')).toContainText('How this is calculated');
+    await page.locator('#musProv > summary').click();
+    await expect(page.locator('#musProv')).toContainText('Based on');
   });
 
   test('consistency days explain expected, actual, classification, rotation', async ({ page }) => {
@@ -202,7 +203,7 @@ test.describe('Temporal context', () => {
     await page.locator('#adhCard .dtstrip button').first().click();
     await expect(page.locator('#adhDetail')).toContainText('Expected:');
     await expect(page.locator('#adhDetail')).toContainText('Status:');
-    await expect(page.locator('#adhDetail')).toContainText('Rotation at this time:');
+    await expect(page.locator('#adhDetail')).toContainText('Week order at this time:');
   });
 
   test('bodyweight points show nearby training changes', async ({ page }) => {
@@ -228,7 +229,8 @@ test.describe('Temporal context', () => {
     await expect(page.locator('#histList')).not.toContainText('Bench goal set');
     await page.locator('#histFilters button', { hasText: 'Goal' }).click();
     await expect(page.locator('#histList .histrow')).toHaveCount(rich.history.length);
-    await expect(page.locator('#histList')).toContainText('Rotation changed');
+    await expect(page.locator('#histList')).toContainText('Training week order recorded');
+    await expect(page.locator('#histList')).toContainText('Schedule counting started');
     await page.locator('#histList .histrow button', { hasText: 'Bench goal set' }).click();
     await expect(page.locator('#histList')).toContainText('Before');
   });

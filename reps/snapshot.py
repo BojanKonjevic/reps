@@ -398,7 +398,7 @@ def _fmt_d(dstr):
 
 def _fmt_num(v):
     if v is None:
-        return "unset"
+        return "not set"
     return str(round(v)) if v >= 100 else f"{v:.1f}"
 
 
@@ -406,8 +406,8 @@ def _human_name(name):
     return (name or "").title()
 
 
-def _out(title, summary, exercises=None, muscles=None, days=None):
-    return {"title": title, "summary": summary,
+def _out(title, summary, impact="", exercises=None, muscles=None, days=None):
+    return {"title": title, "summary": summary, "impact": impact,
             "affects_exercises": exercises or [], "affects_muscles": muscles or [],
             "affects_days": days or []}
 
@@ -419,23 +419,40 @@ def _describe_program(event, c):
     day = subject.partition(":")[2] or subject
     b_slots = {s["slot"]: s for s in before.get("slots") or []}
     a_slots = {s["slot"]: s for s in after.get("slots") or []}
+    if not b_slots and a_slots:
+        n = len(a_slots)
+        noun = "exercise" if n == 1 else "exercises"
+        summary = f"recorded {n} {noun} starting {_fmt_d(event['date'])}"
+        impact = (f"This starts the history for {day} from {_fmt_d(event['date'])}. "
+                  f"Nothing changed in the gym, it just records what you were already doing.")
+        exercises = sorted({m for s in a_slots.values()
+                            for m in parse_movements(s["movements"])})
+        muscles = sorted({mu for m in exercises for mu in lift_muscles(c, m) or []})
+        return _out(f"{day} recorded", summary, impact, exercises, muscles, [day])
     diffs = [_slot_diff_text(b_slots.get(k), a_slots.get(k))
              for k in sorted(set(b_slots) | set(a_slots))]
     diffs = [d for d in diffs if d]
     summary = "; ".join(diffs[:2]) + ("; ..." if len(diffs) > 2 else "") \
         or "no slot changes"
+    impact = (f"Applies to {day} from {_fmt_d(event['date'])} onward. "
+              f"Before and after below show the full day.")
     exercises = sorted({m for s in list(b_slots.values()) + list(a_slots.values())
                         for m in parse_movements(s["movements"])})
     muscles = sorted({mu for m in exercises for mu in lift_muscles(c, m) or []})
-    return _out(f"{day} changed", summary, exercises, muscles, [day])
+    return _out(f"{day} changed", summary, impact, exercises, muscles, [day])
 
 
 def _describe_priority(event, c):
     subject, before, after = event["subject"], event["before"], event["after"]
-    before_t = before.get("tier") or "unset"
-    after_t = after.get("tier") or "cleared"
+    before_t = before.get("tier") or "not set"
+    after_t = after.get("tier") or "not set"
+    follow = {"priority": "It gets first call on extra sets.",
+              "maintain": "It stays in the plan at normal volume.",
+              "deprioritize": "It stays in the plan at lower volume.",
+              "not set": "It falls back to normal volume."}
+    impact = follow.get(after.get("tier") or "not set", "")
     return _out(f"{_human_name(subject)} priority changed",
-                f"{before_t} -> {after_t}", muscles=[subject])
+                f"was {before_t}, now {after_t}", impact, muscles=[subject])
 
 
 def _describe_goal(event, c):
@@ -448,22 +465,25 @@ def _describe_goal(event, c):
     if action == "add":
         summary = (f"target {_fmt_num(after.get('target_e1rm'))} e1RM"
                    + (f" by {_fmt_d(after['deadline'])}" if after.get("deadline") else ""))
-        return _out(f"{_human_name(exercise)} goal set", summary, [exercise], muscles)
+        impact = "Progress toward this shows on the goal chart. Past sessions stay as logged."
+        return _out(f"{_human_name(exercise)} goal set", summary, impact, [exercise], muscles)
     if action == "drop":
         summary = (f"was {_fmt_num(before.get('target_e1rm'))} e1RM"
                    + (f" by {_fmt_d(before['deadline'])}" if before.get("deadline") else ""))
-        return _out(f"{_human_name(exercise)} goal dropped", summary, [exercise], muscles)
+        impact = "No longer chasing this. Past sessions stay as they were."
+        return _out(f"{_human_name(exercise)} goal dropped", summary, impact, [exercise], muscles)
     parts = []
     if before.get("target_e1rm") != after.get("target_e1rm"):
         parts.append(f"{_fmt_num(before.get('target_e1rm'))} -> "
                      f"{_fmt_num(after.get('target_e1rm'))} e1RM")
     if before.get("deadline") != after.get("deadline"):
-        old = _fmt_d(before["deadline"]) if before.get("deadline") else "unset"
-        new = _fmt_d(after["deadline"]) if after.get("deadline") else "unset"
+        old = _fmt_d(before["deadline"]) if before.get("deadline") else "not set"
+        new = _fmt_d(after["deadline"]) if after.get("deadline") else "not set"
         parts.append(f"by {old} -> by {new}")
     if action == "rewrite" and not parts:
         parts.append("trajectory recut")
-    return _out(f"{_human_name(exercise)} goal revised", "; ".join(parts),
+    impact = "Future checkpoints follow the new numbers. Past results keep the old targets."
+    return _out(f"{_human_name(exercise)} goal revised", "; ".join(parts), impact,
                 [exercise], muscles)
 
 
@@ -473,16 +493,18 @@ def _describe_deload(event, c):
     subject, after = event["subject"], event["after"]
     scope, _, name = subject.partition(":")
     if scope == "lift":
-        out = _out("", "", [name], lift_muscles(c, name) or [], [])
+        out = _out("", "", "", [name], lift_muscles(c, name) or [], [])
     else:
         moves = day_movements(name) or []
         muscles = sorted({mu for m in moves for mu in lift_muscles(c, m) or []})
-        out = _out("", "", moves, muscles, [name])
+        out = _out("", "", "", moves, muscles, [name])
     if after.get("action") == "clear":
         return {**out, "title": f"{_human_name(name)} deload cleared",
-                "summary": "full volume resumed"}
+                "summary": "full volume resumed",
+                "impact": "Normal volume from here on. Trajectories resume after."}
     return {**out, "title": f"{_human_name(name)} deload started",
-            "summary": "training volume down until cleared"}
+            "summary": "training volume down until cleared",
+            "impact": "Affected sessions run lighter until this clears."}
 
 
 def _describe_rule(event, c):
@@ -495,34 +517,52 @@ def _describe_rule(event, c):
     subj = (after.get("subject") or "").lower()
     exercises = [r["exercise"] for r in c.execute("SELECT exercise FROM lift").fetchall()]
     if subj in exercises:
-        out = _out("", summary, [subj], lift_muscles(c, subj) or [])
+        out = _out("", summary, "", [subj], lift_muscles(c, subj) or [])
     else:
         from .constants import load_constants
-        out = _out("", summary, [], [subj] if subj in load_constants().muscles else [])
-    titles = {"add": "Rule added", "archive": "Rule archived", "extend": "Rule extended"}
-    return {**out, "title": titles.get(action, f"Rule {action}")}
+        out = _out("", summary, "", [], [subj] if subj in load_constants().muscles else [])
+    titles = {"add": "Coaching note added", "archive": "Coaching note archived",
+              "extend": "Coaching note extended"}
+    impacts = {"add": "The app follows this from now on.",
+               "archive": "The app stops following this.",
+               "extend": "This stays in effect longer."}
+    return {**out, "title": titles.get(action, f"Coaching note {action}"),
+            "impact": impacts.get(action, "")}
 
 
 def _describe_rotation(event, c):
     _ = c
     subject, before, after = event["subject"], event["before"], event["after"]
     if subject == "anchor":
-        pos = after.get("position")
-        when = _fmt_d(after["anchor_date"]) if after.get("anchor_date") else "unset"
-        return _out("Schedule re-anchored", f"position {pos} from {when}")
+        when = _fmt_d(after["anchor_date"]) if after.get("anchor_date") else "no date"
+        if not after.get("anchor_date"):
+            return _out("Schedule counting cleared", "no start date",
+                        "Planned days have no start to line up from until this is set again.")
+        if not before.get("anchor_date"):
+            return _out("Schedule counting started", f"counting from {when}",
+                        f"Planned days line up from {when} onward. "
+                        f"The reason below names the sessions this was checked against.")
+        return _out("Schedule counting restarted", f"counting from {when}",
+                    f"Planned days line up from {when} onward. "
+                    f"The reason below names the sessions this was checked against.")
     fmt = lambda rot: " / ".join(d if d is not None else "rest" for d in rot or [])
     if not before.get("rotation"):
-        return _out("Rotation changed", f"set to {fmt(after.get('rotation'))}")
-    return _out("Rotation changed",
-                f"{fmt(before.get('rotation'))} -> {fmt(after.get('rotation'))}")
+        return _out("Training week order recorded",
+                    f"week order is {fmt(after.get('rotation'))}",
+                    f"Planned days follow this order from {_fmt_d(event['date'])} onward.")
+    return _out("Training week order updated",
+                f"{fmt(before.get('rotation'))} to {fmt(after.get('rotation'))}",
+                "Future weeks follow the new order. Past sessions stay as logged.")
 
 
 def describe_change(event, c):
     """Read-model projection of one state transition: human title, one-line
-    before/after summary, and affected lifts/muscles/days for chart relevance.
-    Titles and summaries render verbatim in the dashboard; the envelopes stay
-    available for the expandable detail. One describer per domain, dispatched
-    like history's revert appliers; names stay lowercase except display titles.
+    before/after summary, plain language effect on training, and affected
+    lifts/muscles/days for chart relevance.
+    Titles, summaries, and impacts render verbatim in the dashboard; the
+    envelopes stay available for the expandable detail. One describer per
+    domain, dispatched like history's revert appliers; names stay lowercase
+    except display titles.
     """
     describer = {"program": _describe_program, "priority": _describe_priority,
                  "goal": _describe_goal, "deload": _describe_deload,

@@ -1112,8 +1112,9 @@
           }
         ]
       },
-      "title": "Upper A changed",
-      "summary": "added bench x3",
+      "title": "Upper A recorded",
+      "summary": "recorded 1 exercise starting Sep 24",
+      "impact": "This starts the history for Upper A from Sep 24. Nothing changed in the gym, it just records what you were already doing.",
       "affects_exercises": [
         "bench"
       ],
@@ -1147,8 +1148,9 @@
         "anchor_date": null,
         "position": null
       },
-      "title": "Rotation changed",
-      "summary": "set to Upper A / rest",
+      "title": "Training week order recorded",
+      "summary": "week order is Upper A / rest",
+      "impact": "Planned days follow this order from Sep 24 onward.",
       "affects_exercises": [],
       "affects_muscles": [],
       "affects_days": []
@@ -1169,34 +1171,43 @@
   "observation_defs": [
     {
       "metric": "lift_trend",
-      "subject_kind": "exercise",
+      "subject_kind": "exercise, like bench",
       "sources": [
         "sets",
         "workouts"
       ],
-      "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); delta is last minus first in range, best is the range max"
+      "based_on": [
+        "your logged sets"
+      ],
+      "definition": "Your best set each training day, as estimated one rep max. Change compares the last day in range to the first, best is the highest day."
     },
     {
       "metric": "muscle_volume",
-      "subject_kind": "muscle (empty means all tracked muscles)",
+      "subject_kind": "muscle (blank means all tracked muscles)",
       "sources": [
         "sets",
         "set_muscle",
         "workouts"
       ],
-      "definition": "logged working sets per muscle in range (full credit per mapped muscle); avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)"
+      "based_on": [
+        "your logged sets and muscle mapping"
+      ],
+      "definition": "Working sets logged per muscle in range. One set can count for several muscles. A weekly average only shows for ranges of 7 days or more."
     },
     {
       "metric": "program_activity",
-      "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+      "subject_kind": "training day, like Lower A (blank means every day)",
       "sources": [
         "state_change"
       ],
-      "definition": "recorded program day-snapshot transitions in range; use history_get(change_id) for before/after detail"
+      "based_on": [
+        "your recorded program edits"
+      ],
+      "definition": "Program edits recorded in range, with what each day looked like before and after. Open an entry for the full detail."
     },
     {
       "metric": "goal_trajectory",
-      "subject_kind": "goal id or exercise",
+      "subject_kind": "exercise with a goal, like bench",
       "sources": [
         "goals",
         "goal_checkpoints",
@@ -1204,26 +1215,35 @@
         "workouts",
         "state_change"
       ],
-      "definition": "trajectory checkpoints folded from goal history to the range end, so later rewrites do not move historical results; the trajectory itself is session-numbered, in_range marks actuals inside the range"
+      "based_on": [
+        "your goals, logged sets, and recorded goal edits"
+      ],
+      "definition": "Goal checkpoints as they stood at the end of the range, so later rewrites do not move past results. Actuals inside the range are marked."
     },
     {
       "metric": "adherence_summary",
-      "subject_kind": "rotation schedule (subject is unused)",
+      "subject_kind": "training schedule (no subject needed)",
       "sources": [
         "workouts",
         "rotation",
         "rotation_anchor",
         "state_change"
       ],
-      "definition": "each date classified with the rotation/anchor/split folded from history to that date (earliest recorded image before history starts, never today's state); dates without an applicable rotation/anchor report expected None with status unknown"
+      "based_on": [
+        "your logged sessions and the schedule in effect each day"
+      ],
+      "definition": "Each date matched against the schedule in effect that day, never today's schedule applied backward. Days with no schedule yet read as unknown."
     },
     {
       "metric": "bodyweight_trend",
-      "subject_kind": "unused",
+      "subject_kind": "not needed",
       "sources": [
         "bodyweight"
       ],
-      "definition": "gym-scale weigh-ins in range; delta is last minus first"
+      "based_on": [
+        "your weigh ins"
+      ],
+      "definition": "Gym scale weigh ins in range. Change compares last to first."
     }
   ]
 }

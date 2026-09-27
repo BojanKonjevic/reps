@@ -42,61 +42,70 @@ def _range(since, until):
     return since, until
 
 
-def _wrap(metric, subject, since, until, result, sources, definition):
+def _wrap(metric, subject, since, until, result, sources, definition, based_on):
     return {"metric": metric, "subject": subject, "since": since, "until": until,
             "result": result,
-            "provenance": {"sources": sources, "definition": definition}}
+            "provenance": {"sources": sources, "definition": definition,
+                           "based_on": based_on}}
 
 
 # Backend-owned definitions and provenance for every observation metric.
-# The dashboard renders these verbatim (Provenance disclosure) instead of
-# restating them; each observe() implementation below reads its own entry,
-# so the strings exist exactly once.
+# The dashboard renders definition and based_on verbatim (Provenance
+# disclosure) instead of restating them; each observe() implementation below
+# reads its own entry, so the strings exist exactly once. sources stay as
+# the raw audit trail, based_on is the plain language the dashboard shows.
 _OBSERVATION_DEFS = {
     "lift_trend": {
-        "subject_kind": "exercise",
+        "subject_kind": "exercise, like bench",
         "sources": ["sets", "workouts"],
-        "definition": "per-date top-set e1RM (Epley via reps/e1rm.py); "
-                      "delta is last minus first in range, best is the range max",
+        "based_on": ["your logged sets"],
+        "definition": "Your best set each training day, as estimated one rep max. "
+                      "Change compares the last day in range to the first, "
+                      "best is the highest day.",
     },
     "muscle_volume": {
-        "subject_kind": "muscle (empty means all tracked muscles)",
+        "subject_kind": "muscle (blank means all tracked muscles)",
         "sources": ["sets", "set_muscle", "workouts"],
-        "definition": "logged working sets per muscle in range (full credit per mapped muscle); "
-                      "avg_per_week is None for ranges under 7 days (a short range is not a weekly rate)",
+        "based_on": ["your logged sets and muscle mapping"],
+        "definition": "Working sets logged per muscle in range. One set can count "
+                      "for several muscles. A weekly average only shows for ranges "
+                      "of 7 days or more.",
     },
     "program_activity": {
-        "subject_kind": "program day subject such as active:Lower A (empty means every day)",
+        "subject_kind": "training day, like Lower A (blank means every day)",
         "sources": ["state_change"],
-        "definition": "recorded program day-snapshot transitions in range; "
-                      "use history_get(change_id) for before/after detail",
+        "based_on": ["your recorded program edits"],
+        "definition": "Program edits recorded in range, with what each day looked "
+                      "like before and after. Open an entry for the full detail.",
     },
     "goal_trajectory": {
-        "subject_kind": "goal id or exercise",
+        "subject_kind": "exercise with a goal, like bench",
         "sources": ["goals", "goal_checkpoints", "sets", "workouts", "state_change"],
-        "definition": "trajectory checkpoints folded from goal history to the range end, "
-                      "so later rewrites do not move historical results; the trajectory "
-                      "itself is session-numbered, in_range marks actuals inside the range",
+        "based_on": ["your goals, logged sets, and recorded goal edits"],
+        "definition": "Goal checkpoints as they stood at the end of the range, so "
+                      "later rewrites do not move past results. Actuals inside the "
+                      "range are marked.",
     },
     "adherence_summary": {
-        "subject_kind": "rotation schedule (subject is unused)",
+        "subject_kind": "training schedule (no subject needed)",
         "sources": ["workouts", "rotation", "rotation_anchor", "state_change"],
-        "definition": "each date classified with the rotation/anchor/split folded from history "
-                      "to that date (earliest recorded image before history starts, "
-                      "never today's state); dates without an applicable rotation/anchor "
-                      "report expected None with status unknown",
+        "based_on": ["your logged sessions and the schedule in effect each day"],
+        "definition": "Each date matched against the schedule in effect that day, "
+                      "never today's schedule applied backward. Days with no "
+                      "schedule yet read as unknown.",
     },
     "bodyweight_trend": {
-        "subject_kind": "unused",
+        "subject_kind": "not needed",
         "sources": ["bodyweight"],
-        "definition": "gym-scale weigh-ins in range; delta is last minus first",
+        "based_on": ["your weigh ins"],
+        "definition": "Gym scale weigh ins in range. Change compares last to first.",
     },
 }
 
 
 def _def(metric):
     d = _OBSERVATION_DEFS[metric]
-    return d["sources"], d["definition"]
+    return d["sources"], d["definition"], d["based_on"]
 
 
 def observation_defs():
@@ -196,6 +205,7 @@ def _program_activity(subject, since, until):
 
 
 def _not_in_effect(subject, exercise, since, until, goal_id):
+    d = _OBSERVATION_DEFS["goal_trajectory"]
     return _wrap("goal_trajectory", subject, since, until,
                  {"goal_id": goal_id, "exercise": exercise, "in_effect": False,
                   "target_e1rm": None, "deadline": None, "status": None,
@@ -203,8 +213,9 @@ def _not_in_effect(subject, exercise, since, until, goal_id):
                   "completed": 0, "consecutive_misses": 0, "on_track": True,
                   "slippage": False,
                   "effective": {"as_of": until, "from_history": True}},
-                 ["goals", "goal_checkpoints", "state_change"],
-                 "the requested goal was not in effect during the range")
+                 d["sources"],
+                 "The requested goal was not in effect during the range.",
+                 d["based_on"])
 
 
 def _goal_trajectory(subject, since, until):

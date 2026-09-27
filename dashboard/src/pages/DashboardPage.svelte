@@ -456,11 +456,11 @@
                 <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
                 <div>Status: {statusLabel(adhDay.status)}</div>
                 {#if adhRotation}
-                  <div>Rotation at this time: {adhRotation}</div>
+                  <div>Week order at this time: {adhRotation}</div>
                 {:else if adhDate && statesQ.isFetching}
-                  <div>Rotation at this time: loading…</div>
+                  <div>Week order at this time: loading…</div>
                 {:else if adhDate && bounds.min && adhDate < bounds.min}
-                  <div>Rotation at this time: unavailable before {fmtD(bounds.min)}.</div>
+                  <div>Week order at this time: unavailable before {fmtD(bounds.min)}.</div>
                 {/if}
                 {#each adhContext as e}
                   <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>

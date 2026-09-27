@@ -26,6 +26,13 @@
     <b>{e.title}</b>
     <span class="meta">{fmtD(e.date)}</span>
   </div>
+  <div class="cdsum">{e.summary}</div>
+  {#if e.impact}
+    <div class="cdimpact">
+      <span class="cap">What this means</span>
+      <span>{e.impact}</span>
+    </div>
+  {/if}
   <div class="cdcols">
     <div>
       <div class="cap">Before</div>

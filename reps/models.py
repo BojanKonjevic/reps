@@ -706,9 +706,10 @@ HistoryPayload = Union[ProgramHistoryPayload, GoalHistoryPayload, DeloadHistoryP
 class HistoryEvent(BaseModel):
     """One recorded training-system transition for the dashboard read model.
 
-    before/after are the validated domain envelopes; title/summary/affects
-    are the read-model projection built once in reps/snapshot.py so every
-    chart formats the same change the same way.
+    before/after are the validated domain envelopes; title/summary/impact and
+    affects are the read-model projection built once in reps/snapshot.py so
+    every chart formats the same change the same way. impact is the plain
+    language effect on training, evidence stays the verbatim agent motive.
     """
 
     model_config = STRICT
@@ -726,6 +727,7 @@ class HistoryEvent(BaseModel):
     after: HistoryPayload
     title: StrictStr
     summary: StrictStr
+    impact: StrictStr
     affects_exercises: list[StrictStr]
     affects_muscles: list[StrictStr]
     affects_days: list[StrictStr]
@@ -836,7 +838,8 @@ class HistoryState(BaseModel):
 
 class ObservationDef(BaseModel):
     """Backend-owned definition and provenance for one observation metric.
-    The dashboard renders these verbatim; it never restates domain meaning."""
+    The dashboard renders definition and based_on verbatim; sources stay as
+    the raw audit trail and render only inside the collapsed technical line."""
 
     model_config = STRICT
 
@@ -844,6 +847,7 @@ class ObservationDef(BaseModel):
     subject_kind: StrictStr
     definition: StrictStr
     sources: list[StrictStr]
+    based_on: list[StrictStr]
 
 
 class SnapshotModel(BaseModel):

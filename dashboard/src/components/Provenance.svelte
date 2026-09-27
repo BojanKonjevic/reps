@@ -15,12 +15,21 @@
   <details class="prov" {id}>
     <summary>How this is calculated</summary>
     <div class="provbody">
-      <div><b>{def.metric}</b></div>
       <div>{def.definition}</div>
-      <div class="cap">Sources</div>
-      {#each def.sources as s}
-        <div>{s}</div>
-      {/each}
+      {#if def.based_on?.length}
+        <div class="cap">Based on</div>
+        {#each def.based_on as b}
+          <div>{b}</div>
+        {/each}
+      {/if}
+      <details class="provtech">
+        <summary>Technical details</summary>
+        <div><b>{def.metric}</b> ({def.subject_kind})</div>
+        <div class="cap">Sources</div>
+        {#each def.sources as s}
+          <div>{s}</div>
+        {/each}
+      </details>
     </div>
   </details>
 {/if}
