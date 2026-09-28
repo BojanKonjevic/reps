@@ -31,6 +31,7 @@ INSERT INTO "bodyweight" VALUES(1,'2026-09-23',79.8,'shoes shorts tank top');
 INSERT INTO "bodyweight" VALUES(2,'2026-09-24',78.6,'');
 INSERT INTO "bodyweight" VALUES(3,'2026-09-26',79.3,'');
 INSERT INTO "bodyweight" VALUES(4,'2026-09-27',78.6,'');
+INSERT INTO "bodyweight" VALUES(5,'2026-09-28',78.9,'');
 CREATE TABLE compaction (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_compacted TEXT NULL,
@@ -109,6 +110,7 @@ INSERT INTO "lift" VALUES('smith jm press',0);
 INSERT INTO "lift" VALUES('straight bar pulldown',0);
 INSERT INTO "lift" VALUES('unilateral cable pushdown',0);
 INSERT INTO "lift" VALUES('dumbbell reverse curl',0);
+INSERT INTO "lift" VALUES('bench',0);
 CREATE TABLE lift_muscle (
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE ON DELETE CASCADE,
   muscle TEXT NOT NULL,
@@ -159,6 +161,7 @@ INSERT INTO "lift_muscle" VALUES('rear delt cable fly','rear delts');
 INSERT INTO "lift_muscle" VALUES('machine preacher curl','biceps');
 INSERT INTO "lift_muscle" VALUES('cable crunch','abs');
 INSERT INTO "lift_muscle" VALUES('dumbbell reverse curl','forearms');
+INSERT INTO "lift_muscle" VALUES('bench','chest');
 CREATE TABLE movement_note (
   id INTEGER PRIMARY KEY,
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE,
@@ -189,6 +192,8 @@ INSERT INTO "movement_note" VALUES(22,'ezbar skullcrusher','ez bar guessed 7.5, 
 INSERT INTO "movement_note" VALUES(23,'rear delt cable fly','height under 6','2026-09-24T10:24:48');
 INSERT INTO "movement_note" VALUES(24,'cable crunch','height just under 6','2026-09-27T09:41:46');
 INSERT INTO "movement_note" VALUES(25,'dumbbell reverse curl','dumbbells, both arms at once, each wrist tracks free; log weaker side with L/R when sides diverge','2026-09-27T10:30:13');
+INSERT INTO "movement_note" VALUES(26,'unilateral cable pushdown','height under 4','2026-09-28T09:39:23');
+INSERT INTO "movement_note" VALUES(27,'unilateral cable pushdown','cable increments 0.625','2026-09-28T09:39:23');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL CHECK (tier IN ('priority', 'maintain', 'deprioritize')),
@@ -257,6 +262,17 @@ INSERT INTO "progression" VALUES(47,9,'adductor machine','hit',41.25,13,'up','',
 INSERT INTO "progression" VALUES(48,9,'crunch machine','hit',35.0,12,'up','35x11 over target','2026-09-27T10:05:01');
 INSERT INTO "progression" VALUES(49,9,'cable crunch','hit',28.75,12,'up','','2026-09-27T10:05:01');
 INSERT INTO "progression" VALUES(50,9,'cable reverse curl','hit',16.25,12,'up','','2026-09-27T10:05:01');
+INSERT INTO "progression" VALUES(51,10,'hammer strength row','hit',112.5,8,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(52,10,'machine lat raise','hit',65.0,10,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(53,10,'reverse-grip smith incline press','hit',32.5,8,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(54,10,'dumbbell lat raise','hit',15.0,8,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(55,10,'hammer strength press','hit',65.0,8,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(56,10,'straight bar pulldown','hit',87.0,9,'flat','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(57,10,'incline dumbbell curl','hit',15.0,8,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(58,10,'machine preacher curl','hit',46.0,12,'flat','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(59,10,'ezbar skullcrusher','hit',40.0,10,'up','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(60,10,'unilateral cable pushdown','baseline',13.75,10,'flat','','2026-09-28T09:46:37');
+INSERT INTO "progression" VALUES(61,10,'rear delt cable fly','hit',8.75,13,'flat','','2026-09-28T09:46:37');
 CREATE TABLE rotation (
   position INTEGER PRIMARY KEY,
   day TEXT NULL REFERENCES split_day(name) ON UPDATE CASCADE ON DELETE SET NULL
@@ -415,6 +431,28 @@ INSERT INTO "sets" VALUES(108,9,'cable crunch',28.75,10,'','2026-09-27T09:44:57'
 INSERT INTO "sets" VALUES(109,9,'cable reverse curl',16.25,11,'','2026-09-27T09:53:03');
 INSERT INTO "sets" VALUES(110,9,'cable reverse curl',16.25,10,'','2026-09-27T09:55:30');
 INSERT INTO "sets" VALUES(111,9,'cable reverse curl',16.25,9,'','2026-09-27T09:57:56');
+INSERT INTO "sets" VALUES(112,10,'hammer strength row',110.0,10,'','2026-09-28T08:16:12');
+INSERT INTO "sets" VALUES(113,10,'hammer strength row',110.0,9,'','2026-09-28T08:21:30');
+INSERT INTO "sets" VALUES(114,10,'machine lat raise',62.5,12,'','2026-09-28T08:25:23');
+INSERT INTO "sets" VALUES(115,10,'machine lat raise',65.0,9,'','2026-09-28T08:29:35');
+INSERT INTO "sets" VALUES(116,10,'reverse-grip smith incline press',30.0,8,'','2026-09-28T08:33:31');
+INSERT INTO "sets" VALUES(117,10,'reverse-grip smith incline press',30.0,9,'','2026-09-28T08:40:43');
+INSERT INTO "sets" VALUES(118,10,'reverse-grip smith incline press',30.0,9,'','2026-09-28T08:42:30');
+INSERT INTO "sets" VALUES(119,10,'dumbbell lat raise',12.5,11,'','2026-09-28T08:47:10');
+INSERT INTO "sets" VALUES(120,10,'dumbbell lat raise',12.5,11,'','2026-09-28T08:52:20');
+INSERT INTO "sets" VALUES(121,10,'hammer strength press',60.0,10,'','2026-09-28T08:56:12');
+INSERT INTO "sets" VALUES(122,10,'hammer strength press',65.0,7,'','2026-09-28T09:00:03');
+INSERT INTO "sets" VALUES(123,10,'straight bar pulldown',87.0,8,'','2026-09-28T09:04:50');
+INSERT INTO "sets" VALUES(124,10,'straight bar pulldown',87.0,7,'','2026-09-28T09:09:35');
+INSERT INTO "sets" VALUES(125,10,'incline dumbbell curl',12.5,12,'','2026-09-28T09:16:01');
+INSERT INTO "sets" VALUES(126,10,'incline dumbbell curl',12.5,11,'','2026-09-28T09:17:21');
+INSERT INTO "sets" VALUES(127,10,'machine preacher curl',46.0,11,'','2026-09-28T09:21:23');
+INSERT INTO "sets" VALUES(128,10,'machine preacher curl',46.0,9,'','2026-09-28T09:24:54');
+INSERT INTO "sets" VALUES(129,10,'ezbar skullcrusher',37.5,12,'','2026-09-28T09:29:31');
+INSERT INTO "sets" VALUES(130,10,'ezbar skullcrusher',37.5,9,'','2026-09-28T09:34:39');
+INSERT INTO "sets" VALUES(131,10,'unilateral cable pushdown',13.75,8,'','2026-09-28T09:39:23');
+INSERT INTO "sets" VALUES(132,10,'unilateral cable pushdown',13.75,8,'','2026-09-28T09:43:43');
+INSERT INTO "sets" VALUES(133,10,'rear delt cable fly',8.75,12,'','2026-09-28T09:46:33');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
@@ -723,6 +761,7 @@ INSERT INTO "workouts" VALUES(6,'2026-09-24','done','U2. Reverse-grip first time
 INSERT INTO "workouts" VALUES(7,'2026-09-25','rest','planned');
 INSERT INTO "workouts" VALUES(8,'2026-09-26','done','U3 U3, smith 60 accidental bad form, standard reset 50. BW 79.3.');
 INSERT INTO "workouts" VALUES(9,'2026-09-27','done','L2 Legs wrecked but held all targets. Wrist extension ROM felt off, no pain, swapped slot to reverse curl.');
+INSERT INTO "workouts" VALUES(10,'2026-09-28','done','U4 U4, had to cut last rear delt set, otherwise strong');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
@@ -731,4 +770,6 @@ CREATE VIEW set_muscle AS
 CREATE UNIQUE INDEX idx_deload_active ON deload_state(scope, subject) WHERE cleared_on IS NULL;
 CREATE INDEX idx_state_change_domain_subject_date
   ON state_change(domain, subject, date, created, id);
+CREATE UNIQUE INDEX idx_state_change_sequence
+  ON state_change(domain, subject, date, sequence);
 COMMIT;
