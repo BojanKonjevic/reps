@@ -762,6 +762,7 @@ INSERT INTO "workouts" VALUES(7,'2026-09-25','rest','planned');
 INSERT INTO "workouts" VALUES(8,'2026-09-26','done','U3 U3, smith 60 accidental bad form, standard reset 50. BW 79.3.');
 INSERT INTO "workouts" VALUES(9,'2026-09-27','done','L2 Legs wrecked but held all targets. Wrist extension ROM felt off, no pain, swapped slot to reverse curl.');
 INSERT INTO "workouts" VALUES(10,'2026-09-28','done','U4 U4, had to cut last rear delt set, otherwise strong');
+INSERT INTO "workouts" VALUES(11,'2026-09-29','rest','planned rest');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
