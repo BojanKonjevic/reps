@@ -2,11 +2,11 @@
 
 Hypertrophy training reference. Precedence: my logged data in MEMORY.md > SCIENCE.md defaults > agent instinct. Every entry tagged by confidence tier: Settled (near-consensus), Contested (real disagreement), Opinion (mine, thin evidence). Trust hierarchy: 1) meta-analyses/systematic reviews, 2) individual RCTs, 3) practitioner-researcher synthesis (RP/Israetel, Helms, Trexler), 4) anecdotal/forum — tier 4 only as color, never sole basis for a number.
 
-Last reviewed: Sep 18 2026
+Last reviewed: Oct 01 2026
 
 ## Volume landmarks (sets/week)
 
-Numbers live in `constants.json` (single source of truth, edited via the `constants_set` tool on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions.
+Numbers live in `constants.json` (single source of truth, edited via the `constants_set` tool on approval). MEV = minimum effective volume, MAV = maximum adaptive volume, MRV = maximum recoverable volume. Ranges wide because individual variance is large; treat as starting bounds, not prescriptions. Oct 01 2026 refresh: Pelland et al. 2025 Sports Med meta-regression (67 studies, 2058 lifters, fractional counting for indirect sets) finds volume increases size and strength with diminishing returns (stronger flattening for strength); ACSM overview notes hypertrophy plateau around 18-20 weekly sets. Supports current landmarks, no number change.
 
 Front delt: MEV 0 assumes regular chest pressing (most intermediates grow front delts with no direct work, RP). If pressing stops, treat direct MEV as ~4. Direct prioritization range is <!--const muscles.front delts.mav-->[4, 12]<!--/const--> sets/week across 2–4 sessions (RP via LiftVault 2024).
 
@@ -18,7 +18,7 @@ Forearms: no trusted landmarks, literature too thin for numbers. Current plan us
 
 ## Frequency guidance
 
-Sessions/week per muscle lives in `constants.json` (`freq`, edited via the `constants_set` tool on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles.
+Sessions/week per muscle lives in `constants.json` (`freq`, edited via the `constants_set` tool on approval). Basis: Schoenfeld 2016 meta (2+ beats 1 at equal volume), RP guides, damage/recovery profiles. Oct 01 2026 refresh: Pelland et al. 2025 (frequency effect on hypertrophy compatible with negligible, positive for strength with diminishing returns) and Tao et al. 2026 (47 studies, volume-equated frequency no meaningful hypertrophy difference) confirm volume-equated frequency matters little for growth.
 
 Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; below that, 1x and 2x are similar. Upper muscles at ~3.5x and legs at ~1.75x (current 8-day rotation) fall inside the settled range. Side delts at ~3.5x sit inside the range above, no deviation. Rear delts at ~3.5x sit inside the range above, no deviation.
 
@@ -31,14 +31,14 @@ Higher frequency mainly matters when weekly volume exceeds ~15 sets/muscle; belo
 | Strength-biased       | 3–6   | Settled | Rhea 2003 meta, ACSM position          |
 | Strength-specific     | 1–3   | Settled | Neural adaptations dominant            |
 
-No magic threshold; 5–20 all work if RPE 8–10. Below 5 shifts to strength, above 20 shifts to local endurance/metabolic. Compound lifts gravitate 5–10, isolation 8–15.
+No magic threshold; 5–20 all work if RPE 8–10. Below 5 shifts to strength, above 20 shifts to local endurance/metabolic. Compound lifts gravitate 5–10, isolation 8–15. Oct 01 2026 refresh: Carvalho et al. 2022 meta (volume-matched loads, hypertrophy similar across loads, strength favors heavy) and Cumming et al. 2025 in trained lifters confirm, no change.
 
 ## Proximity to failure
 
 | Guidance                                                   | Tier                             | Source                                                       |
 | ---------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------ |
 | 0–2 RIR (RPE 8–10) for hypertrophy                         | Settled                          | Helms 2016, 2018; Grgic 2018; Morton 2019 RCT                |
-| 0 RIR (true failure) not required, equal growth at 1–2 RIR | Contested                        | Some RCTs show equivalence, others slight edge to 0          |
+| 0 RIR (true failure) not required, equal growth at 1–2 RIR | Contested                        | Refalo 2022 meta plus Robinson et al. 2024 meta-regressions (strength flat across RIR, hypertrophy improves closer to failure, exact RIR unclear) |
 | Compound lifts: stop 1–2 RIR for fatigue management        | Opinion (practitioner consensus) | RP, Helms, Israetel                                          |
 | Isolation: 0–1 RIR acceptable, lower systemic cost         | Opinion                          | RP, Helms                                                    |
 | Training to failure every set → manage volume down         | Opinion (practitioner consensus) | RP, Helms — higher per-set fatigue, lower recoverable volume |
@@ -65,7 +65,7 @@ e1RM = w × (1 + r/30), single owner `reps/e1rm.py`. Validity range: reps ≤ <!
 
 | Guidance                                                                                 | Tier      | Source                                    |
 | ---------------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
-| Deload every 4–8 weeks (reduce volume <!--const thresholds.deload_volume_reduction|pctrange-->40-60%<!--/const-->, intensity same)                            | Contested | Practitioner consensus, little direct RCT |
+| Deload every 4–8 weeks (reduce volume <!--const thresholds.deload_volume_reduction|pctrange-->40-60%<!--/const-->, intensity same)                            | Contested | Practitioner consensus, little direct RCT (Bell et al. 2023 Delphi; athlete survey 2024 reports 6.4 days every 5.6 weeks; S&C survey 2024 most cuts 0-25%, physique context may need more) |
 | Reactive deload: when performance drops <!--const thresholds.deload_watch_pct|pctabs-->5%<!--/const-->+ across 2 sessions                            | Opinion   | RP, Helms autoregulation                  |
 | Passive rest after U2 and after U4 (2 per 8-day rotation), active deload every 4–6 weeks | Opinion   | Fits current rotation structure           |
 | No evidence for "deload week" vs "deload session" superiority                            | Opinion   | Unstudied                                 |
@@ -79,8 +79,8 @@ e1RM = w × (1 + r/30), single owner `reps/e1rm.py`. Validity range: reps ≤ <!
 | 1–2 compounds + 1–2 isolations per muscle/session                                                           | Opinion   | RP, Helms template                             |
 | Movement pattern variety across week (vertical/horizontal push/pull)                                        | Settled   | Joint health, motor unit coverage              |
 | Delt heads split: front via pressing, side and rear via direct isolation                                    | Opinion   | RP delt guides                                 |
-| Lengthened-position bias for hypertrophy (stretch under load)                                               | Contested | Pedrosa 2022, Kassiano 2023 — growing evidence |
-| Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023                    |
+| Lengthened-position bias for hypertrophy (stretch under load)                                               | Contested | Pedrosa 2022, Kassiano 2023, Strey et al. 2026 meta (long over short ES 0.28), Pedrosa 2026 review, Varovic et al. 2025 regional meta |
+| Fly/pec deck variations — consider lengthened-position option (cable fly, pullover) if stretch bias desired | Opinion   | Pedrosa 2022, Kassiano 2023, Strey 2026                    |
 
 ## Bodyweight protocol
 

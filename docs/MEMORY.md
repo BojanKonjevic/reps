@@ -9,6 +9,7 @@ Bodyweight, injuries, sleep, motivation notes that carry over. One line each, ne
 - Sep 18 2026: no scale at home, bodyweight measured on gym scale (not fasted, less consistent, not every day). All weigh-ins in shoes, shorts, tank top unless stated otherwise.
 - Sep 20 2026: block plan. Next 8 weeks flat to failure on U1-U4/L1-L2, no goals, no prios, calibrate RIR by predicting then verifying to failure. Week 9 deload. Then build RIR tracking plus mesocycle planning into reps/, and plan the next 6 weeks with a mesocycle, few prios and goals.
 - Sep 23 2026: RIR calibration is personal practice only (predict mid-set, e.g. at rep 6 call 2 more, verify to failure), nothing logged to the app yet.
+- Oct 01 2026: audit ran, 13 flags (13 high, 0 medium, 0 low).
 
 ## Monthly rollups
 
