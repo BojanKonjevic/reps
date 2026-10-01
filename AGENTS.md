@@ -52,6 +52,7 @@ MCP is the sole normal interface; code changes serve it, never a second one:
 - Tests for both layers: domain behavior in `tests/` (pytest, direct calls, `pytest.raises(RepsError)` for refusals), MCP exposure in `tests/test_mcp.py` (through `call_tool`/`list_tool_names`). `tests/test_architecture.py` pins the boundaries; keep it passing.
 - Domain truth lives in `reps/` behind plain functions, validated by Pydantic models in `reps/models.py`; the dashboard validates the same snapshot with matching schemas on its side. Docs teach when and why to call things, MCP schemas declare what to call with. Details in `docs/ARCHITECTURE.md`.
 - Verify with `scripts/verify.sh` (gen check + ssot_check + py tests + dashboard lint/typecheck/unit + doctor). `scripts/test-py.sh` runs the Python suite alone. Dashboard: `pnpm --dir dashboard run test` for unit, `pnpm --dir dashboard exec playwright test` for e2e; deploy with `pnpm --dir dashboard run deploy` after any frontend change and verify live.
+- Every change gets committed and pushed. If it affects the dashboard, also run `sync_push` and deploy with `pnpm --dir dashboard run deploy`, then verify live.
 - `log.py` stays four maintenance ops (doctor, dump, restore, export). Do not grow it back into an application interface, and do not add Click, Typer, argparse wrappers, or any other command framework.
 
 ## Dashboard protocol
