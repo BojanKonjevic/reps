@@ -123,6 +123,11 @@ def test_stall_and_slip_tags(log_module):
     assert log.is_stalling([100, 105, 110, 115],
                             {"stall_window_sessions": 3, "stall_decline_pct": 1.0,
                              "stall_flat_sessions": 6, "stall_min_sessions": 4}) is False
+    # Small-lift steady climb: each day a new best inside one plate step.
+    # Never a stall, the new high is the PR.
+    assert log.is_stalling([14.2, 15.0, 15.8, 16.7],
+                            {"stall_window_sessions": 3, "stall_decline_pct": 1.0,
+                             "stall_flat_sessions": 6, "stall_min_sessions": 4}) is False
     assert log.is_slipping([100, 94, 88], {"deload_watch_pct": -5}) == {
         "drops_pct": [-6.0, -6.4]}
     assert log.is_slipping([100, 98, 97], {"deload_watch_pct": -5}) is None

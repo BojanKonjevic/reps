@@ -44,6 +44,11 @@ def is_stalling(e1rms: list[float], t: dict) -> bool:
     n = len(e1rms)
     if n < int(_need(t, "stall_min_sessions")):
         return False
+    # A new best is a PR (records.py: strictly greater e1RM than running
+    # best), so it is progress by definition. The chart shows a new high
+    # as the PR, the tag must never contradict the line.
+    if e1rms[-1] > max(e1rms[:-1]):
+        return False
     window = int(_need(t, "stall_window_sessions"))
     decline = float(_need(t, "stall_decline_pct"))
     flat_n = int(_need(t, "stall_flat_sessions"))
