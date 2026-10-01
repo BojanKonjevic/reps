@@ -33,6 +33,7 @@ INSERT INTO "bodyweight" VALUES(3,'2026-09-26',79.3,'');
 INSERT INTO "bodyweight" VALUES(4,'2026-09-27',78.6,'');
 INSERT INTO "bodyweight" VALUES(5,'2026-09-28',78.9,'');
 INSERT INTO "bodyweight" VALUES(6,'2026-09-30',79.4,'');
+INSERT INTO "bodyweight" VALUES(7,'2026-10-01',79.4,'');
 CREATE TABLE compaction (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_compacted TEXT NULL,
@@ -196,6 +197,7 @@ INSERT INTO "movement_note" VALUES(25,'dumbbell reverse curl','dumbbells, both a
 INSERT INTO "movement_note" VALUES(26,'unilateral cable pushdown','height under 4','2026-09-28T09:39:23');
 INSERT INTO "movement_note" VALUES(27,'unilateral cable pushdown','cable increments 0.625','2026-09-28T09:39:23');
 INSERT INTO "movement_note" VALUES(28,'bayesian curl','cable just under height 14','2026-09-30T08:54:05');
+INSERT INTO "movement_note" VALUES(29,'hack squat','starter 57, totals include sled','2026-10-01T09:08:19');
 CREATE TABLE priority (
   muscle TEXT PRIMARY KEY,
   tier TEXT NOT NULL CHECK (tier IN ('priority', 'maintain', 'deprioritize')),
@@ -286,6 +288,13 @@ INSERT INTO "progression" VALUES(69,12,'straight bar pulldown','hold',87.0,9,'fl
 INSERT INTO "progression" VALUES(70,12,'smith jm press','hit',55.0,8,'up','2x8 form dialed','2026-09-30T09:21:29');
 INSERT INTO "progression" VALUES(71,12,'overhead cable extension','hit',27.5,12,'up','2x12','2026-09-30T09:21:29');
 INSERT INTO "progression" VALUES(72,12,'face pull','hit',42.5,10,'up','40x12 then 41.25x10','2026-09-30T09:21:29');
+INSERT INTO "progression" VALUES(73,13,'hack squat','hit',87.0,10,'up','','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(74,13,'leg extension','hit',89.0,12,'up','','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(75,13,'leg press','hit',125.0,10,'up','125 jump','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(76,13,'adductor machine','hit',45.0,12,'up','','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(77,13,'crunch machine','hold',35.0,12,'flat','13 over cap then 9','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(78,13,'cable crunch','hit',30.0,11,'up','','2026-10-01T10:19:02');
+INSERT INTO "progression" VALUES(79,13,'cable wrist curl','baseline',13.75,12,'flat','new weight seed','2026-10-01T10:19:02');
 CREATE TABLE rotation (
   position INTEGER PRIMARY KEY,
   day TEXT NULL REFERENCES split_day(name) ON UPDATE CASCADE ON DELETE SET NULL
@@ -322,6 +331,8 @@ INSERT INTO "rules" VALUES(6,'coaching','at every session end, show two separate
 INSERT INTO "rules" VALUES(7,'coaching','laterality (unilateral/bilateral) and setup facts go to movement notes via map note on first sight, never left only in set notes','2026-09-23',NULL,'active','2026-09-23T09:39:41');
 INSERT INTO "rules" VALUES(8,'smith','Smith movements log added plates only, bar counts as 0','2026-09-24',NULL,'active','2026-09-24T09:30:32');
 INSERT INTO "rules" VALUES(9,'coaching','got it / done means hit the prescribed target exactly, log it as-is','2026-09-27',NULL,'active','2026-09-27T08:58:57');
+INSERT INTO "rules" VALUES(10,'coaching','when a movement has a known starting weight, calculate off the total but always tell both: total plus starter and added split (e.g. 87 total = 57 starter + 30 added)','2026-10-01',NULL,'active','2026-10-01T09:08:19');
+INSERT INTO "rules" VALUES(11,'coaching','never prescribe over 12 reps for any movement; when reps would exceed 12, bump weight instead and keep target at 12 or below','2026-10-01',NULL,'active','2026-10-01T09:59:08');
 CREATE TABLE schema_version (version INTEGER NOT NULL);
 INSERT INTO "schema_version" VALUES(3);
 CREATE TABLE sets (
@@ -489,6 +500,22 @@ INSERT INTO "sets" VALUES(153,12,'overhead cable extension',26.25,12,'','2026-09
 INSERT INTO "sets" VALUES(154,12,'overhead cable extension',26.25,12,'','2026-09-30T09:15:13');
 INSERT INTO "sets" VALUES(155,12,'face pull',40.0,12,'','2026-09-30T09:18:06');
 INSERT INTO "sets" VALUES(156,12,'face pull',41.25,10,'','2026-09-30T09:21:22');
+INSERT INTO "sets" VALUES(157,13,'hack squat',87.0,9,'','2026-10-01T09:09:36');
+INSERT INTO "sets" VALUES(158,13,'hack squat',87.0,9,'','2026-10-01T09:14:48');
+INSERT INTO "sets" VALUES(159,13,'leg extension',89.0,12,'','2026-10-01T09:20:51');
+INSERT INTO "sets" VALUES(160,13,'leg extension',89.0,10,'','2026-10-01T09:28:21');
+INSERT INTO "sets" VALUES(161,13,'leg extension',89.0,9,'','2026-10-01T09:28:25');
+INSERT INTO "sets" VALUES(162,13,'leg press',125.0,9,'','2026-10-01T09:32:41');
+INSERT INTO "sets" VALUES(163,13,'leg press',125.0,8,'','2026-10-01T09:37:43');
+INSERT INTO "sets" VALUES(164,13,'adductor machine',45.0,11,'','2026-10-01T09:39:46');
+INSERT INTO "sets" VALUES(165,13,'adductor machine',45.0,10,'','2026-10-01T09:42:53');
+INSERT INTO "sets" VALUES(166,13,'crunch machine',35.0,13,'','2026-10-01T09:45:32');
+INSERT INTO "sets" VALUES(167,13,'crunch machine',35.0,9,'','2026-10-01T09:49:36');
+INSERT INTO "sets" VALUES(168,13,'cable crunch',28.75,12,'','2026-10-01T09:53:38');
+INSERT INTO "sets" VALUES(169,13,'cable crunch',28.75,11,'','2026-10-01T09:57:00');
+INSERT INTO "sets" VALUES(170,13,'cable wrist curl',13.75,12,'','2026-10-01T10:00:16');
+INSERT INTO "sets" VALUES(171,13,'cable wrist curl',13.75,12,'','2026-10-01T10:01:56');
+INSERT INTO "sets" VALUES(172,13,'cable wrist curl',13.75,10,'','2026-10-01T10:04:21');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
@@ -783,6 +810,8 @@ INSERT INTO "state_change" VALUES(10,'rule','9','2026-09-27','2026-09-27T08:58:5
 INSERT INTO "state_change" VALUES(11,'program','active:L2','2026-09-27','2026-09-27T09:53:03','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable wrist extension", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','wrist extension ROM feels off, no pain, swap to reverse curl',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(12,'program','active:L1','2026-09-27','2026-09-27T10:30:13','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "crunch machine", "sets": 2, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "cable reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "crunch machine", "sets": 2, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','cable EZ flips on swivel, wrists fight path; dumbbells free',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(13,'program','active:L2','2026-09-27','2026-09-27T10:30:13','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','cable EZ flips on swivel, wrists fight path; dumbbells free',NULL,NULL,1);
+INSERT INTO "state_change" VALUES(14,'rule','10','2026-10-01','2026-10-01T09:08:19','{"action": "add", "expiry": null, "rule_id": 10, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 10, "status": "active", "subject": "coaching", "text": "when a movement has a known starting weight, calculate off the total but always tell both: total plus starter and added split (e.g. 87 total = 57 starter + 30 added)"}','user asked at L1 start so no mental math at the machine',NULL,NULL,0);
+INSERT INTO "state_change" VALUES(15,'rule','11','2026-10-01','2026-10-01T09:59:08','{"action": "add", "expiry": null, "rule_id": 11, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 11, "status": "active", "subject": "coaching", "text": "never prescribe over 12 reps for any movement; when reps would exceed 12, bump weight instead and keep target at 12 or below"}','user rejected 15-rep wrist curl target mid-L1; cap matches e1rm_cap_reps',NULL,NULL,0);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -800,6 +829,7 @@ INSERT INTO "workouts" VALUES(9,'2026-09-27','done','L2 Legs wrecked but held al
 INSERT INTO "workouts" VALUES(10,'2026-09-28','done','U4 U4, had to cut last rear delt set, otherwise strong');
 INSERT INTO "workouts" VALUES(11,'2026-09-29','rest','planned rest');
 INSERT INTO "workouts" VALUES(12,'2026-09-30','done','U1 U1 solid. pulldown swapped after curls, backed off second. JM form dialed consistent.');
+INSERT INTO "workouts" VALUES(13,'2026-10-01','done','L1 L1. Hams skipped sore from first RDL back, DB reverse curl skipped bus baseline next time. Wrist curl reseeded at 13.75.');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
