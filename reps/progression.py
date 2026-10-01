@@ -54,6 +54,9 @@ def set_progression(exercise, verdict, next_weight, next_reps, direction, note="
         pass  # bodyweight check below needs the exercise row
     if next_reps <= 0:
         raise RepsError("next reps must be a positive integer")
+    from .e1rm import cap_reps as _cap
+    if next_reps > _cap():
+        raise RepsError(f"next reps {next_reps} exceeds the {_cap()}-rep cap, bump weight instead")
     if not isinstance(note, str):
         raise RepsError("note must be a string")
     c = conn()
