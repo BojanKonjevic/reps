@@ -14,3 +14,5 @@ Bodyweight, injuries, sleep, motivation notes that carry over. One line each, ne
 ## Monthly rollups
 
 One short block per month, written on request at month end. Trend plus caveats, not raw sets. Raw sets stay in SQLite.
+
+- Sep 2026: 7/7 trained Sep22-30 (U1,L1,U2,U3,L2,U4,U1) + 2 rest_ok. Block started Sep20 flat to failure, baselines seeded all slots. Trend too early, first week only. Caveats: partial month, BW single 79.3 Sep26 gym scale.
