@@ -864,6 +864,7 @@ INSERT INTO "workouts" VALUES(11,'2026-09-29','rest','planned rest');
 INSERT INTO "workouts" VALUES(12,'2026-09-30','done','U1 U1 solid. pulldown swapped after curls, backed off second. JM form dialed consistent.');
 INSERT INTO "workouts" VALUES(13,'2026-10-01','done','L1 L1. Hams skipped sore from first RDL back, DB reverse curl skipped bus baseline next time. Wrist curl reseeded at 13.75.');
 INSERT INTO "workouts" VALUES(14,'2026-10-02','done','U2 U2 solid, 10/10 PRs. pulldown/lat raise and hammer/curl order swapped for equipment, pulldown backed to 77 third.');
+INSERT INTO "workouts" VALUES(15,'2026-10-03','rest','');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
