@@ -323,7 +323,7 @@ CREATE TABLE rotation_anchor (
   anchor_date TEXT NOT NULL,
   position INTEGER NOT NULL REFERENCES rotation(position)
 );
-INSERT INTO "rotation_anchor" VALUES(1,'2026-10-04',3);
+INSERT INTO "rotation_anchor" VALUES(1,'2026-09-22',0);
 CREATE TABLE rules (
   id INTEGER PRIMARY KEY,
   subject TEXT NOT NULL,
@@ -845,7 +845,8 @@ INSERT INTO "state_change" VALUES(12,'program','active:L1','2026-09-27','2026-09
 INSERT INTO "state_change" VALUES(13,'program','active:L2','2026-09-27','2026-09-27T10:30:13','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "cable reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','cable EZ flips on swivel, wrists fight path; dumbbells free',NULL,NULL,1);
 INSERT INTO "state_change" VALUES(14,'rule','10','2026-10-01','2026-10-01T09:08:19','{"action": "add", "expiry": null, "rule_id": 10, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 10, "status": "active", "subject": "coaching", "text": "when a movement has a known starting weight, calculate off the total but always tell both: total plus starter and added split (e.g. 87 total = 57 starter + 30 added)"}','user asked at L1 start so no mental math at the machine',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(15,'rule','11','2026-10-01','2026-10-01T09:59:08','{"action": "add", "expiry": null, "rule_id": 11, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 11, "status": "active", "subject": "coaching", "text": "never prescribe over 12 reps for any movement; when reps would exceed 12, bump weight instead and keep target at 12 or below"}','user rejected 15-rep wrist curl target mid-L1; cap matches e1rm_cap_reps',NULL,NULL,0);
-INSERT INTO "state_change" VALUES(16,'rotation','anchor','2026-10-04','2026-10-04T09:21:32','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','{"anchor_date": "2026-10-04", "position": 3, "rotation": null}','user sick Oct4, shifts everything 1 day forward: Oct4 rest, U3 Oct5, L2 Oct6',NULL,NULL,0);
+INSERT INTO "state_change" VALUES(16,'rotation','anchor','2026-10-04','2026-10-04T09:21:32','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','{"anchor_date": "2026-10-04", "position": 3, "rotation": null}','user sick Oct4, shifts everything 1 day forward: Oct4 rest, U3 Oct5, L2 Oct6',17,NULL,0);
+INSERT INTO "state_change" VALUES(17,'rotation','anchor','2026-10-04','2026-10-04T15:07:51','{"anchor_date": "2026-10-04", "position": 3, "rotation": null}','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','user wants push-forward rest semantics instead of re-anchor; restoring Sep22 U1 pin',NULL,16,1);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
