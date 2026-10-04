@@ -102,7 +102,7 @@ This is distinct from data-quality audits or compaction. It only refreshes the e
 
 These flows have no prescription and that is deliberate; when asked, say so and handle ad hoc. Future work starts here, not in a second mechanism.
 
-- Missed-session catch-up: missed days are marked and listed, never redistributed automatically. The rotation resumes where it stands; volume is not doubled to "make up" a miss.
+- Missed-session catch-up: untracked absence is marked and listed, never redistributed automatically. The rotation resumes where it stands; volume is not doubled to "make up" a miss. An explicitly logged rest on a training day instead pushes the schedule forward from there (derived on read from rest rows, days before it untouched).
 - Travel/illness: no maintenance-MEV travel mode, no illness return ramp beyond the normal first-session-back-light rule. Breaks over 4 days read as breaks; longer illness layoffs get a conservative restart by judgment, not by formula.
 - Busy-gym substitution matrix: alternates in the slot are the substitution list. Anything else is a one-off session, never a program change.
 - Unilateral asymmetry tracking: weaker-side notes stay free-text on the set. No per-side e1RM, no asymmetry metric.

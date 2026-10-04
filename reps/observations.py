@@ -286,7 +286,7 @@ def _goal_trajectory(subject, since, until):
 
 def _adherence_summary(subject, since, until):
     from .adherence import (_classify_one, _rest_set, _trained_by_date,
-                            drift_days, expected_day, get_anchor)
+                            drift_days, expected_day, get_anchor, is_rest_day)
     from .history import list_changes, split_map_at, value_at
     from .program import get_rotation
     from .slots import slot_of_session as _match
@@ -304,10 +304,19 @@ def _adherence_summary(subject, since, until):
     # Prefetch once for the whole range: per-date trained sets and rest rows.
     # The rotation/anchor/split still fold per date (history can change them),
     # but those folds are in-Python over already-fetched change lists.
+    # Rest-push shifts replay from the anchor active at the range start, so a
+    # range opening mid-offset still classifies correctly; a re-pinned
+    # rotation/anchor restarts the push count, as the live views do.
+    span_anchor_date = value_at(anch_hist, since, "anchor_date")
+    if span_anchor_date is None and not anch_hist and cur_anch is not None:
+        span_anchor_date = cur_anch["date"]
+    loop_start = min(since, span_anchor_date) if span_anchor_date else since
     trained_map = _trained_by_date(c, since, until)
-    rest_days = _rest_set(c, since, until)
+    rest_days = _rest_set(c, loop_start, until)
     days = []
-    day = date.fromisoformat(since)
+    shift = 0
+    span = None
+    day = date.fromisoformat(loop_start)
     end = date.fromisoformat(until)
     while day <= end:
         d = day.isoformat()
@@ -323,16 +332,26 @@ def _adherence_summary(subject, since, until):
         anchor = ({"date": anch, "index": anch_pos}
                   if anch is not None and anch_pos is not None
                   and rot_names is not None and anch_pos < len(rot_names) else None)
-        trained = trained_map.get(d, set())
-        daymap = split_map_at(prog_hist, d, c)
-        if rot_names is not None and anchor is not None:
-            matched = _match(list(trained), daymap)["day"] if trained else None
-            days.append(_classify_one(d, expected_day(rot_names, anchor, d),
-                                      trained, d in rest_days, matched))
+        key = ((tuple(rot_names) if rot_names is not None else None),
+               (anchor["date"], anchor["index"]) if anchor is not None else None)
+        if key != span:
+            span, shift = key, 0
+        if rot_names is None or anchor is None:
+            if d >= since:
+                trained = trained_map.get(d, set())
+                daymap = split_map_at(prog_hist, d, c)
+                days.append({"date": d, "expected": None,
+                             "trained": _match(list(trained), daymap)["day"] if trained else None,
+                             "status": "unknown"})
         else:
-            days.append({"date": d, "expected": None,
-                         "trained": _match(list(trained), daymap)["day"] if trained else None,
-                         "status": "unknown"})
+            exp = expected_day(rot_names, anchor, d, shift)
+            if d in rest_days and not is_rest_day(exp):
+                shift += 1
+            if d >= since:
+                trained = trained_map.get(d, set())
+                daymap = split_map_at(prog_hist, d, c)
+                matched = _match(list(trained), daymap)["day"] if trained else None
+                days.append(_classify_one(d, exp, trained, d in rest_days, matched))
         day += timedelta(days=1)
     counts: dict = {}
     for v in days:

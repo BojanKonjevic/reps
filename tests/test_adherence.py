@@ -80,13 +80,14 @@ def test_status_classifications(log_module):
     # 08-12 rest expected, bench trained -> extra
     _done(c, "2026-08-12", "bench")
     # 08-13 U expected, nothing -> missed
-    # 08-14 L expected, rest row, no sets -> rest_logged
+    # 08-14 L expected, rest row, no sets -> rest_logged (a rested training
+    # day reads rest_logged and pushes the schedule one day forward from here)
     _rest(c, "2026-08-14")
-    # 08-15 rest expected, nothing -> rest_ok
-    # 08-16 U expected (6 % 3 == 0), nothing -> missed
-    # 08-17 L expected, bench+squat tie -> swapped
+    # 08-15 base rest, shifted to L by the 08-14 push, nothing -> missed
+    # 08-16 base U, shifted to rest by the 08-14 push, nothing -> rest_ok
+    # 08-17 shifted to U, bench+squat tie -> swapped
     _done(c, "2026-08-17", "bench", "squat")
-    # 08-18 rest expected, rest row -> rest_ok
+    # 08-18 shifted to L by the 08-14 push, rest row -> rest_logged
     _rest(c, "2026-08-18")
     out = log.get_rotation_status("2026-08-10", "2026-08-18")
     by_date = {e["date"]: e for e in out}
@@ -100,10 +101,14 @@ def test_status_classifications(log_module):
                                      "trained": None, "status": "missed"}
     assert by_date["2026-08-14"] == {"date": "2026-08-14", "expected": "Lower A",
                                      "trained": None, "status": "rest_logged"}
-    assert by_date["2026-08-15"]["status"] == "rest_ok"
+    assert by_date["2026-08-15"] == {"date": "2026-08-15", "expected": "Lower A",
+                                     "trained": None, "status": "missed"}
+    assert by_date["2026-08-16"] == {"date": "2026-08-16", "expected": "rest",
+                                     "trained": None, "status": "rest_ok"}
     assert by_date["2026-08-17"]["status"] == "swapped"
     assert by_date["2026-08-17"]["trained"] is None
-    assert by_date["2026-08-18"]["status"] == "rest_ok"
+    assert by_date["2026-08-18"] == {"date": "2026-08-18", "expected": "Lower A",
+                                     "trained": None, "status": "rest_logged"}
 
 
 def _seed_5day(log):
@@ -285,3 +290,114 @@ def test_slot_guess_lists_no_missed_before_first_session(log_module):
     expected = _plan(log)["slot_guess"]["expected"]
     assert expected["last_done"] is None
     assert expected["missed"] == []
+
+
+def _push_days(log, back):
+    """Anchor a 3-day rotation `back` days ago on Upper A; returns date fn."""
+    _seed_3day(log)
+    base = date.today() - timedelta(days=back)
+    log.anchor_rotation(base.isoformat(), "Upper A")
+    return lambda n: (base + timedelta(days=n)).isoformat()
+
+
+def test_rest_on_training_day_pushes_schedule_forward(log_module):
+    """A rested training day reads rest_logged and the missed day slides on."""
+    log = log_module
+    c = log.conn()
+    d = _push_days(log, 5)
+    _done(c, d(0), "bench")
+    _done(c, d(1), "squat")
+    _rest(c, d(3))
+    out = {e["date"]: e for e in log.get_rotation_status(d(0), d(5))}
+    assert out[d(0)] == {"date": d(0), "expected": "Upper A",
+                         "trained": "Upper A", "status": "done"}
+    assert out[d(1)] == {"date": d(1), "expected": "Lower A",
+                         "trained": "Lower A", "status": "done"}
+    assert out[d(2)]["status"] == "rest_ok"
+    assert out[d(3)] == {"date": d(3), "expected": "Upper A",
+                         "trained": None, "status": "rest_logged"}
+    assert out[d(4)] == {"date": d(4), "expected": "Upper A",
+                         "trained": None, "status": "missed"}
+    assert out[d(5)] == {"date": d(5), "expected": "Lower A",
+                         "trained": None, "status": "missed"}
+
+
+def test_rest_push_goes_away_with_the_rest_row(log_module):
+    """Pushes derive from rest rows: deleting the rest un-pushes the schedule."""
+    log = log_module
+    c = log.conn()
+    d = _push_days(log, 5)
+    _rest(c, d(3))
+    assert log.get_rotation_status(d(4), d(4))[0]["expected"] == "Upper A"
+    c.execute("DELETE FROM workouts WHERE date = ? AND status = 'rest'", (d(3),))
+    c.commit()
+    out = {e["date"]: e for e in log.get_rotation_status(d(3), d(5))}
+    assert out[d(3)] == {"date": d(3), "expected": "Upper A",
+                         "trained": None, "status": "missed"}
+    assert out[d(4)]["expected"] == "Lower A"
+    assert out[d(5)] == {"date": d(5), "expected": "rest",
+                         "trained": None, "status": "rest_ok"}
+
+
+def test_rest_on_scheduled_rest_pushes_nothing(log_module):
+    """Rest where rest was expected changes nothing downstream."""
+    log = log_module
+    c = log.conn()
+    d = _push_days(log, 5)
+    _rest(c, d(2))
+    out = {e["date"]: e for e in log.get_rotation_status(d(2), d(4))}
+    assert out[d(2)]["status"] == "rest_ok"
+    assert out[d(3)] == {"date": d(3), "expected": "Upper A",
+                         "trained": None, "status": "missed"}
+    assert out[d(4)]["expected"] == "Lower A"
+
+
+def test_consecutive_rests_push_each_day(log_module):
+    """Two sick days in a row slide the missed workout twice."""
+    log = log_module
+    c = log.conn()
+    d = _push_days(log, 5)
+    _rest(c, d(3))
+    _rest(c, d(4))
+    out = {e["date"]: e for e in log.get_rotation_status(d(3), d(5))}
+    assert out[d(3)] == {"date": d(3), "expected": "Upper A",
+                         "trained": None, "status": "rest_logged"}
+    assert out[d(4)] == {"date": d(4), "expected": "Upper A",
+                         "trained": None, "status": "rest_logged"}
+    assert out[d(5)] == {"date": d(5), "expected": "Upper A",
+                         "trained": None, "status": "missed"}
+
+
+def test_untracked_absence_pushes_nothing(log_module):
+    """A missed day with no rest row is skipped, the rotation marches on."""
+    log = log_module
+    d = _push_days(log, 5)
+    out = {e["date"]: e for e in log.get_rotation_status(d(3), d(4))}
+    assert out[d(3)] == {"date": d(3), "expected": "Upper A",
+                         "trained": None, "status": "missed"}
+    assert out[d(4)] == {"date": d(4), "expected": "Lower A",
+                         "trained": None, "status": "missed"}
+
+
+def test_expected_day_shift_param_is_pure(log_module):
+    """The shift parameter slides the schedule with no database involved."""
+    log = log_module
+    rot = ["U1", "L1", "U2", "rest"]
+    anchor = {"date": "2026-09-01", "index": 0}
+    assert log.expected_day(rot, anchor, "2026-09-05") == "U1"
+    assert log.expected_day(rot, anchor, "2026-09-05", 1) == "rest"
+    assert log.expected_day(rot, anchor, "2026-09-05", 4) == "U1"
+
+
+def test_pushed_day_reaches_plan_tomorrow(log_module):
+    """Resting today on a training day keeps the missed day expected tomorrow."""
+    log = log_module
+    c = log.conn()
+    today = date.today()
+    _seed_3day(log)
+    anchor = log.anchor_rotation((today - timedelta(days=3)).isoformat(), "Upper A")
+    log.mark_rest(today.isoformat(), "sick")
+    rotation = ["Upper A", "Lower A", "rest"]
+    ctx = log.expectation_context(c, rotation, anchor["anchor"],
+                                  (today + timedelta(days=1)).isoformat())
+    assert ctx["day"] == "Upper A"

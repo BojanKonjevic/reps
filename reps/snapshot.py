@@ -219,7 +219,7 @@ def status_view(sessions, as_of, break_threshold):
 
 
 def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
-    from .adherence import _classify_one, _rest_set, _trained_by_date, expected_day
+    from .adherence import _classify_one, _rest_set, _trained_by_date, expected_day, schedule_shifts
     from .program import parse_active_split_days
     from .slots import slot_of_session as _match
     trained_dates = sorted({s["date"] for s in sessions if s["exercises"]})
@@ -236,6 +236,7 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
     # queries at 3-year scale. Shape below is unchanged.
     trained_map = _trained_by_date(c, first, as_of)
     rest_dates = _rest_set(c, first, as_of)
+    shifts = schedule_shifts(rotation, anchor, rest_dates, first, as_of) if (anchor and rotation) else {}
     day_map = parse_active_split_days(c) if (anchor and rotation) else {}
     by_date = {s["date"]: s for s in sessions if s["exercises"]}
     days = []
@@ -246,7 +247,7 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
         sess = by_date.get(iso)
         status = expected = None
         if anchor and rotation:
-            exp = expected_day(rotation, anchor, iso)
+            exp = expected_day(rotation, anchor, iso, shifts.get(iso, 0))
             trained = trained_map.get(iso, set())
             matched = _match(list(trained), day_map)["day"] if trained else None
             verdict = _classify_one(iso, exp, trained, iso in rest_dates, matched)

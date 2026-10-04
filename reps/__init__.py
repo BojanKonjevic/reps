@@ -9,7 +9,8 @@ only log.py (maintenance) and MCP translate those at process/protocol edges.
 from .adherence import (adherence_block, adherence_snapshot, anchor_rotation,
                         classify_date, drift_days, expected_day,
                         expectation_context, get_anchor, get_rotation_status,
-                        is_rest_day, match_day, parse_anchor, status_range)
+                        is_rest_day, match_day, parse_anchor, schedule_shifts,
+                        status_range)
 from .audit import run_audit, run_doctor
 from .autoreg import (apply_autoreg, autoreg_active_holds, autoreg_block,
                       autoreg_drop_watch, autoreg_grouped, autoreg_miss_streaks,
@@ -121,7 +122,7 @@ __all__ = [
     "read_priorities", "read_split", "reconcile_split", "record_bodyweight",
     "record_change", "rename_exercise", "rename_lift", "rep_band_bound", "restore_sql",
     "revert_autoreg_change", "revert_change", "revert_split", "rewrite_goal", "rule_status_rows",
-    "rules_with_confirm", "run_audit", "run_doctor", "session_prs",
+    "rules_with_confirm", "run_audit", "run_doctor", "schedule_shifts", "session_prs",
     "set_compaction", "set_constant", "set_deload", "set_exercise_mapping",
     "set_lift_muscles", "set_movement_note", "set_priority", "set_progression",
     "set_rotation", "set_split", "show_rotation", "slot_of_session", "slot_rows",

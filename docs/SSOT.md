@@ -43,6 +43,7 @@
 | Movement splitter                    | `reps/program.py` `parse_movements`                                       | split writes, snapshot `_split_moves`, autoreg   | T1    | tests              |
 | Personal record                      | `reps/records.py`                                                         | snapshot `is_pr`; MCP                            | T1    | G1 (no TS PR code) |
 | Slot match / next slot               | `reps/slots.py`                                                           | plan, adherence, snapshot                        | T1    | tests              |
+| Rotation schedule (expected day)   | `reps/adherence.py` (`expected_day` + `schedule_shifts`, derived from `workouts` rest rows and `rotation_anchor`) | plan slot guess, rotation status, calendar, adherence observation | T1 | tests |
 | Stall / slipping                     | `reps/trends.py` + constants                                              | snapshot `tags`                                  | T1    | tests              |
 | Week bucketing                       | `reps/weeks.py`                                                           | volume, audit, signals, snapshot                 | T1    | tests              |
 | Muscle taxonomy, MEV/MAV/MRV, colors | `constants.json`                                                          | snapshot `constants`                             | T1    | G10                |

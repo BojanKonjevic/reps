@@ -113,6 +113,33 @@ def test_program_tools_through_mcp(log_module):
     assert call("program_rotation_status", {})["ok"] is True
 
 
+def test_rest_push_visible_through_mcp(log_module):
+    """Resting on a training day pushes the schedule, visible via status tools."""
+    from datetime import date, timedelta
+    log = log_module
+    log.set_exercise_mapping("bench", "chest")
+    log.set_split("Upper A", 1, "bench", 3)
+    log.set_split("Lower A", 1, "bench", 3)
+    assert call("program_rotation_set", {"days": ["Upper A", "Lower A", "rest"]})["ok"] is True
+    today = date.today()
+    assert call("program_rotation_anchor",
+                {"date": (today - timedelta(days=3)).isoformat(), "day": "Upper A"})["ok"] is True
+    assert call("session_rest", {"day": today.isoformat(), "note": "sick"})["ok"] is True
+    status = call("program_rotation_status",
+                  {"from_date": (today - timedelta(days=3)).isoformat(),
+                   "to_date": today.isoformat()})
+    assert status["ok"] is True
+    by_date = {e["date"]: e for e in status["data"]}
+    assert by_date[today.isoformat()]["status"] == "rest_logged"
+    assert by_date[today.isoformat()]["expected"] == "Upper A"
+    obs = call("observe", {"metric": "adherence_summary", "subject": "",
+                           "since": today.isoformat(),
+                           "until": (today + timedelta(days=1)).isoformat()})
+    assert obs["ok"] is True
+    verdicts = {v["date"]: v for v in obs["data"]["result"]["verdicts"]}
+    assert verdicts[(today + timedelta(days=1)).isoformat()]["expected"] == "Upper A"
+
+
 def test_history_and_observe_through_mcp(log_module):
     log = log_module
     log.start_workout("history mcp")

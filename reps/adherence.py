@@ -1,8 +1,12 @@
+# SSOT owner: rotation schedule (expected day per date, rest-push shifts).
+# Consumers: plan slot guess, rotation status, calendar, adherence observation.
 """Rotation adherence: what the rotation prescribed per date vs what happened.
 
 One rotation slot equals one calendar day, the same pricing
 sessions_possible_before already uses for cycle length. Pure derivation from
-the rotation array plus one stored anchor, no new tables.
+the rotation array plus one stored anchor, no new tables. A logged rest on a
+training day pushes the schedule forward from there (derived from rest rows
+on read, never stored).
 """
 
 import json
@@ -60,10 +64,40 @@ def get_anchor(c):
     return anchor
 
 
-def expected_day(rotation, anchor, day_iso):
-    """Rotation entry prescribed for a date. Pure function of the anchor."""
+def expected_day(rotation, anchor, day_iso, shift=0):
+    """Rotation entry prescribed for a date. Pure function of the anchor.
+
+    shift counts rest-push days before it (see schedule_shifts): each logged
+    rest on a training day slides the schedule one day forward from there.
+    """
     delta = (date.fromisoformat(day_iso) - date.fromisoformat(anchor["date"])).days
-    return rotation[(anchor["index"] + delta) % len(rotation)]
+    return rotation[(anchor["index"] + delta - shift) % len(rotation)]
+
+
+def schedule_shifts(rotation, anchor, rest_days, from_iso, to_iso):
+    """Rest-push shift per date in [from_iso, to_iso].
+
+    A rest row counts as a push when that day's expectation (base schedule
+    minus earlier pushes) is a training day: the missed workout slides to the
+    next day instead of being skipped. Strict-before: a date's own rest never
+    moves its own expectation, so a rested training day reads rest_logged and
+    the push lands on later dates. Dates before the anchor are unscored and
+    never push. Pure derivation from rest rows, no stored state.
+    """
+    shifts: dict = {}
+    shift = 0
+    day = min(date.fromisoformat(from_iso), date.fromisoformat(anchor["date"]))
+    end = date.fromisoformat(to_iso)
+    scored_from = date.fromisoformat(anchor["date"])
+    while day <= end:
+        iso = day.isoformat()
+        if iso >= from_iso:
+            shifts[iso] = shift
+        if day >= scored_from and iso in rest_days and not is_rest_day(
+                expected_day(rotation, anchor, iso, shift)):
+            shift += 1
+        day += timedelta(days=1)
+    return shifts
 
 
 def trained_exercises(c, day_iso):
@@ -97,7 +131,11 @@ def classify_date(c, rotation, anchor, day_iso, day_map=None):
 
     day_map overrides the live split for historical evaluation (observe folds
     program history to the date instead of applying today's split)."""
-    exp = expected_day(rotation, anchor, day_iso)
+    shift = schedule_shifts(
+        rotation, anchor,
+        _rest_set(c, min(day_iso, anchor["date"]), day_iso),
+        day_iso, day_iso).get(day_iso, 0)
+    exp = expected_day(rotation, anchor, day_iso, shift)
     trained = trained_exercises(c, day_iso)
     rest_row = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest'",
                          (day_iso,)).fetchone() is not None
@@ -151,11 +189,13 @@ def status_range(c, rotation, anchor, from_iso, to_iso):
 
     Three prefetches (trained map, rest set, split map) then pure Python per
     date: O(1) round trips however long the range, instead of ~4 queries per
-    date through classify_date."""
+    date through classify_date. The rest set reaches back to the anchor so
+    rest-push shifts at the range start include earlier pushes."""
     from .program import parse_active_split_days
     from .slots import slot_of_session as _match
     trained_map = _trained_by_date(c, from_iso, to_iso)
-    rest_days = _rest_set(c, from_iso, to_iso)
+    rest_days = _rest_set(c, min(from_iso, anchor["date"]), to_iso)
+    shifts = schedule_shifts(rotation, anchor, rest_days, from_iso, to_iso)
     day_map = parse_active_split_days(c)
     out = []
     day = date.fromisoformat(from_iso)
@@ -164,7 +204,7 @@ def status_range(c, rotation, anchor, from_iso, to_iso):
         iso = day.isoformat()
         trained = trained_map.get(iso, set())
         matched = _match(list(trained), day_map)["day"] if trained else None
-        out.append(_classify_one(iso, expected_day(rotation, anchor, iso),
+        out.append(_classify_one(iso, expected_day(rotation, anchor, iso, shifts[iso]),
                                  trained, iso in rest_days, matched))
         day += timedelta(days=1)
     return out
@@ -234,10 +274,11 @@ def expectation_context(c, rotation, anchor, today_iso, lookback=90):
     The done search reaches back up to lookback days, but the missed list is
     capped at the last 14 so the basis line stays readable on stale anchors.
     """
-    exp = expected_day(rotation, anchor, today_iso)
     today = date.fromisoformat(today_iso)
     hist = status_range(c, rotation, anchor,
                         (today - timedelta(days=lookback)).isoformat(), today_iso)
+    exp = next((e["expected"] for e in hist if e["date"] == today_iso),
+               expected_day(rotation, anchor, today_iso))
     done = [e for e in hist if e["status"] == "done"]
     last = done[-1] if done else None
     recent_from = (today - timedelta(days=13)).isoformat()
