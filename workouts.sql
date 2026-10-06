@@ -312,7 +312,7 @@ INSERT INTO "progression" VALUES(91,18,'dumbbell lat raise','hit',15.0,9,'up',''
 INSERT INTO "progression" VALUES(92,18,'cable pullover','hit',37.5,11,'up','','2026-10-06T09:56:05');
 INSERT INTO "progression" VALUES(93,18,'cable lat raise','hit',13.125,10,'up','','2026-10-06T09:56:05');
 INSERT INTO "progression" VALUES(94,18,'pec deck','hit',92.5,8,'up','','2026-10-06T09:56:05');
-INSERT INTO "progression" VALUES(95,18,'hammer strength row','hold',125.0,8,'flat','heavy first, backed second to 120','2026-10-06T09:56:05');
+INSERT INTO "progression" VALUES(95,18,'hammer strength row','hit',127.5,8,'up','PR 125x8, 120 2nd intentional range','2026-10-06T09:59:17');
 INSERT INTO "progression" VALUES(96,18,'ezbar curl','hit',37.5,10,'up','','2026-10-06T09:56:05');
 INSERT INTO "progression" VALUES(97,18,'bayesian curl','hit',12.5,9,'up','','2026-10-06T09:56:05');
 INSERT INTO "progression" VALUES(98,18,'smith jm press','hit',57.5,8,'up','','2026-10-06T09:56:05');
