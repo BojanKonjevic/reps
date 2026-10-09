@@ -971,6 +971,7 @@ INSERT INTO "workouts" VALUES(17,'2026-10-05','rest','still sick, resting instea
 INSERT INTO "workouts" VALUES(18,'2026-10-06','done','sick 3d prior, healthy strong today. hammer row heavy, backed 2nd to 120. smith jm favorite. overhead 28.75 double PR.');
 INSERT INTO "workouts" VALUES(19,'2026-10-07','done','L2 dead by adductor, held targets. cable before machine swap. skipped db reverse curl, no bench plus bus.');
 INSERT INTO "workouts" VALUES(20,'2026-10-08','done','U4, incline 3, skullcrusher 47.5 convenient, pulldown stack pin');
+INSERT INTO "workouts" VALUES(21,'2026-10-09','rest','');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
