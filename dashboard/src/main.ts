@@ -2,6 +2,12 @@ import { mount } from 'svelte';
 import App from './App.svelte';
 import './design/tokens.css';
 import './app.css';
+import { registerSW } from 'virtual:pwa-register';
+
+// PWA: the service worker owns the offline cache (app shell plus the last
+// snapshot), nothing else. Domain facts still come from the worker and the
+// published snapshot, never from the cache.
+if ('serviceWorker' in navigator) registerSW({ immediate: true });
 
 // Explicit font load before first paint AND first canvas draw:
 // fonts.ready alone resolves while nothing is pending, which still races

@@ -18,6 +18,10 @@ Responsive contract (F53): one explicit breakpoint (list pages collapse under it
 
 Provenance (F63): verdict first, basis one tap away via the Provenance component (definition plus based_on verbatim, raw sources inside the collapsed technical line). Never a bare claim without its basis reachable.
 
+## PWA
+
+The dashboard is installable (manifest plus service worker, standalone display). Manifest and launcher art live in `dashboard/public/` (`manifest.webmanifest`, `icons/icon.svg` as the single art source, PNGs generated from it, never hand-edited; regenerate via headless Chromium screenshot at 512/192/180). Manifest colors mirror `design/tokens.css`, pinned by `src/__tests__/pwa-manifest.test.ts`. `vite-plugin-pwa` generates only the worker (`manifest: false`): precached app shell, NetworkFirst for `/snapshot` and `/history-states` so revisits render the last sync offline. Registration lives in `src/main.ts` (browser only); `src/worker.ts` stays transport-only and DOM free. MIME for the manifest rides on `public/_headers`. After deploy, verify installability live: manifest parses with 192/512/maskable icons, the worker serves `sw.js`, a fresh profile registers and is SW-controlled, and an offline reload still renders.
+
 ## Sync
 
 `sync_push` publishes the full validated export plus bodyweight to https://reps.bojan-dev.workers.dev/ where the hosted dashboard reads it. The payload is validated against `reps/models.py` before publication; the dashboard validates it again with Zod on receipt. Auth lives in `~/.config/reps/config.json`, never in the repo. Local SQLite stays the source of truth. The `workouts.db` binary is gitignored; instead `sync_push` dumps a text SQL dump (`workouts.sql`) which is committed to git. This gives clean diffs and readable history. `maintenance_dump` re-writes `workouts.sql` from the live DB without syncing, used by `doctor`'s dump_drift fix.
