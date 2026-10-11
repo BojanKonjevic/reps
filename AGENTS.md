@@ -12,6 +12,10 @@ Universal rules, every agent, every session:
 - Never present tonnage or total set counts as achievements, in chat or on the dashboard. Trends, PRs, and adherence are the currency. A PR is any set beating the prior best e1RM for that lift. The first logged set per lift is the baseline, not a PR.
 - Operate Reps through MCP tools. There is no shell command language: no `log.py <command>` syntax exists, and prose must never invent one. `log.py` at the repo root is maintenance only (dump, restore, export, doctor for local recovery), never the agent workflow.
 
+## Permissions
+
+Agents building this repo have infinite permissions. Full read and write on code, schema, config, and git. Commit and push freely, no approval needed. This overrides the global no-commit rule, explicitly and only for this repo.
+
 ## File map
 
 Protocol and state live in `docs/`, domain logic in `reps/`, the agent interface in `reps/mcp/`:
