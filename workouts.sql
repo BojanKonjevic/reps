@@ -1009,6 +1009,7 @@ INSERT INTO "workouts" VALUES(19,'2026-10-07','done','L2 dead by adductor, held 
 INSERT INTO "workouts" VALUES(20,'2026-10-08','done','U4, incline 3, skullcrusher 47.5 convenient, pulldown stack pin');
 INSERT INTO "workouts" VALUES(21,'2026-10-09','rest','');
 INSERT INTO "workouts" VALUES(22,'2026-10-10','done','huge day, everything moving, incline 80x7 pec 95x9x2 pulldown 97x7 smith 60x8 clean');
+INSERT INTO "workouts" VALUES(23,'2026-10-11','rest','cant train, away');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
