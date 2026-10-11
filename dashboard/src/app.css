@@ -1365,12 +1365,46 @@ canvas {
 }
 button.dt {
   border: none;
-  /* 11px dot keeps the strip compact; 6px padding + content-box clip keeps
-     the visual while the hit target reaches ~23px for touch/mouse users. */
-  padding: 6px;
-  background-clip: content-box;
+  /* 11px dot keeps the strip compact; the 23px box keeps a touch-sized
+     hit target. The visual lives on ::after so both solid fills and the
+     hollow rest ring stay 11px: with global border-box, padding would
+     collapse the content box to zero and background-clip would hide fills
+     while the inset shadow still showed. */
+  padding: 0;
+  width: 23px;
+  height: 23px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   font: inherit;
+}
+button.dt::after {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: block;
+}
+button.dt.dt-done::after {
+  background: var(--good-deep);
+}
+button.dt.dt-missed::after {
+  background: var(--bad-deep);
+}
+button.dt.dt-swapped::after {
+  background: var(--warn);
+}
+button.dt.dt-extra::after {
+  background: var(--link);
+}
+button.dt.dt-restok::after {
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+button.dt.dt-restlogged::after {
+  background: var(--line-soft);
 }
 button.dt.sel {
   outline: 2px solid var(--ink-mute);

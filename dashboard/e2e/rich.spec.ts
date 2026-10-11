@@ -48,6 +48,18 @@ test.describe('Rich snapshot sections', () => {
     await expect(page.locator('#adhWrap')).toBeVisible();
     const missed = rich.adherence!.days.filter(d => d.status === 'missed').length;
     await expect(page.locator('#adhCard .dt-missed')).toHaveCount(missed);
+    // Regression: dots must actually paint. Transparent boxes pass count
+    // and visibility checks, so assert the ::after visual has size and fill.
+    const paint = await page.evaluate(() => {
+      const el = document.querySelector('#adhCard .dt-done');
+      if (!el) return 'missing';
+      const cs = getComputedStyle(el, '::after');
+      return cs.width + '|' + cs.backgroundColor;
+    });
+    expect(paint).not.toBe('missing');
+    const [w, bg] = paint.split('|');
+    expect(parseFloat(w)).toBeGreaterThan(0);
+    expect(bg).not.toContain('rgba(0, 0, 0, 0)');
     const lastWeek = rich.adherence!.weeks[rich.adherence!.weeks.length - 1];
     await expect(page.locator('#adhCard')).toContainText(
       `${lastWeek.trained}/${lastWeek.expected} sessions`
