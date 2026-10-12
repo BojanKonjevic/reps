@@ -39,6 +39,7 @@ INSERT INTO "bodyweight" VALUES(9,'2026-10-06',79.6,'');
 INSERT INTO "bodyweight" VALUES(10,'2026-10-07',80.3,'gym scale, shoes shorts tank unless stated');
 INSERT INTO "bodyweight" VALUES(11,'2026-10-08',79.8,'');
 INSERT INTO "bodyweight" VALUES(12,'2026-10-10',80.0,'');
+INSERT INTO "bodyweight" VALUES(13,'2026-10-12',80.0,'');
 CREATE TABLE compaction (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_compacted TEXT NULL,
@@ -353,6 +354,15 @@ INSERT INTO "progression" VALUES(127,22,'bayesian curl','hit',13.75,10,'up','tod
 INSERT INTO "progression" VALUES(128,22,'smith jm press','hit',60.0,9,'up','today 60x8 clean ties best 76, prior bad form','2026-10-10T10:57:42');
 INSERT INTO "progression" VALUES(129,22,'overhead cable extension','hit',32.5,11,'up','today 31.25x12 e43.75 vs best 40.2','2026-10-10T10:57:42');
 INSERT INTO "progression" VALUES(130,22,'face pull','hit',45.0,10,'up','today 43.75x11 e59.8 vs best 56.7','2026-10-10T10:57:42');
+INSERT INTO "progression" VALUES(131,24,'leg extension','hit',96.0,12,'up','ext-first, jumped 89 to 96','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(132,24,'hack squat','hit',97.0,10,'up','97x8 equiv to 92x10, pre-fatigued second 97x6','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(133,24,'leg press','hit',125.0,11,'up','125x10 hit, second 125x8','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(134,24,'seated leg curl','hit',63.0,11,'up','63x10/9/8','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(135,24,'adductor machine','hit',52.5,10,'up','48.75x12 PR','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(136,24,'cable crunch','hit',37.5,10,'up','35x12 PR, swapped first','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(137,24,'crunch machine','hit',37.5,11,'up','37.5x10 PR match, second 37.5x8','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(138,24,'cable wrist curl','hit',16.25,12,'up','13.75x12 to 16.25x11/10','2026-10-12T10:31:19');
+INSERT INTO "progression" VALUES(139,24,'dumbbell reverse curl','baseline',10.0,12,'flat','seeded 10x10 twice','2026-10-12T10:31:19');
 CREATE TABLE rotation (
   position INTEGER PRIMARY KEY,
   day TEXT NULL REFERENCES split_day(name) ON UPDATE CASCADE ON DELETE SET NULL
@@ -684,6 +694,27 @@ INSERT INTO "sets" VALUES(279,22,'overhead cable extension',31.25,12,'','2026-10
 INSERT INTO "sets" VALUES(280,22,'overhead cable extension',32.5,10,'','2026-10-10T10:50:09');
 INSERT INTO "sets" VALUES(281,22,'face pull',43.75,11,'','2026-10-10T10:53:45');
 INSERT INTO "sets" VALUES(282,22,'face pull',43.75,9,'','2026-10-10T10:56:53');
+INSERT INTO "sets" VALUES(283,24,'leg extension',89.0,12,'','2026-10-12T09:11:35');
+INSERT INTO "sets" VALUES(284,24,'leg extension',96.0,11,'','2026-10-12T09:15:02');
+INSERT INTO "sets" VALUES(285,24,'leg extension',96.0,9,'','2026-10-12T09:18:16');
+INSERT INTO "sets" VALUES(286,24,'hack squat',97.0,8,'','2026-10-12T09:22:50');
+INSERT INTO "sets" VALUES(287,24,'hack squat',97.0,6,'','2026-10-12T09:28:04');
+INSERT INTO "sets" VALUES(288,24,'leg press',125.0,10,'','2026-10-12T09:33:12');
+INSERT INTO "sets" VALUES(289,24,'leg press',125.0,8,'','2026-10-12T09:38:21');
+INSERT INTO "sets" VALUES(290,24,'seated leg curl',63.0,10,'','2026-10-12T09:44:49');
+INSERT INTO "sets" VALUES(291,24,'seated leg curl',63.0,9,'','2026-10-12T09:46:54');
+INSERT INTO "sets" VALUES(292,24,'seated leg curl',63.0,8,'','2026-10-12T09:51:13');
+INSERT INTO "sets" VALUES(293,24,'adductor machine',45.0,12,'','2026-10-12T09:56:30');
+INSERT INTO "sets" VALUES(294,24,'adductor machine',48.75,12,'','2026-10-12T09:59:38');
+INSERT INTO "sets" VALUES(295,24,'cable crunch',32.5,12,'','2026-10-12T10:04:04');
+INSERT INTO "sets" VALUES(296,24,'cable crunch',35.0,12,'','2026-10-12T10:07:34');
+INSERT INTO "sets" VALUES(297,24,'crunch machine',37.5,10,'','2026-10-12T10:13:18');
+INSERT INTO "sets" VALUES(298,24,'crunch machine',37.5,8,'','2026-10-12T10:18:55');
+INSERT INTO "sets" VALUES(299,24,'cable wrist curl',13.75,12,'','2026-10-12T10:21:57');
+INSERT INTO "sets" VALUES(300,24,'cable wrist curl',16.25,11,'','2026-10-12T10:24:47');
+INSERT INTO "sets" VALUES(301,24,'cable wrist curl',16.25,10,'','2026-10-12T10:27:51');
+INSERT INTO "sets" VALUES(302,24,'dumbbell reverse curl',10.0,10,'','2026-10-12T10:29:56');
+INSERT INTO "sets" VALUES(303,24,'dumbbell reverse curl',10.0,10,'','2026-10-12T10:29:56');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
@@ -702,41 +733,23 @@ CREATE TABLE split_slot (
   sets INTEGER NOT NULL,
   UNIQUE (variant, day, slot)
 );
-INSERT INTO "split_slot" VALUES(1,'active','L1',1,2);
 INSERT INTO "split_slot" VALUES(2,'baseline','L1',1,2);
-INSERT INTO "split_slot" VALUES(3,'active','L1',2,3);
 INSERT INTO "split_slot" VALUES(4,'baseline','L1',2,3);
-INSERT INTO "split_slot" VALUES(5,'active','L1',3,2);
 INSERT INTO "split_slot" VALUES(6,'baseline','L1',3,2);
-INSERT INTO "split_slot" VALUES(7,'active','L1',4,3);
 INSERT INTO "split_slot" VALUES(8,'baseline','L1',4,3);
-INSERT INTO "split_slot" VALUES(9,'active','L1',5,2);
 INSERT INTO "split_slot" VALUES(10,'baseline','L1',5,2);
-INSERT INTO "split_slot" VALUES(11,'active','L1',6,2);
 INSERT INTO "split_slot" VALUES(12,'baseline','L1',6,2);
-INSERT INTO "split_slot" VALUES(13,'active','L1',7,2);
 INSERT INTO "split_slot" VALUES(14,'baseline','L1',7,2);
-INSERT INTO "split_slot" VALUES(15,'active','L1',8,3);
 INSERT INTO "split_slot" VALUES(16,'baseline','L1',8,2);
-INSERT INTO "split_slot" VALUES(17,'active','L1',9,2);
 INSERT INTO "split_slot" VALUES(18,'baseline','L1',9,2);
-INSERT INTO "split_slot" VALUES(19,'active','L2',1,3);
 INSERT INTO "split_slot" VALUES(20,'baseline','L2',1,3);
-INSERT INTO "split_slot" VALUES(21,'active','L2',2,3);
 INSERT INTO "split_slot" VALUES(22,'baseline','L2',2,3);
-INSERT INTO "split_slot" VALUES(23,'active','L2',3,2);
 INSERT INTO "split_slot" VALUES(24,'baseline','L2',3,2);
-INSERT INTO "split_slot" VALUES(25,'active','L2',4,2);
 INSERT INTO "split_slot" VALUES(26,'baseline','L2',4,2);
-INSERT INTO "split_slot" VALUES(27,'active','L2',5,3);
 INSERT INTO "split_slot" VALUES(28,'baseline','L2',5,3);
-INSERT INTO "split_slot" VALUES(29,'active','L2',6,3);
 INSERT INTO "split_slot" VALUES(30,'baseline','L2',6,3);
-INSERT INTO "split_slot" VALUES(31,'active','L2',7,2);
 INSERT INTO "split_slot" VALUES(32,'baseline','L2',7,2);
-INSERT INTO "split_slot" VALUES(33,'active','L2',8,2);
 INSERT INTO "split_slot" VALUES(34,'baseline','L2',8,2);
-INSERT INTO "split_slot" VALUES(35,'active','L2',9,3);
 INSERT INTO "split_slot" VALUES(36,'baseline','L2',9,2);
 INSERT INTO "split_slot" VALUES(37,'active','U1',1,3);
 INSERT INTO "split_slot" VALUES(38,'baseline','U1',1,3);
@@ -824,44 +837,46 @@ INSERT INTO "split_slot" VALUES(119,'active','U4',10,2);
 INSERT INTO "split_slot" VALUES(120,'baseline','U4',10,2);
 INSERT INTO "split_slot" VALUES(121,'active','U4',11,2);
 INSERT INTO "split_slot" VALUES(122,'baseline','U4',11,2);
+INSERT INTO "split_slot" VALUES(123,'active','L1',1,2);
+INSERT INTO "split_slot" VALUES(124,'active','L1',2,3);
+INSERT INTO "split_slot" VALUES(125,'active','L1',3,2);
+INSERT INTO "split_slot" VALUES(126,'active','L1',4,3);
+INSERT INTO "split_slot" VALUES(127,'active','L1',5,2);
+INSERT INTO "split_slot" VALUES(128,'active','L1',6,2);
+INSERT INTO "split_slot" VALUES(129,'active','L1',7,2);
+INSERT INTO "split_slot" VALUES(130,'active','L1',8,3);
+INSERT INTO "split_slot" VALUES(131,'active','L1',9,2);
+INSERT INTO "split_slot" VALUES(132,'active','L2',1,3);
+INSERT INTO "split_slot" VALUES(133,'active','L2',2,3);
+INSERT INTO "split_slot" VALUES(134,'active','L2',3,2);
+INSERT INTO "split_slot" VALUES(135,'active','L2',4,2);
+INSERT INTO "split_slot" VALUES(136,'active','L2',5,3);
+INSERT INTO "split_slot" VALUES(137,'active','L2',6,3);
+INSERT INTO "split_slot" VALUES(138,'active','L2',7,2);
+INSERT INTO "split_slot" VALUES(139,'active','L2',8,2);
+INSERT INTO "split_slot" VALUES(140,'active','L2',9,3);
 CREATE TABLE split_slot_lift (
   slot_id INTEGER NOT NULL REFERENCES split_slot(id) ON DELETE CASCADE,
   position INTEGER NOT NULL,
   exercise TEXT NOT NULL REFERENCES lift(exercise) ON UPDATE CASCADE,
   PRIMARY KEY (slot_id, position)
 );
-INSERT INTO "split_slot_lift" VALUES(1,0,'hack squat');
 INSERT INTO "split_slot_lift" VALUES(2,0,'hack squat');
-INSERT INTO "split_slot_lift" VALUES(3,0,'leg extension');
 INSERT INTO "split_slot_lift" VALUES(4,0,'leg extension');
-INSERT INTO "split_slot_lift" VALUES(5,0,'leg press');
 INSERT INTO "split_slot_lift" VALUES(6,0,'leg press');
-INSERT INTO "split_slot_lift" VALUES(7,0,'seated leg curl');
 INSERT INTO "split_slot_lift" VALUES(8,0,'seated leg curl');
-INSERT INTO "split_slot_lift" VALUES(9,0,'adductor machine');
 INSERT INTO "split_slot_lift" VALUES(10,0,'adductor machine');
-INSERT INTO "split_slot_lift" VALUES(11,0,'crunch machine');
 INSERT INTO "split_slot_lift" VALUES(12,0,'crunch machine');
-INSERT INTO "split_slot_lift" VALUES(13,0,'cable crunch');
 INSERT INTO "split_slot_lift" VALUES(14,0,'hanging leg raise');
-INSERT INTO "split_slot_lift" VALUES(15,0,'cable wrist curl');
 INSERT INTO "split_slot_lift" VALUES(16,0,'cable wrist curl');
 INSERT INTO "split_slot_lift" VALUES(18,0,'cable reverse curl');
-INSERT INTO "split_slot_lift" VALUES(19,0,'rdl');
 INSERT INTO "split_slot_lift" VALUES(20,0,'rdl');
-INSERT INTO "split_slot_lift" VALUES(21,0,'leg press');
 INSERT INTO "split_slot_lift" VALUES(22,0,'leg press');
-INSERT INTO "split_slot_lift" VALUES(23,0,'hack squat');
 INSERT INTO "split_slot_lift" VALUES(24,0,'hack squat');
-INSERT INTO "split_slot_lift" VALUES(25,0,'leg extension');
 INSERT INTO "split_slot_lift" VALUES(26,0,'leg extension');
-INSERT INTO "split_slot_lift" VALUES(27,0,'seated leg curl');
 INSERT INTO "split_slot_lift" VALUES(28,0,'seated leg curl');
-INSERT INTO "split_slot_lift" VALUES(29,0,'adductor machine');
 INSERT INTO "split_slot_lift" VALUES(30,0,'adductor machine');
-INSERT INTO "split_slot_lift" VALUES(31,0,'crunch machine');
 INSERT INTO "split_slot_lift" VALUES(32,0,'crunch machine');
-INSERT INTO "split_slot_lift" VALUES(33,0,'cable crunch');
 INSERT INTO "split_slot_lift" VALUES(34,0,'hanging leg raise');
 INSERT INTO "split_slot_lift" VALUES(36,0,'cable wrist extension');
 INSERT INTO "split_slot_lift" VALUES(37,0,'incline barbell bench press');
@@ -950,8 +965,24 @@ INSERT INTO "split_slot_lift" VALUES(119,0,'unilateral cable pushdown');
 INSERT INTO "split_slot_lift" VALUES(120,0,'ezbar skullcrusher');
 INSERT INTO "split_slot_lift" VALUES(121,0,'rear delt cable fly');
 INSERT INTO "split_slot_lift" VALUES(122,0,'rear delt cable fly');
-INSERT INTO "split_slot_lift" VALUES(17,0,'dumbbell reverse curl');
-INSERT INTO "split_slot_lift" VALUES(35,0,'dumbbell reverse curl');
+INSERT INTO "split_slot_lift" VALUES(123,0,'hack squat');
+INSERT INTO "split_slot_lift" VALUES(124,0,'leg extension');
+INSERT INTO "split_slot_lift" VALUES(125,0,'leg press');
+INSERT INTO "split_slot_lift" VALUES(126,0,'seated leg curl');
+INSERT INTO "split_slot_lift" VALUES(127,0,'adductor machine');
+INSERT INTO "split_slot_lift" VALUES(128,0,'cable crunch');
+INSERT INTO "split_slot_lift" VALUES(129,0,'crunch machine');
+INSERT INTO "split_slot_lift" VALUES(130,0,'cable wrist curl');
+INSERT INTO "split_slot_lift" VALUES(131,0,'dumbbell reverse curl');
+INSERT INTO "split_slot_lift" VALUES(132,0,'rdl');
+INSERT INTO "split_slot_lift" VALUES(133,0,'leg press');
+INSERT INTO "split_slot_lift" VALUES(134,0,'hack squat');
+INSERT INTO "split_slot_lift" VALUES(135,0,'leg extension');
+INSERT INTO "split_slot_lift" VALUES(136,0,'seated leg curl');
+INSERT INTO "split_slot_lift" VALUES(137,0,'adductor machine');
+INSERT INTO "split_slot_lift" VALUES(138,0,'cable crunch');
+INSERT INTO "split_slot_lift" VALUES(139,0,'crunch machine');
+INSERT INTO "split_slot_lift" VALUES(140,0,'dumbbell reverse curl');
 CREATE TABLE state_change (
   id INTEGER PRIMARY KEY,
   domain TEXT NOT NULL CHECK (domain IN ('program', 'priority', 'goal', 'deload', 'rule', 'rotation')),
@@ -982,6 +1013,8 @@ INSERT INTO "state_change" VALUES(14,'rule','10','2026-10-01','2026-10-01T09:08:
 INSERT INTO "state_change" VALUES(15,'rule','11','2026-10-01','2026-10-01T09:59:08','{"action": "add", "expiry": null, "rule_id": 11, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 11, "status": "active", "subject": "coaching", "text": "never prescribe over 12 reps for any movement; when reps would exceed 12, bump weight instead and keep target at 12 or below"}','user rejected 15-rep wrist curl target mid-L1; cap matches e1rm_cap_reps',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(16,'rotation','anchor','2026-10-04','2026-10-04T09:21:32','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','{"anchor_date": "2026-10-04", "position": 3, "rotation": null}','user sick Oct4, shifts everything 1 day forward: Oct4 rest, U3 Oct5, L2 Oct6',17,NULL,0);
 INSERT INTO "state_change" VALUES(17,'rotation','anchor','2026-10-04','2026-10-04T15:07:51','{"anchor_date": "2026-10-04", "position": 3, "rotation": null}','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','user wants push-forward rest semantics instead of re-anchor; restoring Sep22 U1 pin',NULL,16,1);
+INSERT INTO "state_change" VALUES(18,'program','active:L1','2026-10-12','2026-10-12T10:01:01','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "crunch machine", "sets": 2, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','{"day": "L1", "slots": [{"movements": "hack squat", "sets": 2, "slot": 1}, {"movements": "leg extension", "sets": 3, "slot": 2}, {"movements": "leg press", "sets": 2, "slot": 3}, {"movements": "seated leg curl", "sets": 3, "slot": 4}, {"movements": "adductor machine", "sets": 2, "slot": 5}, {"movements": "cable crunch", "sets": 2, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable wrist curl", "sets": 3, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 2, "slot": 9}], "variant": "active"}','Oct12: cable momentum up to 45.5 vs machine hold, user feel cable better, Oct7 cable-first',NULL,NULL,0);
+INSERT INTO "state_change" VALUES(19,'program','active:L2','2026-10-12','2026-10-12T10:01:01','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "crunch machine", "sets": 2, "slot": 7}, {"movements": "cable crunch", "sets": 2, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','{"day": "L2", "slots": [{"movements": "rdl", "sets": 3, "slot": 1}, {"movements": "leg press", "sets": 3, "slot": 2}, {"movements": "hack squat", "sets": 2, "slot": 3}, {"movements": "leg extension", "sets": 2, "slot": 4}, {"movements": "seated leg curl", "sets": 3, "slot": 5}, {"movements": "adductor machine", "sets": 3, "slot": 6}, {"movements": "cable crunch", "sets": 2, "slot": 7}, {"movements": "crunch machine", "sets": 2, "slot": 8}, {"movements": "dumbbell reverse curl", "sets": 3, "slot": 9}], "variant": "active"}','Oct12: same cable-first order as L1, cable momentum vs machine hold',NULL,NULL,0);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -1010,6 +1043,7 @@ INSERT INTO "workouts" VALUES(20,'2026-10-08','done','U4, incline 3, skullcrushe
 INSERT INTO "workouts" VALUES(21,'2026-10-09','rest','');
 INSERT INTO "workouts" VALUES(22,'2026-10-10','done','huge day, everything moving, incline 80x7 pec 95x9x2 pulldown 97x7 smith 60x8 clean');
 INSERT INTO "workouts" VALUES(23,'2026-10-11','rest','cant train, away');
+INSERT INTO "workouts" VALUES(24,'2026-10-12','done','L1 ext-first (hacks taken), hacks pre-fatigued. Cable-first abs swap permanent L1+L2. Dead by leg press, finished.');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
