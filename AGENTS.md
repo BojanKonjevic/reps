@@ -42,6 +42,7 @@ Phrases that switch modes, each documented where it lives:
 - "prioritize X" — bring up a muscle, flow in `docs/PROGRAMMING.md`.
 - "add a setting / constant / enum / color / route / field" — follow `docs/SSOT.md` decision procedure (A.2).
 - Explicit agent complaints ("that's wrong", "log this issue") — append to `docs/ISSUES.md` per its template.
+- "omw" — heading to gym heads-up, flow in `docs/LOGGING.md`.
 
 ## Reasoning modes
 

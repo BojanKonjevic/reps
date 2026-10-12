@@ -6,6 +6,8 @@ All operations are MCP tools (`reps/mcp/`). Tool results carry `ok` plus `data`;
 
 ## Session start
 
+En route heads-up: "omw" means gonna go to the gym, will ping on arrival with bw. Ack short, run `plan` plus read `MEMORY.md` so ready, start nothing, remind to send bw on arrival.
+
 Fresh agents have no chat memory, so rebuild it from files first:
 
 1. Run `plan`. Its bundle is the computed session state: today, slot_guess, volume, ledger, lifts, split, goals, rules, progression, flags, priority, deload, autoreg, compaction. Then read `MEMORY.md` and `SCIENCE.md` for judgment state only. Active rules beat SCIENCE.md defaults which beat raw history. My logged data beats SCIENCE.md defaults for my specific lifts.
