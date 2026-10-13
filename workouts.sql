@@ -369,7 +369,7 @@ INSERT INTO "progression" VALUES(142,25,'reverse-grip smith incline press','hit'
 INSERT INTO "progression" VALUES(143,25,'cable lat raise','hit',14.375,11,'up','','2026-10-13T10:49:37');
 INSERT INTO "progression" VALUES(144,25,'hammer strength row','hit',132.5,9,'up','','2026-10-13T10:49:37');
 INSERT INTO "progression" VALUES(145,25,'incline dumbbell curl','hit',17.5,12,'up','','2026-10-13T10:49:37');
-INSERT INTO "progression" VALUES(146,25,'machine preacher curl','hit',67.0,10,'up','','2026-10-13T10:49:37');
+INSERT INTO "progression" VALUES(146,25,'machine preacher curl','hit',60.0,11,'up','','2026-10-13T10:54:58');
 INSERT INTO "progression" VALUES(147,25,'ezbar skullcrusher','hit',47.5,10,'up','','2026-10-13T10:49:37');
 INSERT INTO "progression" VALUES(148,25,'cable pushdown','hit',32.5,10,'up','','2026-10-13T10:49:37');
 INSERT INTO "progression" VALUES(149,25,'rear delt cable fly','hit',11.25,11,'up','','2026-10-13T10:49:37');
@@ -740,7 +740,7 @@ INSERT INTO "sets" VALUES(315,25,'hammer strength row',132.5,7,'','2026-10-13T10
 INSERT INTO "sets" VALUES(316,25,'incline dumbbell curl',17.5,11,'','2026-10-13T10:11:10');
 INSERT INTO "sets" VALUES(317,25,'incline dumbbell curl',17.5,9,'','2026-10-13T10:17:01');
 INSERT INTO "sets" VALUES(318,25,'machine preacher curl',60.0,10,'','2026-10-13T10:21:22');
-INSERT INTO "sets" VALUES(319,25,'machine preacher curl',67.0,9,'','2026-10-13T10:24:47');
+INSERT INTO "sets" VALUES(319,25,'machine preacher curl',60.0,9,'','2026-10-13T10:24:47');
 INSERT INTO "sets" VALUES(320,25,'ezbar skullcrusher',47.5,9,'','2026-10-13T10:29:31');
 INSERT INTO "sets" VALUES(321,25,'ezbar skullcrusher',47.5,7,'','2026-10-13T10:35:21');
 INSERT INTO "sets" VALUES(322,25,'cable pushdown',31.25,12,'','2026-10-13T10:42:44');
