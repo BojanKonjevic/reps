@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "reps": {
+      "type": "local",
+      "command": ["/Users/bojan/Projects/reps/.venv/bin/python", "-m", "reps.mcp"],
+      "cwd": "/Users/bojan/Projects/reps",
+      "enabled": true,
+      "timeout": 10000
+    }
+  }
+}
