@@ -59,7 +59,7 @@ CREATE TABLE compaction (
   last_compacted TEXT NULL,
   postponed_until TEXT NULL
 );
-INSERT INTO "compaction" VALUES(1,'Oct 2 2026','2026-10-01');
+INSERT INTO "compaction" VALUES(1,'Nov 4 2026','2026-10-01');
 CREATE TABLE deload_state (
   id INTEGER PRIMARY KEY,
   scope TEXT NOT NULL CHECK (scope IN ('lift', 'slot')),
@@ -1542,6 +1542,7 @@ INSERT INTO "workouts" VALUES(44,'2026-11-01','done','Pulldown 107x8 PR. Skullcr
 INSERT INTO "workouts" VALUES(45,'2026-11-02','rest','Planned rest day');
 INSERT INTO "workouts" VALUES(46,'2026-11-03','rest','');
 INSERT INTO "workouts" VALUES(47,'2026-11-04','done','U3 U3, bench busy so overhead before smith. Strong first sets, normal fade. 7 PRs.');
+INSERT INTO "workouts" VALUES(48,'2026-11-05','rest','missed the bus, no session');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
