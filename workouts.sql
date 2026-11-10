@@ -56,6 +56,7 @@ INSERT INTO "bodyweight" VALUES(26,'2026-11-01',83.0,'');
 INSERT INTO "bodyweight" VALUES(27,'2026-11-04',83.0,'');
 INSERT INTO "bodyweight" VALUES(28,'2026-11-06',83.3,'');
 INSERT INTO "bodyweight" VALUES(29,'2026-11-07',83.2,'');
+INSERT INTO "bodyweight" VALUES(30,'2026-11-10',83.0,'gym scale, in shoes/shorts/tank');
 CREATE TABLE compaction (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_compacted TEXT NULL,
@@ -1255,6 +1256,29 @@ INSERT INTO "sets" VALUES(652,50,'ezbar skullcrusher',52.5,7,'','2026-11-07T10:3
 INSERT INTO "sets" VALUES(653,50,'ezbar skullcrusher',47.5,6,'','2026-11-07T10:40:04');
 INSERT INTO "sets" VALUES(654,50,'unilateral cable pushdown',15.0,10,'','2026-11-07T10:42:53');
 INSERT INTO "sets" VALUES(655,50,'unilateral cable pushdown',15.0,8,'','2026-11-07T10:44:52');
+INSERT INTO "sets" VALUES(656,53,'incline barbell bench press',82.5,7,'','2026-11-10T13:23:18');
+INSERT INTO "sets" VALUES(657,53,'incline barbell bench press',80.0,6,'','2026-11-10T13:23:21');
+INSERT INTO "sets" VALUES(658,53,'incline barbell bench press',80.0,5,'','2026-11-10T13:23:23');
+INSERT INTO "sets" VALUES(659,53,'cable lat raise',17.5,10,'','2026-11-10T13:23:25');
+INSERT INTO "sets" VALUES(660,53,'cable lat raise',17.5,7,'','2026-11-10T13:23:26');
+INSERT INTO "sets" VALUES(661,53,'hammer strength row',150.0,9,'','2026-11-10T13:23:28');
+INSERT INTO "sets" VALUES(662,53,'hammer strength row',150.0,7,'','2026-11-10T13:23:30');
+INSERT INTO "sets" VALUES(663,53,'machine lat raise',85.0,9,'','2026-11-10T13:23:31');
+INSERT INTO "sets" VALUES(664,53,'machine lat raise',85.0,6,'','2026-11-10T13:23:33');
+INSERT INTO "sets" VALUES(665,53,'pec deck',105.0,9,'','2026-11-10T13:23:34');
+INSERT INTO "sets" VALUES(666,53,'pec deck',105.0,7,'','2026-11-10T13:23:36');
+INSERT INTO "sets" VALUES(667,53,'straight bar pulldown',97.0,8,'','2026-11-10T13:23:38');
+INSERT INTO "sets" VALUES(668,53,'straight bar pulldown',97.0,7,'','2026-11-10T13:23:39');
+INSERT INTO "sets" VALUES(669,53,'ezbar curl',47.5,5,'','2026-11-10T13:23:41');
+INSERT INTO "sets" VALUES(670,53,'ezbar curl',47.5,5,'','2026-11-10T13:23:43');
+INSERT INTO "sets" VALUES(671,53,'bayesian curl',17.5,9,'','2026-11-10T13:23:45');
+INSERT INTO "sets" VALUES(672,53,'bayesian curl',17.5,7,'','2026-11-10T13:23:52');
+INSERT INTO "sets" VALUES(673,53,'smith jm press',70.0,7,'','2026-11-10T13:23:54');
+INSERT INTO "sets" VALUES(674,53,'smith jm press',70.0,6,'','2026-11-10T13:23:57');
+INSERT INTO "sets" VALUES(675,53,'overhead cable extension',39.375,11,'','2026-11-10T13:23:59');
+INSERT INTO "sets" VALUES(676,53,'overhead cable extension',39.375,9,'','2026-11-10T13:24:01');
+INSERT INTO "sets" VALUES(677,53,'face pull',56.0,10,'','2026-11-10T13:24:02');
+INSERT INTO "sets" VALUES(678,53,'face pull',56.0,8,'','2026-11-10T13:24:04');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
@@ -1616,6 +1640,9 @@ INSERT INTO "workouts" VALUES(47,'2026-11-04','done','U3 U3, bench busy so overh
 INSERT INTO "workouts" VALUES(48,'2026-11-05','rest','missed the bus, no session');
 INSERT INTO "workouts" VALUES(49,'2026-11-06','done','L2, bw 83.3 L2 catch-up session, bw 83.3. 4 PRs: leg press 145x9, leg extension 117x10, cable crunch 50x11, crunch machine 40x11, all first sets. First-set fade normal all session. Rdl and quads solid.');
 INSERT INTO "workouts" VALUES(50,'2026-11-07','done','bodyweight 83.2 U4, caught a PR wave: row 155x8, smith incline 60x8, HS press 77.5x8, DB lat raise 20x9, incline curl 20x9, skullcrusher 52.5x7, pushdown 15x10, lat raise 82.5x10. Rear delt fly skipped for a bus. Bodyweight 83.2. Preacher stack recovered: standard loads up to 95, micros never logged. Strong day throughout, fade on later sets normal.');
+INSERT INTO "workouts" VALUES(51,'2026-11-08','rest','');
+INSERT INTO "workouts" VALUES(52,'2026-11-09','rest','Planned rest, at college all day.');
+INSERT INTO "workouts" VALUES(53,'2026-11-10','done','U1 full session re-log from scratch U1 session completed: PR incline bench 82.5x7 e1RM 101.75; cable lat raise 17.5x10/7; HS row 150x9/7 (backoff); machine lat raise 85x9/6; pec deck 105x9/7; straight bar pulldown 97x8/7; ezbar curl 47.5x5/5 (PR); bayesian curl 17.5x9/7; smith JM press 70x7/6; overhead cable extension 39.375x11/9; face pull 56x10/8. Bodyweight 83kg logged earlier. All movements done. (forced: false)');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
