@@ -1642,7 +1642,7 @@ INSERT INTO "workouts" VALUES(49,'2026-11-06','done','L2, bw 83.3 L2 catch-up se
 INSERT INTO "workouts" VALUES(50,'2026-11-07','done','bodyweight 83.2 U4, caught a PR wave: row 155x8, smith incline 60x8, HS press 77.5x8, DB lat raise 20x9, incline curl 20x9, skullcrusher 52.5x7, pushdown 15x10, lat raise 82.5x10. Rear delt fly skipped for a bus. Bodyweight 83.2. Preacher stack recovered: standard loads up to 95, micros never logged. Strong day throughout, fade on later sets normal.');
 INSERT INTO "workouts" VALUES(51,'2026-11-08','rest','');
 INSERT INTO "workouts" VALUES(52,'2026-11-09','rest','Planned rest, at college all day.');
-INSERT INTO "workouts" VALUES(53,'2026-11-10','done','U1 full session re-log from scratch U1 session completed: PR incline bench 82.5x7 e1RM 101.75; cable lat raise 17.5x10/7; HS row 150x9/7 (backoff); machine lat raise 85x9/6; pec deck 105x9/7; straight bar pulldown 97x8/7; ezbar curl 47.5x5/5 (PR); bayesian curl 17.5x9/7; smith JM press 70x7/6; overhead cable extension 39.375x11/9; face pull 56x10/8. Bodyweight 83kg logged earlier. All movements done. (forced: false)');
+INSERT INTO "workouts" VALUES(53,'2026-11-10','done','U1 session completed: PR incline bench 82.5x7 e1RM 101.75; cable lat raise 17.5x10/7; HS row 150x9/7; machine lat raise 85x9/6; pec deck 105x9/7; straight bar pulldown 97x8/7; ezbar curl 47.5x5/5 (PR); bayesian curl 17.5x9/7; smith JM press 70x7/6; overhead cable extension 39.375x11/9; face pull 56x10/8. Bodyweight 83kg logged earlier. Duration ~1.5h.');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
