@@ -548,6 +548,17 @@ INSERT INTO "progression" VALUES(295,50,'incline dumbbell curl','hit',20.0,10,'u
 INSERT INTO "progression" VALUES(296,50,'machine preacher curl','hit',74.0,8,'up','67x9 hit, stack un-guessed today, micros never logged','2026-11-07T10:45:53');
 INSERT INTO "progression" VALUES(297,50,'ezbar skullcrusher','hit',52.5,8,'up','52.5x7 hit after last week miss, 47.5x6 second','2026-11-07T10:45:54');
 INSERT INTO "progression" VALUES(298,50,'unilateral cable pushdown','hit',16.25,9,'up','15x10 hit, second 8','2026-11-07T10:45:54');
+INSERT INTO "progression" VALUES(299,53,'incline barbell bench press','hit',82.5,8,'up','rep PR 101.75 vs 99.0, 80x6/5 backoffs after','2026-11-11T15:56:32');
+INSERT INTO "progression" VALUES(300,53,'cable lat raise','hit',17.5,11,'up','PR 23.3 vs 22.8, faded to 7 after','2026-11-11T15:56:33');
+INSERT INTO "progression" VALUES(301,53,'hammer strength row','hold',155.0,9,'flat','deliberate backoff from 155 target, no row PR today','2026-11-11T15:56:34');
+INSERT INTO "progression" VALUES(302,53,'machine lat raise','hit',85.0,10,'up','PR 110.5 vs 110.0, faded to 6 after','2026-11-11T15:56:35');
+INSERT INTO "progression" VALUES(303,53,'pec deck','miss',105.0,10,'flat','105x9 first set, one short','2026-11-11T15:56:36');
+INSERT INTO "progression" VALUES(304,53,'straight bar pulldown','hold',107.0,9,'flat','maintenance after rows per rule 13, programmed target kept for fresh slot','2026-11-11T15:56:37');
+INSERT INTO "progression" VALUES(305,53,'ezbar curl','hit',47.5,6,'up','PR 55.4 vs 54.0, bumped to 47.5 total','2026-11-11T15:56:43');
+INSERT INTO "progression" VALUES(306,53,'bayesian curl','hit',17.5,10,'up','PR 22.75 vs 21.7, faded to 7','2026-11-11T15:56:44');
+INSERT INTO "progression" VALUES(307,53,'smith jm press','miss',70.0,8,'flat','70x7 first set, one short of 8','2026-11-11T15:56:45');
+INSERT INTO "progression" VALUES(308,53,'overhead cable extension','hit',39.375,12,'up','PR 53.8 vs 53.5, faded to 9','2026-11-11T15:56:46');
+INSERT INTO "progression" VALUES(309,53,'face pull','hit',56.0,11,'up','PR 74.7 vs 72.8, two-miss watch cleared, faded to 8','2026-11-11T15:56:46');
 CREATE TABLE rotation (
   position INTEGER PRIMARY KEY,
   day TEXT NULL REFERENCES split_day(name) ON UPDATE CASCADE ON DELETE SET NULL
@@ -1256,29 +1267,29 @@ INSERT INTO "sets" VALUES(652,50,'ezbar skullcrusher',52.5,7,'','2026-11-07T10:3
 INSERT INTO "sets" VALUES(653,50,'ezbar skullcrusher',47.5,6,'','2026-11-07T10:40:04');
 INSERT INTO "sets" VALUES(654,50,'unilateral cable pushdown',15.0,10,'','2026-11-07T10:42:53');
 INSERT INTO "sets" VALUES(655,50,'unilateral cable pushdown',15.0,8,'','2026-11-07T10:44:52');
-INSERT INTO "sets" VALUES(656,53,'incline barbell bench press',82.5,7,'','2026-11-10T13:23:18');
-INSERT INTO "sets" VALUES(657,53,'incline barbell bench press',80.0,6,'','2026-11-10T13:23:21');
-INSERT INTO "sets" VALUES(658,53,'incline barbell bench press',80.0,5,'','2026-11-10T13:23:23');
-INSERT INTO "sets" VALUES(659,53,'cable lat raise',17.5,10,'','2026-11-10T13:23:25');
-INSERT INTO "sets" VALUES(660,53,'cable lat raise',17.5,7,'','2026-11-10T13:23:26');
-INSERT INTO "sets" VALUES(661,53,'hammer strength row',150.0,9,'','2026-11-10T13:23:28');
-INSERT INTO "sets" VALUES(662,53,'hammer strength row',150.0,7,'','2026-11-10T13:23:30');
-INSERT INTO "sets" VALUES(663,53,'machine lat raise',85.0,9,'','2026-11-10T13:23:31');
-INSERT INTO "sets" VALUES(664,53,'machine lat raise',85.0,6,'','2026-11-10T13:23:33');
-INSERT INTO "sets" VALUES(665,53,'pec deck',105.0,9,'','2026-11-10T13:23:34');
-INSERT INTO "sets" VALUES(666,53,'pec deck',105.0,7,'','2026-11-10T13:23:36');
-INSERT INTO "sets" VALUES(667,53,'straight bar pulldown',97.0,8,'','2026-11-10T13:23:38');
-INSERT INTO "sets" VALUES(668,53,'straight bar pulldown',97.0,7,'','2026-11-10T13:23:39');
-INSERT INTO "sets" VALUES(669,53,'ezbar curl',47.5,5,'','2026-11-10T13:23:41');
-INSERT INTO "sets" VALUES(670,53,'ezbar curl',47.5,5,'','2026-11-10T13:23:43');
-INSERT INTO "sets" VALUES(671,53,'bayesian curl',17.5,9,'','2026-11-10T13:23:45');
-INSERT INTO "sets" VALUES(672,53,'bayesian curl',17.5,7,'','2026-11-10T13:23:52');
-INSERT INTO "sets" VALUES(673,53,'smith jm press',70.0,7,'','2026-11-10T13:23:54');
-INSERT INTO "sets" VALUES(674,53,'smith jm press',70.0,6,'','2026-11-10T13:23:57');
-INSERT INTO "sets" VALUES(675,53,'overhead cable extension',39.375,11,'','2026-11-10T13:23:59');
-INSERT INTO "sets" VALUES(676,53,'overhead cable extension',39.375,9,'','2026-11-10T13:24:01');
-INSERT INTO "sets" VALUES(677,53,'face pull',56.0,10,'','2026-11-10T13:24:02');
-INSERT INTO "sets" VALUES(678,53,'face pull',56.0,8,'','2026-11-10T13:24:04');
+INSERT INTO "sets" VALUES(656,53,'incline barbell bench press',82.5,7,'rep PR, e1RM 101.75 beats 99.0','2026-11-10T11:53:00');
+INSERT INTO "sets" VALUES(657,53,'incline barbell bench press',80.0,6,'','2026-11-10T11:57:05');
+INSERT INTO "sets" VALUES(658,53,'incline barbell bench press',80.0,5,'','2026-11-10T12:01:11');
+INSERT INTO "sets" VALUES(659,53,'cable lat raise',17.5,10,'','2026-11-10T12:05:16');
+INSERT INTO "sets" VALUES(660,53,'cable lat raise',17.5,7,'','2026-11-10T12:09:22');
+INSERT INTO "sets" VALUES(661,53,'hammer strength row',150.0,9,'backed off from 155 PR target, no row PR today','2026-11-10T12:13:27');
+INSERT INTO "sets" VALUES(662,53,'hammer strength row',150.0,7,'','2026-11-10T12:17:33');
+INSERT INTO "sets" VALUES(663,53,'machine lat raise',85.0,9,'','2026-11-10T12:21:38');
+INSERT INTO "sets" VALUES(664,53,'machine lat raise',85.0,6,'','2026-11-10T12:25:44');
+INSERT INTO "sets" VALUES(665,53,'pec deck',105.0,9,'','2026-11-10T12:29:49');
+INSERT INTO "sets" VALUES(666,53,'pec deck',105.0,7,'','2026-11-10T12:33:55');
+INSERT INTO "sets" VALUES(667,53,'straight bar pulldown',97.0,8,'','2026-11-10T12:38:00');
+INSERT INTO "sets" VALUES(668,53,'straight bar pulldown',97.0,7,'','2026-11-10T12:42:05');
+INSERT INTO "sets" VALUES(669,53,'ezbar curl',47.5,5,'bumped to 47.5 total, 5 reps','2026-11-10T12:46:11');
+INSERT INTO "sets" VALUES(670,53,'ezbar curl',47.5,5,'','2026-11-10T12:50:16');
+INSERT INTO "sets" VALUES(671,53,'bayesian curl',17.5,9,'','2026-11-10T12:54:22');
+INSERT INTO "sets" VALUES(672,53,'bayesian curl',17.5,7,'','2026-11-10T12:58:27');
+INSERT INTO "sets" VALUES(673,53,'smith jm press',70.0,7,'','2026-11-10T13:02:33');
+INSERT INTO "sets" VALUES(674,53,'smith jm press',70.0,6,'','2026-11-10T13:06:38');
+INSERT INTO "sets" VALUES(675,53,'overhead cable extension',39.375,11,'','2026-11-10T13:10:44');
+INSERT INTO "sets" VALUES(676,53,'overhead cable extension',39.375,9,'','2026-11-10T13:14:49');
+INSERT INTO "sets" VALUES(677,53,'face pull',56.0,10,'','2026-11-10T13:18:55');
+INSERT INTO "sets" VALUES(678,53,'face pull',56.0,8,'','2026-11-10T13:23:00');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
