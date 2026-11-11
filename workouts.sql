@@ -1654,6 +1654,7 @@ INSERT INTO "workouts" VALUES(50,'2026-11-07','done','bodyweight 83.2 U4, caught
 INSERT INTO "workouts" VALUES(51,'2026-11-08','rest','');
 INSERT INTO "workouts" VALUES(52,'2026-11-09','rest','Planned rest, at college all day.');
 INSERT INTO "workouts" VALUES(53,'2026-11-10','done','U1 session completed: PR incline bench 82.5x7 e1RM 101.75; cable lat raise 17.5x10/7; HS row 150x9/7; machine lat raise 85x9/6; pec deck 105x9/7; straight bar pulldown 97x8/7; ezbar curl 47.5x5/5 (PR); bayesian curl 17.5x9/7; smith JM press 70x7/6; overhead cable extension 39.375x11/9; face pull 56x10/8. Bodyweight 83kg logged earlier. Duration ~1.5h.');
+INSERT INTO "workouts" VALUES(54,'2026-11-11','rest','national holiday, gym closed');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
