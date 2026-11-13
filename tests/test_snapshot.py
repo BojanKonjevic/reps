@@ -179,6 +179,28 @@ def test_next_up_and_program_view(log_module):
     assert upper["muscles"] == ["chest"]
 
 
+def test_next_up_last_shows_first_set_of_last_workout(log_module):
+    """'Last' is the first set from the most recent workout per movement,
+    not the fatigued final set."""
+    log = log_module
+    _seeded(log)
+    log.set_rotation(["Upper A", "Lower A"])
+    log.start_workout("d1")
+    log.log_set("bench", 100, 5, "", "chest")
+    log.log_set("bench", 95, 3, "", "chest")
+    close_session(log, "d1")
+    log.start_workout("d2")
+    log.log_set("row", 120, 8, "", "back")
+    log.log_set("row", 110, 6, "", "back")
+    close_session(log, "d2")
+    snap = log.export_snapshot()
+    assert snap["next_up"]["day"] == "Upper A"
+    assert snap["next_up"]["rows"][0]["movement"] == "bench"
+    assert snap["next_up"]["rows"][0]["last"] is not None
+    assert (snap["next_up"]["rows"][0]["last"]["weight"],
+            snap["next_up"]["rows"][0]["last"]["reps"]) == (100, 5)
+
+
 def test_goal_percent_and_top_by_date(log_module):
     from datetime import date, timedelta
     log = log_module

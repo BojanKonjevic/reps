@@ -379,7 +379,7 @@ def next_up_view(c, prog):
     for m in days[nxt["day"]]:
         last_hit = c.execute(
             "SELECT s.weight, s.reps, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id "
-            "WHERE s.exercise = ? ORDER BY w.date DESC, s.id DESC LIMIT 1", (m,)).fetchone()
+            "WHERE s.exercise = ? ORDER BY w.date DESC, s.id ASC LIMIT 1", (m,)).fetchone()
         p = prog.get(m)
         rows.append({"movement": m,
                      "last": {"weight": last_hit["weight"], "reps": last_hit["reps"],
