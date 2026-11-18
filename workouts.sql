@@ -580,6 +580,17 @@ INSERT INTO "progression" VALUES(325,56,'machine preacher curl','hold',74.0,8,'f
 INSERT INTO "progression" VALUES(326,56,'ezbar skullcrusher','hold',52.5,8,'flat','','2026-11-16T11:44:45');
 INSERT INTO "progression" VALUES(327,56,'cable pushdown','hit',36.25,9,'up','','2026-11-16T11:44:45');
 INSERT INTO "progression" VALUES(328,56,'rear delt cable fly','hold',13.75,8,'flat','','2026-11-16T11:44:45');
+INSERT INTO "progression" VALUES(329,57,'hammer strength press','hit',80.0,8,'up','','2026-11-18T10:57:13');
+INSERT INTO "progression" VALUES(330,57,'dumbbell lat raise','hold',20.0,10,'up','backed off to 17.5 after a week off the lift, 11 then 9','2026-11-18T10:57:13');
+INSERT INTO "progression" VALUES(331,57,'cable pullover','hit',46.25,10,'up','','2026-11-18T10:57:14');
+INSERT INTO "progression" VALUES(332,57,'cable lat raise','hit',18.75,10,'up','','2026-11-18T10:57:14');
+INSERT INTO "progression" VALUES(333,57,'pec deck','hit',105.0,11,'up','','2026-11-18T10:57:14');
+INSERT INTO "progression" VALUES(334,57,'hammer strength row','hit',160.0,8,'up','','2026-11-18T10:57:15');
+INSERT INTO "progression" VALUES(335,57,'ezbar curl','hit',50.0,6,'up','','2026-11-18T10:57:15');
+INSERT INTO "progression" VALUES(336,57,'bayesian curl','hit',18.75,8,'up','','2026-11-18T10:57:16');
+INSERT INTO "progression" VALUES(337,57,'smith jm press','hit',72.5,7,'up','','2026-11-18T10:57:16');
+INSERT INTO "progression" VALUES(338,57,'overhead cable extension','hit',41.25,10,'up','','2026-11-18T10:57:17');
+INSERT INTO "progression" VALUES(339,57,'face pull','hit',63.0,8,'up','','2026-11-18T10:57:17');
 CREATE TABLE rotation (
   position INTEGER PRIMARY KEY,
   day TEXT NULL REFERENCES split_day(name) ON UPDATE CASCADE ON DELETE SET NULL
@@ -597,7 +608,7 @@ CREATE TABLE rotation_anchor (
   anchor_date TEXT NOT NULL,
   position INTEGER NOT NULL REFERENCES rotation(position)
 );
-INSERT INTO "rotation_anchor" VALUES(1,'2026-09-22',0);
+INSERT INTO "rotation_anchor" VALUES(1,'2026-11-18',4);
 CREATE TABLE rules (
   id INTEGER PRIMARY KEY,
   subject TEXT NOT NULL,
@@ -1354,6 +1365,29 @@ INSERT INTO "sets" VALUES(718,56,'cable pushdown',35.0,10,'','2026-11-16T11:25:0
 INSERT INTO "sets" VALUES(719,56,'cable pushdown',35.0,7,'','2026-11-16T11:27:54');
 INSERT INTO "sets" VALUES(720,56,'rear delt cable fly',12.5,12,'','2026-11-16T11:41:52');
 INSERT INTO "sets" VALUES(721,56,'rear delt cable fly',12.5,10,'','2026-11-16T11:41:52');
+INSERT INTO "sets" VALUES(722,57,'hammer strength press',77.5,9,'','2026-11-18T09:21:59');
+INSERT INTO "sets" VALUES(723,57,'hammer strength press',77.5,7,'','2026-11-18T09:25:59');
+INSERT INTO "sets" VALUES(724,57,'dumbbell lat raise',17.5,11,'','2026-11-18T09:29:21');
+INSERT INTO "sets" VALUES(725,57,'dumbbell lat raise',17.5,9,'','2026-11-18T09:33:41');
+INSERT INTO "sets" VALUES(726,57,'cable pullover',43.75,12,'','2026-11-18T09:37:53');
+INSERT INTO "sets" VALUES(727,57,'cable pullover',45.0,8,'','2026-11-18T09:40:53');
+INSERT INTO "sets" VALUES(728,57,'cable lat raise',17.5,12,'','2026-11-18T09:45:07');
+INSERT INTO "sets" VALUES(729,57,'cable lat raise',16.25,9,'','2026-11-18T09:50:05');
+INSERT INTO "sets" VALUES(730,57,'pec deck',105.0,10,'','2026-11-18T09:51:51');
+INSERT INTO "sets" VALUES(731,57,'pec deck',105.0,7,'','2026-11-18T09:55:22');
+INSERT INTO "sets" VALUES(732,57,'hammer strength row',150.0,7,'','2026-11-18T10:03:41');
+INSERT INTO "sets" VALUES(733,57,'hammer strength row',155.0,9,'','2026-11-18T10:04:00');
+INSERT INTO "sets" VALUES(734,57,'ezbar curl',47.5,6,'','2026-11-18T10:13:46');
+INSERT INTO "sets" VALUES(735,57,'ezbar curl',47.5,5,'','2026-11-18T10:15:48');
+INSERT INTO "sets" VALUES(736,57,'bayesian curl',17.5,10,'','2026-11-18T10:21:35');
+INSERT INTO "sets" VALUES(737,57,'bayesian curl',15.0,8,'13.75 + both micros','2026-11-18T10:27:20');
+INSERT INTO "sets" VALUES(738,57,'smith jm press',70.0,8,'','2026-11-18T10:31:49');
+INSERT INTO "sets" VALUES(739,57,'smith jm press',70.0,6,'','2026-11-18T10:37:22');
+INSERT INTO "sets" VALUES(740,57,'overhead cable extension',39.375,12,'','2026-11-18T10:41:03');
+INSERT INTO "sets" VALUES(741,57,'overhead cable extension',39.375,10,'','2026-11-18T10:45:07');
+INSERT INTO "sets" VALUES(742,57,'face pull',56.0,11,'','2026-11-18T10:48:59');
+INSERT INTO "sets" VALUES(743,57,'face pull',56.0,9,'','2026-11-18T10:52:43');
+INSERT INTO "sets" VALUES(744,57,'face pull',56.0,6,'','2026-11-18T10:57:12');
 CREATE TABLE split_day (
   name TEXT PRIMARY KEY
 );
@@ -1660,6 +1694,7 @@ INSERT INTO "state_change" VALUES(22,'rule','14','2026-10-27','2026-10-27T11:00:
 INSERT INTO "state_change" VALUES(23,'rule','15','2026-10-30','2026-10-30T10:49:17','{"action": "add", "expiry": null, "rule_id": 15, "status": null, "subject": null, "text": null}','{"action": "add", "expiry": null, "rule_id": 15, "status": "active", "subject": "progression", "text": "Most lifts will stall from here, a few PRs per session is normal progress in a small surplus; don''t treat stalls as a problem, only flag real regression."}','Stated after U1 Oct 30 2026: early full-PR phase is over, expecting mostly stalls with a few PRs per session in a small surplus.',NULL,NULL,0);
 INSERT INTO "state_change" VALUES(24,'program','active:U4','2026-11-07','2026-11-07T10:01:00','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "hammer strength press", "sets": 2, "slot": 5}, {"movements": "straight bar pulldown", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "straight bar pulldown", "sets": 2, "slot": 5}, {"movements": "hammer strength press", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','hammer strength press occupied, swapping pulldown slot ahead of it for this session; rule 13 keeps it a PR slot while early-ish in the workout',25,NULL,0);
 INSERT INTO "state_change" VALUES(25,'program','active:U4','2026-11-07','2026-11-07T10:01:04','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "straight bar pulldown", "sets": 2, "slot": 5}, {"movements": "hammer strength press", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "hammer strength press", "sets": 2, "slot": 5}, {"movements": "straight bar pulldown", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','this was a one-session reinstall order (press machine occupied), not a program change; reverting the split move',NULL,24,1);
+INSERT INTO "state_change" VALUES(26,'rotation','anchor','2026-11-18','2026-11-18T09:21:59','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','{"anchor_date": "2026-11-18", "position": 4, "rotation": null}','rotation drifted 8 days off anchor (missed/rest-shifted Nov 12-17); user confirmed re-anchor to today U3 at session start',NULL,NULL,0);
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -1721,6 +1756,7 @@ INSERT INTO "workouts" VALUES(53,'2026-11-10','done','U1 session completed: PR i
 INSERT INTO "workouts" VALUES(54,'2026-11-11','rest','national holiday, gym closed');
 INSERT INTO "workouts" VALUES(55,'2026-11-13','done','L1, BW 83 L1, 72min, BW 83. Held last session''s loads on cable crunch and crunch machine instead of planned 55/45 bumps; stayed at 17.5 wrist curls with reps up. Hack squat 102x10 first set, PR.');
 INSERT INTO "workouts" VALUES(56,'2026-11-16','done','First upper session in 6 days, exam week and rushing; dropped to maintenance loads on most lifts.');
+INSERT INTO "workouts" VALUES(57,'2026-11-18','done','scale not working, no weigh-in U3, re-anchored today. Back after a week off some lifts, all targets hit, 7 PRs. Scale broken, no weigh-in.');
 CREATE INDEX idx_sets_workout ON sets(workout_id);
 CREATE INDEX idx_sets_exercise ON sets(exercise);
 CREATE INDEX idx_bw_date ON bodyweight(date);
