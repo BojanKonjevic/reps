@@ -16,4 +16,6 @@ Severity: high (blocks logging/analysis), medium (wrong but workaroundable), low
 
 ## Entries
 
-None yet.
+- 2026-11-19: [medium] Prescribed a higher rep target on a later set after the first set faded
+  Example: hack squat 107x7 first set, I called 102x8 for set 2, implying the later set should beat the earlier one in reps
+  Fix: later sets after a fade get same or lower reps at same or lower load, never a higher rep target. Rule 14 already says later sets fade, the prescription logic needs to follow it.
