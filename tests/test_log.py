@@ -85,6 +85,37 @@ def test_weigh_produces_correct_payload(log_module):
     assert data["date"].count("-") == 2
 
 
+def test_weigh_accepts_backfill_date(log_module):
+    """A dated weigh-in lands on that date, not today."""
+    data = log_module.record_bodyweight("83", "", "2026-11-20")
+    assert data["date"] == "2026-11-20"
+    c = log_module.conn()
+    row = c.execute("SELECT kg FROM bodyweight WHERE date = ?", ("2026-11-20",)).fetchone()
+    assert row["kg"] == 83.0
+
+
+def test_weigh_rejects_future_date(log_module):
+    """Future weigh-ins are refused."""
+    with pytest.raises(RepsError):
+        log_module.record_bodyweight("83", "", "2999-01-01")
+
+
+def test_delete_bodyweight_removes_the_date(log_module):
+    """Deleting a weigh-in removes every entry for that date."""
+    log_module.record_bodyweight("83", "", "2026-11-20")
+    data = log_module.delete_bodyweight("2026-11-20")
+    assert data["deleted"] == 1
+    c = log_module.conn()
+    n = c.execute("SELECT COUNT(*) n FROM bodyweight WHERE date = ?", ("2026-11-20",)).fetchone()["n"]
+    assert n == 0
+
+
+def test_delete_bodyweight_refuses_missing_date(log_module):
+    """Deleting a date with no weigh-in is a refusal, not a no-op."""
+    with pytest.raises(RepsError):
+        log_module.delete_bodyweight("2026-11-20")
+
+
 def test_update_workout_rejects_bad_status(log_module):
     """update-workout rejects invalid status values."""
     c = log_module.conn()

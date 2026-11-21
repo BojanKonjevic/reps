@@ -59,7 +59,7 @@ INSERT INTO "bodyweight" VALUES(29,'2026-11-07',83.2,'');
 INSERT INTO "bodyweight" VALUES(30,'2026-11-10',83.0,'gym scale, in shoes/shorts/tank');
 INSERT INTO "bodyweight" VALUES(31,'2026-11-13',83.0,'');
 INSERT INTO "bodyweight" VALUES(32,'2026-11-16',83.2,'');
-INSERT INTO "bodyweight" VALUES(33,'2026-11-21',83.0,'');
+INSERT INTO "bodyweight" VALUES(33,'2026-11-20',83.0,'');
 CREATE TABLE compaction (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   last_compacted TEXT NULL,

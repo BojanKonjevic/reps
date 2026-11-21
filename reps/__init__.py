@@ -65,7 +65,7 @@ from .sessions import (check_end_gate, delete_set, delete_workout,
                        end_gate_items, end_workout, get_calendar, get_context,
                        get_history, get_notes, get_session, get_session_range,
                        get_stats, get_today, last_done, list_exercises, log_set,
-                       mark_rest, record_bodyweight, session_prs, staleness,
+                       delete_bodyweight, mark_rest, record_bodyweight, session_prs, staleness,
                        start_workout, update_set, update_workout)
 from .slots import next_slot, slot_of_session
 from .trends import drop_watch, is_slipping, is_stalling
@@ -119,7 +119,7 @@ __all__ = [
     "observe", "open_workout", "parse_anchor", "parse_mev_from_science",
     "parse_movements", "parse_rotation", "personal_records",
     "placeholders", "programmed_weekly_volume", "push_snapshot",
-    "read_priorities", "read_split", "reconcile_split", "record_bodyweight",
+    "read_priorities", "read_split", "reconcile_split", "record_bodyweight", "delete_bodyweight",
     "record_change", "rename_exercise", "rename_lift", "rep_band_bound", "restore_sql",
     "revert_autoreg_change", "revert_change", "revert_split", "rewrite_goal", "rule_status_rows",
     "rules_with_confirm", "run_audit", "run_doctor", "schedule_shifts", "session_prs",

@@ -215,14 +215,25 @@ def session_rest(day: str, note: str = "") -> dict:
 
 
 @mcp.tool()
-def session_weigh(kg: float, note: str = "") -> dict:
+def session_weigh(kg: float, note: str = "", day: str = "") -> dict:
     """Log a bodyweight entry (gym scale, one per day is enough).
 
     Args:
         kg: Bodyweight in kg.
         note: Optional note.
+        day: Date yyyy-mm-dd, defaults to today. Backfill allowed, future refused.
     """
-    return call_domain(_sessions.record_bodyweight, kg, note)
+    return call_domain(_sessions.record_bodyweight, kg, note, day or None)
+
+
+@mcp.tool()
+def session_unweigh(day: str) -> dict:
+    """Remove the bodyweight entry for one date.
+
+    Args:
+        day: Date yyyy-mm-dd.
+    """
+    return call_domain(_sessions.delete_bodyweight, day)
 
 
 @mcp.tool()

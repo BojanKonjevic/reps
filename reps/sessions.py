@@ -404,10 +404,18 @@ def get_stats():
     return out
 
 
-def record_bodyweight(kg, note):
+def record_bodyweight(kg, note, day=None):
     import math
     c = conn()
-    today = date.today().isoformat()
+    if day is None or day == "":
+        day = date.today().isoformat()
+    else:
+        try:
+            day = date.fromisoformat(day).isoformat() if isinstance(day, str) else (_ for _ in ()).throw(ValueError())
+        except (ValueError, TypeError, AttributeError):
+            raise RepsError("date must be YYYY-MM-DD")
+        if date.fromisoformat(day) > date.today():
+            raise RepsError("bodyweight date cannot be in the future")
     try:
         kg = float(kg)
     except (TypeError, ValueError):
@@ -419,9 +427,23 @@ def record_bodyweight(kg, note):
     if kg < 20 or kg > 300:
         raise RepsError(f"bodyweight {kg}kg is implausible, confirm the value")
     note = _check_note(note, "note")
-    cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (today, kg, note))
+    cur = c.execute("INSERT INTO bodyweight (date, kg, note) VALUES (?, ?, ?)", (day, kg, note))
     c.commit()
-    return {"weigh_id": cur.lastrowid, "date": today, "kg": kg}
+    return {"weigh_id": cur.lastrowid, "date": day, "kg": kg}
+
+
+def delete_bodyweight(day):
+    try:
+        day = date.fromisoformat(day).isoformat() if isinstance(day, str) else (_ for _ in ()).throw(ValueError())
+    except (ValueError, TypeError, AttributeError):
+        raise RepsError("date must be YYYY-MM-DD")
+    c = conn()
+    rows = c.execute("SELECT id FROM bodyweight WHERE date = ?", (day,)).fetchall()
+    if not rows:
+        raise RepsError(f"no bodyweight entry on {day}")
+    c.execute("DELETE FROM bodyweight WHERE date = ?", (day,))
+    c.commit()
+    return {"date": day, "deleted": len(rows)}
 
 
 def end_gate_items(c, w, note):

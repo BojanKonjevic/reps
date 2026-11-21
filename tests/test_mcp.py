@@ -113,6 +113,14 @@ def test_program_tools_through_mcp(log_module):
     assert call("program_rotation_status", {})["ok"] is True
 
 
+def test_weigh_backfill_and_delete_through_mcp(log_module):
+    """A dated weigh-in can be logged on a past date and removed again."""
+    assert call("session_weigh", {"kg": 83, "day": "2020-01-01"})["ok"] is True
+    assert call("session_weigh", {"kg": 83, "day": "2999-01-01"})["ok"] is False
+    assert call("session_unweigh", {"day": "2020-01-01"})["ok"] is True
+    assert call("session_unweigh", {"day": "2020-01-01"})["ok"] is False
+
+
 def test_rest_push_visible_through_mcp(log_module):
     """Resting on a training day pushes the schedule, visible via status tools."""
     from datetime import date, timedelta
