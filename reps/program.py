@@ -411,12 +411,17 @@ def volume_block(c, today=None):
     for muscle, entry in constants.muscles.items():
         counts = buckets[muscle][start:]
         bands = rotation_bands(entry, days)
+        assessment = classify_volume(counts, bands["mev"], bands["mrv"], minimum)
+        average = assessment["avg_recent"]
         muscles[muscle] = {
-            **bands,
-            "freq": [n * days / timedelta(weeks=1).days for n in entry.freq] if entry.freq else None,
+            **assessment,
+            "mev": round(bands["mev"], 2),
+            "mav": [round(n, 2) for n in bands["mav"]] if bands["mav"] else None,
+            "mrv": round(bands["mrv"], 2) if bands["mrv"] is not None else None,
+            "avg_recent": round(average, 2) if average is not None else None,
+            "freq": [round(n * days / timedelta(weeks=1).days, 2) for n in entry.freq],
             "rotation_sets": counts,
             "planned_sets": planned[muscle],
-            **classify_volume(counts, bands["mev"], bands["mrv"], minimum),
         }
     return {"rotation_days": days, "starts": [d.isoformat() for d in starts[start:]],
             "through": today.isoformat(), "muscles": muscles}

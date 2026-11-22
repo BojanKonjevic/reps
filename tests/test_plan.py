@@ -66,7 +66,10 @@ def test_plan_volume_uses_complete_rotation_windows(log_module):
         (end - timedelta(days=7)).isoformat(),
     ]
     assert chest["rotation_sets"] == [10, 9]
-    assert 9 < chest["mev"] < 10
+    assert chest["mev"] == 9.14
+    assert chest["mav"] == [16.0, 22.86]
+    assert chest["mrv"] == 28.57
+    assert chest["freq"] == [2.29, 3.43]
     assert chest["planned_sets"] == 10
     assert chest["low_rotations"] == 1
     assert chest["status"] == "in_range"
