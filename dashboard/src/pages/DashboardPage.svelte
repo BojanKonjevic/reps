@@ -33,7 +33,7 @@
     statusLines,
     subLine,
     adherenceWeeksView,
-    weeklyRows,
+    volumeRows,
   } from '../lib/dashboard';
   import { trendMatrix, liftByName, sessionSpans, latestE1rm, tagFacetsPass } from '../lib/select';
   import { vocabOf } from '../lib/vocab.svelte';
@@ -105,7 +105,15 @@
   const deprio = $derived(
     new Set(snap.muscles.filter(m => m.tier === 'deprioritize').map(m => m.muscle.toLowerCase()))
   );
-  const mevOf = (g: string) => vocab.bands(g).mev;
+  let calendarVolume = $state(false);
+  const volumeDates = $derived(
+    calendarVolume ? snap.volume_history.week_starts : snap.rotation_volume.starts
+  );
+  const volumeCounts = $derived(
+    calendarVolume
+      ? snap.volume_history.by_muscle
+      : Object.fromEntries(snap.muscles.map(m => [m.muscle, m.rotation_sets]))
+  );
 
   const next = $derived(snap.next_up);
   const adhDays = $derived(snap.adherence?.days || []);
@@ -365,16 +373,33 @@
   <div class="cols2">
     <div>
       <SectionHeader
-        title="Weekly volume"
-        sub="By muscle. One set can count for several muscles."
+        title={calendarVolume ? 'Calendar-week volume' : 'Volume per rotation'}
+        sub={calendarVolume
+          ? 'Monday to Sunday'
+          : 'Sets per ' + snap.rotation_volume.rotation_days + ' days'}
       />
       <div class="surface-flat">
+        <div class="legend">
+          <button
+            type="button"
+            class="chip"
+            class:off={calendarVolume}
+            aria-pressed={!calendarVolume}
+            onclick={() => (calendarVolume = false)}>Rotation</button
+          >
+          <button
+            type="button"
+            class="chip"
+            class:off={!calendarVolume}
+            aria-pressed={calendarVolume}
+            onclick={() => (calendarVolume = true)}>Calendar week</button
+          >
+        </div>
         <VolumeChart
-          labels={snap.volume_history.week_starts}
-          weeks={weeklyRows(snap.volume_history.week_starts, snap.volume_history.by_muscle)}
+          labels={volumeDates}
+          weeks={volumeRows(volumeDates, volumeCounts)}
           groups={vocab.groups}
           colors={vocab.colors}
-          {mevOf}
           onSelect={g => (location.hash = href.muscle(g))}
         />
         <div class="legend" id="legMus">

@@ -29,17 +29,16 @@ export interface MuscleModel {
   selDate?: string | null;
 }
 
-// Marks collapsed to one tick per week: same-week events share the tick,
-// the strip lists them all. Representative date is the week's first event.
+// Marks share a tick when they fall in the same volume window.
 export function markWeeks(
   counts: number[],
   fromWeek: number,
   marks: ChartMark[] | undefined
-): Array<ChartMark & { week: number }> {
+): Array<ChartMark & { bucket: number }> {
   if (!marks) return [];
   const seen = new Set<number>();
-  return marks.filter((m): m is ChartMark & { week: number } => {
-    const w = m.week ?? -1;
+  return marks.filter((m): m is ChartMark & { bucket: number } => {
+    const w = m.bucket ?? -1;
     if (w < fromWeek || w >= counts.length || seen.has(w)) return false;
     seen.add(w);
     return true;
@@ -128,11 +127,11 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   const ticked = markWeeks(counts, start, marks);
   drawEventTicks(
     g,
-    ticked.map(m => pxi(m.week)),
+    ticked.map(m => pxi(m.bucket)),
     H - V.padB,
     ticked.map(m => m.date === selDate)
   );
-  for (const m of ticked) hit.marks.push({ x: pxi(m.week), date: m.date });
+  for (const m of ticked) hit.marks.push({ x: pxi(m.bucket), date: m.date });
   g.strokeStyle = color;
   g.lineWidth = 2.5;
   g.lineJoin = 'round';

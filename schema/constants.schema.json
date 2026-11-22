@@ -198,9 +198,9 @@
           "title": "Volume Window Weeks",
           "type": "integer"
         },
-        "volume_bad_weeks": {
+        "volume_bad_rotations": {
           "exclusiveMinimum": 0,
-          "title": "Volume Bad Weeks",
+          "title": "Volume Bad Rotations",
           "type": "integer"
         },
         "ledger_retention_days": {
@@ -327,7 +327,7 @@
         "e1rm_warn_ratio",
         "duplicate_name_distance",
         "volume_window_weeks",
-        "volume_bad_weeks",
+        "volume_bad_rotations",
         "ledger_retention_days",
         "default_new_slot_sets",
         "adherence_drift_days",

@@ -1644,12 +1644,16 @@
         "bands": {
           "$ref": "#/$defs/MuscleBands"
         },
-        "weekly": {
+        "rotation_sets": {
           "items": {
             "type": "integer"
           },
-          "title": "Weekly",
+          "title": "Rotation Sets",
           "type": "array"
+        },
+        "planned_sets": {
+          "title": "Planned Sets",
+          "type": "integer"
         },
         "status": {
           "$ref": "#/$defs/VolumeStatus"
@@ -1671,10 +1675,6 @@
           "title": "Lift Share",
           "type": "array"
         },
-        "trained_weeks": {
-          "title": "Trained Weeks",
-          "type": "integer"
-        },
         "avg_recent": {
           "anyOf": [
             {
@@ -1682,6 +1682,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "title": "Avg Recent"
@@ -1690,12 +1693,12 @@
       "required": [
         "muscle",
         "bands",
-        "weekly",
+        "rotation_sets",
+        "planned_sets",
         "status",
         "tier",
         "grouped",
         "lift_share",
-        "trained_weeks",
         "avg_recent"
       ],
       "title": "Muscle",
@@ -2381,6 +2384,33 @@
       "title": "RotationHistoryPayload",
       "type": "object"
     },
+    "RotationVolumeWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "rotation_days": {
+          "title": "Rotation Days",
+          "type": "integer"
+        },
+        "starts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Starts",
+          "type": "array"
+        },
+        "through": {
+          "title": "Through",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rotation_days",
+        "starts",
+        "through"
+      ],
+      "title": "RotationVolumeWindow",
+      "type": "object"
+    },
     "Rule": {
       "additionalProperties": false,
       "properties": {
@@ -2803,9 +2833,9 @@
           "title": "Volume Window Weeks",
           "type": "integer"
         },
-        "volume_bad_weeks": {
+        "volume_bad_rotations": {
           "exclusiveMinimum": 0,
-          "title": "Volume Bad Weeks",
+          "title": "Volume Bad Rotations",
           "type": "integer"
         },
         "ledger_retention_days": {
@@ -2932,7 +2962,7 @@
         "e1rm_warn_ratio",
         "duplicate_name_distance",
         "volume_window_weeks",
-        "volume_bad_weeks",
+        "volume_bad_rotations",
         "ledger_retention_days",
         "default_new_slot_sets",
         "adherence_drift_days",
@@ -3047,6 +3077,9 @@
     },
     "volume_history": {
       "$ref": "#/$defs/VolumeHistory"
+    },
+    "rotation_volume": {
+      "$ref": "#/$defs/RotationVolumeWindow"
     },
     "bodyweight": {
       "items": {
@@ -3172,6 +3205,7 @@
     "sessions",
     "calendar",
     "volume_history",
+    "rotation_volume",
     "bodyweight",
     "program",
     "status",

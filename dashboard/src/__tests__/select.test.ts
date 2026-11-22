@@ -129,15 +129,13 @@ describe('paletteMovements', () => {
 });
 
 describe('paletteMuscles', () => {
-  it('shows status and this week sets', () => {
-    const rows = paletteMuscles([
-      { muscle: 'chest', status: 'below_mev', weekly: [0, 8] },
-    ] as never);
+  it('shows the rotation-based status', () => {
+    const rows = paletteMuscles([{ muscle: 'chest', status: 'below_mev', avg_recent: 4 }] as never);
     expect(rows).toEqual([
       {
         key: 'muscle:chest',
         label: 'chest',
-        sub: 'below mev · 8 sets',
+        sub: 'below mev',
         href: '#/m/chest',
         match: 'chest chest',
       },

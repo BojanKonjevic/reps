@@ -18,8 +18,8 @@ def test_plan_empty_db_shape(log_module):
     assert bundle["today"] == {"open": False, "workout": None, "stale": None,
                                  "last_session": None, "gap_days": None, "break": False}
     assert bundle["slot_guess"]["confidence"] == "low"
-    assert len(bundle["volume"]) == 13
-    assert bundle["volume"]["chest"]["mev"] == 8
+    assert len(bundle["volume"]["muscles"]) == 13
+    assert bundle["volume"]["muscles"]["chest"]["mev"] == 8
     assert bundle["ledger"]["chest"] == {"sessions": 0, "sets": 0, "last_hit": None}
     assert bundle["lifts"] == []
 
@@ -40,14 +40,16 @@ def test_plan_ledger_and_lifts(log_module):
     assert bundle["today"]["workout"]["status"] == "open"
 
 
-def test_plan_volume_weekly_counts(log_module):
+def test_plan_volume_uses_complete_rotation_windows(log_module):
     log = log_module
     c = log.conn()
     from conftest import seed_lift as _seed
     _seed(c, "bench", "chest")
-    monday = date.today() - timedelta(days=date.today().weekday())
-    for ago, nsets in {0: 3, 1: 5}.items():
-        d = (monday - timedelta(weeks=ago) + timedelta(days=2)).isoformat()
+    log.set_split("Upper A", 1, "bench", 10)
+    log.set_rotation(["Upper A", *([None] * 7)])
+    end = date.today()
+    for days_ago, nsets in {0: 3, 7: 6, 8: 10}.items():
+        d = (end - timedelta(days=days_ago)).isoformat()
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
         for _ in range(nsets):
@@ -56,36 +58,42 @@ def test_plan_volume_weekly_counts(log_module):
                 (cur.lastrowid,))
         c.commit()
     bundle = _plan(log)
-    weekly = bundle["volume"]["chest"]["weekly"]
-    assert len(weekly) == 8
-    assert weekly[-1] == 3
-    assert weekly[-2] == 5
-    # Two low weeks inside the trained span do not reach the 4-week bar.
-    assert bundle["volume"]["chest"]["status"] == "in_range"
+    volume = bundle["volume"]
+    chest = volume["muscles"]["chest"]
+    assert volume["rotation_days"] == 8
+    assert volume["starts"] == [
+        (end - timedelta(days=15)).isoformat(),
+        (end - timedelta(days=7)).isoformat(),
+    ]
+    assert chest["rotation_sets"] == [10, 9]
+    assert 9 < chest["mev"] < 10
+    assert chest["planned_sets"] == 10
+    assert chest["low_rotations"] == 1
+    assert chest["status"] == "in_range"
 
 
 def test_classify_volume_meeting_mev_is_in_range():
     """8 sets at MEV 8 after pre-history zeros is in range, not below."""
     from reps.program import classify_volume
-    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 8], 8, 25, 4) == "in_range"
+    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 8], 8, 25, 4)["status"] == "in_range"
 
 
 def test_classify_volume_never_trained_is_below():
     """An all-zero window keeps the whole span and flags below MEV."""
     from reps.program import classify_volume
-    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 0], 8, 25, 4) == "below_mev"
+    assert classify_volume([0, 0, 0, 0, 0, 0, 0, 0], 8, 25, 4)["status"] == "below_mev"
 
 
 def test_classify_volume_idle_after_first_session_is_below():
     """Zeros after the first logged week count: 4 idle weeks flag."""
     from reps.program import classify_volume
-    assert classify_volume([0, 0, 0, 8, 0, 0, 0, 0], 8, 25, 4) == "below_mev"
+    assert classify_volume([0, 0, 0, 8, 0, 0, 0, 0], 8, 25, 4)["status"] == "below_mev"
 
 
 def test_recent_average_ignores_pre_history():
     """The MRV average runs over the trained span, not the whole window."""
     from reps.program import recent_average
-    assert recent_average([0, 0, 0, 0, 0, 0, 0, 30]) == 30
+    assert recent_average([0, 0, 0, 0, 0, 0, 0, 30], 4) == 30
 
 
 def test_plan_stale_open_workout(log_module):

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { plot, type MuscleModel } from '../muscleChart';
-  import { fmtD } from '../lib/format';
+  import { fmtD, fmtV } from '../lib/format';
   import { bindHover, hideTip, showTip } from '../tip';
   import { markHit, type ChartMark } from '../charts';
   import { nearestPoint, emptyHit, type HitMap } from '../lib/chartLayout';
@@ -65,7 +65,12 @@
       return;
     }
     paint(p.index);
-    showTip(labels[p.index], [[color, counts[p.index] + ' sets (MEV ' + bands.mev + ')']], cx, cy);
+    showTip(
+      labels[p.index],
+      [[color, counts[p.index] + ' sets (MEV ' + fmtV(bands.mev) + ')']],
+      cx,
+      cy
+    );
   }
 
   function click(ev: MouseEvent) {

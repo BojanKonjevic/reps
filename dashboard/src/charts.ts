@@ -227,7 +227,7 @@ export function drawHoverLine(g: CanvasRenderingContext2D, H: number, P: number,
 export interface ChartMark {
   date: string;
   titles: string[];
-  week?: number;
+  bucket?: number;
 }
 
 export function drawEventTicks(

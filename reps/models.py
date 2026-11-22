@@ -109,7 +109,7 @@ class Thresholds(BaseModel):
     e1rm_warn_ratio: Union[StrictInt, StrictFloat] = Field(gt=0)
     duplicate_name_distance: Union[StrictInt, StrictFloat] = Field(gt=0)
     volume_window_weeks: StrictInt = Field(gt=0)
-    volume_bad_weeks: StrictInt = Field(gt=0)
+    volume_bad_rotations: StrictInt = Field(gt=0)
     ledger_retention_days: StrictInt = Field(gt=0)
     default_new_slot_sets: StrictInt = Field(gt=0)
     adherence_drift_days: StrictInt = Field(gt=0)
@@ -161,7 +161,7 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
-SNAPSHOT_SCHEMA_VERSION = 3
+SNAPSHOT_SCHEMA_VERSION = 4
 
 STRICT = ConfigDict(extra="forbid")
 
@@ -259,13 +259,21 @@ class Muscle(BaseModel):
 
     muscle: StrictStr
     bands: MuscleBands
-    weekly: list[StrictInt]
+    rotation_sets: list[StrictInt]
+    planned_sets: StrictInt
     status: VolumeStatus
     tier: PriorityTier
     grouped: list[StrictStr]
     lift_share: list[MuscleLiftShare]
-    trained_weeks: StrictInt
-    avg_recent: Real
+    avg_recent: Optional[Real]
+
+
+class RotationVolumeWindow(BaseModel):
+    model_config = STRICT
+
+    rotation_days: StrictInt
+    starts: list[StrictStr]
+    through: StrictStr
 
 
 class SetView(BaseModel):
@@ -879,6 +887,7 @@ class SnapshotModel(BaseModel):
     sessions: list[SessionView]
     calendar: list[CalendarDay]
     volume_history: VolumeHistory
+    rotation_volume: RotationVolumeWindow
     bodyweight: list[BodyweightPoint]
     program: ProgramView
     status: StatusView

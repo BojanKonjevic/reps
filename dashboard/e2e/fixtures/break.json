@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -228,7 +228,7 @@
       "e1rm_warn_ratio": 1.5,
       "duplicate_name_distance": 2,
       "volume_window_weeks": 8,
-      "volume_bad_weeks": 4,
+      "volume_bad_rotations": 4,
       "ledger_retention_days": 7,
       "default_new_slot_sets": 2,
       "adherence_drift_days": 3,
@@ -315,24 +315,23 @@
     {
       "muscle": "chest",
       "bands": {
-        "mev": 8,
+        "mev": 2.2857142857142856,
         "mav": [
-          14,
-          20
+          4.0,
+          5.714285714285714
         ],
-        "mrv": 25
+        "mrv": 7.142857142857143
       },
-      "weekly": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
+      "rotation_sets": [
         1,
+        0,
+        0,
+        0,
+        0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 3,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [
@@ -342,22 +341,19 @@
           "share": 1.0
         }
       ],
-      "trained_weeks": 1,
-      "avg_recent": 0.5
+      "avg_recent": 0.0
     },
     {
       "muscle": "back",
       "bands": {
-        "mev": 10,
+        "mev": 2.857142857142857,
         "mav": [
-          14,
-          22
+          4.0,
+          6.285714285714286
         ],
-        "mrv": 28
+        "mrv": 8.0
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -365,26 +361,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "front delts",
       "bands": {
-        "mev": 0,
+        "mev": 0.0,
         "mav": [
-          4,
-          12
+          1.1428571428571428,
+          3.4285714285714284
         ],
-        "mrv": 12
+        "mrv": 3.4285714285714284
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -393,25 +387,23 @@
         0
       ],
       "status": "in_range",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "side delts",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          12,
-          18
+          3.4285714285714284,
+          5.142857142857143
         ],
-        "mrv": 22
+        "mrv": 6.285714285714286
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -419,26 +411,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "rear delts",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          12,
-          20
+          3.4285714285714284,
+          5.714285714285714
         ],
-        "mrv": 25
+        "mrv": 7.142857142857143
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -446,26 +436,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "biceps",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          10,
-          16
+          2.857142857142857,
+          4.571428571428571
         ],
-        "mrv": 20
+        "mrv": 5.714285714285714
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -473,26 +461,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "triceps",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          10,
-          16
+          2.857142857142857,
+          4.571428571428571
         ],
-        "mrv": 20
+        "mrv": 5.714285714285714
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -500,26 +486,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "quads",
       "bands": {
-        "mev": 8,
+        "mev": 2.2857142857142856,
         "mav": [
-          12,
-          18
+          3.4285714285714284,
+          5.142857142857143
         ],
-        "mrv": 24
+        "mrv": 6.857142857142857
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -527,26 +511,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "hamstrings",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          10,
-          16
+          2.857142857142857,
+          4.571428571428571
         ],
-        "mrv": 20
+        "mrv": 5.714285714285714
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -554,26 +536,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "glutes",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          12,
-          18
+          3.4285714285714284,
+          5.142857142857143
         ],
-        "mrv": 24
+        "mrv": 6.857142857142857
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -581,26 +561,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "adductors",
       "bands": {
-        "mev": 4,
+        "mev": 1.1428571428571428,
         "mav": [
-          4,
-          8
+          1.1428571428571428,
+          2.2857142857142856
         ],
-        "mrv": 12
+        "mrv": 3.4285714285714284
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -608,26 +586,24 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "abs",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": [
-          12,
-          20
+          3.4285714285714284,
+          5.714285714285714
         ],
-        "mrv": 25
+        "mrv": 7.142857142857143
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -635,23 +611,21 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     },
     {
       "muscle": "forearms",
       "bands": {
-        "mev": 6,
+        "mev": 1.7142857142857142,
         "mav": null,
         "mrv": null
       },
-      "weekly": [
-        0,
-        0,
+      "rotation_sets": [
         0,
         0,
         0,
@@ -659,11 +633,11 @@
         0,
         0
       ],
-      "status": "in_range",
+      "status": "below_mev",
+      "planned_sets": 0,
       "tier": "maintain",
       "grouped": [],
       "lift_share": [],
-      "trained_weeks": 0,
       "avg_recent": 0.0
     }
   ],
@@ -1010,6 +984,18 @@
       ]
     }
   },
+  "rotation_volume": {
+    "rotation_days": 2,
+    "starts": [
+      "2026-09-13",
+      "2026-09-15",
+      "2026-09-17",
+      "2026-09-19",
+      "2026-09-21",
+      "2026-09-23"
+    ],
+    "through": "2026-09-24"
+  },
   "bodyweight": [],
   "program": {
     "rotation": [
@@ -1059,12 +1045,56 @@
   "adherence": null,
   "signals": [
     {
-      "severity": "medium",
-      "text": "10d since last session, no PR attempts until back"
+      "severity": "high",
+      "text": "abs: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
-      "severity": "info",
-      "text": "not enough history for volume reads yet (1 sessions in 8 weeks)"
+      "severity": "high",
+      "text": "adductors: 0 sets in 6 of 6 2-day windows (MEV 1.1 sets per 2 days) (MEV tier: opinion)"
+    },
+    {
+      "severity": "high",
+      "text": "back: 0 sets in 6 of 6 2-day windows (MEV 2.9 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "biceps: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "chest: 0 sets in 5 of 6 2-day windows (MEV 2.3 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "forearms: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
+    },
+    {
+      "severity": "high",
+      "text": "glutes: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "hamstrings: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "quads: 0 sets in 6 of 6 2-day windows (MEV 2.3 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "rear delts: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
+    },
+    {
+      "severity": "high",
+      "text": "side delts: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "high",
+      "text": "triceps: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+    },
+    {
+      "severity": "medium",
+      "text": "10d since last session, no PR attempts until back"
     }
   ],
   "recent_notes": [
@@ -1090,19 +1120,19 @@
     "drop_watch": [],
     "grouped": {},
     "program_volume": {
-      "chest": 10.5,
-      "back": 0.0,
-      "front delts": 0.0,
-      "side delts": 0.0,
-      "rear delts": 0.0,
-      "biceps": 0.0,
-      "triceps": 0.0,
-      "quads": 0.0,
-      "hamstrings": 0.0,
-      "glutes": 0.0,
-      "adductors": 0.0,
-      "abs": 0.0,
-      "forearms": 0.0
+      "chest": 3,
+      "back": 0,
+      "front delts": 0,
+      "side delts": 0,
+      "rear delts": 0,
+      "biceps": 0,
+      "triceps": 0,
+      "quads": 0,
+      "hamstrings": 0,
+      "glutes": 0,
+      "adductors": 0,
+      "abs": 0,
+      "forearms": 0
     }
   },
   "autoreg_changes": [],
@@ -1213,7 +1243,7 @@
       "based_on": [
         "your logged sets and muscle mapping"
       ],
-      "definition": "Working sets logged per muscle in range. One set can count for several muscles. A weekly average only shows for ranges of 7 days or more."
+      "definition": "Working sets from completed workouts per muscle in range. One set can count for several muscles. A rate per rotation uses the current rotation length and requires a range at least that long."
     },
     {
       "metric": "program_activity",

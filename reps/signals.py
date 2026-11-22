@@ -12,14 +12,13 @@ from .autoreg import autoreg_block
 from .constants import load_constants
 from .db import conn
 from .goals import goal_progress
-from .program import (active_deloads, classify_volume, count_bad_weeks,
-                      recent_average)
+from .program import active_deloads, read_priorities, volume_block
 from .sessions import break_threshold, last_done
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 
 
-def build_signals(c=None):
+def build_signals(c=None, volume=None):
     """Warning signs in words, worst first. Empty means all clear."""
     c = c or conn()
     constants = load_constants()
@@ -27,46 +26,34 @@ def build_signals(c=None):
     today = date.today()
     out = []
 
-    vol_weeks = thresholds.volume_window_weeks
-    from .weeks import week_starts as _week_starts
-    week_starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
-    sessions = c.execute(
-        "SELECT COUNT(DISTINCT w.date) n FROM sets s "
-        "JOIN workouts w ON w.id = s.workout_id WHERE date(w.date) >= ?",
-        (week_starts[0].isoformat(),)).fetchone()["n"]
-    if sessions < 2:
+    volume = volume if volume is not None else volume_block(c, today)
+    days = volume["rotation_days"]
+    windows = len(volume["starts"])
+    if windows < 2:
         out.append({"severity": "info",
-                    "text": f"not enough history for volume reads yet ({sessions} sessions "
-                            f"in {vol_weeks} weeks)"})
-    else:
-        vol_bad = thresholds.volume_bad_weeks
-        from .program import span_start, weekly_volumes
-        span_weeklies = weekly_volumes(c, list(constants.muscles), week_starts)
-        gstart = span_start(list(span_weeklies.values()))
-        from .program import read_priorities as _priorities
-        tiers = {m: p.get("tier") for m, p in _priorities(c).items()}
-        for muscle, entry in constants.muscles.items():
-            weekly = span_weeklies[muscle][gstart:]
-            status = classify_volume(weekly, entry.mev, entry.mrv, vol_bad)
-            if status == "below_mev":
-                zero_weeks, low_weeks = count_bad_weeks(weekly, entry.mev, vol_bad)
-                tier_note = f" (MEV tier: {entry.tier})" if entry.tier != "settled" else ""
-                # Parity with audit check 8: a deprioritize muscle still
-                # reads, one severity lower and annotated, never silenced.
-                demoted = tiers.get(muscle) == "deprioritize"
-                intent = " (priority: deprioritize, intentional)" if demoted else ""
-                if zero_weeks >= vol_bad:
-                    out.append({"severity": "medium" if demoted else "high",
-                                "text": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} "
-                                        f"weeks (MEV {entry.mev}){tier_note}{intent}"})
-                else:
-                    out.append({"severity": "low" if demoted else "medium",
-                                "text": f"{muscle}: under MEV in {low_weeks} of last {len(weekly)} "
-                                        f"weeks (MEV {entry.mev}){intent}"})
-            elif status == "above_mrv":
-                avg = recent_average(weekly)
-                out.append({"severity": "medium",
-                            "text": f"{muscle}: averaging {avg:.1f}/wk over MRV {entry.mrv}"})
+                    "text": f"not enough history for volume reads yet ({windows} "
+                            f"{days}-day windows)"})
+    tiers = {m: p.get("tier") for m, p in read_priorities(c).items()}
+    for muscle, v in volume["muscles"].items():
+        if v["status"] == "below_mev":
+            demoted = tiers.get(muscle) == "deprioritize"
+            intent = " (priority: deprioritize, intentional)" if demoted else ""
+            if v["zero_rotations"] >= thresholds.volume_bad_rotations:
+                evidence = f"0 sets in {v['zero_rotations']} of {windows}"
+                tier = constants.muscles[muscle].tier
+                if tier != "settled":
+                    intent = f" (MEV tier: {tier})" + intent
+                severity = "medium" if demoted else "high"
+            else:
+                evidence = f"under MEV in {v['low_rotations']} of {windows}"
+                severity = "low" if demoted else "medium"
+            out.append({"severity": severity,
+                        "text": f"{muscle}: {evidence} {days}-day windows "
+                                f"(MEV {v['mev']:.1f} sets per {days} days){intent}"})
+        elif v["status"] == "above_mrv":
+            out.append({"severity": "medium",
+                        "text": f"{muscle}: averaging {v['avg_recent']:.1f} sets per {days} days "
+                                f"(MRV {v['mrv']:.1f})"})
 
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
         prog = goal_progress(c, dict(g))

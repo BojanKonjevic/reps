@@ -1,3 +1,4 @@
+import { SNAPSHOT_SCHEMA_VERSION } from '../generated/version';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchSnapshot } from '../queries/snapshot';
 import rich from './fixtures/rich.json';
@@ -13,7 +14,7 @@ describe('fetchSnapshot', () => {
       vi.fn(async () => ({ ok: true, json: async () => rich }) as Response)
     );
     const snap = await fetchSnapshot();
-    expect(snap.schema_version).toBe(3);
+    expect(snap.schema_version).toBe(SNAPSHOT_SCHEMA_VERSION);
     expect(snap.sessions.length).toBeGreaterThan(0);
   });
 

@@ -128,7 +128,7 @@ export const ThresholdsSchema = z.object({
   "e1rm_warn_ratio": z.union([z.number().int(), z.number()]),
   "duplicate_name_distance": z.union([z.number().int(), z.number()]),
   "volume_window_weeks": z.number().int(),
-  "volume_bad_weeks": z.number().int(),
+  "volume_bad_rotations": z.number().int(),
   "ledger_retention_days": z.number().int(),
   "default_new_slot_sets": z.number().int(),
   "adherence_drift_days": z.number().int(),
@@ -369,13 +369,13 @@ export const VolumeStatusSchema = z.enum(["below_mev", "in_range", "above_mrv"])
 export const MuscleSchema = z.object({
   "muscle": z.string(),
   "bands": MuscleBandsSchema,
-  "weekly": z.array(z.number().int()),
+  "rotation_sets": z.array(z.number().int()),
+  "planned_sets": z.number().int(),
   "status": VolumeStatusSchema,
   "tier": PriorityTierSchema,
   "grouped": z.array(z.string()),
   "lift_share": z.array(MuscleLiftShareSchema),
-  "trained_weeks": z.number().int(),
-  "avg_recent": z.union([z.number().int(), z.number()]),
+  "avg_recent": z.union([z.number().int(), z.number()]).nullable(),
 }).strict();
 
 export const NextUpRowSchema = z.object({
@@ -431,6 +431,12 @@ export const RecentNoteSchema = z.object({
   "date": z.string(),
   "text": z.string(),
   "hot": z.boolean(),
+}).strict();
+
+export const RotationVolumeWindowSchema = z.object({
+  "rotation_days": z.number().int(),
+  "starts": z.array(z.string()),
+  "through": z.string(),
 }).strict();
 
 export const RuleSchema = z.object({
@@ -501,6 +507,7 @@ export const snapshotSchema = z.object({
   "sessions": z.array(SessionViewSchema),
   "calendar": z.array(CalendarDaySchema),
   "volume_history": VolumeHistorySchema,
+  "rotation_volume": RotationVolumeWindowSchema,
   "bodyweight": z.array(BodyweightPointSchema),
   "program": ProgramViewSchema,
   "status": StatusViewSchema,
@@ -581,6 +588,7 @@ export type ProgramSlot = z.infer<typeof ProgramSlotSchema>;
 export type ProgramDay = z.infer<typeof ProgramDaySchema>;
 export type ProgramView = z.infer<typeof ProgramViewSchema>;
 export type RecentNote = z.infer<typeof RecentNoteSchema>;
+export type RotationVolumeWindow = z.infer<typeof RotationVolumeWindowSchema>;
 export type Rule = z.infer<typeof RuleSchema>;
 export type SetView = z.infer<typeof SetViewSchema>;
 export type SessionExercise = z.infer<typeof SessionExerciseSchema>;

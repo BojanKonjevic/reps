@@ -46,7 +46,8 @@
 | Rotation schedule (expected day)   | `reps/adherence.py` (`expected_day` + `schedule_shifts`, derived from completed training and `rotation_anchor`) | plan slot guess, rotation status, calendar, adherence observation | T1 | tests |
 | Stall / slipping                     | `reps/trends.py` + constants                                              | snapshot `tags`                                  | T1    | tests              |
 | Workout duration | `reps/sessions.py` and `workouts.reported_duration_min` for user-reported time | snapshot `duration_min`, MCP | T1 | tests |
-| Week bucketing                       | `reps/weeks.py`                                                           | volume, audit, signals, snapshot                 | T1    | tests              |
+| Rotation volume | `reps/program.py` derives window length from the active rotation and scales weekly landmarks | Plan, audit, Coach Notes, dashboard, autoreg volume guardrails | T1 | tests |
+| Week bucketing                       | `reps/weeks.py`                                                           | calendar volume and adherence display                 | T1    | tests              |
 | Muscle taxonomy, MEV/MAV/MRV, colors | `constants.json`                                                          | snapshot `constants`                             | T1    | G10                |
 | Thresholds                           | `constants.json`                                                          | `load_constants()`, snapshot, doc markers        | T1/T2 | G2, G4, G17        |
 | Enums                                | `reps/vocab.py`                                                           | SQL `CHECK`, Pydantic, MCP schema, generated Zod | T1    | G3                 |

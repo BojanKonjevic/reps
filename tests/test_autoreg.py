@@ -51,16 +51,16 @@ def test_plan_autoreg_block_and_permission_flip(log_module):
     assert _plan(log)["autoreg"]["permitted"] is True
 
 
-def test_programmed_volume_scales_rotation_to_week(log_module):
+def test_programmed_volume_counts_repeated_days_in_rotation(log_module):
     log = log_module
     log.set_exercise_mapping("bench", "chest")
     log.set_exercise_mapping("squat", "quads")
     log.set_split("Upper A", 1, "bench", 3)
     log.set_split("Lower A", 1, "squat", 2)
-    log.set_rotation(["Upper A", "Lower A", "rest"])
+    log.set_rotation(["Upper A", "Lower A", "rest", "Upper A"])
     vol = _plan(log)["autoreg"]["program_volume"]
-    assert vol["chest"] == round(3 * 7.0 / 3, 1)
-    assert vol["quads"] == round(2 * 7.0 / 3, 1)
+    assert vol["chest"] == 6
+    assert vol["quads"] == 2
     assert vol["back"] == 0
     assert len(vol) == 13
 
@@ -133,7 +133,7 @@ def test_apply_trim_records_hold_and_change_then_blocks_held_slot(log_module):
     assert out["autoreg"] == "trim"
     assert out["before"] == {"movements": "bench", "sets": 5}
     assert out["after"] == {"movements": "bench", "sets": 4}
-    assert out["hold_until"] == (date.today() + timedelta(days=8)).isoformat()
+    assert out["hold_until"] == (date.today() + timedelta(days=7)).isoformat()
     c = log.conn()
     holds = c.execute("SELECT * FROM autoreg_holds").fetchall()
     assert len(holds) == 1 and holds[0]["hold_until"] == out["hold_until"]

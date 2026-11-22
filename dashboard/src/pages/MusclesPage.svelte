@@ -58,7 +58,7 @@
 
   const shown = $derived(order.filter(m => musPasses(m)));
 
-  const wlabels = $derived(snap.volume_history.week_starts.map(fmtD));
+  const wlabels = $derived(snap.rotation_volume.starts.map(fmtD));
 
   interface Mark {
     text: string;
@@ -71,7 +71,7 @@
     if (entry) {
       if (entry.status === 'below_mev') marks.push({ text: 'below MEV', cls: 'bad' });
       else if (entry.status === 'above_mrv') marks.push({ text: 'above MRV', cls: 'bad' });
-      else marks.push({ text: statusLabel(entry.status), cls: '' });
+      else if (entry.avg_recent !== null) marks.push({ text: statusLabel(entry.status), cls: '' });
     }
     const tier = tierOf(m);
     if (tier && tier !== 'maintain')
@@ -83,7 +83,7 @@
   function volLine(m: string): string {
     const entry = snap.muscles.find(x => x.muscle === m);
     if (!entry) return '';
-    return muscleVolLine(entry);
+    return muscleVolLine(entry, snap.rotation_volume.rotation_days);
   }
 
   function toggleFacet(f: string) {
@@ -149,7 +149,7 @@
           <div class="listchart">
             <MuscleVolumeChart
               labels={wlabels}
-              counts={entry?.weekly ?? []}
+              counts={entry?.rotation_sets ?? []}
               bands={{
                 mev: entry?.bands.mev ?? 0,
                 mav: entry?.bands.mav ?? null,
@@ -161,7 +161,10 @@
         </div>
       {/each}
     </div>
-    <div class="cap">Weekly sets against MEV/MAV/MRV. Tap a muscle for the full page.</div>
+    <div class="cap">
+      Sets per {snap.rotation_volume.rotation_days} days against MEV/MAV/MRV. Tap a muscle for the full
+      page.
+    </div>
   </div>
 </div>
 

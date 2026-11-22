@@ -10,7 +10,7 @@ from .constants import load_constants
 from .db import SCHEMA, conn
 from .goals import goal_progress
 from .muscles import _levenshtein
-from .program import (count_bad_weeks, get_rotation, read_priorities)
+from .program import get_rotation, read_priorities, volume_block
 
 
 def run_audit():
@@ -46,8 +46,7 @@ def run_audit():
     thresholds = constants.thresholds
     drop_pct = thresholds.progression_drop_pct
     dup_dist = thresholds.duplicate_name_distance
-    vol_weeks = thresholds.volume_window_weeks
-    vol_bad = thresholds.volume_bad_weeks
+    vol_bad = thresholds.volume_bad_rotations
 
     def jump_bound(reps):
         from .constants import rep_band_bound
@@ -114,36 +113,22 @@ def run_audit():
                                       f"but split frequency fits fewer before {g['deadline']}",
                           "fix": f"extend the deadline or compress jumps, never silently"})
 
-    # Check 8: Volume vs MEV, rolling window from constants (current week + back).
-    # Bad weeks count over the trained span only: weeks before the first
-    # logged sets (any muscle) are absent, per-muscle leading zeros after
-    # that are absent too, and a span never training the muscle counts only
-    # when long enough to judge. A good week in between does not reset
-    # anything. Bucketing is owned by reps/weeks.py; per-muscle counts by
-    # weekly_volume; the span rules by span_start/trim_leading_zeros.
-    from .program import weekly_volumes as _weekly_volumes, span_start as _span_start
-    from .weeks import week_starts as _week_starts
-    starts = [date.fromisoformat(s) for s in _week_starts(vol_weeks)]
-    mev_bounds = {m: e.mev for m, e in constants.muscles.items()}
+    # Check 8 shares the rotation-based counts used by the plan and Coach Notes.
+    volume = volume_block(c)
+    days = volume["rotation_days"]
     priorities = read_priorities(c)
-    span_weeklies = _weekly_volumes(c, list(mev_bounds), starts)
-    gstart = _span_start(list(span_weeklies.values()))
-    for muscle, mev in mev_bounds.items():
-        weekly = span_weeklies[muscle][gstart:]
-        counts = "[" + ", ".join(str(n) for n in weekly) + "]"
-        zero_weeks, low_weeks = count_bad_weeks(weekly, mev, vol_bad)
-        # A muscle explicitly marked deprioritize is intentionally held back:
-        # its flags still stand (listed, never silently dropped) but drop one
-        # severity level and carry the reason, so the audit reads as explained.
+    for muscle, v in volume["muscles"].items():
+        counts = v["rotation_sets"]
         deprioritized = priorities.get(muscle, {}).get("tier") == "deprioritize"
         suffix = " (priority: deprioritize, intentional)" if deprioritized else ""
-        if zero_weeks >= vol_bad:
+        context = f"of {len(counts)} {days}-day windows {counts} (MEV {v['mev']:.1f}){suffix}"
+        if v["zero_rotations"] >= vol_bad:
             flags.append({"check": "volume_zero", "severity": "medium" if deprioritized else "high",
-                          "evidence": f"{muscle}: 0 sets in {zero_weeks} of last {len(weekly)} weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: 0 sets in {v['zero_rotations']} {context}",
                           "fix": "add volume, or add Active rule explaining"})
-        if low_weeks >= vol_bad:
+        if v["low_rotations"] >= vol_bad:
             flags.append({"check": "volume_low", "severity": "low" if deprioritized else "medium",
-                          "evidence": f"{muscle}: below MEV in {low_weeks} of last {len(weekly)} weeks {counts} (MEV {mev}){suffix}",
+                          "evidence": f"{muscle}: below MEV in {v['low_rotations']} {context}",
                           "fix": "add volume, or add Active rule explaining"})
 
     lines = [f"Audit complete: {len(flags)} flags (checks 2, 3, 6 are structurally impossible, see docs/AUDIT.md)"]

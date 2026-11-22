@@ -124,13 +124,12 @@ export function dayAvgs(spans: SessionSpan[]): DayAvg[] {
     .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
-export function weeklyRows(
-  weekStarts: string[],
+export function volumeRows(
+  starts: string[],
   byMuscle: Record<string, number[]>
 ): Array<Record<string, number>> {
-  // Presentation pivot of the emitted volume_history grid (no computation:
-  // values copy straight across, missing cells read 0 for the chart).
-  return weekStarts.map((_, i) => {
+  // Pivot the emitted per-muscle counts into chart rows.
+  return starts.map((_, i) => {
     const row: Record<string, number> = {};
     for (const [m, arr] of Object.entries(byMuscle)) row[m] = arr[i] ?? 0;
     return row;

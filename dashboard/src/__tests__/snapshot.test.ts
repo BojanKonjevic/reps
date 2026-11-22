@@ -1,5 +1,6 @@
 // GENERATED fixtures drive these tests: every payload below was built by
 // tests/scenarios.py through the real backend (scripts/gen.py).
+import { SNAPSHOT_SCHEMA_VERSION } from '../generated/version';
 import { describe, it, expect } from 'vitest';
 import { snapshotSchema } from '../generated/snapshot';
 import blank from '../generated/blank.json';
@@ -13,7 +14,7 @@ describe('snapshotSchema (generated)', () => {
   it('parses every generated fixture', () => {
     for (const f of [minimal, rich, deload, goalOffTrack, brk]) {
       const snap = snapshotSchema.parse(f);
-      expect(snap.schema_version).toBe(3);
+      expect(snap.schema_version).toBe(SNAPSHOT_SCHEMA_VERSION);
       expect(Array.isArray(snap.sessions)).toBe(true);
     }
   });

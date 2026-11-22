@@ -144,6 +144,15 @@ test.describe('Dashboard', () => {
     await expect(page.locator('#sessNotes')).toContainText('sore legs');
   });
 
+  test('switches volume between rotation and calendar weeks', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    await expect(page.getByRole('heading', { name: 'Volume per rotation' })).toBeVisible();
+    await page.getByRole('button', { name: 'Calendar week', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Calendar-week volume' })).toBeVisible();
+    await page.getByRole('button', { name: 'Rotation', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Volume per rotation' })).toBeVisible();
+  });
+
   test('dashboard visual regression - desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium', 'desktop snapshot only on chromium');
     await gotoFixture(page, rich, rich.as_of);

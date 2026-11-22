@@ -202,8 +202,8 @@ def get_plan(slot=None, verbose=False):
             lines.append("no open workout")
         lines.append(f"last session {last_session} ({gap_days}d ago)" + (" BREAK, no PR attempts" if on_break else ""))
         lines.append(f"slot guess: {slot_guess['day']} ({slot_guess['basis']}, {slot_guess['confidence']})")
-        below = [m for m, v in volume.items() if v["status"] == "below_mev"]
-        over = [m for m, v in volume.items() if v["status"] == "above_mrv"]
+        below = [m for m, v in volume["muscles"].items() if v["status"] == "below_mev"]
+        over = [m for m, v in volume["muscles"].items() if v["status"] == "above_mrv"]
         lines.append(f"below MEV: {', '.join(below) if below else 'none'}")
         if over:
             lines.append(f"above MRV: {', '.join(over)}")

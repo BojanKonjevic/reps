@@ -115,7 +115,7 @@ def test_validate_constants_fails_loudly():
 
 def test_snapshot_validates_built_payload(log_module):
     snap = log_module.build_snapshot_validated()
-    assert snap["schema_version"] == 3
+    assert snap["schema_version"] == 4
     assert isinstance(snap["sessions"], list)
     assert isinstance(snap["lifts"], list)
 
@@ -169,8 +169,8 @@ def test_snapshot_muscle_entry_shape(log_module):
     log.set_split("Upper A", 1, "bench", 5)
     snap = log.build_snapshot_validated()
     chest = next(m for m in snap["muscles"] if m["muscle"] == "chest")
-    assert set(chest) == {"muscle", "bands", "weekly", "status", "tier",
-                          "grouped", "lift_share", "trained_weeks", "avg_recent"}
+    assert set(chest) == {"muscle", "bands", "rotation_sets", "planned_sets", "status", "tier",
+                          "grouped", "lift_share", "avg_recent"}
     assert set(chest["bands"]) == {"mev", "mav", "mrv"}
     SnapshotModel.model_validate(snap)
 

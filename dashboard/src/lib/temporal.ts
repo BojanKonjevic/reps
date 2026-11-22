@@ -165,16 +165,16 @@ export function chartMarks(groups: DateGroup[]): ChartMark[] {
   return groups.map(g => ({ date: g.date, titles: g.events.map(e => e.title) }));
 }
 
-// One mark per week for week-bucket charts: same-week events share the
-// tick under the week's first event date.
-export function weekMarks(groups: DateGroup[], weekStarts: string[]): ChartMark[] {
+// One tick per emitted bucket, anchored to the first event in that bucket.
+export function bucketMarks(groups: DateGroup[], starts: string[], through: string): ChartMark[] {
   const seen = new Set<number>();
   const out: ChartMark[] = [];
   for (const g of groups) {
-    const w = weekIndexOf(weekStarts, g.date);
+    if (g.date > through) continue;
+    const w = bucketIndexOf(starts, g.date);
     if (w < 0 || seen.has(w)) continue;
     seen.add(w);
-    out.push({ date: g.date, titles: g.events.map(e => e.title), week: w });
+    out.push({ date: g.date, titles: g.events.map(e => e.title), bucket: w });
   }
   return out;
 }
@@ -339,11 +339,10 @@ export function currentSlotLine(slot: number, moves: string[], sets: number): st
   return moves.join(' / ') + ' · ' + sets + ' sets';
 }
 
-// Week-bucket index of a date among emitted week starts (selection over the
-// backend's buckets, never re-bucketing): the last start at or before date.
-export function weekIndexOf(weekStarts: string[], date: string): number {
+// Select the last emitted bucket start at or before the event date.
+export function bucketIndexOf(starts: string[], date: string): number {
   let idx = -1;
-  for (let i = 0; i < weekStarts.length; i += 1) if (weekStarts[i] <= date) idx = i;
+  for (let i = 0; i < starts.length; i += 1) if (starts[i] <= date) idx = i;
   return idx;
 }
 

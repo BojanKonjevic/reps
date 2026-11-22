@@ -10,11 +10,10 @@
     weeks: Array<Record<string, number>>;
     groups: string[];
     colors: Record<string, string>;
-    mevOf: (muscle: string) => number;
     onSelect?: (muscle: string) => void;
   }
 
-  let { labels, weeks, groups, colors, mevOf, onSelect }: Props = $props();
+  let { labels, weeks, groups, colors, onSelect }: Props = $props();
 
   let cv: HTMLCanvasElement;
   let hover: StackedHover | null = $state(null);
@@ -46,18 +45,7 @@
     }
     hover = h;
     paint();
-    const mev = mevOf(h.g);
-    showTip(
-      labels[h.wi],
-      [
-        [
-          colors[h.g],
-          h.g + ' ' + weeks[h.wi][h.g] + ' sets' + (mev > 0 ? ' (MEV ' + mev + ')' : ''),
-        ],
-      ],
-      cx,
-      cy
-    );
+    showTip(labels[h.wi], [[colors[h.g], h.g + ' ' + weeks[h.wi][h.g] + ' sets']], cx, cy);
   }
 
   function click(ev: MouseEvent) {
@@ -88,7 +76,7 @@
 </script>
 
 <canvas
-  aria-label="Weekly volume by muscle chart. Values available in adjacent tables and links."
+  aria-label="Volume by muscle chart. Values available in adjacent tables and links."
   bind:this={cv}
   id="chMus"
   width="860"

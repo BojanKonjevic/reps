@@ -5,7 +5,7 @@ from .errors import RepsError
 from .constants import load_constants
 from .db import conn
 from .history import record_change
-from .program import day_movements, parse_rotation, split_day_order
+from .program import day_movements, parse_rotation, rotation_length_days, split_day_order
 from .progression import top_e1rm_by_date
 
 
@@ -20,8 +20,9 @@ def sessions_possible_before(c, exercise, deadline):
     # One rotation slot counts as one calendar day (rest entries included),
     # so cycle length already prices in rest days.
     rotation = parse_rotation(c)
-    cycle_days = len(rotation) if rotation else 7
-    per_cycle = len(goal_exercise_days(c, exercise))
+    cycle_days = rotation_length_days(rotation)
+    training_days = set(goal_exercise_days(c, exercise))
+    per_cycle = sum(day in training_days for day in rotation) if rotation else len(training_days)
     return int(days_left / cycle_days * per_cycle + 0.5)
 
 

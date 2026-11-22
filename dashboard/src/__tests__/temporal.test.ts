@@ -26,8 +26,8 @@ import {
   scopeOf,
   selectStateForDate,
   trajectoryLines,
-  weekIndexOf,
-  weekMarks,
+  bucketIndexOf,
+  bucketMarks,
 } from '../lib/temporal';
 import type { HistoryEvent } from '../generated/snapshot';
 import type { HistoryState } from '../generated/historyStates';
@@ -249,18 +249,18 @@ describe('comparison and chart mapping', () => {
     expect(rows.sort(byNewest).map(r => r.id)).toEqual([2, 1, 3]);
   });
 
-  it('maps event dates onto week buckets and lift spans', () => {
-    const starts = snap.volume_history.week_starts;
-    expect(weekIndexOf(starts, '2026-09-24')).toBe(starts.length - 1);
-    expect(weekIndexOf(starts, '2020-01-01')).toBe(-1);
+  it('maps event dates onto rotation buckets and lift spans', () => {
+    const starts = snap.rotation_volume.starts;
+    expect(bucketIndexOf(starts, '2026-09-24')).toBe(starts.length - 1);
+    expect(bucketIndexOf(starts, '2020-01-01')).toBe(-1);
     const bench = snap.lifts.find(l => l.exercise === 'bench')!;
     const pts = bench.sessions.map(s => ({ date: s.date, w: 0, r: 0, ev: 0, pr: false }));
     const last = pts[pts.length - 1].date;
     const found = markDates(pts, chartMarks(groupByDate(eventsForLift(snap, 'bench'))));
     expect(found.every(m => m.date >= pts[0].date && m.date <= last)).toBe(true);
     expect(markDates(pts, [{ date: last, titles: [] }]).map(m => m.date)).toEqual([last]);
-    const weeks = weekMarks(groupByDate(eventsForMuscle(snap, 'chest')), starts);
-    expect(weeks.every(m => m.week !== undefined && m.week >= 0)).toBe(true);
+    const weeks = bucketMarks(groupByDate(eventsForMuscle(snap, 'chest')), starts, snap.as_of);
+    expect(weeks.every(m => m.bucket !== undefined && m.bucket >= 0)).toBe(true);
   });
 
   it('filters history by domain and range, newest first', () => {

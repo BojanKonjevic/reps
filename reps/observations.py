@@ -75,9 +75,9 @@ _OBSERVATION_DEFS = {
         "subject_kind": "muscle (blank means all tracked muscles)",
         "sources": ["sets", "set_muscle", "workouts"],
         "based_on": ["your logged sets and muscle mapping"],
-        "definition": "Working sets logged per muscle in range. One set can count "
-                      "for several muscles. A weekly average only shows for ranges "
-                      "of 7 days or more.",
+        "definition": "Working sets from completed workouts per muscle in range. "
+                      "One set can count for several muscles. A rate per rotation uses "
+                      "the current rotation length and requires a range at least that long.",
     },
     "program_activity": {
         "subject_kind": "training day, like Lower A (blank means every day)",
@@ -184,19 +184,20 @@ def _muscle_volume(subject, since, until):
         muscles = [muscle]
     else:
         muscles = sorted(constants.muscles)
-    rows = c.execute("SELECT sm.muscle AS muscle, COUNT(*) AS n FROM sets s "
-                     "JOIN workouts w ON w.id = s.workout_id "
-                     "JOIN set_muscle sm ON sm.set_id = s.id "
-                     "WHERE date(w.date) BETWEEN ? AND ? GROUP BY sm.muscle",
-                     (since, until)).fetchall()
-    counts = {r["muscle"]: r["n"] for r in rows}
+    from .program import get_rotation, muscle_set_counts, rotation_length_days
+
+    counts = muscle_set_counts(c, since, until, completed_only=True)
+    rotation_days = rotation_length_days(get_rotation(c))
     span_days = (date.fromisoformat(until) - date.fromisoformat(since)).days + 1
-    totals = {m: counts.get(m, 0) for m in muscles}
+    totals = {m: sum(counts.get(m, {}).values()) for m in muscles}
     result = {"totals": totals,
               "total_sets": sum(totals.values()),
               "avg_per_day": {m: round(n / span_days, 2) for m, n in totals.items()},
               "avg_per_week": ({m: round(n / (span_days / 7), 1) for m, n in totals.items()}
                                if span_days >= 7 else None),
+              "rotation_days": rotation_days,
+              "avg_per_rotation": ({m: round(n * rotation_days / span_days, 1) for m, n in totals.items()}
+                                   if span_days >= rotation_days else None),
               "span_days": span_days}
     return _wrap("muscle_volume", subject, since, until, result, *_def("muscle_volume"))
 

@@ -12,7 +12,7 @@ from .models import SNAPSHOT_SCHEMA_VERSION
 from .e1rm import e1rm
 from .program import (active_deloads, deload_covers, get_rotation,
                       lift_muscles, parse_active_split_days, read_priorities,
-                      read_split, recent_average, rules_with_confirm, volume_block)
+                      read_split, rules_with_confirm, volume_block, weekly_volumes)
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
 from .sessions import break_threshold, last_done, session_duration_min
@@ -144,31 +144,29 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
     return sorted(lifts, key=lambda l: l["exercise"])
 
 
-def muscles_view(c, constants, priorities, autoreg, volume, starts):
-    cutoff = starts[0]
+def muscles_view(c, priorities, autoreg, volume):
+    cutoff = volume["starts"][0] if volume["starts"] else volume["through"]
     per_ex_muscle: dict = {}
     for r in c.execute(
             "SELECT s.exercise, sm.muscle, COUNT(*) n FROM sets s "
             "JOIN workouts w ON w.id = s.workout_id JOIN set_muscle sm ON sm.set_id = s.id "
-            "WHERE date(w.date) >= ? GROUP BY s.exercise, sm.muscle", (cutoff,)).fetchall():
+            "WHERE w.status = 'done' AND w.date BETWEEN ? AND ? GROUP BY s.exercise, sm.muscle",
+            (cutoff, volume["through"])).fetchall():
         per_ex_muscle.setdefault(r["muscle"], []).append((r["exercise"], r["n"]))
     out = []
-    for muscle, entry in constants.muscles.items():
-        weekly = volume[muscle]["weekly"]
+    for muscle, entry in volume["muscles"].items():
         total = sum(n for _, n in per_ex_muscle.get(muscle, []))
         share = [{"exercise": ex, "sets": n, "share": round(n / total, 3) if total else 0.0}
                  for ex, n in sorted(per_ex_muscle.get(muscle, []), key=lambda e: -e[1])]
-        recent = recent_average(weekly)
         out.append({
             "muscle": muscle,
-            "bands": {"mev": entry.mev, "mav": list(entry.mav) if entry.mav else None,
-                      "mrv": entry.mrv},
-            "weekly": weekly, "status": volume[muscle]["status"],
+            "bands": {name: entry[name] for name in ("mev", "mav", "mrv")},
+            "rotation_sets": entry["rotation_sets"], "status": entry["status"],
+            "planned_sets": entry["planned_sets"],
             "tier": priorities.get(muscle, {}).get("tier", "maintain"),
             "grouped": sorted(autoreg.get("grouped", {}).get(muscle, [])),
             "lift_share": share,
-            "trained_weeks": sum(1 for n in weekly if n > 0),
-            "avg_recent": round(recent, 1),
+            "avg_recent": entry["avg_recent"],
         })
     return out
 
@@ -696,8 +694,9 @@ def build_views(c):
     goals_by_ex = {g["exercise"]: g["id"] for g in goals_active}
     priorities = read_priorities(c)
     autoreg = autoreg_block(c)
-    volume = volume_block(c)
-    starts = week_starts(constants.thresholds.volume_window_weeks)
+    volume = volume_block(c, date.fromisoformat(as_of))
+    starts = week_starts(constants.thresholds.volume_window_weeks, date.fromisoformat(as_of))
+    weekly = weekly_volumes(c, constants.muscles, [date.fromisoformat(s) for s in starts])
     days = parse_active_split_days(c)
     flags = _pr_flags(c)
     sessions = sessions_view(c, days, flags)
@@ -710,19 +709,19 @@ def build_views(c):
         "as_of": as_of,
         "constants": constants.model_dump(),
         "lifts": lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities),
-        "muscles": muscles_view(c, constants, priorities, autoreg, volume, starts),
+        "muscles": muscles_view(c, priorities, autoreg, volume),
         "sessions": sessions,
         "calendar": calendar_view(c, sessions, as_of, rotation, anchor, gap_threshold),
         "status": status_view(sessions, as_of, gap_threshold),
-        "volume_history": {"week_starts": starts,
-                           "by_muscle": {m: volume[m]["weekly"] for m in volume}},
+        "volume_history": {"week_starts": starts, "by_muscle": weekly},
+        "rotation_volume": {k: volume[k] for k in ("rotation_days", "starts", "through")},
         "bodyweight": bodyweight_view(c, constants.thresholds.bodyweight_avg_days,
                                        constants.thresholds.bodyweight_gap_days),
         "program": program_view(c, rotation, anchor, priorities),
         "next_up": next_up_view(c, prog),
         "goals": goals,
         "adherence": adherence_view(c),
-        "signals": [dict(s) for s in build_signals(c)],
+        "signals": [dict(s) for s in build_signals(c, volume)],
         "recent_notes": recent_notes_view(c, constants.thresholds.recent_notes_count),
         "rules": rules_with_confirm(c),
         "flags": [dict(r) for r in

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fmtD, muscleVolLine } from '../lib/format';
+  import { fmtD, fmtV, muscleVolLine } from '../lib/format';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { vocabOf } from '../lib/vocab.svelte';
@@ -12,7 +12,7 @@
     rangeBounds,
     ruleIdOf,
     scopeOf,
-    weekMarks,
+    bucketMarks,
   } from '../lib/temporal';
   import { createEventSelection } from '../lib/eventSelection.svelte';
   import { useHistoryStates } from '../queries/useHistoryStates.svelte';
@@ -42,19 +42,18 @@
 
   const sub = $derived.by(() => {
     if (!match || !entry) return '';
-    const mav = entry.bands.mav ? entry.bands.mav[0] + '-' + entry.bands.mav[1] : 'no range';
-    const mrv =
-      entry.bands.mrv !== undefined && entry.bands.mrv !== null ? entry.bands.mrv : 'no cap';
+    const mav = entry.bands.mav ? entry.bands.mav.map(fmtV).join('–') : 'no range';
+    const mrv = entry.bands.mrv !== null ? fmtV(entry.bands.mrv) : 'no cap';
     const isFocus = entry.tier === 'priority';
     return (
       'MEV ' +
-      entry.bands.mev +
+      fmtV(entry.bands.mev) +
       ' · MAV ' +
       mav +
       ' · MRV ' +
       mrv +
       ' · ' +
-      muscleVolLine(entry) +
+      muscleVolLine(entry, snap.rotation_volume.rotation_days) +
       (isFocus ? ' · focus' : '')
     );
   });
@@ -89,15 +88,17 @@
     return slices.map((_, i) => (i < big.length ? big[i].sets : smallSets));
   });
 
-  const labels = $derived(snap.volume_history.week_starts.map(fmtD));
+  const labels = $derived(snap.rotation_volume.starts.map(fmtD));
 
   const events = $derived(match ? eventsForMuscle(snap, match) : []);
   const groups = $derived(groupByDate(events));
-  const marks = $derived(weekMarks(groups, snap.volume_history.week_starts));
+  const marks = $derived(
+    bucketMarks(groups, snap.rotation_volume.starts, snap.rotation_volume.through)
+  );
   const firstWeek = $derived.by(() => {
     if (!entry) return null;
-    const i = entry.weekly.findIndex(n => n > 0);
-    return i >= 0 ? snap.volume_history.week_starts[i] : null;
+    const i = entry.rotation_sets.findIndex(n => n > 0);
+    return i >= 0 ? snap.rotation_volume.starts[i] : null;
   });
   const coverNote = $derived(coverageNote(events, firstWeek));
   const pageScope = $derived(
@@ -138,12 +139,12 @@
   <div id="viewMuscle">
     <div class="crumb"><a href={href.muscles()}>← Muscles</a></div>
     <PageHeader title={match} {sub} titleId="musTitle" subId="musSub" />
-    <SectionHeader title="Weekly volume" />
+    <SectionHeader title="Volume per rotation" />
     <div class="surface-flat">
       <MuscleVolumeChart
         id="chMusVol"
         {labels}
-        counts={entry.weekly}
+        counts={entry.rotation_sets}
         bands={{
           mev: entry.bands.mev,
           mav: entry.bands.mav,
@@ -155,8 +156,8 @@
         onSelectMark={selectMark}
       />
       <div class="cap" id="musCap">
-        Weekly sets. Gold line is MEV, shaded zone is MAV, red line is MRV. Ticks mark recorded
-        priority and program changes, tap one to inspect.
+        Each bar covers {snap.rotation_volume.rotation_days} days. Gold is MEV, shading is MAV, and red
+        is MRV. Tap a tick to inspect a recorded change.
       </div>
       {#if coverNote}
         <div class="cap" id="musHistNote">{coverNote}</div>

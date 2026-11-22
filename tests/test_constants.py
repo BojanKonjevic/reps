@@ -27,7 +27,7 @@ def test_constants_thresholds_complete():
         raw = json.load(f)
     for key in ("stale_workout_hours", "stale_workout_days", "break_days",
                 "progression_drop_pct", "e1rm_warn_ratio",
-                "duplicate_name_distance", "volume_window_weeks", "volume_bad_weeks"):
+                "duplicate_name_distance", "volume_window_weeks", "volume_bad_rotations"):
         assert key in raw["thresholds"], key
 
 

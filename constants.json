@@ -134,7 +134,7 @@
     "deload_watch_pct": -5,
     "deload_volume_reduction": [0.4, 0.6],
     "volume_window_weeks": 8,
-    "volume_bad_weeks": 4,
+    "volume_bad_rotations": 4,
     "ledger_retention_days": 7,
     "adherence_drift_days": 3,
     "e1rm_warn_ratio": 1.5,

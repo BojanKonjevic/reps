@@ -6,7 +6,7 @@ from .constants import load_constants
 from .db import conn
 from .progression import top_e1rm_by_date
 from .program import (lift_muscles, mev_floor_warnings, muscles_for_movements,
-                      parse_movements, programmed_weekly_volume,
+                      parse_movements, programmed_rotation_volume, get_rotation, rotation_bands, rotation_length_days,
                       read_split, rule_status_rows, split_day_order)
 from .trends import is_slipping
 
@@ -88,7 +88,7 @@ def autoreg_block(c):
             "miss_streaks": miss,
             "drop_watch": drop,
             "grouped": autoreg_grouped(c, flagged),
-            "program_volume": programmed_weekly_volume(c)}
+            "program_volume": programmed_rotation_volume(c)}
 
 
 def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=None):
@@ -140,19 +140,22 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
             r["movements"], r["sets"] = to_movements, to_sets
             break
     affected = muscles_for_movements(c, cur["movements"]) | muscles_for_movements(c, to_movements)
-    below = mev_floor_warnings(programmed_weekly_volume(c, simulated), affected)
+    rotation = get_rotation(c)
+    days = rotation_length_days(rotation)
+    after = programmed_rotation_volume(c, simulated, rotation=rotation)
+    below = mev_floor_warnings(after, affected, days)
     if below:
         raise RepsError("below MEV, refusing: " + "; ".join(below))
     # MRV ceiling: the add path must not push a muscle past its recoverable max.
     from .constants import load_constants as _lc
     _constants = _lc()
-    _after_vol = programmed_weekly_volume(c, simulated)
-    _over = sorted(m for m in affected
-                   if (e := _constants.muscles.get(m)) is not None
-                   and e.mrv is not None and _after_vol.get(m, 0) > e.mrv)
-    if _over:
-        raise RepsError("above MRV, refusing: " + "; ".join(
-            f"{m}: programmed {_after_vol.get(m, 0)}/wk over MRV {_constants.muscles[m].mrv}" for m in _over))
+    over = []
+    for muscle in sorted(affected & _constants.muscles.keys()):
+        mrv = rotation_bands(_constants.muscles[muscle], days)["mrv"]
+        if mrv is not None and after[muscle] > mrv:
+            over.append(f"{muscle}: programmed {after[muscle]} sets per {days} days over MRV {mrv:.2f}")
+    if over:
+        raise RepsError("above MRV, refusing: " + "; ".join(over))
     if parse_movements(to_movements) != parse_movements(cur["movements"]):
         action = "swap"
     elif to_sets < cur["sets"]:
@@ -168,7 +171,7 @@ def apply_autoreg(day, slot, to_movements, to_sets, evidence, from_movements=Non
         raise RepsError(f"split write refused: {e}")
     hold_until = None
     if action in ("trim", "swap"):
-        hold_until = (date.today() + timedelta(days=8)).isoformat()
+        hold_until = (date.today() + timedelta(days=days)).isoformat()
         c.execute("INSERT INTO autoreg_holds (day, movements, action, set_on, hold_until, reason) "
                   "VALUES (?, ?, ?, ?, ?, ?)",
                   (day, to_movements, action, today, hold_until, evidence.strip()))

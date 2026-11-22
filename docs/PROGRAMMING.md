@@ -67,7 +67,8 @@ Tiers:
 
 Actions:
 
-- Trim (auto on high): minus one set from accessory slots covering the affected muscles, compounds last, never below MEV, at most one set per slot per rotation. Each trim records a hold row in `autoreg_holds`, eight days out. Held slots are skipped by later passes.
+- Volume limits use sets per rotation. Weekly MEV, MAV, and MRV are converted using the active rotation length, including rest slots.
+- Trim (auto on high): minus one set from accessory slots covering the affected muscles, compounds last, never below MEV, at most one set per slot per rotation. Each trim records a hold row in `autoreg_holds`, one rotation out. Held slots are skipped by later passes.
 - Add (auto on clear recovery): the mirror. Progression hitting plus headroom to MAV means plus one set under the same constraints.
 - Swap (auto only at very strong evidence): the grouped pattern repeating across two or more rotations, or persisting through a completed deload. Otherwise prompt. Swaps use existing slot alternates; a missing alternate is proposed, never invented.
 - Return is slow by construction. Holds expiring restore baseline only on clear signals, never automatically. Volume comes back slower than it left, which is what stops the loop oscillating.

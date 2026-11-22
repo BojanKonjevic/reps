@@ -315,12 +315,11 @@ def test_audit_flags_single_to_double(audit_db):
 
 
 def _seed_muscle_weeks(c, muscle, week_sets):
-    """One done workout (Wednesday) per listed week: {weeks_ago: set_count}."""
+    """One done workout per seven-day fallback window."""
     from datetime import date, timedelta
     seed_lift(c, "bench", muscle)
-    monday = date.today() - timedelta(days=date.today().weekday())
     for ago, nsets in week_sets.items():
-        d = (monday - timedelta(weeks=ago) + timedelta(days=2)).isoformat()
+        d = (date.today() - timedelta(weeks=ago)).isoformat()
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
         c.commit()
         wid = cur.lastrowid
@@ -341,7 +340,7 @@ def test_audit_volume_zero(audit_db):
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"
-    assert "0 sets in 4 of last 8 weeks" in zeros[0]["evidence"]
+    assert "0 sets in 4 of 8 7-day windows" in zeros[0]["evidence"]
     assert _chest_volume_flags(log, "volume_low") == []
 
 
@@ -357,13 +356,13 @@ def test_audit_mev_zero_never_flags_zero(audit_db):
 
 
 def test_audit_volume_low(audit_db):
-    """check 8: 4 of last 8 weeks low-but-nonzero fires volume_low, medium."""
+    """check 8: 4 of 8 7-day windows low-but-nonzero fires volume_low, medium."""
     log, c = audit_db
     _seed_muscle_weeks(c, "chest", {0: 2, 1: 2, 2: 2, 3: 2, 4: 8, 5: 8, 6: 8, 7: 8})
     lows = _chest_volume_flags(log, "volume_low")
     assert len(lows) == 1
     assert lows[0]["severity"] == "medium"
-    assert "below MEV in 4 of last 8 weeks" in lows[0]["evidence"]
+    assert "below MEV in 4 of 8 7-day windows" in lows[0]["evidence"]
     assert _chest_volume_flags(log, "volume_zero") == []
 
 
@@ -381,7 +380,7 @@ def test_audit_volume_no_streak_reset(audit_db):
     _seed_muscle_weeks(c, "chest", {2: 8, 5: 8, 6: 8, 7: 8})
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
-    assert "0 sets in 4 of last 8 weeks" in zeros[0]["evidence"]
+    assert "0 sets in 4 of 8 7-day windows" in zeros[0]["evidence"]
 
 
 def test_audit_volume_never_trained(audit_db):
@@ -391,7 +390,7 @@ def test_audit_volume_never_trained(audit_db):
     zeros = _chest_volume_flags(log, "volume_zero")
     assert len(zeros) == 1
     assert zeros[0]["severity"] == "high"
-    assert "0 sets in 8 of last 8 weeks" in zeros[0]["evidence"]
+    assert "0 sets in 8 of 8 7-day windows" in zeros[0]["evidence"]
 
 
 def test_audit_volume_short_history_stays_silent(audit_db):

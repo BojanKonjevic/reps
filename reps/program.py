@@ -3,7 +3,8 @@
 # read models (movements "a / b" strings) are assembled on read, never stored.
 
 import sqlite3
-from datetime import date, datetime
+from collections import Counter
+from datetime import date, datetime, timedelta
 
 from .errors import RepsError
 from .vocab import AutoregAction, DeloadScope, PriorityTier, SplitVariant, values
@@ -300,146 +301,125 @@ def show_rotation():
     return {"rotation": get_rotation(c)}
 
 
+def rotation_length_days(rotation: list) -> int:
+    """Elapsed days per pass through the split, with a seven-day fallback."""
+    return len(rotation) or timedelta(weeks=1).days
+
+
 def weekly_volume(c, muscle, week_starts):
-    from datetime import timedelta
-    base = week_starts[0].isoformat()
-    rows = c.execute("""
-        SELECT date(w.date) as day, COUNT(*) as sets
-        FROM sets s
-        JOIN workouts w ON w.id = s.workout_id
-        JOIN set_muscle sm ON sm.set_id = s.id
-        WHERE sm.muscle = ? AND date(w.date) >= ?
-        GROUP BY day
-    """, (muscle, base)).fetchall()
-    per_day = {r["day"]: r["sets"] for r in rows}
-    out = []
-    for ws in week_starts:
-        we = ws + timedelta(days=7)
-        out.append(sum(n for d, n in per_day.items() if ws.isoformat() <= d < we.isoformat()))
-    return out
+    return weekly_volumes(c, [muscle], week_starts)[muscle]
 
 
-def trim_leading_zeros(weekly):
-    """Drop pre-history zero weeks before the first logged sets for a muscle.
-
-    Weeks before anything was ever logged are absent, not skipped: counting
-    them as bad weeks flags every muscle below MEV on a fresh log. Zeros
-    after the first nonzero week stay, a skipped week is information. An
-    all-zero window is returned whole, a never-trained muscle still flags.
-    """
-    for i, n in enumerate(weekly):
-        if n > 0:
-            return weekly[i:]
-    return weekly
+def trim_leading_zeros(counts):
+    """Skip windows before the muscle’s first recorded sets."""
+    for i, count in enumerate(counts):
+        if count > 0:
+            return counts[i:]
+    return counts
 
 
-def span_start(weeklies):
-    """First week index with any logged sets across muscles: the history start.
-
-    Weeks before anything was logged are absent for every muscle, never
-    skipped. Returns the window width when nothing was logged, so every
-    slice comes back empty and nothing can flag on no data.
-    """
-    width = max([len(w) for w in weeklies] or [0])
+def span_start(series):
+    """First window with sets for any muscle, or the end of empty history."""
+    width = max(map(len, series), default=0)
     for i in range(width):
-        if any(i < len(w) and w[i] > 0 for w in weeklies):
+        if any(i < len(counts) and counts[i] > 0 for counts in series):
             return i
     return width
 
 
-def count_bad_weeks(weekly, mev, min_span):
-    """Zero and low week counts over the trained span (audit check 8 rule).
-
-    `weekly` arrives already sliced at the history start by the caller;
-    per-muscle leading zeros are absent, not skipped. A span that never
-    trained the muscle counts whole only when long enough to judge
-    (min_span, the bad-week bar); shorter spans contribute nothing.
-    """
-    if mev == 0:
-        # MEV 0 means no direct work is required (covered indirectly),
-        # so zero-set weeks meet the floor and never flag.
-        return (0, 0)
-    trimmed = trim_leading_zeros(weekly)
-    if not trimmed:
-        return (len(weekly), 0) if len(weekly) >= min_span else (0, 0)
-    return (sum(1 for n in trimmed if n == 0),
-            sum(1 for n in trimmed if 0 < n < mev))
+def recent_average(counts, limit):
+    """Mean over the latest windows within the muscle’s trained span."""
+    recent = trim_leading_zeros(counts)[-limit:]
+    return sum(recent) / len(recent) if recent else None
 
 
-def recent_average(weekly, k=4):
-    """Mean over the last k trained-span weeks (pre-history zeros excluded)."""
-    trimmed = trim_leading_zeros(weekly)
-    recent = trimmed[-k:] if len(trimmed) >= k else trimmed
-    return sum(recent) / len(recent) if recent else 0
+def classify_volume(counts, mev, mrv, min_bad):
+    """Volume verdict and evidence in the same units as the logged counts."""
+    trained_span = trim_leading_zeros(counts)
+    zero = trained_span.count(0) if mev > 0 else 0
+    low = sum(1 for n in trained_span if 0 < n < mev)
+    average = recent_average(counts, min_bad)
+    status = "in_range"
+    if zero >= min_bad or low >= min_bad:
+        status = "below_mev"
+    elif mrv is not None and average is not None and average > mrv:
+        status = "above_mrv"
+    return {"avg_recent": average, "zero_rotations": zero, "low_rotations": low, "status": status}
 
 
-def classify_volume(weekly, mev, mrv, vol_bad):
-    """Shared volume classifier for plan status and audit flags.
-
-    Below-MEV mirrors audit check 8 exactly (zero or low weeks counted over
-    the trained span, pre-history excluded); above-MRV uses the recent-4-week
-    average over the same span. Meeting MEV exactly (n == mev) is in range,
-    only strictly-below weeks count as low.
-    """
-    zero_weeks, low_weeks = count_bad_weeks(weekly, mev, vol_bad)
-    if zero_weeks >= vol_bad or low_weeks >= vol_bad:
-        return "below_mev"
-    avg = recent_average(weekly)
-    if mrv is not None and avg > mrv:
-        return "above_mrv"
-    return "in_range"
-
-
-def weekly_volumes(c, muscles, week_starts):
-    """Weekly set counts for many muscles in two round trips.
-
-    One GROUP BY over (muscle, day), bucketed in Python against the same
-    week boundaries weekly_volume uses. volume_block and signals share this
-    instead of paying one query per muscle (13+ round trips per call)."""
-    from datetime import timedelta
-    base = week_starts[0].isoformat()
-    per_day: dict = {}
-    for r in c.execute("""
-        SELECT sm.muscle as muscle, date(w.date) as day, COUNT(*) as sets
+def muscle_set_counts(c, since: str, until: str, *, completed_only: bool = False):
+    """Mapped set counts per muscle and date in an inclusive date range."""
+    rows = c.execute("""
+        SELECT sm.muscle, w.date AS day, COUNT(*) AS sets
         FROM sets s
         JOIN workouts w ON w.id = s.workout_id
         JOIN set_muscle sm ON sm.set_id = s.id
-        WHERE date(w.date) >= ?
-        GROUP BY sm.muscle, day
-    """, (base,)).fetchall():
-        per_day.setdefault(r["muscle"], {})[r["day"]] = r["sets"]
-    out = {}
-    for muscle in muscles:
-        days = per_day.get(muscle, {})
-        weekly = []
-        for ws in week_starts:
-            we = ws + timedelta(days=7)
-            lo, hi = ws.isoformat(), we.isoformat()
-            weekly.append(sum(n for d, n in days.items() if lo <= d < hi))
-        out[muscle] = weekly
-    return out
+        WHERE w.date BETWEEN ? AND ? AND (NOT ? OR w.status = 'done')
+        GROUP BY sm.muscle, w.date
+    """, (since, until, completed_only))
+    per_day: dict[str, dict[str, int]] = {}
+    for row in rows:
+        per_day.setdefault(row["muscle"], {})[row["day"]] = row["sets"]
+    return per_day
 
 
-def volume_block(c):
-    """Per-muscle weekly counts plus bounds and status, the same shape plan builds.
+def _volume_buckets(per_day, muscles, starts, length):
+    bounds = [(d.isoformat(), (d + timedelta(days=length)).isoformat()) for d in starts]
+    return {
+        muscle: [sum(n for day, n in per_day.get(muscle, {}).items() if lo <= day < hi)
+                 for lo, hi in bounds]
+        for muscle in muscles
+    }
 
-    Shared by plan and the dashboard snapshot so both read one computation.
-    """
-    from datetime import timedelta
-    from .weeks import week_starts as _week_starts
+
+def weekly_volumes(c, muscles, week_starts):
+    """Calendar totals for browsing, independent of the training rotation."""
+    week = timedelta(weeks=1)
+    per_day = muscle_set_counts(c, week_starts[0].isoformat(),
+                              (week_starts[-1] + week - timedelta(days=1)).isoformat())
+    return _volume_buckets(per_day, muscles, week_starts, week.days)
+
+
+def rotation_bands(entry, days: int):
+    """Convert weekly landmarks to sets per pass through the rotation."""
+    week = timedelta(weeks=1).days
+    return {
+        "mev": entry.mev * days / week,
+        "mav": [n * days / week for n in entry.mav] if entry.mav else None,
+        "mrv": entry.mrv * days / week if entry.mrv is not None else None,
+    }
+
+
+def volume_block(c, today=None):
+    """Volume over fixed-length windows through the as-of date."""
+    today = today or date.today()
     constants = load_constants()
     thresholds = constants.thresholds
-    starts = [date.fromisoformat(s) for s in _week_starts(thresholds.volume_window_weeks)]
-    vol_bad = thresholds.volume_bad_weeks
-    weeklies = weekly_volumes(c, list(constants.muscles), starts)
-    start = span_start(list(weeklies.values()))
-    volume = {}
+    rotation = get_rotation(c)
+    days = rotation_length_days(rotation)
+    span = timedelta(weeks=thresholds.volume_window_weeks).days
+    minimum = thresholds.volume_bad_rotations
+    window_count = max(minimum, span // days)
+    end = today + timedelta(days=1)
+    starts = [end - timedelta(days=days * i) for i in range(window_count, 0, -1)]
+    per_day = muscle_set_counts(c, starts[0].isoformat(), today.isoformat(),
+                                completed_only=True)
+    buckets = _volume_buckets(per_day, constants.muscles, starts, days)
+    start = span_start(list(buckets.values()))
+    planned = programmed_rotation_volume(c, rotation=rotation)
+    muscles = {}
     for muscle, entry in constants.muscles.items():
-        weekly = weeklies[muscle]
-        volume[muscle] = {"weekly": weekly, "mev": entry.mev, "mav": entry.mav,
-                          "mrv": entry.mrv, "freq": entry.freq,
-                          "status": classify_volume(weekly[start:], entry.mev, entry.mrv, vol_bad)}
-    return volume
+        counts = buckets[muscle][start:]
+        bands = rotation_bands(entry, days)
+        muscles[muscle] = {
+            **bands,
+            "freq": [n * days / timedelta(weeks=1).days for n in entry.freq] if entry.freq else None,
+            "rotation_sets": counts,
+            "planned_sets": planned[muscle],
+            **classify_volume(counts, bands["mev"], bands["mrv"], minimum),
+        }
+    return {"rotation_days": days, "starts": [d.isoformat() for d in starts[start:]],
+            "through": today.isoformat(), "muscles": muscles}
 
 
 def get_compaction():
@@ -775,7 +755,9 @@ def set_split(day, slot, movements, sets, variant="active", evidence=""):
         affected = muscles_for_movements(c, movements)
         if before_moves:
             affected |= muscles_for_movements(c, before_moves)
-        warnings = mev_floor_warnings(programmed_weekly_volume(c), affected)
+        rotation = get_rotation(c)
+        warnings = mev_floor_warnings(programmed_rotation_volume(c, rotation=rotation),
+                                      affected, rotation_length_days(rotation))
         if warnings:
             out["warnings"] = warnings
     return out
@@ -1033,24 +1015,17 @@ def confirm_rule(rule_id, extend=None, archive=False, evidence=""):
             "change_id": change["change_id"]}
 
 
-def programmed_weekly_volume(c, split_rows=None):
-    """Programmed weekly sets per muscle from the active split and rotation.
-
-    Full credit per mapped muscle like plan volume, scaled from cycle length
-    to a week. All tracked muscles initialize at zero so removed muscles read
-    0, not absent. Unmapped movements contribute nothing.
-    """
-    constants = load_constants()
-    totals = {m: 0 for m in constants.muscles}
+def programmed_rotation_volume(c, split_rows=None, *, rotation=None):
+    """Planned sets per muscle for one pass through the active schedule."""
+    totals = dict.fromkeys(load_constants().muscles, 0)
     rows = split_rows if split_rows is not None else read_split("active", c=c)
-    for r in rows:
-        for move in parse_movements(r["movements"]):
-            for mu in lift_muscles(c, move) or []:
-                if mu in totals:
-                    totals[mu] += r["sets"]
-    cycle = get_rotation(c)
-    cycle_days = len(cycle) if cycle else 7
-    return {m: round(v * 7.0 / cycle_days, 1) for m, v in totals.items()}
+    rotation = get_rotation(c) if rotation is None else rotation
+    repeats = Counter(rotation)
+    for row in rows:
+        count = repeats[row["day"]] if rotation else 1
+        for muscle in muscles_for_movements(c, row["movements"]) & totals.keys():
+            totals[muscle] += count * row["sets"]
+    return totals
 
 
 def muscles_for_movements(c, text):
@@ -1061,7 +1036,7 @@ def muscles_for_movements(c, text):
     return out
 
 
-def mev_floor_warnings(after_vol, affected):
+def mev_floor_warnings(after_vol, affected, days):
     """Below-MEV warnings scoped to edited muscles only. MEV 0 muscles never warn."""
     constants = load_constants()
     out = []
@@ -1069,6 +1044,8 @@ def mev_floor_warnings(after_vol, affected):
         entry = constants.muscles.get(m)
         if entry is None or entry.mev == 0:
             continue
-        if after_vol.get(m, 0) < entry.mev:
-            out.append(f"{m}: programmed {after_vol.get(m, 0)}/wk below MEV {entry.mev} after this edit")
+        mev = rotation_bands(entry, days)["mev"]
+        if after_vol.get(m, 0) < mev:
+            out.append(f"{m}: programmed {after_vol.get(m, 0)} sets per {days} days "
+                       f"below MEV {mev:.2f} after this edit")
     return out

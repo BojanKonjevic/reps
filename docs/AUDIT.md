@@ -58,16 +58,14 @@ Enforced by the `session_end` gate (precondition 4): a session with an exercise 
 - Evidence: workout id, date, age_days, last_set_created.
 - Fix: `session_end` with note, or `session_delete_workout` if empty.
 
-### 8. Volume vs MEV (rolling <!--const thresholds.volume_window_weeks-->8<!--/const-->-week window)
+### 8. Volume vs MEV
 
-Backstop for the live plan-time volume check (LOGGING.md Session start step 8), not the primary mechanism. The live check covers every tracked muscle each session and nudges volume conversationally; this deterministic check runs the same computation on a different code path and catches anything the live check misses (a bug in the live logic, a session logged outside the normal chat flow, manual DB edits). Expected to rarely fire on a well-planned block; when it does, treat it as a signal the live check failed, not just that volume is low.
+`audit_data` uses the same completed-workout volume as the plan and Coach Notes. Each window has the current rotation length, including the planned rest slots. Windows end at the as-of date and cover up to the <!--const thresholds.volume_window_weeks-->8<!--/const-->-week lookback, extended when needed to fit the minimum number of windows. Weekly landmarks in `constants.json` are converted to sets per rotation.
 
-- For each tracked muscle in `constants.json` (`constants_show`): compute weekly sets for each of the last <!--const thresholds.volume_window_weeks-->8<!--/const--> weeks (current week + 7 back) from `session_range`. Bad weeks count over the trained span only: weeks before the first logged sets (any muscle) are absent, per-muscle weeks before its first sets are absent too, and a span that never trained the muscle counts only when it reaches <!--const thresholds.volume_bad_weeks-->4<!--/const--> weeks long. Shorter spans and empty histories flag nothing. Two separate flags (a good week in between does not reset the count):
-  - `volume_zero` (high): 0 sets in ≥ <!--const thresholds.volume_bad_weeks-->4<!--/const--> of the last <!--const thresholds.volume_window_weeks-->8<!--/const--> weeks.
-  - `volume_low` (medium): 0 < sets < MEV in ≥ <!--const thresholds.volume_bad_weeks-->4<!--/const--> of the last <!--const thresholds.volume_window_weeks-->8<!--/const--> weeks.
-- MEV comes from `constants.json`. Flags with no Active rule in MEMORY.md explaining intentional reduction (injury, deload block, specialization) stand; explained ones are still listed, not silently dropped. A `deload completed` line in State explains a deload week's dip the same way. A muscle marked `deprioritize` in the priority table is still listed but one severity level lower with the reason annotated (the deterministic `audit_data` tool does this automatically; the manual pass must do the same).
-- Evidence: muscle, bad-week count out of 8, per-week set counts, MEV.
-- Fix: add volume, or add Active rule explaining.
+- `volume_zero` (high) flags at least <!--const thresholds.volume_bad_rotations-->4<!--/const--> windows with zero sets.
+- `volume_low` (medium) flags at least <!--const thresholds.volume_bad_rotations-->4<!--/const--> windows with some sets below MEV.
+- Windows before the log or muscle training begins are excluded. For a muscle with no sets, use the overall logged history once it covers enough windows. A muscle with MEV zero needs no minimum sets.
+- A `deprioritize` tier lowers the severity by one. Check active rules and deloads for intentional reductions before changing volume.
 
 ---
 

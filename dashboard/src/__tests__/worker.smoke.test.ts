@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { SNAPSHOT_SCHEMA_VERSION } from '../generated/version';
 import { describe, expect, it } from 'vitest';
 import worker from '../worker';
 import blank from '../generated/blank.json';
@@ -49,7 +50,7 @@ describe('worker entry (no DOM globals)', () => {
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.schema_version).toBe(3);
+    expect(body.schema_version).toBe(SNAPSHOT_SCHEMA_VERSION);
     expect(body.sessions).toEqual([]);
     expect(body).toEqual(blank);
   });

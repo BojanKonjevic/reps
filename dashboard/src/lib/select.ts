@@ -224,11 +224,10 @@ export function paletteMovements(lifts: Lift[]): PalRow[] {
 export function paletteMuscles(muscles: Muscle[]): PalRow[] {
   return muscles
     .map(m => {
-      const wk = m.weekly.length ? m.weekly[m.weekly.length - 1] : 0;
       return palRow(
         'muscle:' + m.muscle,
         m.muscle,
-        statusLabel(m.status) + ' · ' + wk + (wk === 1 ? ' set' : ' sets'),
+        m.avg_recent === null ? 'no logged volume' : statusLabel(m.status),
         href.muscle(m.muscle),
         m.muscle
       );
