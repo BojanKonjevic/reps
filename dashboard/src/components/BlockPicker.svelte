@@ -1,15 +1,14 @@
 <script lang="ts">
   import type { BlockView } from '../generated/snapshot';
-  import { href } from '../routes';
 
   interface Props {
     blocks: BlockView[];
     selected: BlockView | null;
     onSelect: (id: number | null) => void;
-    showSummary: boolean;
+    showBoundaryKey: boolean;
   }
 
-  let { blocks, selected, onSelect, showSummary }: Props = $props();
+  let { blocks, selected, onSelect, showBoundaryKey }: Props = $props();
 </script>
 
 {#if blocks.length}
@@ -29,31 +28,9 @@
         </option>
       {/each}
     </select>
-    {#if !selected && showSummary}<span class="boundary-key">Dashed lines mark block dates</span
+    {#if !selected && showBoundaryKey}<span class="boundary-key">Dashed lines mark block dates</span
       >{/if}
   </div>
-  {#if showSummary && selected && (selected.changes.length || selected.coach_note)}
-    <div class="surface-flat block-summary" aria-label="Block summary">
-      {#if selected.changes.length}
-        <div>
-          <h2>Changes from previous block</h2>
-          <ul>
-            {#each selected.changes as change (change.change_id)}
-              {#each change.details as detail}
-                <li><a href={href.history(change.change_id)}>{change.subject} · {detail}</a></li>
-              {/each}
-            {/each}
-          </ul>
-        </div>
-      {/if}
-      {#if selected.coach_note}
-        <div>
-          <h2>Final coach note</h2>
-          <p>{selected.coach_note}</p>
-        </div>
-      {/if}
-    </div>
-  {/if}
 {/if}
 
 <style>
@@ -77,28 +54,5 @@
     color: var(--ink);
     background: transparent;
     font: inherit;
-  }
-  .block-summary {
-    display: grid;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding: 0.75rem 1rem;
-    border-inline-start: 2px solid var(--line-soft);
-  }
-  h2 {
-    font-size: 0.9rem;
-    margin: 0 0 0.35rem;
-  }
-  p,
-  ul {
-    margin: 0;
-    color: var(--ink-dim);
-    font-size: 0.86rem;
-  }
-  p {
-    white-space: pre-line;
-  }
-  ul {
-    padding-inline-start: 1.2rem;
   }
 </style>

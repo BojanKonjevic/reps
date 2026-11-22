@@ -102,7 +102,7 @@
           blocks={global.blocks}
           {selected}
           onSelect={id => (selectedId = id)}
-          showSummary={route.view.name === 'dash'}
+          showBoundaryKey={route.view.name === 'dash'}
         />
       {/if}
       <CommandPalette {snap} />

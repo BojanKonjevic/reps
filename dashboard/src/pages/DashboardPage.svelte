@@ -190,50 +190,67 @@
     {/if}
   </div>
 
-  <div class="cols2">
-    {#if !pastBlock}
-      <div id="nextWrap">
-        <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
-        <div id="nextCard" class="surface-flat">
-          {#if next.empty}
-            <div class="empty">{next.empty}</div>
-          {:else}
-            <table class="nexttable" aria-label="Next training session">
-              <thead>
-                <tr>
-                  <th scope="col">Movement</th>
-                  <th scope="col">Last</th>
-                  <th scope="col">Target</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each next.rows as row}
-                  <tr class="nextline">
-                    <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
-                    <td class="nextnum">
-                      {#if row.last}
-                        {row.last.weight} x {row.last.reps}
-                        <span class="nextmeta">{fmtD(row.last.date)}</span>
-                      {:else}
-                        never logged
-                      {/if}
-                    </td>
-                    <td class="nexttarget">
-                      {#if row.target}
-                        target {row.target}
-                      {:else}
-                        —
-                      {/if}
-                    </td>
+  <div class:cols2={!pastBlock || changed.length > 0}>
+    <div>
+      {#if pastBlock && blockDisplay.selected?.coach_note}
+        <section aria-label="Final coach note">
+          <SectionHeader title="Final coach note" />
+          <p class="coach-copy">{blockDisplay.selected.coach_note}</p>
+        </section>
+      {:else if !pastBlock}
+        <div id="nextWrap">
+          <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
+          <div id="nextCard" class="surface-flat">
+            {#if next.empty}
+              <div class="empty">{next.empty}</div>
+            {:else}
+              <table class="nexttable" aria-label="Next training session">
+                <thead>
+                  <tr>
+                    <th scope="col">Movement</th>
+                    <th scope="col">Last</th>
+                    <th scope="col">Target</th>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-            <div class="cap">{next.basis}</div>
-          {/if}
+                </thead>
+                <tbody>
+                  {#each next.rows as row}
+                    <tr class="nextline">
+                      <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
+                      <td class="nextnum">
+                        {#if row.last}
+                          {row.last.weight} x {row.last.reps}
+                          <span class="nextmeta">{fmtD(row.last.date)}</span>
+                        {:else}
+                          never logged
+                        {/if}
+                      </td>
+                      <td class="nexttarget">
+                        {#if row.target}
+                          target {row.target}
+                        {:else}
+                          —
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              <div class="cap">{next.basis}</div>
+            {/if}
+          </div>
         </div>
-      </div>
-    {/if}
+      {/if}
+      {#if blockDisplay.selected?.changes.length}
+        <SectionHeader title="Changes from previous block" />
+        <ul class="surface-flat opening-changes">
+          {#each blockDisplay.selected.changes as change (change.change_id)}
+            {#each change.details as detail}
+              <li><a href={href.history(change.change_id)}>{change.subject} · {detail}</a></li>
+            {/each}
+          {/each}
+        </ul>
+      {/if}
+    </div>
     {#if changed.length}
       <div id="changedWrap">
         <SectionHeader
@@ -658,3 +675,17 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .coach-copy {
+    margin: 10px 0 18px;
+    color: var(--ink-dim);
+    font-size: 0.86rem;
+    line-height: 1.6;
+    white-space: pre-line;
+  }
+  .opening-changes {
+    padding-inline-start: 1.2rem;
+    font-size: 0.86rem;
+  }
+</style>

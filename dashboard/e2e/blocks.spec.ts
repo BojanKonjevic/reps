@@ -15,7 +15,22 @@ test('browse completed and current blocks without resetting all-time records', a
   await expect(page.locator('.cal .block-edge')).not.toHaveCount(0);
 
   await picker.selectOption(String(blocks.blocks[0].id));
-  await expect(page.getByRole('heading', { name: 'Final coach note' })).toBeVisible();
+  const note = page.getByRole('heading', { name: 'Final coach note' });
+  const history = page.getByRole('heading', { name: 'What changed' });
+  await expect(note).toBeVisible();
+  await expect(history).toBeVisible();
+  const [headingBox, noteBox, historyBox] = await Promise.all([
+    page.getByRole('heading', { name: 'Overview' }).boundingBox(),
+    note.boundingBox(),
+    history.boundingBox(),
+  ]);
+  expect(noteBox!.y).toBeGreaterThan(headingBox!.y);
+  if (page.viewportSize()!.width > 900) {
+    expect(noteBox!.x).toBeLessThan(historyBox!.x);
+    expect(Math.abs(noteBox!.y - historyBox!.y)).toBeLessThan(5);
+  } else {
+    expect(noteBox!.y).toBeLessThan(historyBox!.y);
+  }
   await expect(page.locator('#nextWrap')).toHaveCount(0);
   await expect(page.locator('#blockResults')).toContainText('96.0');
   await page.locator('#blockResults').getByRole('link', { name: 'bench' }).click();
