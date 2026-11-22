@@ -10,11 +10,19 @@ test('browse completed and current blocks without resetting all-time records', a
   await page.clock.install({ time: new Date(blocks.as_of + 'T12:00:00Z') });
   await page.route('**/snapshot', route => route.fulfill({ json: blocks }));
   await page.goto('/');
-  const picker = page.getByLabel('Training history');
-  await expect(picker).toHaveValue('');
+  const picker = page.getByRole('button', { name: /^Training history:/ });
+  await expect(picker).toHaveAccessibleName('Training history: All time');
   await expect(page.locator('.cal .block-edge')).not.toHaveCount(0);
 
-  await picker.selectOption(String(blocks.blocks[0].id));
+  await picker.click();
+  await expect(page.getByRole('menuitemradio', { name: 'All time' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitemradio', { name: /^Block 2/ })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeFocused();
+  await expect(page.getByRole('menu', { name: 'Training history' })).toHaveCount(0);
+  await picker.click();
+  await page.getByRole('menuitemradio', { name: /^Block 1/ }).click();
   const note = page.getByRole('heading', { name: 'Final coach note' });
   const history = page.getByRole('heading', { name: 'What changed' });
   await expect(note).toBeVisible();
@@ -41,12 +49,17 @@ test('browse completed and current blocks without resetting all-time records', a
   await expect(page.locator('#nextWrap')).toHaveCount(0);
   await expect(page.locator('#blockResults')).toContainText('96.0');
   await page.locator('#blockResults').getByRole('link', { name: 'bench' }).click();
-  await expect(picker).toHaveValue(String(blocks.blocks[0].id));
+  await expect(picker).toHaveAccessibleName('Training history: Block 1');
   await expect(page.locator('#viewLift')).toContainText('Block best 96.0 e1RM');
   await expect(page.locator('#viewLift')).toContainText('all-time best 102 e1RM');
 
   await page.goto('/#/');
-  await picker.selectOption(String(blocks.blocks[1].id));
+  await picker.click();
+  await expect(page.getByRole('menuitemradio', { name: /^Block 1/ })).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
+  await page.getByRole('menuitemradio', { name: /^Block 2/ }).click();
   await expect(page.getByRole('heading', { name: 'Changes from previous block' })).toBeVisible();
   await expect(page.getByText('Partial window at the block boundary')).toBeVisible();
   await page.getByRole('link', { name: /bench.*4 sets/ }).click();
