@@ -650,7 +650,9 @@
         <thead>
           <tr
             ><th scope="col">Lift</th><th scope="col" class="num">Baseline e1RM</th>
-            <th scope="col" class="num">Block best</th><th scope="col">All-time PR in block</th></tr
+            <th scope="col" class="num">Block best</th><th scope="col" class="num"
+              >All-time PR in block</th
+            ></tr
           >
         </thead>
         <tbody>
@@ -661,7 +663,7 @@
               <td><a href={href.lift(exercise)}>{exercise}</a></td>
               <td class="num">{fmtV(result.baseline)}</td>
               <td class="num">{fmtV(result.best)}</td>
-              <td
+              <td class="num"
                 >{#if record}<a href={href.session(record.date)}>{fmtD(record.date)}</a
                   >{:else}·{/if}</td
               >
