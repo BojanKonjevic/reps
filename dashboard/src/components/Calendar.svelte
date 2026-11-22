@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { hideTip, showTip } from '../tip';
   import type { CalendarDay } from '../generated/snapshot';
   import { viewToday } from '../lib/clock';
@@ -37,12 +38,13 @@
   const lastDay = $derived(days.length ? days[days.length - 1].date : viewToday());
   let viewY = $state(0);
   let viewM = $state(0);
-  let init = $state(false);
+  let shownScope = $state<number | null | undefined>(undefined);
   $effect(() => {
-    if (!init) {
+    const scope = blockDisplay.selected?.id ?? null;
+    if (shownScope !== scope) {
       viewY = parseInt(lastDay.slice(0, 4), 10);
       viewM = parseInt(lastDay.slice(5, 7), 10) - 1;
-      init = true;
+      shownScope = scope;
     }
   });
 
@@ -78,7 +80,8 @@
           (rested ? ' r' : '') +
           (key === todayS ? ' today' : '') +
           (key > todayS ? ' fut' : '') +
-          (info?.break_after_gap ? ' brk' : ''),
+          (info?.break_after_gap ? ' brk' : '') +
+          (blockDisplay.boundaries.includes(key) ? ' block-edge' : ''),
         link: trained || rested,
         pr: info?.has_pr || false,
       });
@@ -161,3 +164,9 @@
 </div>
 <div class="cap">Tap a highlighted day for the session. Trophy marks a PR day.</div>
 <div class="cap">Recent notes</div>
+
+<style>
+  .cd.block-edge {
+    border-inline-start: 1px dashed var(--ink-faint);
+  }
+</style>

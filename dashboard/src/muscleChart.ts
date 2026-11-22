@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: muscle-volume chart geometry. Consumers: MuscleVolumeChart via plot() -> HitMap.
 
 import { max } from 'd3-array';
@@ -60,7 +61,13 @@ export function vertical(H: number): { padL: number; padB: number; top: number; 
   return { padL, padB, top, area: H - padB - top };
 }
 
-export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  model: MuscleModel,
+  hover = -1,
+  boundaries: string[] = [],
+  dates: string[] = []
+): HitMap {
   const { labels, counts, bands, color, marks, selDate } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
@@ -124,6 +131,14 @@ export function plot(cv: HTMLCanvasElement, model: MuscleModel, hover = -1): Hit
   line(bands.mev, theme.color('warn'), [6, 4]);
   if (bands.mrv !== null && bands.mrv !== undefined) line(bands.mrv, theme.color('bad'), [6, 4]);
   const pxi = (i: number) => P + (i - start) * bw + bw / 2;
+  drawBlockBoundaries(
+    g,
+    dates.slice(start),
+    boundaries,
+    i => pxi(start + i) - bw / 2,
+    V.top,
+    H - V.padB
+  );
   const ticked = markWeeks(counts, start, marks);
   drawEventTicks(
     g,

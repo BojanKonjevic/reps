@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { plot, type SessPoint } from '../sessionChart';
   import { bindHover, hideTip, showTip } from '../tip';
@@ -16,7 +17,7 @@
   let hit: HitMap = emptyHit();
 
   function paint(hover = -1) {
-    if (isVisible(cv)) hit = plot(cv, points, hover);
+    if (isVisible(cv)) hit = plot(cv, points, hover, blockDisplay.boundaries);
   }
 
   function show(cx: number, cy: number) {

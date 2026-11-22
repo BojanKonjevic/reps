@@ -395,6 +395,238 @@
       "title": "AutoregMissStreak",
       "type": "object"
     },
+    "BlockChange": {
+      "additionalProperties": false,
+      "properties": {
+        "change_id": {
+          "title": "Change Id",
+          "type": "integer"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "details": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Details",
+          "type": "array"
+        },
+        "source_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "change_id",
+        "subject",
+        "details",
+        "source_ids"
+      ],
+      "title": "BlockChange",
+      "type": "object"
+    },
+    "BlockLift": {
+      "additionalProperties": false,
+      "properties": {
+        "sessions": {
+          "title": "Sessions",
+          "type": "integer"
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Baseline"
+        },
+        "best": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Best"
+        },
+        "best_date": {
+          "title": "Best Date",
+          "type": "string"
+        },
+        "last": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Last"
+        },
+        "last_date": {
+          "title": "Last Date",
+          "type": "string"
+        },
+        "slipping": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Slipping"
+        },
+        "stalling": {
+          "title": "Stalling",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sessions",
+        "baseline",
+        "best",
+        "best_date",
+        "last",
+        "last_date",
+        "slipping",
+        "stalling"
+      ],
+      "title": "BlockLift",
+      "type": "object"
+    },
+    "BlockView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "start_date": {
+          "title": "Start Date",
+          "type": "string"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "End Date"
+        },
+        "coach_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Coach Note"
+        },
+        "changes": {
+          "items": {
+            "$ref": "#/$defs/BlockChange"
+          },
+          "title": "Changes",
+          "type": "array"
+        },
+        "lifts": {
+          "additionalProperties": {
+            "$ref": "#/$defs/BlockLift"
+          },
+          "title": "Lifts",
+          "type": "object"
+        },
+        "muscles": {
+          "items": {
+            "$ref": "#/$defs/Muscle"
+          },
+          "title": "Muscles",
+          "type": "array"
+        },
+        "rotation_volume": {
+          "$ref": "#/$defs/RotationVolumeWindow"
+        },
+        "volume_history": {
+          "$ref": "#/$defs/VolumeHistory"
+        },
+        "partial_rotations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Partial Rotations",
+          "type": "array"
+        },
+        "partial_weeks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Partial Weeks",
+          "type": "array"
+        },
+        "bodyweight": {
+          "items": {
+            "$ref": "#/$defs/BodyweightPoint"
+          },
+          "title": "Bodyweight",
+          "type": "array"
+        },
+        "adherence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Adherence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "start_date",
+        "end_date",
+        "coach_note",
+        "changes",
+        "lifts",
+        "muscles",
+        "rotation_volume",
+        "volume_history",
+        "partial_rotations",
+        "partial_weeks",
+        "bodyweight",
+        "adherence"
+      ],
+      "title": "BlockView",
+      "type": "object"
+    },
     "BodyweightPoint": {
       "additionalProperties": false,
       "properties": {
@@ -1652,8 +1884,15 @@
           "type": "array"
         },
         "planned_sets": {
-          "title": "Planned Sets",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Sets"
         },
         "status": {
           "$ref": "#/$defs/VolumeStatus"
@@ -3047,6 +3286,13 @@
     "constants": {
       "$ref": "#/$defs/ConstantsModel"
     },
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/BlockView"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
     "lifts": {
       "items": {
         "$ref": "#/$defs/Lift"
@@ -3200,6 +3446,7 @@
     "exported",
     "as_of",
     "constants",
+    "blocks",
     "lifts",
     "muscles",
     "sessions",

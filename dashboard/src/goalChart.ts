@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: goal-trajectory geometry. Consumers: GoalChartView via plot() -> HitMap.
 
 import { max, min } from 'd3-array';
@@ -28,7 +29,12 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'goal');
 }
 
-export function plot(cv: HTMLCanvasElement, model: GoalModel, hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  model: GoalModel,
+  hover = -1,
+  boundaries: string[] = []
+): HitMap {
   const { actuals, checkpoints, color: col } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
@@ -53,6 +59,14 @@ export function plot(cv: HTMLCanvasElement, model: GoalModel, hover = -1): HitMa
   mx = t.hi;
   const px = linearScale([0, Math.max(1, n - 1)], [P, W - 6]);
   const xOf = (i: number) => (n <= 1 ? W - 6 : px(i));
+  drawBlockBoundaries(
+    g,
+    actuals.map(a => a.date),
+    boundaries,
+    xOf,
+    18,
+    H - P
+  );
   const py = linearScale([mn, mx], [H - 15, 6]);
   const nt = Math.round((t.hi - t.lo) / t.step);
   for (let i = 0; i <= nt; i += 1) {

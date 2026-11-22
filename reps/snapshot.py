@@ -3,13 +3,15 @@
 # Every classification here is computed in Python and tested with literal
 # oracles; TS only selects, filters by UI state, formats, and lays out.
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from .adherence import adherence_snapshot
+from .blocks import current_block, blocks_view, lift_comparisons, slot_diff_text
 from .autoreg import autoreg_block
 from .constants import load_constants
 from .models import SNAPSHOT_SCHEMA_VERSION
 from .e1rm import e1rm
+from .errors import RepsError
 from .program import (active_deloads, deload_covers, get_rotation,
                       lift_muscles, parse_active_split_days, read_priorities,
                       read_split, rules_with_confirm, volume_block, weekly_volumes)
@@ -18,8 +20,7 @@ from .records import personal_records
 from .sessions import break_threshold, last_done, session_duration_min
 from .signals import build_signals
 from .slots import next_slot, slot_of_session
-from .trends import is_slipping, is_stalling
-from .weeks import week_start_of, week_starts
+from .weeks import monday_of, week_start_of, week_starts
 
 NOTE_HOT_KEYWORDS = ("pain", "sleep", "sore", "injury")
 
@@ -40,8 +41,7 @@ def _set_dates(c):
             c.execute("SELECT s.id, w.date FROM sets s JOIN workouts w ON w.id = s.workout_id").fetchall()}
 
 
-def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
-    t = constants.thresholds.model_dump()
+def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities, comparisons):
     lifts = []
     for r in c.execute("SELECT exercise, COUNT(*) n FROM sets GROUP BY exercise ORDER BY exercise").fetchall():
         ex = r["exercise"]
@@ -76,7 +76,6 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
             # becomes the baseline a heavy day must beat (or vice versa).
             if not non_counting:
                 running = max(running, b["e1rm"]) if running is not None else b["e1rm"]
-        series = [s["e1rm"] for s in sessions if not s["non_counting"]]
         counting_hist = [s for s in hist if s["reps"] <= cap]
         pool = counting_hist or hist
         best_row = max(pool, key=lambda s: e1rm(s["weight"], s["reps"]))
@@ -92,12 +91,12 @@ def lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities):
         if ex in goals_by_ex:
             tags.append("goal")
             marks.append({"kind": "goal", "payload": {"goal_id": goals_by_ex[ex]}})
-        slipping = is_slipping(series, t)
-        if slipping:
+        comparison = comparisons.get(ex)
+        if comparison and comparison["slipping"]:
             tags.append("slipping")
             marks.append({"kind": "slipping", "payload": {"drops_pct": ",".join(
-                str(v) for v in slipping["drops_pct"])}})
-        elif is_stalling(series, t):
+                str(v) for v in comparison["slipping"])}})
+        elif comparison and comparison["stalling"]:
             tags.append("stalling")
             marks.append({"kind": "stalling", "payload": {}})
         focus_muscles = [m for m in muscles
@@ -277,8 +276,11 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
     return days
 
 
-def bodyweight_view(c, avg_days, gap_days):
-    rows = c.execute("SELECT date, kg FROM bodyweight ORDER BY date, id").fetchall()
+def bodyweight_view(c, avg_days, gap_days, since=None, through=None):
+    rows = c.execute(
+        "SELECT date, kg FROM bodyweight WHERE (? IS NULL OR date >= ?) "
+        "AND (? IS NULL OR date <= ?) ORDER BY date, id", (since, since, through, through),
+    ).fetchall()
     # Sliding window over distinct dates with prefix sums: O(n). The window
     # depends only on the date (same-date rows share it), so per-date averages
     # are computed once. Previously every row rescanned every row (O(n^2))
@@ -408,8 +410,8 @@ def goals_view(c, prog):
     return out
 
 
-def adherence_view(c):
-    snap = adherence_snapshot(c)
+def adherence_view(c, snap=None):
+    snap = adherence_snapshot(c) if snap is None else snap
     if not snap:
         return None
     weeks: dict = {}
@@ -463,7 +465,7 @@ def _describe_program(event, c):
                             for m in parse_movements(s["movements"])})
         muscles = sorted({mu for m in exercises for mu in lift_muscles(c, m) or []})
         return _out(f"{day} recorded", summary, impact, exercises, muscles, [day])
-    diffs = [_slot_diff_text(b_slots.get(k), a_slots.get(k))
+    diffs = [slot_diff_text(b_slots.get(k), a_slots.get(k))
              for k in sorted(set(b_slots) | set(a_slots))]
     diffs = [d for d in diffs if d]
     summary = "; ".join(diffs[:2]) + ("; ..." if len(diffs) > 2 else "") \
@@ -604,22 +606,6 @@ def describe_change(event, c):
     return describer(event, c)
 
 
-def _slot_diff_text(b, a):
-    if b is None:
-        return f"added {a['movements']} x{a['sets']}"
-    if a is None:
-        return f"removed {b['movements']}"
-    moves_changed = b["movements"] != a["movements"]
-    sets_changed = b["sets"] != a["sets"]
-    if moves_changed and sets_changed:
-        return f"{b['movements']} {b['sets']} sets -> {a['movements']} {a['sets']} sets"
-    if moves_changed:
-        return f"{b['movements']} -> {a['movements']}"
-    if sets_changed:
-        return f"{b['movements']}: {b['sets']} sets -> {a['sets']} sets"
-    return ""
-
-
 def history_view(c):
     """Dashboard read model over state_change: described events (oldest
     first) plus coverage dates. Fully reconstructed per-date states live in
@@ -677,6 +663,57 @@ def _split_moves(text):
     return parse_movements(text)
 
 
+def _rotation_window(volume):
+    return {k: volume[k] for k in ("rotation_days", "starts", "through")}
+
+
+def _block_snapshot(c, block, comparisons, as_of, constants, priorities, autoreg, live_volume,
+                    rotation_history):
+    from .history import value_at
+    from .observations import observe
+
+    start = date.fromisoformat(block["start_date"])
+    through = block["end_date"] or as_of
+    end = date.fromisoformat(through)
+    rotation = (get_rotation(c) if block["end_date"] is None else
+                value_at(rotation_history, block["start_date"], "rotation"))
+    volume = volume_block(c, end, since=block["start_date"], rotation=rotation or [])
+    for muscle, value in volume["muscles"].items():
+        value["planned_sets"] = (live_volume["muscles"][muscle]["planned_sets"]
+                                 if block["end_date"] is None else None)
+    monday = monday_of(start)
+    count = (monday_of(end) - monday).days // timedelta(weeks=1).days + 1
+    starts = [monday + timedelta(weeks=i) for i in range(count)]
+    weekly = weekly_volumes(c, constants.muscles, starts, since=block["start_date"],
+                            through=through)
+    thresholds = constants.thresholds
+    scoped_adherence = None
+    try:
+        result = observe("adherence_summary", "", block["start_date"], through)["result"]
+    except RepsError:
+        pass
+    else:
+        verdicts = [entry for entry in result["verdicts"] if entry["status"] != "unknown"]
+        if verdicts:
+            scoped_adherence = adherence_view(c, {
+                "anchor": None, "days": verdicts, "drift": False, "drift_days": 0,
+                "drift_threshold": thresholds.adherence_drift_days,
+            })
+    first = volume["starts"][0]
+    return {
+        **block, "lifts": comparisons,
+        "muscles": muscles_view(c, priorities, autoreg if block["end_date"] is None else {}, volume),
+        "rotation_volume": _rotation_window(volume),
+        "volume_history": {"week_starts": [d.isoformat() for d in starts], "by_muscle": weekly},
+        "partial_rotations": [first] if first < block["start_date"] else [],
+        "partial_weeks": [d.isoformat() for d in starts
+                          if d < start or d + timedelta(weeks=1, days=-1) > end],
+        "bodyweight": bodyweight_view(c, thresholds.bodyweight_avg_days,
+                                      thresholds.bodyweight_gap_days, block["start_date"], through),
+        "adherence": scoped_adherence,
+    }
+
+
 def build_views(c):
     """Assemble the full v2 snapshot payload (unvalidated)."""
     constants = load_constants()
@@ -688,7 +725,9 @@ def build_views(c):
         anchor = get_anchor(c)
     except (RepsError, ValueError):
         anchor = None
-    prog = latest_progression(c)
+    current = current_block(c, as_of)
+    comparisons = lift_comparisons(c)
+    prog = latest_progression(c, since=current["start_date"]) if current else {}
     goals_active = [dict(g) for g in
                     c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY deadline").fetchall()]
     goals_by_ex = {g["exercise"]: g["id"] for g in goals_active}
@@ -703,18 +742,25 @@ def build_views(c):
     gap_threshold = break_threshold()
     goals = goals_view(c, prog)
     hist = history_view(c)
+    from .history import list_changes
+    rotation_history = list_changes("rotation", "rotation", c=c)
+    blocks = [_block_snapshot(c, b, comparisons.get(b["id"], {}), as_of, constants,
+                              priorities, autoreg, volume, rotation_history)
+              for b in blocks_view(c)]
     snap = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "exported": datetime.now().isoformat(timespec="seconds"),
         "as_of": as_of,
         "constants": constants.model_dump(),
-        "lifts": lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities),
+        "blocks": blocks,
+        "lifts": lifts_view(c, as_of, constants, prog, goals_by_ex, autoreg, priorities,
+                            comparisons.get(current["id"], {}) if current else {}),
         "muscles": muscles_view(c, priorities, autoreg, volume),
         "sessions": sessions,
         "calendar": calendar_view(c, sessions, as_of, rotation, anchor, gap_threshold),
         "status": status_view(sessions, as_of, gap_threshold),
         "volume_history": {"week_starts": starts, "by_muscle": weekly},
-        "rotation_volume": {k: volume[k] for k in ("rotation_days", "starts", "through")},
+        "rotation_volume": _rotation_window(volume),
         "bodyweight": bodyweight_view(c, constants.thresholds.bodyweight_avg_days,
                                        constants.thresholds.bodyweight_gap_days),
         "program": program_view(c, rotation, anchor, priorities),

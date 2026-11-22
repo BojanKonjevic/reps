@@ -67,6 +67,9 @@ def test_maintenance_reports_domain_refusals(log_module, tmp_path, monkeypatch, 
     c.commit()
     c.close()
     c = log_module.conn()
+    from datetime import date
+    from reps.blocks import start_block
+    start_block(date.today().isoformat(), [])
     log_module.start_workout("open")
     with pytest.raises(SystemExit) as e:
         run(["restore"])

@@ -12,18 +12,17 @@ def _day(ago):
 
 def _session(log, ago, exercise, weight, reps, verdict="baseline", note=""):
     from conftest import close_session
-    log.start_workout(f"scenario {ago}d ago")
+    from reps.blocks import block_on, start_block
+
+    session_day = _day(ago)
+    if block_on(log.conn(), session_day) is None:
+        start_block(session_day, [])
+    workout = log.start_workout(f"scenario {ago}d ago", session_day)
     log.log_set(exercise, weight, reps, "", {"bench": "chest", "row": "back",
                                              "squat": "quads"}.get(exercise, "chest"))
-    c = log.conn()
-    c.execute("UPDATE workouts SET date = ? WHERE status = 'open'", (_day(ago),))
-    c.commit()
     log.set_progression(exercise, verdict, weight + 2.5, reps, "flat", note)
-    wid = log.open_workout(log.conn())["id"]
     close_session(log, note or f"scenario {ago}d ago")
-    c.execute("UPDATE workouts SET date = ? WHERE id = ?", (_day(ago), wid))
-    c.commit()
-    return wid
+    return workout["workout_id"]
 
 
 def seed_minimal(log):
@@ -128,7 +127,25 @@ def seed_history_spread(log):
     return {"name": "history_spread"}
 
 
+def seed_blocks(log):
+    """Two blocks separated by rest, with a confirmed split change."""
+    from reps.blocks import close_block, preview_start, start_block
+
+    start_block(_day(13), [])
+    _session(log, 13, "bench", 75, 6)
+    _session(log, 10, "bench", 80, 6)
+    c = log.conn()
+    c.execute("UPDATE state_change SET date = ? WHERE domain = 'program'", (_day(13),))
+    c.commit()
+    close_block(_day(9), "Bench moved up. Keep a comparable press next block.")
+    log.set_split("Test", 1, "bench", 4)
+    changes = preview_start(_day(0))["changes"]
+    start_block(_day(0), [item["change_id"] for item in changes])
+    _session(log, 0, "bench", 85, 6)
+
+
 SCENARIOS = {
+    "blocks": seed_blocks,
     "minimal": seed_minimal,
     "rich": seed_rich,
     "break": seed_break,

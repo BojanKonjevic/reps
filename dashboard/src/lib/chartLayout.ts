@@ -2,6 +2,9 @@
 // module (layoutOf) and every component (hover via the returned HitMap, never
 // by recomputing padding).
 
+import { daysBetween } from './format';
+import { theme } from './theme';
+
 export interface ChartLayout {
   w: number;
   h: number;
@@ -99,4 +102,36 @@ export function labelIndices(n: number, maxLabels = 4): number[] {
   const last = n - 1;
   if (out[out.length - 1] !== last && last - out[out.length - 1] >= step) out.push(last);
   return out;
+}
+
+// Draw on the chart's own x scale, interpolating between dated observations.
+export function drawBlockBoundaries(
+  g: CanvasRenderingContext2D,
+  dates: string[],
+  boundaries: string[],
+  xOf: (index: number) => number,
+  top: number,
+  bottom: number
+): void {
+  if (dates.length < 2 || !boundaries.length) return;
+  g.save();
+  g.strokeStyle = theme.color('ink-faint');
+  g.globalAlpha = 0.42;
+  g.setLineDash([3, 4]);
+  g.lineWidth = 1;
+  for (const date of boundaries) {
+    if (date < dates[0] || date > dates[dates.length - 1]) continue;
+    const right = dates.findIndex(day => day >= date);
+    let x = xOf(right);
+    if (right > 0 && dates[right] !== date) {
+      const left = right - 1;
+      const span = daysBetween(dates[left], dates[right]);
+      x = xOf(left) + (x - xOf(left)) * (daysBetween(dates[left], date) / span);
+    }
+    g.beginPath();
+    g.moveTo(x, top);
+    g.lineTo(x, bottom);
+    g.stroke();
+  }
+  g.restore();
 }

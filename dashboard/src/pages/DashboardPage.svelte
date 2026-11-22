@@ -10,6 +10,7 @@
     markClass,
     statusLabel,
   } from '../lib/present';
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import {
@@ -115,6 +116,10 @@
       : Object.fromEntries(snap.muscles.map(m => [m.muscle, m.rotation_sets]))
   );
 
+  const pastBlock = $derived(!!blockDisplay.selected?.end_date);
+  const partial = $derived(
+    calendarVolume ? blockDisplay.selected?.partial_weeks : blockDisplay.selected?.partial_rotations
+  );
   const next = $derived(snap.next_up);
   const adhDays = $derived(snap.adherence?.days || []);
   const adhWeeks = $derived(adherenceWeeksView(snap));
@@ -172,7 +177,7 @@
 <div id="viewDash">
   <div class="dashhead">
     <PageHeader title="Overview" sub={subLine(snap)} subId="sub" />
-    {#if statusLines(snap).length}
+    {#if !pastBlock && statusLines(snap).length}
       <div class="nowlines" id="nowLines">
         {#each statusLines(snap) as line}
           <div>
@@ -186,48 +191,49 @@
   </div>
 
   <div class="cols2">
-    <div id="nextWrap">
-      <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
-      <div id="nextCard" class="surface-flat">
-        {#if next.empty}
-          <div class="empty">{next.empty}</div>
-        {:else}
-          <table class="nexttable" aria-label="Next training session">
-            <thead>
-              <tr>
-                <th scope="col">Movement</th>
-                <th scope="col">Last</th>
-                <th scope="col">Target</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each next.rows as row}
-                <tr class="nextline">
-                  <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
-                  <td class="nextnum">
-                    {#if row.last}
-                      {row.last.weight} x {row.last.reps}
-                      <span class="nextmeta">{fmtD(row.last.date)}</span>
-                    {:else}
-                      never logged
-                    {/if}
-                  </td>
-                  <td class="nexttarget">
-                    {#if row.target}
-                      target {row.target}
-                    {:else}
-                      —
-                    {/if}
-                  </td>
+    {#if !pastBlock}
+      <div id="nextWrap">
+        <SectionHeader title="Next up" sub={next.empty ? '' : (next.day ?? '')} />
+        <div id="nextCard" class="surface-flat">
+          {#if next.empty}
+            <div class="empty">{next.empty}</div>
+          {:else}
+            <table class="nexttable" aria-label="Next training session">
+              <thead>
+                <tr>
+                  <th scope="col">Movement</th>
+                  <th scope="col">Last</th>
+                  <th scope="col">Target</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
-          <div class="cap">{next.basis}</div>
-        {/if}
+              </thead>
+              <tbody>
+                {#each next.rows as row}
+                  <tr class="nextline">
+                    <td><a class="nextmove" href={href.lift(row.movement)}>{row.movement}</a></td>
+                    <td class="nextnum">
+                      {#if row.last}
+                        {row.last.weight} x {row.last.reps}
+                        <span class="nextmeta">{fmtD(row.last.date)}</span>
+                      {:else}
+                        never logged
+                      {/if}
+                    </td>
+                    <td class="nexttarget">
+                      {#if row.target}
+                        target {row.target}
+                      {:else}
+                        —
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            <div class="cap">{next.basis}</div>
+          {/if}
+        </div>
       </div>
-    </div>
-
+    {/if}
     {#if changed.length}
       <div id="changedWrap">
         <SectionHeader
@@ -274,7 +280,7 @@
     {/if}
   </div>
 
-  {#if snap.signals}
+  {#if !pastBlock && snap.signals}
     <div id="sigWrap">
       <SectionHeader
         title="Coach notes"
@@ -397,6 +403,7 @@
         </div>
         <VolumeChart
           labels={volumeDates}
+          partial={partial ?? []}
           weeks={volumeRows(volumeDates, volumeCounts)}
           groups={vocab.groups}
           colors={vocab.colors}
@@ -413,6 +420,7 @@
             </a>
           {/each}
         </div>
+        {#if partial?.length}<div class="cap">* Partial window at the block boundary</div>{/if}
         <Provenance def={defOf(snap, 'muscle_volume')} id="volProv" />
       </div>
       <SectionHeader title="Bodyweight" sub="Gym scale weigh ins, as logged in chat." />
@@ -514,7 +522,10 @@
     </div>
   </div>
 
-  <SectionHeader title="Forward" sub="Checkpoints, next targets, hollow points are future." />
+  <SectionHeader
+    title={pastBlock ? 'Goal results' : 'Forward'}
+    sub={pastBlock ? '' : 'Checkpoints, next targets, hollow points are future.'}
+  />
   <div class="surface-flat">
     <div class="goalgrid" id="goalGrid">
       {#each goals as g}
@@ -524,22 +535,24 @@
           <h3><a href={href.lift(g.exercise)}>{g.exercise}</a></h3>
           <GoalChartView
             actuals={acts}
-            checkpoints={g.checkpoints}
+            checkpoints={pastBlock ? [] : g.checkpoints}
             color={liftColor(g.exercise)}
             tops={Object.fromEntries(
               Object.entries(g.top_by_date).map(([d, t]) => [d, { w: t.weight, r: t.reps }])
             )}
           />
-          <div class="goalmeta">
-            target e1RM {fmtV(g.target_e1rm)} by {fmtD(g.deadline)} |
-            {g.next_checkpoint !== null && g.next_checkpoint !== undefined
-              ? 'next checkpoint ' + fmtV(g.next_checkpoint)
-              : 'trajectory complete'}
-            {#if g.percent !== null}| {g.percent}% there{/if}
-            {#if g.on_track === false}| OFF TRACK{/if}
-            {#if g.slippage}| slippage: deadline needs room{/if}
-          </div>
-          {#if goalEvs.length}
+          {#if !pastBlock}
+            <div class="goalmeta">
+              target e1RM {fmtV(g.target_e1rm)} by {fmtD(g.deadline)} |
+              {g.next_checkpoint !== null && g.next_checkpoint !== undefined
+                ? 'next checkpoint ' + fmtV(g.next_checkpoint)
+                : 'trajectory complete'}
+              {#if g.percent !== null}| {g.percent}% there{/if}
+              {#if g.on_track === false}| OFF TRACK{/if}
+              {#if g.slippage}| slippage: deadline needs room{/if}
+            </div>
+          {/if}
+          {#if !pastBlock && goalEvs.length}
             <div class="goalev">
               {#each goalEvs as ge}
                 <div class="cap">
@@ -552,61 +565,96 @@
       {/each}
     </div>
     <div class="empty" id="goalEmpty" hidden={goals.length > 0}>
-      no active goals, trajectories appear here once set in chat
+      {pastBlock
+        ? 'No goal results in this block'
+        : 'no active goals, trajectories appear here once set in chat'}
     </div>
-    <SectionHeader title="Progression" />
-    <table id="progTable">
-      <thead>
-        <tr
-          ><th scope="col">lift</th><th scope="col">verdict</th><th scope="col" class="num"
-            >next target</th
-          ><th scope="col">dir</th></tr
-        >
-      </thead>
-      <tbody>
-        {#if !progLifts.length}
-          <tr><td colspan="4">no progression written yet, set at session end in chat</td></tr>
-        {:else}
-          {#each progLifts as lift}
-            <tr>
-              <td><a href={href.lift(lift.exercise)}>{lift.exercise}</a></td>
-              <td class={verdictClass(lift.progression.verdict)} style:font-weight="600"
-                >{lift.progression.verdict}</td
-              >
-              <td class="num">{lift.progression.next}</td>
-              <td
-                title={lift.progression.direction}
-                class={directionClass(lift.progression.direction)}
-                style:font-weight="600">{directionArrow(lift.progression.direction)}</td
-              >
-            </tr>
-          {/each}
-        {/if}
-      </tbody>
-    </table>
-    <Provenance def={defOf(snap, 'goal_trajectory')} id="goalProv" />
+    {#if !pastBlock}
+      <SectionHeader title="Progression" />
+      <table id="progTable">
+        <thead>
+          <tr
+            ><th scope="col">lift</th><th scope="col">verdict</th><th scope="col" class="num"
+              >next target</th
+            ><th scope="col">dir</th></tr
+          >
+        </thead>
+        <tbody>
+          {#if !progLifts.length}
+            <tr><td colspan="4">no progression written yet, set at session end in chat</td></tr>
+          {:else}
+            {#each progLifts as lift}
+              <tr>
+                <td><a href={href.lift(lift.exercise)}>{lift.exercise}</a></td>
+                <td class={verdictClass(lift.progression.verdict)} style:font-weight="600"
+                  >{lift.progression.verdict}</td
+                >
+                <td class="num">{lift.progression.next}</td>
+                <td
+                  title={lift.progression.direction}
+                  class={directionClass(lift.progression.direction)}
+                  style:font-weight="600">{directionArrow(lift.progression.direction)}</td
+                >
+              </tr>
+            {/each}
+          {/if}
+        </tbody>
+      </table>
+      <Provenance def={defOf(snap, 'goal_trajectory')} id="goalProv" />
+    {/if}
   </div>
 
-  <SectionHeader title="Best sets" />
-  <div class="surface-flat">
-    <table id="prs">
-      <thead>
-        <tr
-          ><th scope="col">lift</th><th scope="col" class="num">best set by e1RM</th><th
-            scope="col"
-            class="num">date</th
-          ></tr
-        >
-      </thead>
-      <tbody>
-        {#each bestSetRows(snap) as row}
-          <tr>
-            <td><a href={href.lift(row.lift)}>{row.lift}</a></td>
-            <td class="num">{row.detail}</td>
-            <td class="num">{row.date}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+  {#if blockDisplay.selected}
+    <SectionHeader title="Block lift results" />
+    <div class="surface-flat">
+      <table id="blockResults">
+        <thead>
+          <tr
+            ><th scope="col">Lift</th><th scope="col" class="num">Baseline e1RM</th>
+            <th scope="col" class="num">Block best</th><th scope="col">All-time PR in block</th></tr
+          >
+        </thead>
+        <tbody>
+          {#each Object.entries(blockDisplay.selected.lifts) as [exercise, result] (exercise)}
+            {@const prs = liftByName(lifts, exercise)?.sessions.filter(s => s.is_pr) ?? []}
+            {@const record = prs[prs.length - 1]}
+            <tr>
+              <td><a href={href.lift(exercise)}>{exercise}</a></td>
+              <td class="num">{fmtV(result.baseline)}</td>
+              <td class="num">{fmtV(result.best)}</td>
+              <td
+                >{#if record}<a href={href.session(record.date)}>{fmtD(record.date)}</a
+                  >{:else}·{/if}</td
+              >
+            </tr>
+          {:else}
+            <tr><td colspan="4">No comparable sessions in this block</td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {:else}
+    <SectionHeader title="Best sets" />
+    <div class="surface-flat">
+      <table id="prs">
+        <thead>
+          <tr
+            ><th scope="col">lift</th><th scope="col" class="num">best set by e1RM</th><th
+              scope="col"
+              class="num">date</th
+            ></tr
+          >
+        </thead>
+        <tbody>
+          {#each bestSetRows(snap) as row}
+            <tr>
+              <td><a href={href.lift(row.lift)}>{row.lift}</a></td>
+              <td class="num">{row.detail}</td>
+              <td class="num">{row.date}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
 </div>

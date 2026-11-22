@@ -7,6 +7,9 @@
   import { syncRoute, route } from './router.svelte';
   import { closePalette, palette } from './lib/palette.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
+  import BlockPicker from './components/BlockPicker.svelte';
+  import { blockDisplay } from './lib/blockDisplay.svelte';
+  import { scopeToBlock } from './lib/blocks';
   import AppShell from './components/AppShell.svelte';
   import DashboardPage from './pages/DashboardPage.svelte';
   import SessionPage from './pages/SessionPage.svelte';
@@ -21,6 +24,19 @@
     () => ({ queryKey: snapshotKey, queryFn: fetchSnapshot }),
     () => queryClient
   );
+
+  let selectedId = $state<number | null>(null);
+  const selected = $derived(snapshot.data?.blocks.find(block => block.id === selectedId) ?? null);
+  $effect(() => {
+    blockDisplay.selected = selected;
+    blockDisplay.boundaries = selected
+      ? []
+      : (snapshot.data?.blocks ?? [])
+          .flatMap(block =>
+            block.end_date ? [block.start_date, block.end_date] : [block.start_date]
+          )
+          .sort();
+  });
 
   onMount(() => {
     // The router owns scroll position per hash; the browser must not race it.
@@ -79,7 +95,16 @@
         <button onclick={() => snapshot.refetch()}>Retry</button>
       </div>
     {:else if snapshot.data}
-      {@const snap = snapshot.data}
+      {@const global = snapshot.data}
+      {@const snap = selected ? scopeToBlock(global, selected) : global}
+      {#if route.view.name !== 'prog' && route.view.name !== 'hist'}
+        <BlockPicker
+          blocks={global.blocks}
+          {selected}
+          onSelect={id => (selectedId = id)}
+          showSummary={route.view.name === 'dash'}
+        />
+      {/if}
       <CommandPalette {snap} />
       {#if route.view.name === 'sess'}
         <SessionPage {snap} date={route.view.date} />
@@ -88,13 +113,13 @@
       {:else if route.view.name === 'muscle'}
         <MusclePage {snap} muscle={route.view.muscle} />
       {:else if route.view.name === 'prog'}
-        <ProgramPage {snap} />
+        <ProgramPage snap={global} />
       {:else if route.view.name === 'lifts'}
         <LiftsPage {snap} />
       {:else if route.view.name === 'muscles'}
         <MusclesPage {snap} />
       {:else if route.view.name === 'hist'}
-        <HistoryPage {snap} />
+        <HistoryPage snap={global} eventId={route.view.eventId} />
       {:else}
         <DashboardPage {snap} />
       {/if}

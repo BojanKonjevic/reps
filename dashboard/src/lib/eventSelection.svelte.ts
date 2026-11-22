@@ -14,5 +14,8 @@ export function createEventSelection() {
       return selId;
     },
     select,
+    open(id: number) {
+      selId = id;
+    },
   };
 }

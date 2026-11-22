@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { fmtD, muscleVolLine } from '../lib/format';
   import { statusLabel } from '../lib/present';
@@ -58,7 +59,11 @@
 
   const shown = $derived(order.filter(m => musPasses(m)));
 
-  const wlabels = $derived(snap.rotation_volume.starts.map(fmtD));
+  const wlabels = $derived(
+    snap.rotation_volume.starts.map(
+      d => fmtD(d) + (blockDisplay.selected?.partial_rotations.includes(d) ? '*' : '')
+    )
+  );
 
   interface Mark {
     text: string;
@@ -68,7 +73,7 @@
   function marksFor(m: string): Mark[] {
     const marks: Mark[] = [];
     const entry = snap.muscles.find(x => x.muscle === m);
-    if (entry) {
+    if (entry && !blockDisplay.selected?.end_date) {
       if (entry.status === 'below_mev') marks.push({ text: 'below MEV', cls: 'bad' });
       else if (entry.status === 'above_mrv') marks.push({ text: 'above MRV', cls: 'bad' });
       else if (entry.avg_recent !== null) marks.push({ text: statusLabel(entry.status), cls: '' });
@@ -149,6 +154,7 @@
           <div class="listchart">
             <MuscleVolumeChart
               labels={wlabels}
+              dates={snap.rotation_volume.starts}
               counts={entry?.rotation_sets ?? []}
               bands={{
                 mev: entry?.bands.mev ?? 0,

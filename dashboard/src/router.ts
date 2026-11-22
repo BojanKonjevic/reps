@@ -11,7 +11,7 @@ export type View =
   | { name: 'prog' }
   | { name: 'lifts' }
   | { name: 'muscles' }
-  | { name: 'hist' };
+  | { name: 'hist'; eventId?: number };
 
 export { isDate };
 
@@ -26,6 +26,7 @@ export function parseHash(hash: string): View {
   if (r.name === 'program') return { name: 'prog' };
   if (r.name === 'lifts') return { name: 'lifts' };
   if (r.name === 'muscles') return { name: 'muscles' };
-  if (r.name === 'history') return { name: 'hist' };
+  if (r.name === 'history')
+    return r.eventId === undefined ? { name: 'hist' } : { name: 'hist', eventId: r.eventId };
   return { name: 'dash' };
 }

@@ -22,9 +22,10 @@
 
   interface Props {
     snap: Snapshot;
+    eventId?: number;
   }
 
-  let { snap }: Props = $props();
+  let { snap, eventId }: Props = $props();
 
   const events = $derived(historyOf(snap));
   const domains = $derived(Array.from(new Set(events.map(e => e.domain))).sort());
@@ -44,6 +45,10 @@
       seeded = key;
       picked = new SvelteSet(domains);
     }
+  });
+
+  $effect(() => {
+    if (eventId !== undefined) sel.open(eventId);
   });
 
   const listed = $derived(filterHistory(events, picked, from, to));

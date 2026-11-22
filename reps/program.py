@@ -372,11 +372,13 @@ def _volume_buckets(per_day, muscles, starts, length):
     }
 
 
-def weekly_volumes(c, muscles, week_starts):
+def weekly_volumes(c, muscles, week_starts, *, since=None, through=None):
     """Calendar totals for browsing, independent of the training rotation."""
     week = timedelta(weeks=1)
-    per_day = muscle_set_counts(c, week_starts[0].isoformat(),
-                              (week_starts[-1] + week - timedelta(days=1)).isoformat())
+    first = week_starts[0].isoformat()
+    last = (week_starts[-1] + week - timedelta(days=1)).isoformat()
+    per_day = muscle_set_counts(c, max(first, since) if since else first,
+                                min(last, through) if through else last)
     return _volume_buckets(per_day, muscles, week_starts, week.days)
 
 
@@ -390,23 +392,24 @@ def rotation_bands(entry, days: int):
     }
 
 
-def volume_block(c, today=None):
+def volume_block(c, today=None, *, since=None, rotation=None):
     """Volume over fixed-length windows through the as-of date."""
     today = today or date.today()
     constants = load_constants()
     thresholds = constants.thresholds
-    rotation = get_rotation(c)
+    rotation = get_rotation(c) if rotation is None else rotation
     days = rotation_length_days(rotation)
     span = timedelta(weeks=thresholds.volume_window_weeks).days
     minimum = thresholds.volume_bad_rotations
-    window_count = max(minimum, span // days)
     end = today + timedelta(days=1)
+    window_count = max(minimum, span // days) if since is None else (
+        ((end - date.fromisoformat(since)).days + days - 1) // days)
     starts = [end - timedelta(days=days * i) for i in range(window_count, 0, -1)]
-    per_day = muscle_set_counts(c, starts[0].isoformat(), today.isoformat(),
-                                completed_only=True)
+    first = max(starts[0].isoformat(), since) if since else starts[0].isoformat()
+    per_day = muscle_set_counts(c, first, today.isoformat(), completed_only=True)
     buckets = _volume_buckets(per_day, constants.muscles, starts, days)
-    start = span_start(list(buckets.values()))
-    planned = programmed_rotation_volume(c, rotation=rotation)
+    start = span_start(list(buckets.values())) if since is None else 0
+    planned = programmed_rotation_volume(c, rotation=rotation) if since is None else dict.fromkeys(constants.muscles, 0)
     muscles = {}
     for muscle, entry in constants.muscles.items():
         counts = buckets[muscle][start:]

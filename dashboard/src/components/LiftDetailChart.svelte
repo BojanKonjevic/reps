@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { plot, type LiftModel, type LiftPoint } from '../liftChart';
   import { fmtD } from '../lib/format';
@@ -36,7 +37,7 @@
 
   function paint(hover = -1) {
     if (isVisible(cv)) {
-      hit = plot(cv, model, hover);
+      hit = plot(cv, model, hover, blockDisplay.boundaries);
       markByDate = new Map(marks.map(m => [m.date, m]));
     }
   }

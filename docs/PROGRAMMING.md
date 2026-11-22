@@ -2,6 +2,12 @@
 
 Program design: split, goals, priorities, deloads, evidence refreshes. Needed for planning and program changes, not for logging sets. Session mechanics live in `LOGGING.md`.
 
+## Training blocks
+
+- Start when the user gives a date. Use `block_preview_start` to compare the opening program with the previous block's closing program. Show the net changes, confirm the items with the user, and save them with `block_start`. Split-review decisions belong in program history so the summary can link to their sources.
+- Close after the last workout is closed. Use the block dates from `block_list` and read that range with `session_range`. Write a short final note covering what moved, what held, factors such as missed training or pain, and the most useful adjustment for next time. Save the inclusive end date and note together with `block_close`.
+- Use `block_correct` for an explicit date or note correction. Each workout must still fall within a block. Passive deloads are rest. Rest days can fall inside a block or in the gap before the next one.
+
 ## Split
 
 The splits table holds two variants. Baseline is the reference program and is never planned from. Active is the exact program: which day holds which exercises in which order, with working set counts. Read with `program_split_show`.

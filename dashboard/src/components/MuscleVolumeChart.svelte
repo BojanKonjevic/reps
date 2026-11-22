@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { plot, type MuscleModel } from '../muscleChart';
   import { fmtD, fmtV } from '../lib/format';
@@ -10,6 +11,7 @@
   interface Props {
     id?: string;
     labels: string[];
+    dates?: string[];
     counts: number[];
     bands: MuscleModel['bands'];
     color: string;
@@ -22,6 +24,7 @@
   let {
     id = undefined,
     labels,
+    dates = [],
     counts,
     bands,
     color,
@@ -39,7 +42,7 @@
 
   function paint(hover = -1) {
     if (isVisible(cv)) {
-      hit = plot(cv, model, hover);
+      hit = plot(cv, model, hover, blockDisplay.boundaries, dates);
       markByDate = new Map(marks.map(m => [m.date, m]));
     }
   }

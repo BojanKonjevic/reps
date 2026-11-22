@@ -25,6 +25,10 @@ def audit_db():
     import reps.db
     reps.db.DB = path
     import reps
+    from reps.blocks import start_block
+
+    from datetime import timedelta
+    start_block((date.today() - timedelta(days=31)).isoformat(), [])
     c = reps.conn()
     yield reps, c
     try:

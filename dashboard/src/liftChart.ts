@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: lift-detail chart geometry. Consumers: LiftDetailChart via plot() -> HitMap.
 
 import {
@@ -76,7 +77,12 @@ export function sessionIndexOf(dates: string[], target: string): number {
   return i + Math.min(1, Math.max(0, (t - a) / (b - a)));
 }
 
-export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  model: LiftModel,
+  hover = -1,
+  boundaries: string[] = []
+): HitMap {
   const { pts, color, futureEv, marks, selDate } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
@@ -121,6 +127,7 @@ export function plot(cv: HTMLCanvasElement, model: LiftModel, hover = -1): HitMa
   // not there.
   g.fillStyle = theme.color('ink-dim');
   for (const i of labelIndices(n, 6)) putText(g, W, fmtD(dates[i]), xOf(i), H - 8, 'center');
+  drawBlockBoundaries(g, dates, boundaries, xOf, 18, H - P);
   const linePts = pts.map((p, i) => ({ x: xOf(i), y: py(p.ev) }));
   g.fillStyle = theme.color('ink-dim');
   const fy0 = showFuture ? py(futureEv as number) : null;

@@ -21,6 +21,13 @@ CREATE TABLE autoreg_holds (
   hold_until TEXT NOT NULL,
   reason TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE block_program_change (
+  block_id INTEGER NOT NULL REFERENCES training_block(id),
+  change_id INTEGER NOT NULL REFERENCES state_change(id),
+  previous_end TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  PRIMARY KEY (block_id, change_id)
+);
 CREATE TABLE bodyweight (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -654,7 +661,7 @@ INSERT INTO "rules" VALUES(13,'straight bar pulldown','pulldown is a PR slot onl
 INSERT INTO "rules" VALUES(14,'coaching','first work set is almost always the strongest, later sets fading is normal, not a rest or recovery problem, never flag it as one','2026-10-27',NULL,'active','2026-10-27T11:00:58');
 INSERT INTO "rules" VALUES(15,'progression','Most lifts will stall from here, a few PRs per session is normal progress in a small surplus; don''t treat stalls as a problem, only flag real regression.','2026-10-30',NULL,'active','2026-10-30T10:49:17');
 CREATE TABLE schema_version (version INTEGER NOT NULL);
-INSERT INTO "schema_version" VALUES(4);
+INSERT INTO "schema_version" VALUES(5);
 CREATE TABLE sets (
   id INTEGER PRIMARY KEY,
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
@@ -1759,6 +1766,18 @@ INSERT INTO "state_change" VALUES(23,'rule','15','2026-10-30','2026-10-30T10:49:
 INSERT INTO "state_change" VALUES(24,'program','active:U4','2026-11-07','2026-11-07T10:01:00','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "hammer strength press", "sets": 2, "slot": 5}, {"movements": "straight bar pulldown", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "straight bar pulldown", "sets": 2, "slot": 5}, {"movements": "hammer strength press", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','hammer strength press occupied, swapping pulldown slot ahead of it for this session; rule 13 keeps it a PR slot while early-ish in the workout',25,NULL,0);
 INSERT INTO "state_change" VALUES(25,'program','active:U4','2026-11-07','2026-11-07T10:01:04','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "straight bar pulldown", "sets": 2, "slot": 5}, {"movements": "hammer strength press", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','{"day": "U4", "slots": [{"movements": "hammer strength row", "sets": 2, "slot": 1}, {"movements": "machine lat raise", "sets": 2, "slot": 2}, {"movements": "reverse-grip smith incline press", "sets": 3, "slot": 3}, {"movements": "dumbbell lat raise", "sets": 2, "slot": 4}, {"movements": "hammer strength press", "sets": 2, "slot": 5}, {"movements": "straight bar pulldown", "sets": 2, "slot": 6}, {"movements": "incline dumbbell curl", "sets": 2, "slot": 7}, {"movements": "machine preacher curl", "sets": 2, "slot": 8}, {"movements": "ezbar skullcrusher", "sets": 2, "slot": 9}, {"movements": "unilateral cable pushdown", "sets": 2, "slot": 10}, {"movements": "rear delt cable fly", "sets": 2, "slot": 11}], "variant": "active"}','this was a one-session reinstall order (press machine occupied), not a program change; reverting the split move',NULL,24,1);
 INSERT INTO "state_change" VALUES(26,'rotation','anchor','2026-11-18','2026-11-18T09:21:59','{"anchor_date": "2026-09-22", "position": 0, "rotation": null}','{"anchor_date": "2026-11-18", "position": 4, "rotation": null}','rotation drifted 8 days off anchor (missed/rest-shifted Nov 12-17); user confirmed re-anchor to today U3 at session start',NULL,NULL,0);
+CREATE TABLE training_block (
+  id INTEGER PRIMARY KEY,
+  start_date TEXT NOT NULL UNIQUE,
+  end_date TEXT,
+  coach_note TEXT,
+  CHECK ((end_date IS NULL AND coach_note IS NULL)
+    OR (end_date IS NOT NULL AND end_date >= start_date AND length(trim(coach_note)) > 0 AND coach_note IS NOT NULL))
+);
+INSERT INTO "training_block" VALUES(1,'2026-09-22','2026-11-20','Progress: RDL estimated 1RM rose from 120.0 to 149.5 kg, hack squat from 110.2 to 136.0 kg, and hammer strength row from 114.0 to 201.5 kg. Incline bench peaked at 101.8 kg from a 92.5 kg baseline.
+What held: Machine lateral raise made early gains, then clustered near its late-block best. Incline bench had only six exposures and hit its best on the last one.
+Context: All six slots were trained six times. Exam week interrupted the late rotation, and some ab work was skipped when equipment was busy.
+Next block: Keep RDL and hack squat as comparisons. Review lower-day volume and pick ab work you can reliably complete.');
 CREATE TABLE workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
@@ -1836,4 +1855,6 @@ CREATE INDEX idx_state_change_domain_subject_date
   ON state_change(domain, subject, date, created, id);
 CREATE UNIQUE INDEX idx_state_change_sequence
   ON state_change(domain, subject, date, sequence);
+CREATE UNIQUE INDEX idx_one_open_block
+  ON training_block((end_date IS NULL)) WHERE end_date IS NULL;
 COMMIT;

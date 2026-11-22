@@ -160,7 +160,7 @@ def test_plan_bundle_keys_pinned(log_module):
     """LOGGING.md teaches plan bundle keys in prose; the bundle shape is pinned
     here so docs cannot drift from code (F38/F69)."""
     bundle = log_module.get_plan()
-    expected = {"today", "slot_guess", "split", "goals", "rules", "volume",
+    expected = {"today", "block", "slot_guess", "split", "goals", "rules", "volume",
                 "ledger", "lifts", "progression", "flags", "priority",
                 "deload", "autoreg", "adherence", "compaction"}
     assert set(bundle) == expected, f"plan bundle drift: {set(bundle) ^ expected}"

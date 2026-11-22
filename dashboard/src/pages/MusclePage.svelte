@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { fmtD, fmtV, muscleVolLine } from '../lib/format';
   import { href } from '../routes';
@@ -88,7 +89,11 @@
     return slices.map((_, i) => (i < big.length ? big[i].sets : smallSets));
   });
 
-  const labels = $derived(snap.rotation_volume.starts.map(fmtD));
+  const labels = $derived(
+    snap.rotation_volume.starts.map(
+      d => fmtD(d) + (blockDisplay.selected?.partial_rotations.includes(d) ? '*' : '')
+    )
+  );
 
   const events = $derived(match ? eventsForMuscle(snap, match) : []);
   const groups = $derived(groupByDate(events));
@@ -144,6 +149,7 @@
       <MuscleVolumeChart
         id="chMusVol"
         {labels}
+        dates={snap.rotation_volume.starts}
         counts={entry.rotation_sets}
         bands={{
           mev: entry.bands.mev,

@@ -161,7 +161,7 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
-SNAPSHOT_SCHEMA_VERSION = 4
+SNAPSHOT_SCHEMA_VERSION = 5
 
 STRICT = ConfigDict(extra="forbid")
 
@@ -260,7 +260,7 @@ class Muscle(BaseModel):
     muscle: StrictStr
     bands: MuscleBands
     rotation_sets: list[StrictInt]
-    planned_sets: StrictInt
+    planned_sets: Optional[StrictInt]
     status: VolumeStatus
     tier: PriorityTier
     grouped: list[StrictStr]
@@ -869,6 +869,46 @@ class ObservationDef(BaseModel):
     based_on: list[StrictStr]
 
 
+class BlockChange(BaseModel):
+    model_config = STRICT
+
+    change_id: StrictInt
+    subject: StrictStr
+    details: list[StrictStr]
+    source_ids: list[StrictInt]
+
+
+class BlockLift(BaseModel):
+    model_config = STRICT
+
+    sessions: StrictInt
+    baseline: Real
+    best: Real
+    best_date: StrictStr
+    last: Real
+    last_date: StrictStr
+    slipping: Optional[list[Real]]
+    stalling: bool
+
+
+class BlockView(BaseModel):
+    model_config = STRICT
+
+    id: StrictInt
+    start_date: StrictStr
+    end_date: Optional[StrictStr]
+    coach_note: Optional[StrictStr]
+    changes: list[BlockChange]
+    lifts: dict[str, BlockLift]
+    muscles: list[Muscle]
+    rotation_volume: RotationVolumeWindow
+    volume_history: VolumeHistory
+    partial_rotations: list[StrictStr]
+    partial_weeks: list[StrictStr]
+    bodyweight: list[BodyweightPoint]
+    adherence: Optional[Adherence]
+
+
 class SnapshotModel(BaseModel):
     """Canonical validated form of the synchronized dashboard payload (v2 views).
 
@@ -882,6 +922,7 @@ class SnapshotModel(BaseModel):
     exported: StrictStr
     as_of: StrictStr
     constants: ConstantsModel
+    blocks: list[BlockView]
     lifts: list[Lift]
     muscles: list[Muscle]
     sessions: list[SessionView]

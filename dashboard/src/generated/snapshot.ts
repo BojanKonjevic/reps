@@ -79,12 +79,85 @@ export const AutoregChangeSchema = z.object({
   "reverted_on": z.string().nullable(),
 }).strict();
 
+export const BlockChangeSchema = z.object({
+  "change_id": z.number().int(),
+  "subject": z.string(),
+  "details": z.array(z.string()),
+  "source_ids": z.array(z.number().int()),
+}).strict();
+
+export const BlockLiftSchema = z.object({
+  "sessions": z.number().int(),
+  "baseline": z.union([z.number().int(), z.number()]),
+  "best": z.union([z.number().int(), z.number()]),
+  "best_date": z.string(),
+  "last": z.union([z.number().int(), z.number()]),
+  "last_date": z.string(),
+  "slipping": z.array(z.union([z.number().int(), z.number()])).nullable(),
+  "stalling": z.boolean(),
+}).strict();
+
 export const BodyweightPointSchema = z.object({
   "date": z.string(),
   "kg": z.union([z.number().int(), z.number()]),
   "avg7": z.union([z.number().int(), z.number()]).nullable(),
   "gap_before": z.number().int().nullable(),
   "gap": z.boolean(),
+}).strict();
+
+export const MuscleBandsSchema = z.object({
+  "mev": z.union([z.number().int(), z.number()]),
+  "mav": z.array(z.union([z.number().int(), z.number()])).nullable(),
+  "mrv": z.union([z.number().int(), z.number()]).nullable(),
+}).strict();
+
+export const MuscleLiftShareSchema = z.object({
+  "exercise": z.string(),
+  "sets": z.number().int(),
+  "share": z.number(),
+}).strict();
+
+export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
+
+export const VolumeStatusSchema = z.enum(["below_mev", "in_range", "above_mrv"]);
+
+export const MuscleSchema = z.object({
+  "muscle": z.string(),
+  "bands": MuscleBandsSchema,
+  "rotation_sets": z.array(z.number().int()),
+  "planned_sets": z.number().int().nullable(),
+  "status": VolumeStatusSchema,
+  "tier": PriorityTierSchema,
+  "grouped": z.array(z.string()),
+  "lift_share": z.array(MuscleLiftShareSchema),
+  "avg_recent": z.union([z.number().int(), z.number()]).nullable(),
+}).strict();
+
+export const RotationVolumeWindowSchema = z.object({
+  "rotation_days": z.number().int(),
+  "starts": z.array(z.string()),
+  "through": z.string(),
+}).strict();
+
+export const VolumeHistorySchema = z.object({
+  "week_starts": z.array(z.string()),
+  "by_muscle": z.record(z.string(), z.array(z.number().int())),
+}).strict();
+
+export const BlockViewSchema = z.object({
+  "id": z.number().int(),
+  "start_date": z.string(),
+  "end_date": z.string().nullable(),
+  "coach_note": z.string().nullable(),
+  "changes": z.array(BlockChangeSchema),
+  "lifts": z.record(z.string(), BlockLiftSchema),
+  "muscles": z.array(MuscleSchema),
+  "rotation_volume": RotationVolumeWindowSchema,
+  "volume_history": VolumeHistorySchema,
+  "partial_rotations": z.array(z.string()),
+  "partial_weeks": z.array(z.string()),
+  "bodyweight": z.array(BodyweightPointSchema),
+  "adherence": AdherenceSchema.nullable(),
 }).strict();
 
 export const CalendarHoverSchema = z.object({
@@ -235,8 +308,6 @@ export const HistoryCoverageSchema = z.object({
   "first_date": z.string(),
 }).strict();
 
-export const PriorityTierSchema = z.enum(["priority", "maintain", "deprioritize"]);
-
 export const PriorityHistoryPayloadSchema = z.object({
   "tier": PriorityTierSchema.nullable(),
   "since": z.string().nullable(),
@@ -352,32 +423,6 @@ export const LiftSchema = z.object({
   "rank_attention": z.number().int(),
 }).strict();
 
-export const MuscleBandsSchema = z.object({
-  "mev": z.union([z.number().int(), z.number()]),
-  "mav": z.array(z.union([z.number().int(), z.number()])).nullable(),
-  "mrv": z.union([z.number().int(), z.number()]).nullable(),
-}).strict();
-
-export const MuscleLiftShareSchema = z.object({
-  "exercise": z.string(),
-  "sets": z.number().int(),
-  "share": z.number(),
-}).strict();
-
-export const VolumeStatusSchema = z.enum(["below_mev", "in_range", "above_mrv"]);
-
-export const MuscleSchema = z.object({
-  "muscle": z.string(),
-  "bands": MuscleBandsSchema,
-  "rotation_sets": z.array(z.number().int()),
-  "planned_sets": z.number().int(),
-  "status": VolumeStatusSchema,
-  "tier": PriorityTierSchema,
-  "grouped": z.array(z.string()),
-  "lift_share": z.array(MuscleLiftShareSchema),
-  "avg_recent": z.union([z.number().int(), z.number()]).nullable(),
-}).strict();
-
 export const NextUpRowSchema = z.object({
   "movement": z.string(),
   "last": LiftLastSchema.nullable(),
@@ -433,12 +478,6 @@ export const RecentNoteSchema = z.object({
   "hot": z.boolean(),
 }).strict();
 
-export const RotationVolumeWindowSchema = z.object({
-  "rotation_days": z.number().int(),
-  "starts": z.array(z.string()),
-  "through": z.string(),
-}).strict();
-
 export const RuleSchema = z.object({
   "id": z.number().int(),
   "subject": z.string(),
@@ -492,16 +531,12 @@ export const StatusViewSchema = z.object({
   "on_break": z.boolean(),
 }).strict();
 
-export const VolumeHistorySchema = z.object({
-  "week_starts": z.array(z.string()),
-  "by_muscle": z.record(z.string(), z.array(z.number().int())),
-}).strict();
-
 export const snapshotSchema = z.object({
   "schema_version": z.number().int(),
   "exported": z.string(),
   "as_of": z.string(),
   "constants": ConstantsModelSchema,
+  "blocks": z.array(BlockViewSchema),
   "lifts": z.array(LiftSchema),
   "muscles": z.array(MuscleSchema),
   "sessions": z.array(SessionViewSchema),
@@ -538,7 +573,17 @@ export type AutoregHold = z.infer<typeof AutoregHoldSchema>;
 export type AutoregMissStreak = z.infer<typeof AutoregMissStreakSchema>;
 export type Autoreg = z.infer<typeof AutoregSchema>;
 export type AutoregChange = z.infer<typeof AutoregChangeSchema>;
+export type BlockChange = z.infer<typeof BlockChangeSchema>;
+export type BlockLift = z.infer<typeof BlockLiftSchema>;
 export type BodyweightPoint = z.infer<typeof BodyweightPointSchema>;
+export type MuscleBands = z.infer<typeof MuscleBandsSchema>;
+export type MuscleLiftShare = z.infer<typeof MuscleLiftShareSchema>;
+export type PriorityTier = z.infer<typeof PriorityTierSchema>;
+export type VolumeStatus = z.infer<typeof VolumeStatusSchema>;
+export type Muscle = z.infer<typeof MuscleSchema>;
+export type RotationVolumeWindow = z.infer<typeof RotationVolumeWindowSchema>;
+export type VolumeHistory = z.infer<typeof VolumeHistorySchema>;
+export type BlockView = z.infer<typeof BlockViewSchema>;
 export type CalendarHover = z.infer<typeof CalendarHoverSchema>;
 export type CalendarKind = z.infer<typeof CalendarKindSchema>;
 export type CalendarDay = z.infer<typeof CalendarDaySchema>;
@@ -559,7 +604,6 @@ export type Goal = z.infer<typeof GoalSchema>;
 export type GoalHistoryPayload = z.infer<typeof GoalHistoryPayloadSchema>;
 export type HistoryDomain = z.infer<typeof HistoryDomainSchema>;
 export type HistoryCoverage = z.infer<typeof HistoryCoverageSchema>;
-export type PriorityTier = z.infer<typeof PriorityTierSchema>;
 export type PriorityHistoryPayload = z.infer<typeof PriorityHistoryPayloadSchema>;
 export type ProgramSlotSnapshot = z.infer<typeof ProgramSlotSnapshotSchema>;
 export type ProgramHistoryPayload = z.infer<typeof ProgramHistoryPayloadSchema>;
@@ -575,10 +619,6 @@ export type Verdict = z.infer<typeof VerdictSchema>;
 export type LiftProgression = z.infer<typeof LiftProgressionSchema>;
 export type LiftSession = z.infer<typeof LiftSessionSchema>;
 export type Lift = z.infer<typeof LiftSchema>;
-export type MuscleBands = z.infer<typeof MuscleBandsSchema>;
-export type MuscleLiftShare = z.infer<typeof MuscleLiftShareSchema>;
-export type VolumeStatus = z.infer<typeof VolumeStatusSchema>;
-export type Muscle = z.infer<typeof MuscleSchema>;
 export type NextUpRow = z.infer<typeof NextUpRowSchema>;
 export type NextUp = z.infer<typeof NextUpSchema>;
 export type ObserveMetric = z.infer<typeof ObserveMetricSchema>;
@@ -588,7 +628,6 @@ export type ProgramSlot = z.infer<typeof ProgramSlotSchema>;
 export type ProgramDay = z.infer<typeof ProgramDaySchema>;
 export type ProgramView = z.infer<typeof ProgramViewSchema>;
 export type RecentNote = z.infer<typeof RecentNoteSchema>;
-export type RotationVolumeWindow = z.infer<typeof RotationVolumeWindowSchema>;
 export type Rule = z.infer<typeof RuleSchema>;
 export type SetView = z.infer<typeof SetViewSchema>;
 export type SessionExercise = z.infer<typeof SessionExerciseSchema>;
@@ -597,4 +636,3 @@ export type SessionView = z.infer<typeof SessionViewSchema>;
 export type Severity = z.infer<typeof SeveritySchema>;
 export type Signal = z.infer<typeof SignalSchema>;
 export type StatusView = z.infer<typeof StatusViewSchema>;
-export type VolumeHistory = z.infer<typeof VolumeHistorySchema>;

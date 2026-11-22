@@ -19,11 +19,17 @@ def top_e1rm_by_date(c, exercise):
              r["max_created"]) for r in c.execute(sql, (exercise, cap)).fetchall()]
 
 
-def latest(c):
-    """Latest progression verdict per exercise (replaces every inline copy)."""
+def latest(c, *, since=None):
+    """Latest progression verdict per exercise, optionally within this block."""
     return {r["exercise"]: dict(r) for r in c.execute(
-        "SELECT p.* FROM progression p JOIN (SELECT exercise, MAX(workout_id) m FROM progression "
-        "GROUP BY exercise) l ON l.exercise = p.exercise AND l.m = p.workout_id").fetchall()}
+        "WITH ranked AS (SELECT q.exercise, q.workout_id, "
+        "ROW_NUMBER() OVER (PARTITION BY q.exercise ORDER BY w.date DESC, q.workout_id DESC) AS rank "
+        "FROM progression q JOIN workouts w ON w.id = q.workout_id "
+        "WHERE (? IS NULL OR w.date >= ?)) "
+        "SELECT p.* FROM progression p JOIN ranked r "
+        "ON r.exercise = p.exercise AND r.workout_id = p.workout_id WHERE r.rank = 1",
+        (since, since),
+    ).fetchall()}
 
 
 def format_target(weight, reps):

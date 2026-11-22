@@ -10,7 +10,7 @@ export type Route =
   | { name: 'program' }
   | { name: 'lifts' }
   | { name: 'muscles' }
-  | { name: 'history' };
+  | { name: 'history'; eventId?: number };
 
 export const href = {
   dash(): string {
@@ -34,8 +34,8 @@ export const href = {
   muscles(): string {
     return '#/muscles';
   },
-  history(): string {
-    return '#/history';
+  history(eventId?: number): string {
+    return eventId === undefined ? '#/history' : '#/history/' + eventId;
   },
 };
 
@@ -54,7 +54,12 @@ export function parse(hash: string): Route {
   if (segs[1] === 'program') return { name: 'program' };
   if (segs[1] === 'lifts') return { name: 'lifts' };
   if (segs[1] === 'muscles') return { name: 'muscles' };
-  if (segs[1] === 'history') return { name: 'history' };
+  if (segs[1] === 'history') {
+    const eventId = Number(segs[2]);
+    return Number.isSafeInteger(eventId) && eventId > 0
+      ? { name: 'history', eventId }
+      : { name: 'history' };
+  }
   return { name: 'dash' };
 }
 

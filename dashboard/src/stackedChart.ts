@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: stacked volume geometry. Consumers: VolumeChart via plot() -> HitMap.
 // Groups and colors arrive in the model from lib/vocab (snapshot constants).
 
@@ -19,6 +20,7 @@ export { firstNonZero, labelIndices };
 
 export interface StackedModel {
   labels: string[];
+  partial?: string[];
   weeks: Array<Record<string, number>>;
   groups: string[];
   colors: Record<string, string>;
@@ -72,7 +74,8 @@ function yOfWeek(L: Layout, v: number): number {
 export function plot(
   cv: HTMLCanvasElement,
   model: StackedModel,
-  hover?: StackedHover | null
+  hover?: StackedHover | null,
+  boundaries: string[] = []
 ): HitMap {
   const { labels, weeks, groups, colors } = model;
   const { g, W, H } = fit(cv);
@@ -100,6 +103,7 @@ export function plot(
       putText(g, W, fmtTick(v, t.step), 4, y + 4, 'left');
     }
   }
+  drawBlockBoundaries(g, labels.slice(start), boundaries, i => P + i * bw, 14, H - P);
   const showLabel = new Set(labelIndices(n).map(k => k + start));
   weeks.forEach((w, i) => {
     if (i < start) return;
@@ -123,7 +127,15 @@ export function plot(
     const top = yOfWeek(L, total);
     g.fillStyle = theme.color('ink-dim');
     putText(g, W, String(total), P + vi * bw + bw / 2, top - 10, 'center');
-    if (showLabel.has(i)) putText(g, W, labels[i], P + vi * bw + bw / 2, H - 8, 'center');
+    if (showLabel.has(i))
+      putText(
+        g,
+        W,
+        labels[i] + (model.partial?.includes(labels[i]) ? '*' : ''),
+        P + vi * bw + bw / 2,
+        H - 8,
+        'center'
+      );
   });
   return hit;
 }

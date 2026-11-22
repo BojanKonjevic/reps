@@ -2,6 +2,7 @@ from datetime import date
 
 from .errors import RepsError
 
+from .blocks import current_block
 from .constants import load_constants
 from .db import conn
 from .progression import top_e1rm_by_date
@@ -25,11 +26,17 @@ def autoreg_active_holds(c, today=None):
 
 def autoreg_miss_streaks(c):
     """Exercises ending in 2+ consecutive miss progression verdicts, newest first."""
+    block = current_block(c, date.today().isoformat())
+    if not block:
+        return []
     out = []
     for r in c.execute("SELECT DISTINCT exercise FROM progression").fetchall():
         ex = r["exercise"]
-        rows = c.execute("SELECT verdict, workout_id FROM progression WHERE exercise = ? "
-                         "ORDER BY workout_id DESC", (ex,)).fetchall()
+        rows = c.execute(
+            "SELECT p.verdict, p.workout_id FROM progression p JOIN workouts w ON w.id = p.workout_id "
+            "WHERE p.exercise = ? AND w.date >= ? ORDER BY w.date DESC, p.workout_id DESC",
+            (ex, block["start_date"]),
+        ).fetchall()
         streak = 0
         for p in rows:
             if p["verdict"] == "miss":
@@ -48,6 +55,9 @@ def autoreg_drop_watch(c):
     Deload sessions are filtered out first (they deliberately deviate).
     One implementation, owned by reps/trends.py; this stays a thin caller.
     """
+    block = current_block(c, date.today().isoformat())
+    if not block:
+        return []
     t = load_constants().thresholds.model_dump()
     out = []
     from .program import active_deloads, deload_covers, parse_active_split_days
@@ -60,7 +70,7 @@ def autoreg_drop_watch(c):
             # in notes (misspellings used to break the filter).
             continue
         clean = [e for day, e, notes, _ in top_e1rm_by_date(c, ex)
-                 if "deload" not in (notes or "").lower()]
+                 if day >= block["start_date"] and "deload" not in (notes or "").lower()]
         if len(clean) < 3:
             continue
         hit = is_slipping(clean[-3:], t)

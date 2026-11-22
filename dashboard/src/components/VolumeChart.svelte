@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { onMount } from 'svelte';
   import { plot, stackedHitFromMap, type StackedModel, type StackedHover } from '../stackedChart';
   import { bindHover, hideTip, showTip } from '../tip';
@@ -7,22 +8,23 @@
 
   interface Props {
     labels: string[];
+    partial?: string[];
     weeks: Array<Record<string, number>>;
     groups: string[];
     colors: Record<string, string>;
     onSelect?: (muscle: string) => void;
   }
 
-  let { labels, weeks, groups, colors, onSelect }: Props = $props();
+  let { labels, partial = [], weeks, groups, colors, onSelect }: Props = $props();
 
   let cv: HTMLCanvasElement;
   let hover: StackedHover | null = $state(null);
   let hit: HitMap = emptyHit();
 
-  const model: StackedModel = $derived({ labels, weeks, groups, colors });
+  const model: StackedModel = $derived({ labels, partial, weeks, groups, colors });
 
   function paint() {
-    if (isVisible(cv)) hit = plot(cv, model, hover);
+    if (isVisible(cv)) hit = plot(cv, model, hover, blockDisplay.boundaries);
   }
 
   function point(ev: MouseEvent): StackedHover | null {
@@ -45,7 +47,12 @@
     }
     hover = h;
     paint();
-    showTip(labels[h.wi], [[colors[h.g], h.g + ' ' + weeks[h.wi][h.g] + ' sets']], cx, cy);
+    showTip(
+      labels[h.wi] + (partial.includes(labels[h.wi]) ? ' · partial window' : ''),
+      [[colors[h.g], h.g + ' ' + weeks[h.wi][h.g] + ' sets']],
+      cx,
+      cy
+    );
   }
 
   function click(ev: MouseEvent) {

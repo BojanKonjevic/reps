@@ -24,6 +24,7 @@ from mcp.server import MCPServer
 from reps import adherence as _adherence
 from reps import audit as _audit
 from reps import autoreg as _autoreg
+from reps import blocks as _blocks
 from reps import constants as _constants
 from reps import goals as _goals
 from reps import history as _history
@@ -99,17 +100,49 @@ async def call_tool(name: str, arguments: dict) -> dict:
     return {"ok": True, "data": None}
 
 
+@mcp.tool()
+def block_list() -> dict:
+    """List current and finished training blocks with notes and confirmed program changes."""
+    return call_domain(_blocks.list_blocks)
+
+
+@mcp.tool()
+def block_preview_start(start_date: str) -> dict:
+    """Preview net program changes since the previous block. Confirm the items with the user."""
+    return call_domain(_blocks.preview_start, start_date)
+
+
+@mcp.tool()
+def block_start(start_date: str, confirmed_change_ids: list[int]) -> dict:
+    """Start a block on the given date. Supply the confirmed IDs from block_preview_start."""
+    return call_domain(_blocks.start_block, start_date, confirmed_change_ids)
+
+
+@mcp.tool()
+def block_close(end_date: str, coach_note: str) -> dict:
+    """Close the active block on the inclusive end date and save its final coach note."""
+    return call_domain(_blocks.close_block, end_date, coach_note)
+
+
+@mcp.tool()
+def block_correct(block_id: int, start_date: str | None = None,
+                  end_date: str | None = None, coach_note: str | None = None) -> dict:
+    """Correct a block's dates or final note without leaving workouts outside a block."""
+    return call_domain(_blocks.correct_block, block_id, start_date, end_date, coach_note)
+
+
 # === sessions ===
 
 
 @mcp.tool()
-def session_start(note: str = "") -> dict:
+def session_start(note: str = "", day: str | None = None) -> dict:
     """Open a new workout. Workouts are only created explicitly, never auto-created.
 
     Args:
         note: Optional opening note for the session.
+        day: Workout date, defaults to today. It must fall inside a training block.
     """
-    return call_domain(_sessions.start_workout, note)
+    return call_domain(_sessions.start_workout, note, day)
 
 
 @mcp.tool()

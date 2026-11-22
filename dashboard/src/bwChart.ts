@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: bodyweight geometry. Consumers: BodyweightChart via plot() -> HitMap.
 // Averages and gap flags arrive in the model from the snapshot (Python owns
 // the 7-day window and the gap threshold); this module only draws them.
@@ -26,7 +27,12 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
-export function plot(cv: HTMLCanvasElement, rows: BwRow[], hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  rows: BwRow[],
+  hover = -1,
+  boundaries: string[] = []
+): HitMap {
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const P = L.padL;
@@ -53,6 +59,14 @@ export function plot(cv: HTMLCanvasElement, rows: BwRow[], hover = -1): HitMap {
   const px = linearScale([0, Math.max(1, rows.length - 1)], [P, W - L.padR]);
   const xOf = (i: number) => (rows.length === 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - P, 16]);
+  drawBlockBoundaries(
+    g,
+    rows.map(r => r.date),
+    boundaries,
+    xOf,
+    16,
+    H - P
+  );
   g.strokeStyle = LC[0];
   g.lineWidth = 3;
   g.lineJoin = 'round';

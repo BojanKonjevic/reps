@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: mini-trend geometry. Consumers: TrendMini via plot() -> HitMap.
 
 import { max, min } from 'd3-array';
@@ -23,7 +24,12 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'mini');
 }
 
-export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  model: MiniModel,
+  hover = -1,
+  boundaries: string[] = []
+): HitMap {
   const { days, vals, color } = model;
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
@@ -60,6 +66,7 @@ export function plot(cv: HTMLCanvasElement, model: MiniModel, hover = -1): HitMa
   const n = vals.length;
   const px = linearScale([0, Math.max(1, n - 1)], [P, W - L.padR]);
   const xOf = (i: number) => (n <= 1 ? W - L.padR : px(i));
+  drawBlockBoundaries(g, days, boundaries, xOf, 6, H - 15);
   const py = linearScale([mn, mx], [H - 15, 6]);
   if (single) drawSingleLine(g, W, P, L.padR, py(raw[0]), fmtV(raw[0]), H - 21);
   else if (t) {

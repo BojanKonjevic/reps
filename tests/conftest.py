@@ -41,6 +41,10 @@ def log_module(tmp_db):
     Tests invoke domain operations directly (reps is the application layer);
     agents use the same operations through MCP tools.
     """
+    from datetime import date, timedelta
+    from reps.blocks import start_block
+
+    start_block((date.today() - timedelta(days=366)).isoformat(), [])
     return reps
 
 

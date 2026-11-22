@@ -20,12 +20,13 @@ export function fmtV(v: number): string {
 }
 
 export function muscleVolLine(
-  entry: { avg_recent: number | null; planned_sets: number },
+  entry: { avg_recent: number | null; planned_sets: number | null },
   rotationDays: number
 ): string {
   const logged =
     entry.avg_recent === null ? 'no logged volume' : fmtV(entry.avg_recent) + ' logged avg';
-  return logged + ' · ' + entry.planned_sets + ' programmed · sets per ' + rotationDays + ' days';
+  const planned = entry.planned_sets === null ? '' : ' · ' + entry.planned_sets + ' programmed';
+  return logged + planned + ' · sets per ' + rotationDays + ' days';
 }
 
 export function fmtD(dstr: string): string {

@@ -1,3 +1,4 @@
+import { drawBlockBoundaries } from './lib/chartLayout';
 // SSOT owner: session-length chart geometry. Consumers: SessionLengthChart via plot() -> HitMap.
 // Durations and day labels arrive in the model (Python owns the first-to-last-set
 // span); day colors arrive per point, resolved by the component in dayColor.
@@ -26,7 +27,12 @@ export function layoutOf(w: number, h: number): ChartLayout {
   return baseLayout(w, h, 'full');
 }
 
-export function plot(cv: HTMLCanvasElement, points: SessPoint[], hover = -1): HitMap {
+export function plot(
+  cv: HTMLCanvasElement,
+  points: SessPoint[],
+  hover = -1,
+  boundaries: string[] = []
+): HitMap {
   const { g, W, H } = fit(cv);
   const L = layoutOf(W, H);
   const P = L.padL;
@@ -51,6 +57,14 @@ export function plot(cv: HTMLCanvasElement, points: SessPoint[], hover = -1): Hi
   const xOf = (i: number) => (points.length === 1 ? W - L.padR : px(i));
   const py = linearScale([mn, mx], [H - P, 16]);
   drawYAxis(g, W, H, P, t);
+  drawBlockBoundaries(
+    g,
+    points.map(p => p.date),
+    boundaries,
+    xOf,
+    16,
+    H - P
+  );
   g.strokeStyle = theme.color('ink-faint');
   g.lineWidth = 2.5;
   g.lineJoin = 'round';

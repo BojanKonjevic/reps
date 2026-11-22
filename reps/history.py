@@ -85,10 +85,10 @@ def _shape(row):
     return entry
 
 
-def list_changes(domain, subject="", since="", until=""):
+def list_changes(domain, subject="", since="", until="", *, c=None):
     """Transitions for a domain (optionally one subject) in a date range, oldest first."""
     _check_domain(domain)
-    c = conn()
+    c = c or conn()
     q = "SELECT * FROM state_change WHERE domain = ?"
     args: list = [domain]
     if subject:

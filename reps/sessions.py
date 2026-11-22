@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 
+from .blocks import block_on, require_block
 from .constants import clean_muscles, load_constants
 from .db import conn, open_workout
 from .e1rm import e1rm as e1rm_of
@@ -114,6 +115,10 @@ def session_prs(workout_id):
     w = c.execute("SELECT * FROM workouts WHERE id = ?", (workout_id,)).fetchone()
     if not w:
         raise RepsError("no such workout")
+    block = block_on(c, w["date"])
+    block_bests = []
+    from .e1rm import is_e1rm_counting_set
+
     out = []
     for ex in c.execute("SELECT DISTINCT exercise FROM sets WHERE workout_id = ?",
                         (workout_id,)).fetchall():
@@ -124,33 +129,62 @@ def session_prs(workout_id):
             "WHERE s.exercise = ? AND (w.status = 'done' OR w.id = ?) "
             "ORDER BY s.created, s.id", (exercise, workout_id)).fetchall()
         flags = personal_records([dict(r) for r in hist])
-        for r in c.execute("SELECT id FROM sets WHERE workout_id = ? AND exercise = ?",
-                           (workout_id, exercise)).fetchall():
-            out.append({"set_id": r["id"], "exercise": exercise, "is_pr": flags.get(r["id"], False)})
-    return {"workout_id": workout_id, "prs": sorted(out, key=lambda e: e["set_id"])}
+        current = [dict(r) for r in c.execute(
+            "SELECT id, weight, reps FROM sets WHERE workout_id = ? AND exercise = ?",
+            (workout_id, exercise))]
+        out.extend({"set_id": r["id"], "exercise": exercise, "is_pr": flags.get(r["id"], False)}
+                   for r in current)
+        if block and not any(flags.get(r["id"], False) for r in current):
+            previous = [e1rm_of(r["weight"], r["reps"]) for r in hist
+                        if block["start_date"] <= r["date"] < w["date"]
+                        and is_e1rm_counting_set(r["reps"])]
+            best = max((e1rm_of(r["weight"], r["reps"]) for r in current
+                        if is_e1rm_counting_set(r["reps"])), default=None)
+            if previous and best is not None and best > max(previous):
+                block_bests.append({"exercise": exercise, "e1rm": round(best, 1)})
+    return {"workout_id": workout_id, "prs": sorted(out, key=lambda e: e["set_id"]),
+            "block_bests": sorted(block_bests, key=lambda item: item["exercise"])}
 
 
-def start_workout(note):
+def start_workout(note, day=None):
     if note is None:
         note = ""
     if not isinstance(note, str):
         raise RepsError("note must be a string")
+    requested = _workout_date(day) if day is not None else None
     c = conn()
-    existing = open_workout(c)
-    if existing:
-        sets_n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (existing["id"],)).fetchone()["n"]
-        last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1", (existing["id"],)).fetchone()
-        try:
+    with c:
+        c.execute("BEGIN IMMEDIATE")
+        existing = open_workout(c)
+        if existing:
+            if requested is not None and requested != existing["date"]:
+                raise RepsError("close the open workout before starting a different date")
+            require_block(c, existing["date"])
+            sets_n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (existing["id"],)).fetchone()["n"]
+            last = c.execute("SELECT created FROM sets WHERE workout_id = ? ORDER BY id DESC LIMIT 1", (existing["id"],)).fetchone()
             age_days = (date.today() - date.fromisoformat(existing["date"])).days
-        except ValueError:
-            age_days = 0
-        return {"workout_id": existing["id"], "reused": True, "date": existing["date"],
-                "age_days": age_days, "sets": sets_n,
-                "last_set_created": last["created"] if last else None}
-    today = date.today().isoformat()
-    cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', ?)", (today, note))
-    c.commit()
-    return {"workout_id": cur.lastrowid, "reused": False, "date": today}
+            return {"workout_id": existing["id"], "reused": True, "date": existing["date"],
+                    "age_days": age_days, "sets": sets_n,
+                    "last_set_created": last["created"] if last else None}
+        workout_day = requested or date.today().isoformat()
+        block = require_block(c, workout_day)
+        if workout_day == date.today().isoformat() and block["end_date"] is not None:
+            raise RepsError("this block is closed. Start a new block before logging training")
+        cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'open', ?)",
+                        (workout_day, note))
+        return {"workout_id": cur.lastrowid, "reused": False, "date": workout_day}
+
+
+def _workout_date(value):
+    try:
+        day = date.fromisoformat(value)
+    except (ValueError, TypeError):
+        raise RepsError("date must be YYYY-MM-DD") from None
+    if day.isoformat() != value:
+        raise RepsError("date must be YYYY-MM-DD")
+    if day > date.today():
+        raise RepsError("workout date cannot be in the future")
+    return day.isoformat()
 
 
 def _check_note(note, field="note", max_len=2000):
@@ -571,42 +605,38 @@ def update_workout(workout_id, field, value):
     except (TypeError, ValueError):
         raise RepsError("no such workout")
     if field == "date":
-        try:
-            date.fromisoformat(value)
-        except (ValueError, TypeError, AttributeError):
-            raise RepsError("date must be YYYY-MM-DD")
-        if date.fromisoformat(value) > date.today():
-            raise RepsError("workout date cannot be in the future")
+        value = _workout_date(value)
     if field == "status" and value not in values(WorkoutStatus):
         raise RepsError(f"status must be one of {', '.join(values(WorkoutStatus))}")
     if field == "notes":
         value = _check_note(value, "notes")
     c = conn()
-    if field == "status" and value == "open":
-        other = c.execute("SELECT id FROM workouts WHERE status = 'open' AND id != ?", (int(workout_id),)).fetchone()
-        if other:
-            raise RepsError(f"workout {other['id']} is already open; end or delete it first")
-    if field == "status" and value == "rest":
-        row = c.execute("SELECT date FROM workouts WHERE id = ?", (int(workout_id),)).fetchone()
+    with c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT date, status FROM workouts WHERE id = ?", (workout_id,)).fetchone()
         if not row:
             raise RepsError("no such workout")
-        n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
-        if n > 0:
-            raise RepsError("workout has sets, cannot mark it rest (move or delete them first)")
-        dup = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest' AND id != ?",
-                        (row["date"], int(workout_id))).fetchone()
-        if dup:
-            raise RepsError(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
-    _WORKOUT_FIELD_SQL = {"notes": "UPDATE workouts SET notes = ? WHERE id = ?",
-                            "date": "UPDATE workouts SET date = ? WHERE id = ?",
-                            "status": "UPDATE workouts SET status = ? WHERE id = ?"}
-    # Check-then-act: the no-such-workout refusal must precede the write, or
-    # the uncommitted transaction holds the DB lock for later writers.
-    if not c.execute("SELECT id FROM workouts WHERE id = ?", (int(workout_id),)).fetchone():
-        raise RepsError("no such workout")
-    c.execute(_WORKOUT_FIELD_SQL[field], (value, int(workout_id)))
-    c.commit()
-    return {"updated_workout": int(workout_id), "field": field}
+        new_status = value if field == "status" else row["status"]
+        new_date = value if field == "date" else row["date"]
+        if field in ("date", "status") and new_status != "rest":
+            require_block(c, new_date)
+        if field == "status" and value == "open":
+            other = c.execute("SELECT id FROM workouts WHERE status = 'open' AND id != ?", (int(workout_id),)).fetchone()
+            if other:
+                raise RepsError(f"workout {other['id']} is already open; end or delete it first")
+        if field == "status" and value == "rest":
+            n = c.execute("SELECT COUNT(*) n FROM sets WHERE workout_id = ?", (int(workout_id),)).fetchone()["n"]
+            if n > 0:
+                raise RepsError("workout has sets, cannot mark it rest (move or delete them first)")
+            dup = c.execute("SELECT id FROM workouts WHERE date = ? AND status = 'rest' AND id != ?",
+                            (row["date"], int(workout_id))).fetchone()
+            if dup:
+                raise RepsError(f"{row['date']} already has a rest row (id {dup['id']}), add a note there instead of doubling up")
+        _WORKOUT_FIELD_SQL = {"notes": "UPDATE workouts SET notes = ? WHERE id = ?",
+                                "date": "UPDATE workouts SET date = ? WHERE id = ?",
+                                "status": "UPDATE workouts SET status = ? WHERE id = ?"}
+        c.execute(_WORKOUT_FIELD_SQL[field], (value, int(workout_id)))
+        return {"updated_workout": int(workout_id), "field": field}
 
 
 def get_session(datestr):

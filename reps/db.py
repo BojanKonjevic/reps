@@ -12,7 +12,7 @@ DB = os.environ.get("REPS_DB", os.path.join(ROOT, "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def _check_lists():
@@ -33,6 +33,27 @@ def _check_lists():
         "history_domain": ", ".join(f"'{v}'" for v in values(HistoryDomain)),
     }
 
+
+
+BLOCK_SCHEMA = """
+CREATE TABLE IF NOT EXISTS training_block (
+  id INTEGER PRIMARY KEY,
+  start_date TEXT NOT NULL UNIQUE,
+  end_date TEXT,
+  coach_note TEXT,
+  CHECK ((end_date IS NULL AND coach_note IS NULL)
+    OR (end_date IS NOT NULL AND end_date >= start_date AND length(trim(coach_note)) > 0 AND coach_note IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_block
+  ON training_block((end_date IS NULL)) WHERE end_date IS NULL;
+CREATE TABLE IF NOT EXISTS block_program_change (
+  block_id INTEGER NOT NULL REFERENCES training_block(id),
+  change_id INTEGER NOT NULL REFERENCES state_change(id),
+  previous_end TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  PRIMARY KEY (block_id, change_id)
+);
+"""
 
 def build_schema():
     """Assemble SCHEMA with enum CHECK lists generated from reps/vocab.py.
@@ -225,6 +246,7 @@ CREATE INDEX IF NOT EXISTS idx_state_change_domain_subject_date
   ON state_change(domain, subject, date, created, id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_state_change_sequence
   ON state_change(domain, subject, date, sequence);
+{BLOCK_SCHEMA}
 """
 
 

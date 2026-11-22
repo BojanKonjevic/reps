@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from .adherence import adherence_block, expectation_context
 from .autoreg import autoreg_block
+from .blocks import current_block, lift_comparisons
 from .constants import load_constants
 from .db import conn, open_workout
 from .goals import goal_progress
@@ -21,6 +22,8 @@ def get_plan(slot=None, verbose=False):
     thresholds = constants.thresholds
     today = date.today()
     today_iso = today.isoformat()
+    block = current_block(c, today_iso)
+    comparisons = lift_comparisons(c, block["id"]).get(block["id"], {}) if block else {}
 
     w = open_workout(c)
     stale = None
@@ -118,12 +121,13 @@ def get_plan(slot=None, verbose=False):
         top = best_rows.get(r["exercise"])
         last = last_rows.get(r["exercise"])
         lifts.append({"exercise": r["exercise"], "sets": r["n"],
+                      "block": comparisons.get(r["exercise"]),
                       "best_e1rm": round(top["e1rm"], 1) if top and top["e1rm"] is not None else None,
                       "last": {"weight": last["weight"], "reps": last["reps"]} if last else None})
 
     progression = {r["exercise"]: {"verdict": r["verdict"], "next": f"{r['next_weight']:g}x{r['next_reps']}",
                                                 "direction": r["direction"], "workout_id": r["workout_id"]}
-                   for r in latest_progression(c).values()}
+                   for r in (latest_progression(c, since=block["start_date"]).values() if block else ())}
     priorities = read_priorities(c)
     deload = [dict(r) for r in active_deloads(c)]
     # Reading never consumes: consumption happens at `end` (flags touching the
@@ -178,6 +182,7 @@ def get_plan(slot=None, verbose=False):
                   "workout": {"id": w["id"], "date": w["date"], "status": w["status"]} if w else None,
                   "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
+        "block": block,
         "slot_guess": slot_guess,
         "split": split_section,
         "goals": goals,

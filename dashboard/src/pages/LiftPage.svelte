@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fmtD, fmtV } from '../lib/format';
+  import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { href } from '../routes';
   import type { Snapshot } from '../generated/snapshot';
   import { liftByName } from '../lib/select';
@@ -57,7 +58,15 @@
   const prog = $derived(lift?.progression ?? null);
 
   const bestLine = $derived.by(() => {
-    if (!lift || !lift.sessions.length) return 'never logged';
+    if (!lift?.best) return 'never logged';
+    const block = blockDisplay.selected;
+    if (block) {
+      const result = block.lifts[ex];
+      const local = result
+        ? 'Block best ' + fmtV(result.best) + ' e1RM'
+        : 'No counting sets in this block';
+      return local + ' · all-time best ' + fmtV(lift.best.e1rm) + ' e1RM';
+    }
     const best = lift.best!;
     return (
       'best ' +
@@ -82,7 +91,7 @@
   });
 
   const goalActs = $derived((goal?.actuals ?? []).map(a => ({ date: a.date, ev: a.e1rm })));
-  const goalCps = $derived(goal?.checkpoints ?? []);
+  const goalCps = $derived(blockDisplay.selected?.end_date ? [] : (goal?.checkpoints ?? []));
   const goalTops = $derived.by(() => {
     const tops: Record<string, { w: number; r: number }> = {};
     for (const [d, t] of Object.entries(goal?.top_by_date ?? {}))
@@ -130,6 +139,10 @@
 
   const prNote = $derived.by(() => {
     if (!lift) return 'never logged';
+    if (blockDisplay.selected) {
+      const recent = prItems[prItems.length - 1];
+      return recent ? 'All-time PR in block · ' + recent.date : 'No all-time PRs in this block';
+    }
     if (lift.last_pr_date === null || lift.last_pr_date === undefined)
       return 'no PR yet, the first logged set is the baseline';
     const days = lift.days_since_pr ?? 0;
@@ -204,8 +217,8 @@
     />
     <div class="cap">
       Best set e1RM per session, evenly spaced. New highs are PRs. Tap a point to open the session.
-      Hollow diamond marks the progression next target, hover it for the target set. Ticks mark
-      recorded training changes, tap one to inspect.
+      {#if prog}Hollow diamond marks the next target.{/if} Ticks mark recorded training changes, tap one
+      to inspect.
     </div>
     {#if coverNote}
       <div class="cap" id="liftHistNote">{coverNote}</div>
@@ -240,9 +253,12 @@
     />
     <Provenance def={defOf(snap, 'lift_trend')} id="liftProv" />
   </div>
-  {#if goal && goalCps.length}
+  {#if goal && (goalCps.length || goalActs.length)}
     <div id="liftGoalCard">
-      <SectionHeader title="Trajectory" sub={goalCap} />
+      <SectionHeader
+        title={blockDisplay.selected?.end_date ? 'Goal results' : 'Trajectory'}
+        sub={blockDisplay.selected?.end_date ? '' : goalCap}
+      />
       <div class="surface-flat">
         <GoalChartView
           id="chGoal"
