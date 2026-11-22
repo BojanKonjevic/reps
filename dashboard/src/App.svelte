@@ -63,6 +63,17 @@
   });
 </script>
 
+{#snippet historyPicker(alignEnd: boolean)}
+  {#if snapshot.data}
+    <BlockPicker
+      blocks={snapshot.data.blocks}
+      {selected}
+      onSelect={id => (selectedId = id)}
+      {alignEnd}
+    />
+  {/if}
+{/snippet}
+
 <QueryClientProvider client={queryClient}>
   <AppShell>
     {#if snapshot.isPending}
@@ -97,13 +108,8 @@
     {:else if snapshot.data}
       {@const global = snapshot.data}
       {@const snap = selected ? scopeToBlock(global, selected) : global}
-      {#if route.view.name !== 'prog' && route.view.name !== 'hist'}
-        <BlockPicker
-          blocks={global.blocks}
-          {selected}
-          onSelect={id => (selectedId = id)}
-          showBoundaryKey={route.view.name === 'dash'}
-        />
+      {#if route.view.name !== 'prog' && route.view.name !== 'hist' && route.view.name !== 'dash'}
+        {@render historyPicker(false)}
       {/if}
       <CommandPalette {snap} />
       {#if route.view.name === 'sess'}
@@ -121,7 +127,9 @@
       {:else if route.view.name === 'hist'}
         <HistoryPage snap={global} eventId={route.view.eventId} />
       {:else}
-        <DashboardPage {snap} />
+        <DashboardPage {snap}>
+          {#snippet scopeControl()}{@render historyPicker(true)}{/snippet}
+        </DashboardPage>
       {/if}
     {/if}
   </AppShell>

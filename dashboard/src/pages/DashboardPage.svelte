@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { dayColor, liftColor } from '../charts';
   import { fmtD, fmtMin, fmtV } from '../lib/format';
   import {
@@ -64,9 +64,10 @@
 
   interface Props {
     snap: Snapshot;
+    scopeControl: Snippet;
   }
 
-  let { snap }: Props = $props();
+  let { snap, scopeControl }: Props = $props();
 
   const vocab = $derived(vocabOf(snap));
   const lifts = $derived(snap.lifts);
@@ -178,7 +179,10 @@
 
 <div id="viewDash">
   <div class="dashhead">
-    <PageHeader title="Overview" sub={subLine(snap)} subId="sub" />
+    <div class="overview-heading">
+      <PageHeader title="Overview" sub={subLine(snap)} subId="sub" />
+      {@render scopeControl()}
+    </div>
     {#if !pastBlock && statusLines(snap).length}
       <div class="nowlines" id="nowLines">
         {#each statusLines(snap) as line}
@@ -682,6 +686,12 @@
 </div>
 
 <style>
+  .overview-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
   .opening-changes {
     padding-inline-start: 1.2rem;
     font-size: 0.86rem;

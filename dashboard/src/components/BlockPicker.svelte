@@ -8,10 +8,10 @@
     blocks: BlockView[];
     selected: BlockView | null;
     onSelect: (id: number | null) => void;
-    showBoundaryKey: boolean;
+    alignEnd?: boolean;
   }
 
-  let { blocks, selected, onSelect, showBoundaryKey }: Props = $props();
+  let { blocks, selected, onSelect, alignEnd = false }: Props = $props();
   let open = $state(false);
   let picker = $state<HTMLDivElement>();
   let trigger = $state<HTMLButtonElement>();
@@ -101,7 +101,7 @@
 {/snippet}
 
 {#if blocks.length}
-  <div class="block-picker" bind:this={picker} onfocusout={leave}>
+  <div class="block-picker" class:alignEnd bind:this={picker} onfocusout={leave}>
     <div class="control">
       <button
         type="button"
@@ -113,7 +113,7 @@
         aria-haspopup="menu"
         aria-controls={open ? 'block-scope' : undefined}
       >
-        <span class="calendar-icon"><Icon name="calendar" size={14} /></span>
+        <span class="calendar-icon"><Icon name="calendar" size={16} /></span>
         {selected ? 'Block ' + selected.id : 'All time'}
         <span class="chevron"><Icon name="chevronRight" size={12} /></span>
       </button>
@@ -136,8 +136,6 @@
         </div>
       {/if}
     </div>
-    {#if !selected && showBoundaryKey}<span class="boundary-key">Dashed lines mark block dates</span
-      >{/if}
   </div>
 {/if}
 
@@ -148,12 +146,18 @@
     align-items: center;
     gap: 0.55rem;
     margin-block: 0 0.8rem;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+  }
+  .alignEnd {
+    margin-block: 0;
+  }
+  .alignEnd .options {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
   }
   .control {
     position: relative;
   }
-  .boundary-key,
   .chevron,
   .calendar-icon {
     color: var(--ink-mute);
@@ -168,9 +172,9 @@
   .trigger {
     display: flex;
     align-items: center;
-    min-height: 32px;
-    gap: 7px;
-    padding: 0 9px;
+    min-height: 40px;
+    gap: 9px;
+    padding: 0 13px;
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-sm);
     color: var(--ink);
@@ -183,7 +187,7 @@
     z-index: 10;
     inset-block-start: calc(100% + 5px);
     inset-inline-start: 0;
-    width: min(224px, calc(100vw - 36px));
+    width: min(248px, calc(100vw - 36px));
     max-height: min(50vh, 320px);
     overflow: auto;
     box-sizing: border-box;

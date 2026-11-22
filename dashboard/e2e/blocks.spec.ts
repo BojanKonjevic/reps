@@ -12,6 +12,14 @@ test('browse completed and current blocks without resetting all-time records', a
   await page.goto('/');
   const picker = page.getByRole('button', { name: /^Training history:/ });
   await expect(picker).toHaveAccessibleName('Training history: All time');
+  const [titleBox, pickerBox] = await Promise.all([
+    page.getByRole('heading', { name: 'Overview' }).boundingBox(),
+    picker.boundingBox(),
+  ]);
+  expect(pickerBox!.x).toBeGreaterThan(titleBox!.x);
+  expect(Math.abs(pickerBox!.y - titleBox!.y)).toBeLessThan(8);
+  expect(pickerBox!.height).toBeGreaterThanOrEqual(40);
+  await expect(page.getByText('Dashed lines mark block dates')).toHaveCount(0);
   await expect(page.locator('.cal .block-edge')).not.toHaveCount(0);
 
   await picker.click();
