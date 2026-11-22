@@ -208,13 +208,17 @@ test.describe('Temporal context', () => {
 
   test('bodyweight points show nearby training changes', async ({ page }) => {
     await gotoFixture(page, rich, richStates, rich.as_of);
+    const latest = rich.bodyweight[rich.bodyweight.length - 1];
+    await expect(
+      page.getByText('Latest · ' + latest.kg.toFixed(1) + ' kg', { exact: false })
+    ).toBeVisible();
     await expect(page.locator('#chBw')).toBeVisible();
     const bw = page.locator('#chBw');
     await bw.scrollIntoViewIfNeeded();
     const box = await bw.boundingBox();
     expect(box).toBeTruthy();
     await page.mouse.click(box!.x + box!.width - 18, box!.y + box!.height / 2);
-    await expect(page.locator('#bwNear')).toBeVisible();
+    await expect(page.locator('#bwNear')).toContainText(latest.kg.toFixed(1) + ' kg');
   });
 
   test('history page lists, filters, and details every change', async ({ page }) => {

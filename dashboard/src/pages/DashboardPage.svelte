@@ -152,6 +152,7 @@
   }
 
   let bwIdx: number | null = $state(null);
+  const latestBw = $derived(snap.bodyweight[snap.bodyweight.length - 1]);
   const bwRow = $derived(bwIdx !== null ? (snap.bodyweight[bwIdx] ?? null) : null);
   const bwNear = $derived(bwRow ? nearbyEvents(snap, bwRow.date, 7) : []);
 
@@ -462,16 +463,18 @@
         {#if partial?.length}<div class="cap">* Partial window at the block boundary</div>{/if}
         <Provenance def={defOf(snap, 'muscle_volume')} id="volProv" />
       </div>
-      <SectionHeader title="Bodyweight" sub="Gym scale weigh ins, as logged in chat." />
+      <SectionHeader
+        title="Bodyweight"
+        sub={latestBw ? 'Latest · ' + latestBw.kg.toFixed(1) + ' kg · ' + fmtD(latestBw.date) : ''}
+      />
       <div class="surface-flat">
         <BodyweightChart rows={snap.bodyweight} onSelect={pickBw} />
         <div class="cap">
-          Dashed spans are gaps, not measurements. Thin line is the 7-day average. Tap a point to
-          see what else was happening around then.
+          Thin line is the 7-day average. Dashed spans mark gaps. Hover or tap for exact weights.
         </div>
         {#if bwRow}
           <div class="daydetail" id="bwNear">
-            <b>Around {fmtD(bwRow.date)}</b>
+            <b>{bwRow.kg.toFixed(1)} kg · {fmtD(bwRow.date)}</b>
             {#each bwNear as e}
               <div>{fmtD(e.date)} · <b>{e.title}</b> · {e.summary}</div>
             {:else}

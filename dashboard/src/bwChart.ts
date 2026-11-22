@@ -101,18 +101,11 @@ export function plot(
   });
   g.stroke();
   g.fillStyle = LC[0];
-  g.textAlign = 'center';
   rows.forEach((r, i) => {
     g.beginPath();
     g.arc(xOf(i), py(r.kg), 5, 0, 7);
     g.fill();
     hit.points.push({ x: xOf(i), y: py(r.kg), index: i });
-    g.fillStyle = theme.color('ink-dim');
-    if (i === 0) putText(g, W, r.kg.toFixed(1), xOf(i) + 8, py(r.kg) - 12, 'left');
-    else if (i === rows.length - 1)
-      putText(g, W, r.kg.toFixed(1), xOf(i) - 8, py(r.kg) - 12, 'right');
-    else putText(g, W, r.kg.toFixed(1), xOf(i), py(r.kg) - 12, 'center');
-    g.fillStyle = LC[0];
   });
   g.fillStyle = theme.color('ink-dim');
   for (const i of labelIndices(rows.length, 5))
