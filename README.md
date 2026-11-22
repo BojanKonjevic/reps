@@ -36,7 +36,7 @@ Short reports, honest ones. PRs, top sets versus last time on the same slot, tar
 
 A dashboard you can check on your phone. e1RM trends per lift, volume by muscle, calendar with rest days kept distinct from missed days, trophy marks on PR days. Bodyweight comes from the gym scale when you remember, about one entry a day, latest wins on the chart.
 
-A program you can change in words. Bring up side delts, swap an exercise, ask for goal ideas, review the split against the evidence, audit the data when something looks off. Month end writes a short rollup, trend plus caveats, never raw sets.
+A program you can change in words. Bring up side delts, swap an exercise, ask for goal ideas, review the split against the evidence, audit the data when something looks off.
 
 ## How it works
 

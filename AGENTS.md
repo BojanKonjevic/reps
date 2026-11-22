@@ -25,7 +25,7 @@ Protocol and state live in `docs/`, domain logic in `reps/`, the agent interface
 - `docs/DASHBOARD.md` — dashboard code, deploys, and sync. Only for dashboard work.
 - `docs/ARCHITECTURE.md` — layers, module homes, validation boundaries, what owns what. Read before changing code structure or adding a feature.
 - `docs/SSOT.md` — ownership register, decision procedure, good and bad examples. Read before any code change.
-- `docs/MEMORY.md` — durable judgment state (injuries, sleep, life context, rollups). Short, current only.
+- `docs/MEMORY.md` — durable judgment state (injuries, sleep, life context). Short, current only.
 - `docs/SCIENCE.md` — evidence reference with trust tiers. Read for defaults, never for what I already logged.
 - `constants.json` — single source of truth for muscles, MEV/MAV/MRV, thresholds. Edited via the `constants_set` tool, never by hand.
 - `docs/AUDIT.md` — data quality protocol. `docs/ISSUES.md` — agent behavior issue log.
