@@ -216,32 +216,25 @@ def status_view(sessions, as_of, break_threshold):
     gap = (date.fromisoformat(as_of) - date.fromisoformat(last)).days if last else None
     on_break = bool(gap is not None and gap >= break_threshold)
     return {"open_today": any(s["status"] == "open" for s in today),
-            "rest_today": bool(today) and all(s["status"] == "rest" for s in today),
+            "rest_today": bool(sessions) and not any(s["exercises"] or s["status"] == "open" for s in today),
             "last_trained": last, "break_days": gap if on_break else None,
             "on_break": on_break}
 
 
 def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
-    from .adherence import _classify_one, _rest_set, _trained_by_date, expected_day, schedule_shifts
+    from .adherence import _classify_one, _trained_by_date, expected_day, schedule_shifts
     from .program import parse_active_split_days
     from .slots import slot_of_session as _match
-    trained_dates = sorted({s["date"] for s in sessions if s["exercises"]})
-    rest_all = sorted(r["date"] for r in c.execute(
-        "SELECT date FROM workouts WHERE status = 'rest'").fetchall())
-    if not trained_dates and not rest_all:
+    if not sessions:
         return []
-    first = min(trained_dates + rest_all or [as_of])
+    first = min(s["date"] for s in sessions)
     d0 = date.fromisoformat(first)
     d1 = date.fromisoformat(as_of)
-    # One prefetch per fact (trained map, rest set, split map), then pure
-    # Python per date. Previously every date paid classify_date's ~4 queries
-    # plus an O(n) reversed scan for the previous trained date: ~1100 dates x
-    # queries at 3-year scale. Shape below is unchanged.
-    trained_map = _trained_by_date(c, first, as_of)
-    rest_dates = _rest_set(c, first, as_of)
-    shifts = schedule_shifts(rotation, anchor, rest_dates, first, as_of) if (anchor and rotation) else {}
+    trained_map = _trained_by_date(c, min(first, anchor["date"]) if anchor else first, as_of)
+    shifts = schedule_shifts(rotation, anchor, trained_map, first, as_of) if (anchor and rotation) else {}
     day_map = parse_active_split_days(c) if (anchor and rotation) else {}
     by_date = {s["date"]: s for s in sessions if s["exercises"]}
+    rest_notes = {s["date"]: s["notes"] for s in sessions if s["status"] == "rest" and s["notes"]}
     days = []
     step = d0
     prev = None
@@ -253,16 +246,9 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
             exp = expected_day(rotation, anchor, iso, shifts.get(iso, 0))
             trained = trained_map.get(iso, set())
             matched = _match(list(trained), day_map)["day"] if trained else None
-            verdict = _classify_one(iso, exp, trained, iso in rest_dates, matched)
+            verdict = _classify_one(iso, exp, trained, matched)
             status, expected = verdict["status"], verdict["expected"]
-        if sess:
-            kind = "trained"
-        elif iso in rest_dates:
-            kind = "rest"
-        elif status == "missed":
-            kind = "missed"
-        else:
-            kind = "empty"
+        kind = "trained" if sess else "rest"
         gap = (step - date.fromisoformat(prev)).days if prev else 0
         lines: list[str] = []
         if sess:
@@ -276,10 +262,10 @@ def calendar_view(c, sessions, as_of, rotation, anchor, break_threshold):
             total = sum(len(ex["sets"]) for ex in sess["exercises"])
             if total > shown:
                 lines.append(f"+{total - shown} more sets")
-        elif kind == "missed":
-            lines.append(f"expected {expected}, nothing logged")
-        elif kind == "rest":
+        else:
             lines.append("rest")
+            if iso in rest_notes:
+                lines.append(rest_notes[iso])
         days.append({"date": iso, "kind": kind,
                      "slot_label": sess["slot_label"] if sess else None,
                      "has_pr": bool(sess and any(s["pr"] for ex in sess["exercises"]

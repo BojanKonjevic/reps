@@ -20,7 +20,7 @@ export interface NowSeg {
 export function subLine(snap: Snapshot): string {
   const sessions = snap.sessions.filter(s => s.status !== 'rest');
   if (sessions.length) return sessions.length + (sessions.length === 1 ? ' session' : ' sessions');
-  if (snap.sessions.length) return 'no sessions yet, ' + snap.sessions.length + ' rest days logged';
+  if (snap.sessions.length) return 'no training sessions yet';
   return 'no sync yet, log your first session';
 }
 

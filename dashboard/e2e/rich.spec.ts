@@ -1,4 +1,3 @@
-
 import { test, expect, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -40,14 +39,16 @@ test.describe('Rich snapshot sections', () => {
 
   test('goal cards show percent to target', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
-    await expect(page.locator('#goalGrid .goalmeta').first()).toContainText(`${goal.percent}% there`);
+    await expect(page.locator('#goalGrid .goalmeta').first()).toContainText(
+      `${goal.percent}% there`
+    );
   });
 
   test('consistency section renders adherence verdicts', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await expect(page.locator('#adhWrap')).toBeVisible();
-    const missed = rich.adherence!.days.filter(d => d.status === 'missed').length;
-    await expect(page.locator('#adhCard .dt-missed')).toHaveCount(missed);
+    const rest = rich.adherence!.days.filter(d => d.status === 'rest_ok').length;
+    await expect(page.locator('#adhCard .dt-restok')).toHaveCount(rest);
     // Regression: dots must actually paint. Transparent boxes pass count
     // and visibility checks, so assert the ::after visual has size and fill.
     const paint = await page.evaluate(() => {
@@ -66,11 +67,24 @@ test.describe('Rich snapshot sections', () => {
     );
   });
 
+  test('calendar opens a rest day without a logged workout', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
+    const date = rich.calendar.find(
+      d =>
+        d.kind === 'rest' &&
+        d.date.slice(0, 7) === rich.as_of.slice(0, 7) &&
+        !rich.sessions.some(s => s.date === d.date)
+    ).date;
+    await page.locator(`a.cd.r[href="#/s/${date}"]`).click();
+    await expect(page.locator('#viewSession .restday')).toHaveText('rest day');
+  });
+
   test('legend dims deprioritized muscles', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     const prone = rich.muscles.filter(m => m.tier === 'priority').map(m => m.muscle);
     const depr = rich.muscles.filter(m => m.tier === 'deprioritize').map(m => m.muscle);
-    for (const m of prone) await expect(page.locator('#legMus a.focus', { hasText: m })).toHaveCount(1);
+    for (const m of prone)
+      await expect(page.locator('#legMus a.focus', { hasText: m })).toHaveCount(1);
     for (const m of depr.slice(0, 1))
       await expect(page.locator('#legMus a.dim', { hasText: m })).toHaveCount(1);
   });
@@ -126,7 +140,9 @@ test.describe('Rich snapshot sections', () => {
   test('coach notes read the snapshot signals aloud', async ({ page }) => {
     await gotoFixture(page, rich, rich.as_of);
     await expect(page.locator('#sigWrap')).toBeVisible();
-    await expect(page.locator('#sigCard .sigtag').first()).toHaveText(rich.signals[0].severity.toUpperCase());
+    await expect(page.locator('#sigCard .sigtag').first()).toHaveText(
+      rich.signals[0].severity.toUpperCase()
+    );
     await expect(page.locator('#sigCard')).toContainText(rich.signals[0].text.slice(0, 40));
   });
 });

@@ -28,7 +28,7 @@ export function directionClass(direction: string): string {
 }
 
 export function statusLabel(status: string): string {
-  return status.replace(/_/g, ' ');
+  return status === 'rest_ok' ? 'rest' : status.replace(/_/g, ' ');
 }
 
 export function markText(kind: string): string {

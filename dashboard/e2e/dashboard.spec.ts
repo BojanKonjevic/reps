@@ -1,4 +1,3 @@
-
 import { test, expect, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -113,7 +112,8 @@ test.describe('Dashboard', () => {
     expect(Math.abs(y - y0)).toBeLessThan(60);
   });
 
-  test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {    await gotoFixture(page, rich, rich.as_of);
+  test('mini charts repaint at full size after returning from a lift page', async ({ page }) => {
+    await gotoFixture(page, rich, rich.as_of);
     await page.locator('#trendGrid .mini a').first().click();
     await expect(page.locator('#viewLift')).toBeVisible();
     // Resize while the dash is hidden: the debounced render must not bake a
@@ -130,11 +130,15 @@ test.describe('Dashboard', () => {
     });
   });
 
-  test('rest days show distinctly and are not counted as sessions', async ({ page }) => {
+  test('rest days show their saved notes and preserve the session count', async ({ page }) => {
     await gotoFixture(page, brk, brk.as_of);
     await expect(page.locator('#sub')).toContainText(`${sessionsOf(brk)}`);
-    await expect(page.locator('.cal a.cd.r')).toHaveCount(1);
-    await page.locator('.cal a.cd.r').click();
+    const noted = brk.sessions.find(s => s.status === 'rest' && s.notes === 'sore legs');
+    const rest = brk.calendar.filter(
+      d => d.kind === 'rest' && d.date.slice(0, 7) === brk.as_of.slice(0, 7)
+    );
+    await expect(page.locator('.cal a.cd.r')).toHaveCount(rest.length);
+    await page.locator(`a.cd.r[href="#/s/${noted.date}"]`).click();
     await expect(page.locator('#viewSession')).toBeVisible();
     await expect(page.locator('#sessNotes')).toContainText('rest day');
     await expect(page.locator('#sessNotes')).toContainText('sore legs');
@@ -197,7 +201,9 @@ test.describe('Dashboard', () => {
   test('no horizontal overflow on mobile', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'overflow check is mobile-only');
     await gotoFixture(page, rich, rich.as_of);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
     expect(overflow).toBeLessThanOrEqual(1);
   });
 });

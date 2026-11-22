@@ -719,90 +719,62 @@
     },
     {
       "date": "2026-09-15",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-16",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-17",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-18",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-19",
-      "kind": "empty",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": true,
-      "adherence_status": null,
-      "expected": null,
-      "hover": {
-        "lines": []
-      }
-    },
-    {
-      "date": "2026-09-20",
-      "kind": "empty",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": true,
-      "adherence_status": null,
-      "expected": null,
-      "hover": {
-        "lines": []
-      }
-    },
-    {
-      "date": "2026-09-21",
-      "kind": "empty",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": true,
-      "adherence_status": null,
-      "expected": null,
-      "hover": {
-        "lines": []
-      }
-    },
-    {
-      "date": "2026-09-22",
       "kind": "rest",
       "slot_label": null,
       "has_pr": false,
@@ -816,33 +788,80 @@
       }
     },
     {
-      "date": "2026-09-23",
-      "kind": "empty",
+      "date": "2026-09-20",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-21",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "rest"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "rest",
+          "sore legs"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": true,
+      "adherence_status": null,
+      "expected": null,
+      "hover": {
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-24",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     }
   ],
   "status": {
     "open_today": false,
-    "rest_today": false,
+    "rest_today": true,
     "last_trained": "2026-09-14",
     "break_days": 10,
     "on_break": true

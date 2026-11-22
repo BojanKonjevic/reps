@@ -787,110 +787,128 @@
     },
     {
       "date": "2026-09-05",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-06",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-07",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-08",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-09",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-10",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-11",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-12",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-13",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
@@ -909,86 +927,100 @@
     },
     {
       "date": "2026-09-15",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-16",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-17",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-18",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-19",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-20",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-21",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": true,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
@@ -1007,32 +1039,36 @@
     },
     {
       "date": "2026-09-23",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-24",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": null,
       "expected": null,
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     }
   ],
   "status": {
     "open_today": false,
-    "rest_today": false,
+    "rest_today": true,
     "last_trained": "2026-09-22",
     "break_days": null,
     "on_break": false

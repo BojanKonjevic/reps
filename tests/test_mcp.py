@@ -145,14 +145,16 @@ def test_rest_push_visible_through_mcp(log_module):
                    "to_date": today.isoformat()})
     assert status["ok"] is True
     by_date = {e["date"]: e for e in status["data"]}
-    assert by_date[today.isoformat()]["status"] == "rest_logged"
+    assert by_date[today.isoformat()]["status"] == "rest_ok"
     assert by_date[today.isoformat()]["expected"] == "Upper A"
     obs = call("observe", {"metric": "adherence_summary", "subject": "",
                            "since": today.isoformat(),
                            "until": (today + timedelta(days=1)).isoformat()})
     assert obs["ok"] is True
     verdicts = {v["date"]: v for v in obs["data"]["result"]["verdicts"]}
-    assert verdicts[(today + timedelta(days=1)).isoformat()]["expected"] == "Upper A"
+    tomorrow = verdicts[(today + timedelta(days=1)).isoformat()]
+    assert tomorrow["expected"] == "Upper A"
+    assert tomorrow["status"] == "unknown"
 
 
 def test_history_and_observe_through_mcp(log_module):

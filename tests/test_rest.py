@@ -28,6 +28,12 @@ def test_rest_repeat_without_note_reports_noop(log_module):
     assert row["notes"] == "sore"
 
 
+def test_rest_without_note_does_not_create_a_row(log_module):
+    today = date.today().isoformat()
+    assert log_module.mark_rest(today, "")["rest_id"] is None
+    assert log_module.get_session(today) == {"date": today, "workouts": [], "rest": True}
+
+
 def test_rest_rejects_bad_date_cleanly(log_module):
     """Direct calls with garbage dates refuse cleanly, no traceback."""
     try:
@@ -135,7 +141,7 @@ def test_stats_and_context_exclude_rest(log_module):
 
 
 def test_calendar_marks_rest_days(log_module):
-    """Calendar flags all-rest dates distinctly from absence and sessions."""
+    """Calendar includes notes on rest days."""
     c = log_module.conn()
     log_module.mark_rest(date.today().isoformat(), "sore")
     out = log_module.get_calendar()

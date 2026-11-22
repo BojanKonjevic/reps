@@ -324,12 +324,16 @@ def test_calendar_returns_gaps(log_module):
     d0 = (today - timedelta(days=10)).isoformat()
     d1 = (today - timedelta(days=5)).isoformat()
     d2 = today.isoformat()
+    log_module.set_exercise_mapping("bench", "chest")
     for d in [d0, d1, d2]:
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
+        c.execute("INSERT INTO sets (workout_id, exercise, weight, reps, created) VALUES (?, 'bench', 80, 5, ?)",
+                  (cur.lastrowid, d))
         c.commit()
     data = log_module.get_calendar()
-    dates = [d["date"] for d in data["dates"]]
-    assert len(dates) == 3
+    assert len(data["dates"]) == 11
+    assert data["dates"][1]["rest"] is True
+    assert data["dates"][1]["workouts"] == []
     today_entry = next(d for d in data["dates"] if d["date"] == d2)
     assert today_entry["gap_since_prev"] == 4
 

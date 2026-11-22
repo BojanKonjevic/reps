@@ -218,7 +218,7 @@ def session_check(note: str = "") -> dict:
 
 @mcp.tool()
 def session_rest(day: str, note: str = "") -> dict:
-    """Mark a day as rest. Rest is tracked explicitly, never inferred.
+    """Attach an optional note to a rest day. Days without training are already rest.
 
     Args:
         day: Date yyyy-mm-dd. Backfill allowed, future refused.
@@ -305,7 +305,7 @@ def session_notes(limit: int = 200) -> dict:
 
 @mcp.tool()
 def session_calendar() -> dict:
-    """Workout calendar with PR days and rotation verdicts."""
+    """Workout calendar from the first recorded day through today, including rest days."""
     return call_domain(_sessions.get_calendar)
 
 

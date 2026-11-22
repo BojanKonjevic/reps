@@ -285,8 +285,8 @@ def _goal_trajectory(subject, since, until):
 
 
 def _adherence_summary(subject, since, until):
-    from .adherence import (_classify_one, _rest_set, _trained_by_date,
-                            drift_days, expected_day, get_anchor, is_rest_day)
+    from .adherence import (_classify_one, _trained_by_date, delays_rotation,
+                            drift_days, expected_day, get_anchor)
     from .history import list_changes, split_map_at, value_at
     from .program import get_rotation
     from .slots import slot_of_session as _match
@@ -301,7 +301,7 @@ def _adherence_summary(subject, since, until):
         raise RepsError("rotation adherence needs a rotation and an anchor")
     if not anch_hist and cur_anch is None:
         raise RepsError("rotation adherence needs a rotation and an anchor")
-    # Prefetch once for the whole range: per-date trained sets and rest rows.
+    # Prefetch once for the whole range: per-date completed training.
     # The rotation/anchor/split still fold per date (history can change them),
     # but those folds are in-Python over already-fetched change lists.
     # Rest-push shifts replay from the anchor active at the range start, so a
@@ -311,13 +311,13 @@ def _adherence_summary(subject, since, until):
     if span_anchor_date is None and not anch_hist and cur_anch is not None:
         span_anchor_date = cur_anch["date"]
     loop_start = min(since, span_anchor_date) if span_anchor_date else since
-    trained_map = _trained_by_date(c, since, until)
-    rest_days = _rest_set(c, loop_start, until)
+    trained_map = _trained_by_date(c, loop_start, until)
     days = []
     shift = 0
     span = None
     day = date.fromisoformat(loop_start)
     end = date.fromisoformat(until)
+    today = date.today()
     while day <= end:
         d = day.isoformat()
         rot = value_at(rot_hist, d, "rotation")
@@ -345,13 +345,16 @@ def _adherence_summary(subject, since, until):
                              "status": "unknown"})
         else:
             exp = expected_day(rot_names, anchor, d, shift)
-            if d in rest_days and not is_rest_day(exp):
+            trained = trained_map.get(d, set())
+            if day <= today and delays_rotation(d, anchor, exp, trained):
                 shift += 1
             if d >= since:
-                trained = trained_map.get(d, set())
                 daymap = split_map_at(prog_hist, d, c)
                 matched = _match(list(trained), daymap)["day"] if trained else None
-                days.append(_classify_one(d, exp, trained, d in rest_days, matched))
+                verdict = _classify_one(d, exp, trained, matched)
+                if day > today:
+                    verdict["status"] = "unknown"
+                days.append(verdict)
         day += timedelta(days=1)
     counts: dict = {}
     for v in days:

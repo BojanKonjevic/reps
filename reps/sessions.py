@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from .constants import clean_muscles, load_constants
 from .db import conn, open_workout
@@ -370,6 +370,8 @@ def mark_rest(day, note):
             c.commit()
             appended = True
         return {"rest_id": rid, "date": day, "appended": appended}
+    if not note:
+        return {"rest_id": None, "date": day, "appended": False}
     cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'rest', ?)", (day, note))
     c.commit()
     return {"rest_id": cur.lastrowid, "date": day, "appended": False}
@@ -618,7 +620,8 @@ def get_session(datestr):
     for w in wrows:
         sets = c.execute("SELECT * FROM sets WHERE workout_id = ? ORDER BY id", (w["id"],)).fetchall()
         out.append({"workout": dict(w), "sets": attach_muscles(c, sets)})
-    return {"date": day, "workouts": out}
+    return {"date": day, "workouts": out,
+            "rest": day <= date.today().isoformat() and not any(w["sets"] for w in out)}
 
 
 def get_session_range(fromstr, tostr):
@@ -659,22 +662,21 @@ def get_calendar():
     counts = {r["date"]: r["n"] for r in c.execute(
         "SELECT w.date AS date, COUNT(*) n FROM sets s "
         "JOIN workouts w ON w.id = s.workout_id GROUP BY w.date").fetchall()}
-    for d in by_date.values():
-        d["sets"] = counts.get(d["date"], 0)
-    statuses: dict = {}
-    for r in c.execute("SELECT date, status FROM workouts").fetchall():
-        statuses.setdefault(r["date"], []).append(r["status"])
-    for d in by_date.values():
-        sts = statuses.get(d["date"], [])
-        d["rest"] = bool(sts) and all(s == "rest" for s in sts)
-    days = sorted(by_date.values(), key=lambda d: d["date"])
-    prev = None
-    for d in days:
-        if prev is None:
-            d["gap_since_prev"] = None
-        else:
-            d["gap_since_prev"] = (date.fromisoformat(d["date"]) - date.fromisoformat(prev)).days - 1
-        prev = d["date"]
+    days = []
+    if by_date:
+        day = date.fromisoformat(min(by_date))
+        today = date.today()
+        prev_trained = None
+        while day <= today:
+            iso = day.isoformat()
+            entry = by_date.get(iso, {"date": iso, "workouts": [], "sets": 0})
+            entry["sets"] = counts.get(iso, 0)
+            entry["rest"] = not entry["sets"]
+            entry["gap_since_prev"] = (day - prev_trained).days - 1 if prev_trained else None
+            if not entry["rest"]:
+                prev_trained = day
+            days.append(entry)
+            day += timedelta(days=1)
     return {"dates": days}
 
 

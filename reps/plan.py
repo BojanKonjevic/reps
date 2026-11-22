@@ -23,7 +23,6 @@ def get_plan(slot=None, verbose=False):
     today_iso = today.isoformat()
 
     w = open_workout(c)
-    rest_row = c.execute("SELECT * FROM workouts WHERE date = ? AND status = 'rest' ORDER BY id", (today_iso,)).fetchone()
     stale = None
     if w:
         stale = staleness(dict(w), today)
@@ -72,8 +71,6 @@ def get_plan(slot=None, verbose=False):
         detail = []
         if ctx["last_done"]:
             detail.append(f"last done: {ctx['last_done']['day']} {ctx['last_done']['date']}")
-        if ctx["missed"]:
-            detail.append("missed " + ", ".join(f"{m['day']} {m['date']}" for m in ctx["missed"]))
         if detail:
             second += " (" + "; ".join(detail) + ")"
         slot_guess["basis"] += "; " + second
@@ -179,7 +176,7 @@ def get_plan(slot=None, verbose=False):
     bundle = {
         "today": {"open": w is not None,
                   "workout": {"id": w["id"], "date": w["date"], "status": w["status"]} if w else None,
-                  "rest": bool(rest_row), "stale": stale,
+                  "stale": stale,
                   "last_session": last_session, "gap_days": gap_days, "break": on_break},
         "slot_guess": slot_guess,
         "split": split_section,
@@ -201,8 +198,6 @@ def get_plan(slot=None, verbose=False):
         if w:
             flag = "STALE" if stale["is_stale"] else "open"
             lines.append(f"workout {w['id']} {flag} (age {stale['age_days']}d, last set {stale['last_set_created']})")
-        elif rest_row:
-            lines.append("today is marked rest")
         else:
             lines.append("no open workout")
         lines.append(f"last session {last_session} ({gap_days}d ago)" + (" BREAK, no PR attempts" if on_break else ""))

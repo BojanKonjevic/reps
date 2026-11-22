@@ -14,14 +14,14 @@
 
   let { snap, date: ds }: Props = $props();
 
-  const dates = $derived(Array.from(new Set(snap.sessions.map(s => s.date))).sort());
+  const dates = $derived(snap.calendar.map(d => d.date));
   const ix = $derived(dates.indexOf(ds));
   const prev = $derived(ix > 0 ? dates[ix - 1] : null);
   const next = $derived(ix >= 0 && ix < dates.length - 1 ? dates[ix + 1] : null);
 
   const day = $derived(snap.sessions.filter(s => s.date === ds));
   const wnotes = $derived(day.map(s => s.notes).filter(n => n));
-  const allRest = $derived(day.length > 0 && day.every(s => s.status === 'rest'));
+  const allRest = $derived(snap.calendar.find(d => d.date === ds)?.kind === 'rest');
 
   interface ExBlock {
     ex: string;
@@ -53,12 +53,10 @@
     return out;
   });
 
-  const title = $derived(
-    !day.length ? fmtD(ds) : fmtLong(ds) + (day[0].slot_label ? ', ' + day[0].slot_label : '')
-  );
+  const title = $derived(fmtLong(ds) + (day[0]?.slot_label ? ', ' + day[0].slot_label : ''));
 
   onMount(() => {
-    document.title = fmtD(ds) + (!day.length ? ' no session' : allRest ? ' rest day' : ' training');
+    document.title = fmtD(ds) + (allRest ? ' rest day' : !day.length ? ' no session' : ' training');
   });
 </script>
 
@@ -102,7 +100,7 @@
     {/if}
   </div>
   <div id="sessBody" class="exgrid">
-    {#if !day.length}
+    {#if !day.length && !allRest}
       <div class="empty">no session logged this day</div>
     {/if}
     {#each blocks as b}

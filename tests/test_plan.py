@@ -15,7 +15,7 @@ def test_plan_empty_db_shape(log_module):
     bundle = _plan(log)
     assert set(bundle) == {"today", "slot_guess", "split", "goals", "rules", "volume", "ledger", "lifts",
                            "progression", "flags", "priority", "deload", "autoreg", "adherence", "compaction"}
-    assert bundle["today"] == {"open": False, "workout": None, "rest": False, "stale": None,
+    assert bundle["today"] == {"open": False, "workout": None, "stale": None,
                                  "last_session": None, "gap_days": None, "break": False}
     assert bundle["slot_guess"]["confidence"] == "low"
     assert len(bundle["volume"]) == 13

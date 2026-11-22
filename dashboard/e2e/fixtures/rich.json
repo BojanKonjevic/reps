@@ -940,28 +940,30 @@
     },
     {
       "date": "2026-09-05",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
+      "adherence_status": "rest_ok",
       "expected": "Upper B",
       "hover": {
         "lines": [
-          "expected Upper B, nothing logged"
+          "rest"
         ]
       }
     },
     {
       "date": "2026-09-06",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": "rest_ok",
-      "expected": "rest",
+      "expected": "Upper B",
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
@@ -970,8 +972,8 @@
       "slot_label": "Upper B",
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "swapped",
-      "expected": "Upper A",
+      "adherence_status": "done",
+      "expected": "Upper B",
       "hover": {
         "lines": [
           "row 80x5"
@@ -980,41 +982,43 @@
     },
     {
       "date": "2026-09-08",
-      "kind": "missed",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper B",
-      "hover": {
-        "lines": [
-          "expected Upper B, nothing logged"
-        ]
-      }
-    },
-    {
-      "date": "2026-09-09",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": "rest_ok",
       "expected": "rest",
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-09",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-10",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
+      "adherence_status": "rest_ok",
       "expected": "Upper A",
       "hover": {
         "lines": [
-          "expected Upper A, nothing logged"
+          "rest"
         ]
       }
     },
@@ -1024,8 +1028,8 @@
       "slot_label": "Upper A",
       "has_pr": true,
       "break_after_gap": false,
-      "adherence_status": "swapped",
-      "expected": "Upper B",
+      "adherence_status": "done",
+      "expected": "Upper A",
       "hover": {
         "lines": [
           "bench 97.5x5 (PR)"
@@ -1034,27 +1038,29 @@
     },
     {
       "date": "2026-09-12",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": "rest_ok",
-      "expected": "rest",
+      "expected": "Upper B",
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-13",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper A",
+      "adherence_status": "rest_ok",
+      "expected": "Upper B",
       "hover": {
         "lines": [
-          "expected Upper A, nothing logged"
+          "rest"
         ]
       }
     },
@@ -1074,41 +1080,43 @@
     },
     {
       "date": "2026-09-15",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": "rest_ok",
       "expected": "rest",
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
       }
     },
     {
       "date": "2026-09-16",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
+      "adherence_status": "rest_ok",
       "expected": "Upper A",
       "hover": {
         "lines": [
-          "expected Upper A, nothing logged"
+          "rest"
         ]
       }
     },
     {
       "date": "2026-09-17",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper B",
+      "adherence_status": "rest_ok",
+      "expected": "Upper A",
       "hover": {
         "lines": [
-          "expected Upper B, nothing logged"
+          "rest"
         ]
       }
     },
@@ -1118,8 +1126,8 @@
       "slot_label": "Upper A",
       "has_pr": true,
       "break_after_gap": false,
-      "adherence_status": "extra",
-      "expected": "rest",
+      "adherence_status": "done",
+      "expected": "Upper A",
       "hover": {
         "lines": [
           "bench 100x5 (PR)"
@@ -1128,29 +1136,29 @@
     },
     {
       "date": "2026-09-19",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper A",
+      "adherence_status": "rest_ok",
+      "expected": "Upper B",
       "hover": {
         "lines": [
-          "expected Upper A, nothing logged"
+          "rest"
         ]
       }
     },
     {
       "date": "2026-09-20",
-      "kind": "missed",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
-      "adherence_status": "missed",
+      "adherence_status": "rest_ok",
       "expected": "Upper B",
       "hover": {
         "lines": [
-          "expected Upper B, nothing logged"
+          "rest"
         ]
       }
     },
@@ -1160,8 +1168,8 @@
       "slot_label": "Upper B",
       "has_pr": true,
       "break_after_gap": false,
-      "adherence_status": "extra",
-      "expected": "rest",
+      "adherence_status": "done",
+      "expected": "Upper B",
       "hover": {
         "lines": [
           "row 85x5 (PR)"
@@ -1170,48 +1178,50 @@
     },
     {
       "date": "2026-09-22",
-      "kind": "missed",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper A",
-      "hover": {
-        "lines": [
-          "expected Upper A, nothing logged"
-        ]
-      }
-    },
-    {
-      "date": "2026-09-23",
-      "kind": "missed",
-      "slot_label": null,
-      "has_pr": false,
-      "break_after_gap": false,
-      "adherence_status": "missed",
-      "expected": "Upper B",
-      "hover": {
-        "lines": [
-          "expected Upper B, nothing logged"
-        ]
-      }
-    },
-    {
-      "date": "2026-09-24",
-      "kind": "empty",
+      "kind": "rest",
       "slot_label": null,
       "has_pr": false,
       "break_after_gap": false,
       "adherence_status": "rest_ok",
       "expected": "rest",
       "hover": {
-        "lines": []
+        "lines": [
+          "rest"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-23",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "rest"
+        ]
+      }
+    },
+    {
+      "date": "2026-09-24",
+      "kind": "rest",
+      "slot_label": null,
+      "has_pr": false,
+      "break_after_gap": false,
+      "adherence_status": "rest_ok",
+      "expected": "Upper A",
+      "hover": {
+        "lines": [
+          "rest"
+        ]
       }
     }
   ],
   "status": {
     "open_today": false,
-    "rest_today": false,
+    "rest_today": true,
     "last_trained": "2026-09-21",
     "break_days": null,
     "on_break": false
@@ -1532,29 +1542,29 @@
         "date": "2026-09-05",
         "expected": "Upper B",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-06",
-        "expected": "rest",
+        "expected": "Upper B",
         "trained": null,
         "status": "rest_ok"
       },
       {
         "date": "2026-09-07",
-        "expected": "Upper A",
+        "expected": "Upper B",
         "trained": "Upper B",
-        "status": "swapped"
+        "status": "done"
       },
       {
         "date": "2026-09-08",
-        "expected": "Upper B",
+        "expected": "rest",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-09",
-        "expected": "rest",
+        "expected": "Upper A",
         "trained": null,
         "status": "rest_ok"
       },
@@ -1562,25 +1572,25 @@
         "date": "2026-09-10",
         "expected": "Upper A",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-11",
-        "expected": "Upper B",
+        "expected": "Upper A",
         "trained": "Upper A",
-        "status": "swapped"
+        "status": "done"
       },
       {
         "date": "2026-09-12",
-        "expected": "rest",
+        "expected": "Upper B",
         "trained": null,
         "status": "rest_ok"
       },
       {
         "date": "2026-09-13",
-        "expected": "Upper A",
+        "expected": "Upper B",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-14",
@@ -1598,80 +1608,80 @@
         "date": "2026-09-16",
         "expected": "Upper A",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-17",
-        "expected": "Upper B",
+        "expected": "Upper A",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-18",
-        "expected": "rest",
+        "expected": "Upper A",
         "trained": "Upper A",
-        "status": "extra"
+        "status": "done"
       },
       {
         "date": "2026-09-19",
-        "expected": "Upper A",
+        "expected": "Upper B",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-20",
         "expected": "Upper B",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-21",
-        "expected": "rest",
+        "expected": "Upper B",
         "trained": "Upper B",
-        "status": "extra"
+        "status": "done"
       },
       {
         "date": "2026-09-22",
-        "expected": "Upper A",
+        "expected": "rest",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-23",
-        "expected": "Upper B",
+        "expected": "Upper A",
         "trained": null,
-        "status": "missed"
+        "status": "rest_ok"
       },
       {
         "date": "2026-09-24",
-        "expected": "rest",
+        "expected": "Upper A",
         "trained": null,
         "status": "rest_ok"
       }
     ],
     "drift": true,
-    "drift_days": 10,
+    "drift_days": 3,
     "drift_threshold": 3,
     "weeks": [
       {
         "week_start": "2026-08-31",
         "trained": 1,
-        "expected": 2
+        "expected": 3
       },
       {
         "week_start": "2026-09-07",
         "trained": 2,
-        "expected": 5
+        "expected": 6
       },
       {
         "week_start": "2026-09-14",
-        "trained": 1,
-        "expected": 5
+        "trained": 2,
+        "expected": 6
       },
       {
         "week_start": "2026-09-21",
-        "trained": 0,
-        "expected": 2
+        "trained": 1,
+        "expected": 3
       }
     ]
   },
@@ -1718,7 +1728,7 @@
     },
     {
       "severity": "medium",
-      "text": "adherence drift: 10 non-done days, consider re-anchoring the rotation"
+      "text": "adherence drift: 3 non-done days, consider re-anchoring the rotation"
     }
   ],
   "recent_notes": [

@@ -244,10 +244,12 @@ def test_adherence_weeks_and_calendar(log_module):
     log = log_module
     _seeded(log)
     log.anchor_rotation((date.today() - timedelta(days=3)).isoformat(), "Upper A")
+    log.mark_rest((date.today() - timedelta(days=2)).isoformat(), "travel")
     snap = log.export_snapshot()
     assert snap["adherence"]["weeks"][-1]["expected"] >= 1
-    kinds = {d["kind"] for d in snap["calendar"]}
-    assert kinds <= {"trained", "rest", "missed", "empty"}
+    assert [d["kind"] for d in snap["calendar"]] == ["rest", "rest", "rest"]
+    assert snap["calendar"][0]["hover"]["lines"] == ["rest", "travel"]
+    assert snap["calendar"][1]["hover"]["lines"] == ["rest"]
     assert all("hover" in d and isinstance(d["hover"]["lines"], list)
                for d in snap["calendar"])
 

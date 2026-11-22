@@ -448,7 +448,7 @@
                   type="button"
                   class="dt dt-{d.status.replace('_', '')}"
                   class:sel={adhDate === d.date}
-                  title="{d.date}: {d.status} (expected {d.expected})"
+                  title="{d.date}: {statusLabel(d.status)} (expected {d.expected})"
                   aria-label="{d.date}: {statusLabel(d.status)}, expected {d.expected}"
                   aria-pressed={adhDate === d.date}
                   onclick={() => (adhDate = adhDate === d.date ? null : d.date)}
@@ -459,7 +459,10 @@
               <div class="daydetail" id="adhDetail">
                 <b>{fmtD(adhDay.date)}</b>
                 <div>Expected: {adhDay.expected}</div>
-                <div>Actual: {adhDay.trained ?? 'nothing logged'}</div>
+                <div>
+                  Actual: {adhDay.trained ??
+                    (adhDay.status === 'rest_ok' ? 'rest' : 'unmatched training')}
+                </div>
                 <div>Status: {statusLabel(adhDay.status)}</div>
                 {#if adhRotation}
                   <div>Week order at this time: {adhRotation}</div>
@@ -478,9 +481,7 @@
                 <div>{w.week_start} · {w.trained}/{w.expected} sessions</div>
               {/each}
             </div>
-            <div class="cap">
-              Green is trained as planned, red is missed, hollow is scheduled rest.
-            </div>
+            <div class="cap">Green means trained as planned. Hollow marks rest.</div>
             <Provenance def={defOf(snap, 'adherence_summary')} id="adhProv" />
           </div>
         </div>

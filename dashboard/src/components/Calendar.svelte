@@ -53,7 +53,6 @@
     day: number;
     cls: string;
     link: boolean;
-    title: string;
     pr: boolean;
   }
 
@@ -70,7 +69,6 @@
       const info = byDate[key];
       const trained = info?.kind === 'trained';
       const rested = info?.kind === 'rest';
-      const isMissed = info?.kind === 'missed' && key <= todayS;
       out.push({
         key,
         day: d,
@@ -78,12 +76,10 @@
           'cd' +
           (trained ? ' t' : '') +
           (rested ? ' r' : '') +
-          (isMissed ? ' m' : '') +
           (key === todayS ? ' today' : '') +
           (key > todayS ? ' fut' : '') +
           (info?.break_after_gap ? ' brk' : ''),
         link: trained || rested,
-        title: isMissed ? 'missed: expected ' + (info?.expected || '') : '',
         pr: info?.has_pr || false,
       });
     }
@@ -151,7 +147,6 @@
       <a
         href={href.session(c.key)}
         class={c.cls}
-        title={c.title || undefined}
         onmousemove={ev => hoverDay(c.key, ev)}
         onmouseleave={hideTip}
         onclick={hideTip}
@@ -160,7 +155,7 @@
           >{/if}</a
       >
     {:else}
-      <div class={c.cls} title={c.title || undefined}>{c.day}</div>
+      <div class={c.cls}>{c.day}</div>
     {/if}
   {/each}
 </div>
