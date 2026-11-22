@@ -392,7 +392,7 @@ def rotation_bands(entry, days: int):
     }
 
 
-def volume_block(c, today=None, *, since=None, rotation=None):
+def volume_block(c, today=None, *, since=None, rotation=None, completed_only=False, include_plan=None):
     """Volume over fixed-length windows through the as-of date."""
     today = today or date.today()
     constants = load_constants()
@@ -402,19 +402,33 @@ def volume_block(c, today=None, *, since=None, rotation=None):
     span = timedelta(weeks=thresholds.volume_window_weeks).days
     minimum = thresholds.volume_bad_rotations
     end = today + timedelta(days=1)
-    window_count = max(minimum, span // days) if since is None else (
-        ((end - date.fromisoformat(since)).days + days - 1) // days)
-    starts = [end - timedelta(days=days * i) for i in range(window_count, 0, -1)]
-    first = max(starts[0].isoformat(), since) if since else starts[0].isoformat()
-    per_day = muscle_set_counts(c, first, today.isoformat(), completed_only=True)
+    if completed_only and since is not None:
+        first_day = date.fromisoformat(since)
+        count = (end - first_day).days // days
+        starts = [first_day + timedelta(days=days * i) for i in range(count)]
+        end = first_day + timedelta(days=count * days)
+    else:
+        count = max(minimum, span // days) if since is None else (
+            ((end - date.fromisoformat(since)).days + days - 1) // days)
+        starts = [end - timedelta(days=days * i) for i in range(count, 0, -1)]
+    through = (end - timedelta(days=1)).isoformat()
+    per_day = {}
+    if starts:
+        first = starts[0].isoformat()
+        per_day = muscle_set_counts(c, max(first, since) if since else first, through,
+                                    completed_only=True)
     buckets = _volume_buckets(per_day, constants.muscles, starts, days)
     start = span_start(list(buckets.values())) if since is None else 0
-    planned = programmed_rotation_volume(c, rotation=rotation) if since is None else dict.fromkeys(constants.muscles, 0)
+    with_plan = since is None if include_plan is None else include_plan
+    planned = (programmed_rotation_volume(c, rotation=rotation)
+               if with_plan else dict.fromkeys(constants.muscles, 0))
     muscles = {}
     for muscle, entry in constants.muscles.items():
         counts = buckets[muscle][start:]
         bands = rotation_bands(entry, days)
         assessment = classify_volume(counts, bands["mev"], bands["mrv"], minimum)
+        if completed_only and len(counts) < minimum:
+            assessment["status"] = "in_range"
         average = assessment["avg_recent"]
         muscles[muscle] = {
             **assessment,
@@ -425,9 +439,10 @@ def volume_block(c, today=None, *, since=None, rotation=None):
             "freq": [round(n * days / timedelta(weeks=1).days, 2) for n in entry.freq],
             "rotation_sets": counts,
             "planned_sets": planned[muscle],
+            "planned_below_mev": planned[muscle] < bands["mev"],
         }
     return {"rotation_days": days, "starts": [d.isoformat() for d in starts[start:]],
-            "through": today.isoformat(), "muscles": muscles}
+            "through": through, "muscles": muscles}
 
 
 def get_compaction():

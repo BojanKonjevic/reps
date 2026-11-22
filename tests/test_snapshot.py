@@ -19,7 +19,7 @@ def _seeded(log):
 def test_export_v2_shape(log_module):
     """Every v2 top-level view exists and validates (extra=forbid)."""
     snap = log_module.export_snapshot()
-    assert snap["schema_version"] == 6
+    assert snap["schema_version"] == 7
     for key in ["as_of", "constants", "lifts", "muscles", "sessions", "calendar",
                 "volume_history", "bodyweight", "program", "next_up", "goals",
                 "adherence", "signals", "recent_notes", "rules", "flags",
@@ -46,7 +46,7 @@ def test_export_v2_survives_empty_db(log_module, tmp_path, monkeypatch):
 
 
 def test_empty_db_reports_nothing_bad(log_module, tmp_path, monkeypatch):
-    """No history means nothing is bad yet: every muscle in range, one info signal."""
+    """A fresh log has no active block or coaching signals."""
     import sqlite3
     fresh = str(tmp_path / "fresh.db")
     monkeypatch.setattr("reps.db.DB", fresh)
@@ -57,7 +57,7 @@ def test_empty_db_reports_nothing_bad(log_module, tmp_path, monkeypatch):
     c.close()
     snap = log_module.export_snapshot()
     assert {m["status"] for m in snap["muscles"]} == {"in_range"}
-    assert len(snap["signals"]) == 1 and snap["signals"][0]["severity"] == "info"
+    assert snap["signals"] == []
 
 
 def test_session_duration_spans_first_to_last_set():

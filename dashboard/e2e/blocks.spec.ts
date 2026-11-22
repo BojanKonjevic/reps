@@ -33,6 +33,12 @@ test('browse completed and current blocks without resetting all-time records', a
   await page.getByRole('menuitemradio', { name: /^Block 1/ }).click();
   const note = page.getByRole('heading', { name: 'Final coach note' });
   const history = page.getByRole('heading', { name: 'What changed' });
+  const review = page.locator('details.block-signals');
+  await expect(review).toHaveJSProperty('open', false);
+  await review.locator('summary').click();
+  await expect(review).toHaveJSProperty('open', true);
+  await expect(review).toContainText('No signals in this block');
+  await expect(page.locator('#sigWrap')).toHaveCount(0);
   await expect(note).toBeVisible();
   const weight = page.getByRole('group', { name: 'Block bodyweight' });
   await expect(weight).toContainText('79.0 kg');

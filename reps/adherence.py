@@ -201,7 +201,7 @@ def drift_days(statuses):
     return run
 
 
-def adherence_block(c, window_days=14):
+def adherence_block(c, window_days=14, *, since=None):
     """Plan's adherence section, or None when anchor or rotation is missing.
 
     Windows start at the anchor at the earliest: dates before the program
@@ -212,10 +212,11 @@ def adherence_block(c, window_days=14):
     if not rotation or anchor is None:
         return None
     today = date.today()
-    start = max((today - timedelta(days=window_days - 1)).isoformat(), anchor["date"])
+    floor = max(anchor["date"], since) if since else anchor["date"]
+    start = max((today - timedelta(days=window_days - 1)).isoformat(), floor)
     days = status_range(c, rotation, anchor, start, today.isoformat())
     vol_weeks = load_constants().thresholds.volume_window_weeks
-    freq_start = max((today - timedelta(days=vol_weeks * 7 - 1)).isoformat(), anchor["date"])
+    freq_start = max((today - timedelta(days=vol_weeks * 7 - 1)).isoformat(), floor)
     window = status_range(c, rotation, anchor, freq_start, today.isoformat())
     frequency = {}
     for day in split_day_order("active", c=c):

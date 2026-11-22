@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -677,6 +677,7 @@
           "kg": 83.0
         }
       },
+      "signals": [],
       "adherence": null
     },
     {
@@ -1034,6 +1035,7 @@
       ],
       "bodyweight": [],
       "bodyweight_summary": null,
+      "signals": [],
       "adherence": null
     }
   ],
@@ -1891,7 +1893,60 @@
   },
   "goals": [],
   "adherence": null,
-  "signals": [],
+  "signals": [
+    {
+      "severity": "medium",
+      "text": "abs: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "adductors: current split programs 0 sets per 7 days (under MEV 4.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "back: current split programs 0 sets per 7 days (under MEV 10.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "biceps: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "chest: current split programs 4 sets per 7 days (under MEV 8.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "forearms: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "glutes: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "hamstrings: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "quads: current split programs 0 sets per 7 days (under MEV 8.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "rear delts: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "side delts: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "medium",
+      "text": "triceps: current split programs 0 sets per 7 days (under MEV 6.00)"
+    },
+    {
+      "severity": "info",
+      "text": "not enough history for volume reads yet (0 complete 7-day windows in this block)"
+    }
+  ],
   "recent_notes": [
     {
       "date": "2026-09-11",

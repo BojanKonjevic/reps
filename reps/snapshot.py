@@ -18,7 +18,7 @@ from .program import (active_deloads, deload_covers, get_rotation,
 from .progression import format_target, latest as latest_progression, top_e1rm_by_date
 from .records import personal_records
 from .sessions import break_threshold, last_done, session_duration_min
-from .signals import build_signals
+from .signals import block_signals, build_signals
 from .slots import next_slot, slot_of_session
 from .weeks import monday_of, week_start_of, week_starts
 
@@ -714,6 +714,7 @@ def _block_snapshot(c, block, comparisons, as_of, constants, priorities, autoreg
                           if d < start or d + timedelta(weeks=1, days=-1) > end],
         "bodyweight": weigh_ins,
         "bodyweight_summary": weight,
+        "signals": block_signals(c, block, comparisons, rotation or []) if block["end_date"] else [],
         "adherence": scoped_adherence,
     }
 
@@ -771,7 +772,7 @@ def build_views(c):
         "next_up": next_up_view(c, prog),
         "goals": goals,
         "adherence": adherence_view(c),
-        "signals": [dict(s) for s in build_signals(c, volume)],
+        "signals": [dict(s) for s in build_signals(c, auto=autoreg)],
         "recent_notes": recent_notes_view(c, constants.thresholds.recent_notes_count),
         "rules": rules_with_confirm(c),
         "flags": [dict(r) for r in

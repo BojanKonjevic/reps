@@ -26,8 +26,12 @@ def _judge(c, wid, exercise, verdict):
 def test_thin_history_reports_info_only(log_module):
     log = log_module
     c = log.conn()
+    from reps.blocks import correct_block, current_block
+
+    today = date.today().isoformat()
+    correct_block(current_block(c, today)["id"], start_date=today)
     log.set_exercise_mapping("bench", "chest")
-    _done(c, date.today().isoformat(), "bench")
+    _done(c, today, "bench")
     signals = _signals(log)
     assert len(signals) == 1
     assert signals[0]["severity"] == "info"
@@ -66,3 +70,34 @@ def test_miss_streak_and_break_lines(log_module):
     signals = _signals(log)
     assert any("2 misses running" in s["text"] for s in signals)
     assert any("since last session" in s["text"] for s in signals)
+
+
+def test_finished_signals_stay_with_the_block_and_live_uses_complete_rotations(tmp_db):
+    import reps
+    from reps.blocks import close_block, start_block
+
+    def day(ago):
+        return (date.today() - timedelta(days=ago)).isoformat()
+
+    c = reps.conn()
+    reps.set_exercise_mapping("bench", "chest")
+    reps.set_split("Upper A", 1, "bench", 2)
+    reps.set_rotation(["Upper A", *([None] * 7)])
+    start_block(day(40), [])
+    for ago in (40, 32, 24, 16):
+        _done(c, day(ago), "bench")
+    close_block(day(9), "Bench was flat.")
+    snapshot = reps.export_snapshot()
+    assert snapshot["signals"] == []
+    archived = snapshot["blocks"][0]["signals"]
+    assert any("bench: estimated 1RM stalled" in item["text"] for item in archived)
+    assert any("chest: under MEV in 4 of 4" in item["text"] for item in archived)
+
+    start_block(day(2), [])
+    _done(c, day(1), "bench")
+    snapshot = reps.export_snapshot()
+    assert snapshot["blocks"][0]["signals"] == archived
+    assert any("chest: current split programs 2 sets" in item["text"] for item in snapshot["signals"])
+    assert any("0 complete 8-day windows" in item["text"] for item in snapshot["signals"])
+    assert not any("chest: under MEV in" in item["text"] for item in snapshot["signals"])
+    assert reps.get_plan()["volume"]["muscles"]["chest"]["rotation_sets"] == []

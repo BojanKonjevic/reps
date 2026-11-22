@@ -151,6 +151,13 @@ export const RotationVolumeWindowSchema = z.object({
   "through": z.string(),
 }).strict();
 
+export const SeveritySchema = z.enum(["high", "medium", "low", "info"]);
+
+export const SignalSchema = z.object({
+  "severity": SeveritySchema,
+  "text": z.string(),
+}).strict();
+
 export const VolumeHistorySchema = z.object({
   "week_starts": z.array(z.string()),
   "by_muscle": z.record(z.string(), z.array(z.number().int())),
@@ -170,6 +177,7 @@ export const BlockViewSchema = z.object({
   "partial_weeks": z.array(z.string()),
   "bodyweight": z.array(BodyweightPointSchema),
   "bodyweight_summary": BlockBodyweightSchema.nullable(),
+  "signals": z.array(SignalSchema),
   "adherence": AdherenceSchema.nullable(),
 }).strict();
 
@@ -529,13 +537,6 @@ export const SessionViewSchema = z.object({
   "duration_min": z.union([z.number().int(), z.number()]).nullable(),
 }).strict();
 
-export const SeveritySchema = z.enum(["high", "medium", "low", "info"]);
-
-export const SignalSchema = z.object({
-  "severity": SeveritySchema,
-  "text": z.string(),
-}).strict();
-
 export const StatusViewSchema = z.object({
   "open_today": z.boolean(),
   "rest_today": z.boolean(),
@@ -597,6 +598,8 @@ export type PriorityTier = z.infer<typeof PriorityTierSchema>;
 export type VolumeStatus = z.infer<typeof VolumeStatusSchema>;
 export type Muscle = z.infer<typeof MuscleSchema>;
 export type RotationVolumeWindow = z.infer<typeof RotationVolumeWindowSchema>;
+export type Severity = z.infer<typeof SeveritySchema>;
+export type Signal = z.infer<typeof SignalSchema>;
 export type VolumeHistory = z.infer<typeof VolumeHistorySchema>;
 export type BlockView = z.infer<typeof BlockViewSchema>;
 export type CalendarHover = z.infer<typeof CalendarHoverSchema>;
@@ -648,6 +651,4 @@ export type SetView = z.infer<typeof SetViewSchema>;
 export type SessionExercise = z.infer<typeof SessionExerciseSchema>;
 export type WorkoutStatus = z.infer<typeof WorkoutStatusSchema>;
 export type SessionView = z.infer<typeof SessionViewSchema>;
-export type Severity = z.infer<typeof SeveritySchema>;
-export type Signal = z.infer<typeof SignalSchema>;
 export type StatusView = z.infer<typeof StatusViewSchema>;

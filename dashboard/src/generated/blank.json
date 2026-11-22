@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -670,12 +670,7 @@
   },
   "goals": [],
   "adherence": null,
-  "signals": [
-    {
-      "severity": "info",
-      "text": "not enough history for volume reads yet (0 7-day windows)"
-    }
-  ],
+  "signals": [],
   "recent_notes": [],
   "rules": [],
   "flags": [],

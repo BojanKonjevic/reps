@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -721,6 +721,7 @@
       ],
       "bodyweight": [],
       "bodyweight_summary": null,
+      "signals": [],
       "adherence": null
     }
   ],
@@ -1674,15 +1675,15 @@
   "signals": [
     {
       "severity": "high",
-      "text": "abs: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "text": "abs: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "adductors: 0 sets in 7 of 7 2-day windows (MEV 1.1 sets per 2 days) (MEV tier: opinion)"
+      "text": "adductors: 0 sets in 6 of 6 2-day windows (MEV 1.1 sets per 2 days) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "back: 0 sets in 7 of 7 2-day windows (MEV 2.9 sets per 2 days) (MEV tier: contested)"
+      "text": "back: 0 sets in 6 of 6 2-day windows (MEV 2.9 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
@@ -1690,43 +1691,83 @@
     },
     {
       "severity": "high",
-      "text": "biceps: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "text": "biceps: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "chest: 0 sets in 4 of 7 2-day windows (MEV 2.3 sets per 2 days) (MEV tier: contested)"
+      "text": "forearms: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "forearms: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
+      "text": "glutes: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "glutes: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "text": "hamstrings: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "hamstrings: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "text": "quads: 0 sets in 6 of 6 2-day windows (MEV 2.3 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "quads: 0 sets in 7 of 7 2-day windows (MEV 2.3 sets per 2 days) (MEV tier: contested)"
+      "text": "rear delts: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
     },
     {
       "severity": "high",
-      "text": "rear delts: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: opinion)"
+      "text": "side delts: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
       "severity": "high",
-      "text": "side delts: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "text": "triceps: 0 sets in 6 of 6 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
     },
     {
-      "severity": "high",
-      "text": "triceps: 0 sets in 7 of 7 2-day windows (MEV 1.7 sets per 2 days) (MEV tier: contested)"
+      "severity": "medium",
+      "text": "abs: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "adductors: current split programs 0 sets per 2 days (under MEV 1.14)"
+    },
+    {
+      "severity": "medium",
+      "text": "back: current split programs 0 sets per 2 days (under MEV 2.86)"
     },
     {
       "severity": "medium",
       "text": "bench: 2 misses running"
+    },
+    {
+      "severity": "medium",
+      "text": "biceps: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "forearms: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "glutes: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "hamstrings: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "quads: current split programs 0 sets per 2 days (under MEV 2.29)"
+    },
+    {
+      "severity": "medium",
+      "text": "rear delts: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "side delts: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "triceps: current split programs 0 sets per 2 days (under MEV 1.71)"
     }
   ],
   "recent_notes": [

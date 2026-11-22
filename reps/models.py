@@ -161,7 +161,7 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
-SNAPSHOT_SCHEMA_VERSION = 6
+SNAPSHOT_SCHEMA_VERSION = 7
 
 STRICT = ConfigDict(extra="forbid")
 
@@ -923,6 +923,7 @@ class BlockView(BaseModel):
     partial_weeks: list[StrictStr]
     bodyweight: list[BodyweightPoint]
     bodyweight_summary: Optional[BlockBodyweight]
+    signals: list[Signal]
     adherence: Optional[Adherence]
 
 

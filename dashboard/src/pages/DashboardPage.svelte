@@ -12,7 +12,7 @@
   } from '../lib/present';
   import { blockDisplay } from '../lib/blockDisplay.svelte';
   import { href } from '../routes';
-  import type { Snapshot } from '../generated/snapshot';
+  import type { Signal, Snapshot } from '../generated/snapshot';
   import {
     defOf,
     eventsForGoal,
@@ -119,6 +119,7 @@
       : Object.fromEntries(snap.muscles.map(m => [m.muscle, m.rotation_sets]))
   );
 
+  const activeBlock = $derived(snap.blocks.some(block => block.end_date === null));
   const pastBlock = $derived(!!blockDisplay.selected?.end_date);
   const partial = $derived(
     calendarVolume ? blockDisplay.selected?.partial_weeks : blockDisplay.selected?.partial_rotations
@@ -177,6 +178,19 @@
   });
 </script>
 
+{#snippet signalRows(signals: Signal[], empty: string)}
+  {#if !signals.length}
+    <div class="empty">{empty}</div>
+  {:else}
+    {#each signals as signal}
+      <div class="sigrow">
+        <span class="sigtag sig-{signal.severity}">{signal.severity.toUpperCase()}</span>
+        <span>{signal.text}</span>
+      </div>
+    {/each}
+  {/if}
+{/snippet}
+
 <div id="viewDash">
   <div class="dashhead">
     <div class="overview-heading">
@@ -205,6 +219,14 @@
             <BlockBodyweight summary={blockDisplay.selected.bodyweight_summary} />
           {/if}
           <BlockCoachCopy note={blockDisplay.selected.coach_note} />
+          {#key blockDisplay.selected.id}
+            <details class="prov block-signals">
+              <summary>Block signals</summary>
+              <div class="provbody">
+                {@render signalRows(blockDisplay.selected.signals, 'No signals in this block')}
+              </div>
+            </details>
+          {/key}
         </section>
       {:else if !pastBlock}
         <div id="nextWrap">
@@ -306,23 +328,14 @@
     {/if}
   </div>
 
-  {#if !pastBlock && snap.signals}
+  {#if !pastBlock && activeBlock}
     <div id="sigWrap">
       <SectionHeader
         title="Coach notes"
         sub="Plain words: MEV is the minimum weekly sets that grow a muscle, MRV the most you can recover from, e1RM your estimated one-rep max."
       />
       <div id="sigCard" class="surface-flat">
-        {#if !snap.signals.length}
-          <div class="empty">all clear, nothing flagged</div>
-        {:else}
-          {#each snap.signals as r}
-            <div class="sigrow">
-              <span class="sigtag sig-{r.severity}">{r.severity.toUpperCase()}</span>
-              <span>{r.text}</span>
-            </div>
-          {/each}
-        {/if}
+        {@render signalRows(snap.signals, 'All clear, nothing flagged')}
       </div>
     </div>
   {/if}
@@ -686,6 +699,10 @@
 </div>
 
 <style>
+  .block-signals > summary {
+    display: list-item;
+    color: var(--ink-mute);
+  }
   .overview-heading {
     display: flex;
     justify-content: space-between;

@@ -78,7 +78,8 @@ def get_plan(slot=None, verbose=False):
             second += " (" + "; ".join(detail) + ")"
         slot_guess["basis"] += "; " + second
 
-    volume = volume_block(c)
+    volume = (volume_block(c, today, since=block["start_date"], completed_only=True, include_plan=True)
+              if block else volume_block(c, today))
 
     retention = thresholds.ledger_retention_days
     cutoff = (today - timedelta(days=retention - 1)).isoformat()

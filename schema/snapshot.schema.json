@@ -625,6 +625,13 @@
             }
           ]
         },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/Signal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
         "adherence": {
           "anyOf": [
             {
@@ -650,6 +657,7 @@
         "partial_weeks",
         "bodyweight",
         "bodyweight_summary",
+        "signals",
         "adherence"
       ],
       "title": "BlockView",

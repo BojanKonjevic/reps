@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -757,6 +757,7 @@
         }
       ],
       "bodyweight_summary": null,
+      "signals": [],
       "adherence": {
         "anchor": null,
         "days": [
@@ -2249,7 +2250,51 @@
     },
     {
       "severity": "medium",
+      "text": "abs: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "adductors: current split programs 0 sets per 3 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
       "text": "adherence drift: 3 non-done days, consider re-anchoring the rotation"
+    },
+    {
+      "severity": "medium",
+      "text": "back: current split programs 3 sets per 3 days (under MEV 4.29)"
+    },
+    {
+      "severity": "medium",
+      "text": "biceps: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "forearms: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "glutes: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "hamstrings: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "quads: current split programs 0 sets per 3 days (under MEV 3.43)"
+    },
+    {
+      "severity": "medium",
+      "text": "rear delts: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "side delts: current split programs 0 sets per 3 days (under MEV 2.57)"
+    },
+    {
+      "severity": "medium",
+      "text": "triceps: current split programs 0 sets per 3 days (under MEV 2.57)"
     }
   ],
   "recent_notes": [

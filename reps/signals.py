@@ -5,35 +5,30 @@ computed fact (volume classification, goal trajectory, autoreg streaks,
 adherence drift, deload, break) that already exists elsewhere. Worst first.
 """
 
-from datetime import date, timedelta
+from datetime import date
 
 from .adherence import adherence_block
 from .autoreg import autoreg_block
+from .blocks import current_block
 from .constants import load_constants
 from .db import conn
 from .goals import goal_progress
-from .program import active_deloads, read_priorities, volume_block
+from .history import list_changes, value_at
+from .program import active_deloads, read_priorities, read_split, volume_block
 from .sessions import break_threshold, last_done
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 
 
-def build_signals(c=None, volume=None):
-    """Warning signs in words, worst first. Empty means all clear."""
-    c = c or conn()
-    constants = load_constants()
-    thresholds = constants.thresholds
-    today = date.today()
-    out = []
+def _ordered(signals):
+    return sorted(signals, key=lambda e: (SEVERITY_ORDER[e["severity"]], e["text"]))
 
-    volume = volume if volume is not None else volume_block(c, today)
+
+def _volume_signals(volume, constants, tiers):
     days = volume["rotation_days"]
     windows = len(volume["starts"])
-    if windows < 2:
-        out.append({"severity": "info",
-                    "text": f"not enough history for volume reads yet ({windows} "
-                            f"{days}-day windows)"})
-    tiers = {m: p.get("tier") for m, p in read_priorities(c).items()}
+    thresholds = constants.thresholds
+    out = []
     for muscle, v in volume["muscles"].items():
         if v["status"] == "below_mev":
             demoted = tiers.get(muscle) == "deprioritize"
@@ -55,28 +50,84 @@ def build_signals(c=None, volume=None):
                         "text": f"{muscle}: averaging {v['avg_recent']:.1f} sets per {days} days "
                                 f"(MRV {v['mrv']:.1f})"})
 
+    return out
+
+
+def _drop_signal(exercise, drops, cap):
+    return {"severity": "high",
+            "text": f"{exercise}: e1RM down {abs(drops[0]):.1f}% then "
+                    f"{abs(drops[1]):.1f}% back to back (3 counting sessions, "
+                    f"reps <= {cap}; normal variation can mimic this)"}
+
+
+def block_signals(c, block, comparisons, rotation):
+    """Review a finished block using only its logged volume and lift trends."""
+    constants = load_constants()
+    end = block["end_date"]
+    volume = volume_block(c, date.fromisoformat(end), since=block["start_date"],
+                          rotation=rotation, completed_only=True)
+    history = {}
+    for change in list_changes("priority", c=c):
+        history.setdefault(change["subject"], []).append(change)
+    tiers = {m: value_at(changes, end, "tier") for m, changes in history.items()}
+    out = _volume_signals(volume, constants, tiers)
+    for exercise, trend in comparisons.items():
+        if trend["slipping"]:
+            out.append(_drop_signal(exercise, trend["slipping"], constants.thresholds.e1rm_cap_reps))
+        elif trend["stalling"]:
+            out.append({"severity": "medium",
+                        "text": f"{exercise}: estimated 1RM stalled at block end"})
+    return _ordered(out)
+
+
+def build_signals(c=None, *, auto=None):
+    """Live warning signs for the active block, worst first."""
+    c = c or conn()
+    today = date.today()
+    block = current_block(c, today.isoformat())
+    if block is None:
+        return []
+    constants = load_constants()
+    thresholds = constants.thresholds
+    start = block["start_date"]
+    volume = volume_block(c, today, since=start, completed_only=True, include_plan=True)
+    days = volume["rotation_days"]
+    windows = len(volume["starts"])
+    tiers = {m: p.get("tier") for m, p in read_priorities(c).items()}
+    out = _volume_signals(volume, constants, tiers)
+    if windows < thresholds.volume_bad_rotations:
+        out.append({"severity": "info",
+                    "text": f"not enough history for volume reads yet ({windows} complete "
+                            f"{days}-day windows in this block)"})
+    if read_split("active", c=c):
+        for muscle, v in volume["muscles"].items():
+            if v["planned_below_mev"]:
+                demoted = tiers.get(muscle) == "deprioritize"
+                intent = " (priority: deprioritize, intentional)" if demoted else ""
+                out.append({"severity": "low" if demoted else "medium",
+                            "text": f"{muscle}: current split programs {v['planned_sets']} sets per {days} days "
+                                    f"(under MEV {v['mev']:.2f}){intent}"})
+
     for g in c.execute("SELECT * FROM goals WHERE status = 'active' ORDER BY id").fetchall():
         prog = goal_progress(c, dict(g))
-        if prog["consecutive_misses"] >= 2:
+        misses = min(prog["consecutive_misses"], sum(a["date"] >= start for a in prog["actuals"]))
+        if misses >= 2:
             out.append({"severity": "high",
-                        "text": f"{g['exercise']}: off trajectory {prog['consecutive_misses']} "
+                        "text": f"{g['exercise']}: off trajectory {misses} "
                                 f"sessions running (goal {g['id']} to {g['target_e1rm']} by {g['deadline']})"})
         if prog["slippage"]:
             out.append({"severity": "medium",
                         "text": f"{g['exercise']}: {prog['remaining']} sessions left but the split "
                                 f"fits fewer before {g['deadline']}"})
 
-    auto = autoreg_block(c)
+    auto = autoreg_block(c) if auto is None else auto
     for d in auto["drop_watch"]:
-        out.append({"severity": "high",
-                    "text": f"{d['exercise']}: e1RM down {abs(d['drops_pct'][0]):.1f}% then "
-                            f"{abs(d['drops_pct'][1]):.1f}% back to back (3 counting sessions, "
-                            f"reps <= {thresholds.e1rm_cap_reps}; normal variation can mimic this)"})
+        out.append(_drop_signal(d["exercise"], d["drops_pct"], thresholds.e1rm_cap_reps))
     for m in auto["miss_streaks"]:
         out.append({"severity": "medium",
                     "text": f"{m['exercise']}: {m['streak']} misses running"})
 
-    adherence = adherence_block(c)
+    adherence = adherence_block(c, since=start)
     if adherence is not None and adherence["drift"]:
         out.append({"severity": "medium",
                     "text": f"adherence drift: {adherence['drift_days']} non-done days, "
@@ -86,11 +137,10 @@ def build_signals(c=None, volume=None):
         out.append({"severity": "info", "text": f"deloading {d['scope']} {d['subject']}"})
 
     last = last_done(c)
-    if last:
+    if last and last["date"] >= start:
         gap = (today - date.fromisoformat(last["date"])).days
         if gap >= break_threshold():
             out.append({"severity": "medium",
                         "text": f"{gap}d since last session, no PR attempts until back"})
 
-    out.sort(key=lambda e: (SEVERITY_ORDER[e["severity"]], e["text"]))
-    return out
+    return _ordered(out)

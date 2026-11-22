@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -606,6 +606,7 @@
       ],
       "bodyweight": [],
       "bodyweight_summary": null,
+      "signals": [],
       "adherence": null
     }
   ],
@@ -1185,8 +1186,52 @@
   "adherence": null,
   "signals": [
     {
+      "severity": "medium",
+      "text": "abs: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "adductors: current split programs 0 sets per 2 days (under MEV 1.14)"
+    },
+    {
+      "severity": "medium",
+      "text": "back: current split programs 0 sets per 2 days (under MEV 2.86)"
+    },
+    {
+      "severity": "medium",
+      "text": "biceps: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "forearms: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "glutes: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "hamstrings: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "quads: current split programs 0 sets per 2 days (under MEV 2.29)"
+    },
+    {
+      "severity": "medium",
+      "text": "rear delts: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "side delts: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
+      "severity": "medium",
+      "text": "triceps: current split programs 0 sets per 2 days (under MEV 1.71)"
+    },
+    {
       "severity": "info",
-      "text": "not enough history for volume reads yet (1 2-day windows)"
+      "text": "not enough history for volume reads yet (1 complete 2-day windows in this block)"
     }
   ],
   "recent_notes": [

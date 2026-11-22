@@ -48,6 +48,10 @@ def test_plan_volume_uses_complete_rotation_windows(log_module):
     log.set_split("Upper A", 1, "bench", 10)
     log.set_rotation(["Upper A", *([None] * 7)])
     end = date.today()
+    from reps.blocks import correct_block, current_block
+
+    block = current_block(c, end.isoformat())
+    correct_block(block["id"], start_date=(end - timedelta(days=15)).isoformat())
     for days_ago, nsets in {0: 3, 7: 6, 8: 10}.items():
         d = (end - timedelta(days=days_ago)).isoformat()
         cur = c.execute("INSERT INTO workouts (date, status, notes) VALUES (?, 'done', '')", (d,))
