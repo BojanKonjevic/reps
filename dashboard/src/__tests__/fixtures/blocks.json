@@ -1,5 +1,5 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "exported": "2026-09-24T12:00:00",
   "as_of": "2026-09-24",
   "constants": {
@@ -266,7 +266,7 @@
   "blocks": [
     {
       "id": 1,
-      "start_date": "2026-09-11",
+      "start_date": "2026-09-09",
       "end_date": "2026-09-15",
       "coach_note": "Bench moved up. Keep a comparable press next block.",
       "changes": [],
@@ -614,14 +614,69 @@
           ]
         }
       },
-      "partial_rotations": [
-        "2026-09-09"
-      ],
+      "partial_rotations": [],
       "partial_weeks": [
         "2026-09-07",
         "2026-09-14"
       ],
-      "bodyweight": [],
+      "bodyweight": [
+        {
+          "date": "2026-09-09",
+          "kg": 79.8,
+          "avg7": 79.8,
+          "gap_before": null,
+          "gap": false
+        },
+        {
+          "date": "2026-09-10",
+          "kg": 78.6,
+          "avg7": 79.2,
+          "gap_before": 1,
+          "gap": false
+        },
+        {
+          "date": "2026-09-11",
+          "kg": 79.0,
+          "avg7": 79.1,
+          "gap_before": 1,
+          "gap": false
+        },
+        {
+          "date": "2026-09-13",
+          "kg": 83.0,
+          "avg7": 80.1,
+          "gap_before": 2,
+          "gap": false
+        },
+        {
+          "date": "2026-09-14",
+          "kg": 83.2,
+          "avg7": 80.7,
+          "gap_before": 1,
+          "gap": false
+        },
+        {
+          "date": "2026-09-15",
+          "kg": 83.0,
+          "avg7": 81.1,
+          "gap_before": 1,
+          "gap": false
+        }
+      ],
+      "bodyweight_summary": {
+        "start": {
+          "since": "2026-09-09",
+          "until": "2026-09-12",
+          "samples": 3,
+          "kg": 79.0
+        },
+        "end": {
+          "since": "2026-09-13",
+          "until": "2026-09-15",
+          "samples": 3,
+          "kg": 83.0
+        }
+      },
       "adherence": null
     },
     {
@@ -978,6 +1033,7 @@
         "2026-09-21"
       ],
       "bodyweight": [],
+      "bodyweight_summary": null,
       "adherence": null
     }
   ],
@@ -1758,7 +1814,50 @@
     ],
     "through": "2026-09-24"
   },
-  "bodyweight": [],
+  "bodyweight": [
+    {
+      "date": "2026-09-09",
+      "kg": 79.8,
+      "avg7": 79.8,
+      "gap_before": null,
+      "gap": false
+    },
+    {
+      "date": "2026-09-10",
+      "kg": 78.6,
+      "avg7": 79.2,
+      "gap_before": 1,
+      "gap": false
+    },
+    {
+      "date": "2026-09-11",
+      "kg": 79.0,
+      "avg7": 79.1,
+      "gap_before": 1,
+      "gap": false
+    },
+    {
+      "date": "2026-09-13",
+      "kg": 83.0,
+      "avg7": 80.1,
+      "gap_before": 2,
+      "gap": false
+    },
+    {
+      "date": "2026-09-14",
+      "kg": 83.2,
+      "avg7": 80.7,
+      "gap_before": 1,
+      "gap": false
+    },
+    {
+      "date": "2026-09-15",
+      "kg": 83.0,
+      "avg7": 81.1,
+      "gap_before": 1,
+      "gap": false
+    }
+  ],
   "program": {
     "rotation": [],
     "anchor": null,

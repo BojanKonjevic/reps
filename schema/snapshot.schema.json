@@ -395,6 +395,23 @@
       "title": "AutoregMissStreak",
       "type": "object"
     },
+    "BlockBodyweight": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/BlockWeightWindow"
+        },
+        "end": {
+          "$ref": "#/$defs/BlockWeightWindow"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "BlockBodyweight",
+      "type": "object"
+    },
     "BlockChange": {
       "additionalProperties": false,
       "properties": {
@@ -598,6 +615,16 @@
           "title": "Bodyweight",
           "type": "array"
         },
+        "bodyweight_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlockBodyweight"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "adherence": {
           "anyOf": [
             {
@@ -622,9 +649,63 @@
         "partial_rotations",
         "partial_weeks",
         "bodyweight",
+        "bodyweight_summary",
         "adherence"
       ],
       "title": "BlockView",
+      "type": "object"
+    },
+    "BlockWeightWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "since": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Since"
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Until"
+        },
+        "samples": {
+          "title": "Samples",
+          "type": "integer"
+        },
+        "kg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Kg"
+        }
+      },
+      "required": [
+        "since",
+        "until",
+        "samples",
+        "kg"
+      ],
+      "title": "BlockWeightWindow",
       "type": "object"
     },
     "BodyweightPoint": {

@@ -161,7 +161,7 @@ class ConstantsModel(BaseModel):
 
 Real = Union[StrictInt, StrictFloat]
 
-SNAPSHOT_SCHEMA_VERSION = 5
+SNAPSHOT_SCHEMA_VERSION = 6
 
 STRICT = ConfigDict(extra="forbid")
 
@@ -891,6 +891,22 @@ class BlockLift(BaseModel):
     stalling: bool
 
 
+class BlockWeightWindow(BaseModel):
+    model_config = STRICT
+
+    since: Optional[StrictStr]
+    until: Optional[StrictStr]
+    samples: StrictInt
+    kg: Optional[Real]
+
+
+class BlockBodyweight(BaseModel):
+    model_config = STRICT
+
+    start: BlockWeightWindow
+    end: BlockWeightWindow
+
+
 class BlockView(BaseModel):
     model_config = STRICT
 
@@ -906,6 +922,7 @@ class BlockView(BaseModel):
     partial_rotations: list[StrictStr]
     partial_weeks: list[StrictStr]
     bodyweight: list[BodyweightPoint]
+    bodyweight_summary: Optional[BlockBodyweight]
     adherence: Optional[Adherence]
 
 

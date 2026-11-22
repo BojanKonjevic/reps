@@ -79,6 +79,18 @@ export const AutoregChangeSchema = z.object({
   "reverted_on": z.string().nullable(),
 }).strict();
 
+export const BlockWeightWindowSchema = z.object({
+  "since": z.string().nullable(),
+  "until": z.string().nullable(),
+  "samples": z.number().int(),
+  "kg": z.union([z.number().int(), z.number()]).nullable(),
+}).strict();
+
+export const BlockBodyweightSchema = z.object({
+  "start": BlockWeightWindowSchema,
+  "end": BlockWeightWindowSchema,
+}).strict();
+
 export const BlockChangeSchema = z.object({
   "change_id": z.number().int(),
   "subject": z.string(),
@@ -157,6 +169,7 @@ export const BlockViewSchema = z.object({
   "partial_rotations": z.array(z.string()),
   "partial_weeks": z.array(z.string()),
   "bodyweight": z.array(BodyweightPointSchema),
+  "bodyweight_summary": BlockBodyweightSchema.nullable(),
   "adherence": AdherenceSchema.nullable(),
 }).strict();
 
@@ -573,6 +586,8 @@ export type AutoregHold = z.infer<typeof AutoregHoldSchema>;
 export type AutoregMissStreak = z.infer<typeof AutoregMissStreakSchema>;
 export type Autoreg = z.infer<typeof AutoregSchema>;
 export type AutoregChange = z.infer<typeof AutoregChangeSchema>;
+export type BlockWeightWindow = z.infer<typeof BlockWeightWindowSchema>;
+export type BlockBodyweight = z.infer<typeof BlockBodyweightSchema>;
 export type BlockChange = z.infer<typeof BlockChangeSchema>;
 export type BlockLift = z.infer<typeof BlockLiftSchema>;
 export type BodyweightPoint = z.infer<typeof BodyweightPointSchema>;

@@ -108,3 +108,38 @@ def test_block_tool_lifecycle(tmp_db):
         assert (await call_tool("block_list", {}))["data"][0]["coach_note"] == "Completed."
 
     asyncio.run(run())
+
+
+def test_bodyweight_uses_boundary_medians_and_latest_daily_measurement():
+    from reps.blocks import bodyweight_summary
+
+    start = date(2026, 9, 22)
+    end = date(2026, 11, 20)
+    rows = [
+        {"date": "2026-09-22", "kg": 79.8},
+        {"date": "2026-09-23", "kg": 77.0},
+        {"date": "2026-09-23", "kg": 78.9},
+        {"date": "2026-09-29", "kg": 78.6},
+        {"date": "2026-09-30", "kg": 82.0},
+        {"date": "2026-11-12", "kg": 82.0},
+        {"date": "2026-11-13", "kg": 83.0},
+        {"date": "2026-11-16", "kg": 83.2},
+        {"date": "2026-11-20", "kg": 83.0},
+    ]
+    weight = bodyweight_summary(rows, start, end, 8)
+    assert weight["start"] == {"since": "2026-09-22", "until": "2026-09-29", "samples": 3, "kg": 78.9}
+    assert weight["end"] == {"since": "2026-11-13", "until": "2026-11-20", "samples": 3, "kg": 83.0}
+
+
+def test_short_blocks_do_not_reuse_weigh_ins():
+    from reps.blocks import bodyweight_summary
+
+    start = date(2026, 9, 22)
+    end = date(2026, 9, 26)
+    rows = [{"date": (start + timedelta(days=i)).isoformat(), "kg": 78.0 + i} for i in range(5)]
+    weight = bodyweight_summary(rows, start, end, 8)
+    assert weight["start"] == {"since": "2026-09-22", "until": "2026-09-24", "samples": 3, "kg": 79.0}
+    assert weight["end"] == {"since": "2026-09-25", "until": "2026-09-26", "samples": 2, "kg": None}
+    assert bodyweight_summary(rows, start, start, 8)["end"] == {
+        "since": None, "until": None, "samples": 0, "kg": None,
+    }

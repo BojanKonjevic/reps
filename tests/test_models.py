@@ -115,7 +115,7 @@ def test_validate_constants_fails_loudly():
 
 def test_snapshot_validates_built_payload(log_module):
     snap = log_module.build_snapshot_validated()
-    assert snap["schema_version"] == 5
+    assert snap["schema_version"] == 6
     assert isinstance(snap["sessions"], list)
     assert isinstance(snap["lifts"], list)
 

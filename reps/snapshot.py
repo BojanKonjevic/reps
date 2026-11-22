@@ -6,7 +6,7 @@
 from datetime import date, datetime, timedelta
 
 from .adherence import adherence_snapshot
-from .blocks import current_block, blocks_view, lift_comparisons, slot_diff_text
+from .blocks import bodyweight_summary, current_block, blocks_view, lift_comparisons, slot_diff_text
 from .autoreg import autoreg_block
 from .constants import load_constants
 from .models import SNAPSHOT_SCHEMA_VERSION
@@ -700,6 +700,10 @@ def _block_snapshot(c, block, comparisons, as_of, constants, priorities, autoreg
                 "drift_threshold": thresholds.adherence_drift_days,
             })
     first = volume["starts"][0]
+    weigh_ins = bodyweight_view(c, thresholds.bodyweight_avg_days, thresholds.bodyweight_gap_days,
+                               block["start_date"], through)
+    weight = (bodyweight_summary(weigh_ins, start, end, volume["rotation_days"])
+              if block["end_date"] else None)
     return {
         **block, "lifts": comparisons,
         "muscles": muscles_view(c, priorities, autoreg if block["end_date"] is None else {}, volume),
@@ -708,8 +712,8 @@ def _block_snapshot(c, block, comparisons, as_of, constants, priorities, autoreg
         "partial_rotations": [first] if first < block["start_date"] else [],
         "partial_weeks": [d.isoformat() for d in starts
                           if d < start or d + timedelta(weeks=1, days=-1) > end],
-        "bodyweight": bodyweight_view(c, thresholds.bodyweight_avg_days,
-                                      thresholds.bodyweight_gap_days, block["start_date"], through),
+        "bodyweight": weigh_ins,
+        "bodyweight_summary": weight,
         "adherence": scoped_adherence,
     }
 

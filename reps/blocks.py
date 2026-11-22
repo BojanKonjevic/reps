@@ -1,8 +1,10 @@
 # SSOT owner: training block dates, confirmed program changes, and block lift comparisons.
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from sqlite3 import Connection
+from statistics import median
+from typing import TypedDict
 
 from .constants import load_constants
 from .db import conn
@@ -224,6 +226,34 @@ def blocks_view(c: Connection) -> list[dict]:
 
 def list_blocks() -> list[dict]:
     return blocks_view(conn())
+
+
+class WeighIn(TypedDict):
+    date: str
+    kg: float
+
+
+def bodyweight_summary(rows: list[WeighIn], start: date, end: date, rotation_days: int) -> dict:
+    """Median of distinct weigh-in days in each end window of a finished block."""
+    # Bodyweight rows are emitted in date and entry order, so corrections
+    # on the same date replace that day's sample without adding another vote.
+    by_date = {row["date"]: row["kg"] for row in rows}
+    days = (end - start).days + 1
+    opening_days = min(rotation_days, (days + 1) // 2)
+    closing_days = min(rotation_days, days // 2)
+
+    def window(first: date, last: date) -> dict:
+        if first > last:
+            return {"since": None, "until": None, "samples": 0, "kg": None}
+        since, until = first.isoformat(), last.isoformat()
+        weights = [kg for day, kg in by_date.items() if since <= day <= until]
+        return {"since": since, "until": until, "samples": len(weights),
+                "kg": median(weights) if len(weights) >= 3 else None}
+
+    return {
+        "start": window(start, start + timedelta(days=opening_days - 1)),
+        "end": window(end - timedelta(days=closing_days - 1), end),
+    }
 
 
 def lift_comparisons(c: Connection, block_id: int | None = None) -> dict[int, dict[str, dict]]:

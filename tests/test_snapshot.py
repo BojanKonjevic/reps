@@ -19,7 +19,7 @@ def _seeded(log):
 def test_export_v2_shape(log_module):
     """Every v2 top-level view exists and validates (extra=forbid)."""
     snap = log_module.export_snapshot()
-    assert snap["schema_version"] == 5
+    assert snap["schema_version"] == 6
     for key in ["as_of", "constants", "lifts", "muscles", "sessions", "calendar",
                 "volume_history", "bodyweight", "program", "next_up", "goals",
                 "adherence", "signals", "recent_notes", "rules", "flags",

@@ -47,6 +47,7 @@
     toggleHidden,
     ui,
   } from '../lib/filters.svelte';
+  import BlockBodyweight from '../components/BlockBodyweight.svelte';
   import PageHeader from '../components/PageHeader.svelte';
   import SectionHeader from '../components/SectionHeader.svelte';
   import FacetChips from '../components/FacetChips.svelte';
@@ -195,6 +196,9 @@
       {#if pastBlock && blockDisplay.selected?.coach_note}
         <section aria-label="Final coach note">
           <SectionHeader title="Final coach note" />
+          {#if blockDisplay.selected.bodyweight_summary}
+            <BlockBodyweight summary={blockDisplay.selected.bodyweight_summary} />
+          {/if}
           <p class="coach-copy">{blockDisplay.selected.coach_note}</p>
         </section>
       {:else if !pastBlock}

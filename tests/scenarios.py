@@ -131,7 +131,9 @@ def seed_blocks(log):
     """Two blocks separated by rest, with a confirmed split change."""
     from reps.blocks import close_block, preview_start, start_block
 
-    start_block(_day(13), [])
+    start_block(_day(15), [])
+    for ago, weight in ((15, 79.8), (14, 78.6), (13, 79.0), (11, 83.0), (10, 83.2), (9, 83.0)):
+        log.record_bodyweight(weight, "", _day(ago))
     _session(log, 13, "bench", 75, 6)
     _session(log, 10, "bench", 80, 6)
     c = log.conn()

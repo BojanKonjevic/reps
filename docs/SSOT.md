@@ -45,6 +45,7 @@
 | Slot match / next slot               | `reps/slots.py`                                                           | plan, adherence, snapshot                        | T1    | tests              |
 | Rotation schedule (expected day)   | `reps/adherence.py` (`expected_day` + `schedule_shifts`, derived from completed training and `rotation_anchor`) | plan slot guess, rotation status, calendar, adherence observation | T1 | tests |
 | Stall / slipping                     | `reps/trends.py` + constants                                              | current block lift comparisons and snapshot `tags`                                  | T1    | tests              |
+| Block bodyweight | `reps/blocks.py` derives the median from daily weigh-ins at the edges of finished blocks | Block coach note display | T1 | tests |
 | Training blocks | `reps/blocks.py`, `training_block`, `block_program_change` | Workout date coverage, block comparisons, coach notes, confirmed program-history links | T1 | tests |
 | Workout duration | `reps/sessions.py` and `workouts.reported_duration_min` for user-reported time | snapshot `duration_min`, MCP | T1 | tests |
 | Rotation volume | `reps/program.py` derives window length from the active rotation and scales weekly landmarks | Plan, audit, Coach Notes, dashboard, autoreg volume guardrails | T1 | tests |
