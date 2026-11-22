@@ -139,7 +139,7 @@ def seed_blocks(log):
     c = log.conn()
     c.execute("UPDATE state_change SET date = ? WHERE domain = 'program'", (_day(13),))
     c.commit()
-    close_block(_day(9), "Bench moved up. Keep a comparable press next block.")
+    close_block(_day(9), "Progress: Bench moved up.\nNext block: Keep a comparable press.")
     log.set_split("Test", 1, "bench", 4)
     changes = preview_start(_day(0))["changes"]
     start_block(_day(0), [item["change_id"] for item in changes])

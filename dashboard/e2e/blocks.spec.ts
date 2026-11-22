@@ -21,6 +21,10 @@ test('browse completed and current blocks without resetting all-time records', a
   const weight = page.getByRole('group', { name: 'Block bodyweight' });
   await expect(weight).toContainText('79.0 kg');
   await expect(weight).toContainText('83.0 kg');
+  await expect(weight).not.toContainText(/Sep|weigh-ins/);
+  await expect(page.getByRole('heading', { name: 'Progress', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Next block', exact: true })).toBeVisible();
+  await expect(page.getByText('Bench moved up.', { exact: true })).toBeVisible();
   await expect(history).toBeVisible();
   const [headingBox, noteBox, historyBox] = await Promise.all([
     page.getByRole('heading', { name: 'Overview' }).boundingBox(),

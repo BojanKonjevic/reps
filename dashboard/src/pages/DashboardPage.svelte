@@ -47,6 +47,7 @@
     toggleHidden,
     ui,
   } from '../lib/filters.svelte';
+  import BlockCoachCopy from '../components/BlockCoachCopy.svelte';
   import BlockBodyweight from '../components/BlockBodyweight.svelte';
   import PageHeader from '../components/PageHeader.svelte';
   import SectionHeader from '../components/SectionHeader.svelte';
@@ -199,7 +200,7 @@
           {#if blockDisplay.selected.bodyweight_summary}
             <BlockBodyweight summary={blockDisplay.selected.bodyweight_summary} />
           {/if}
-          <p class="coach-copy">{blockDisplay.selected.coach_note}</p>
+          <BlockCoachCopy note={blockDisplay.selected.coach_note} />
         </section>
       {:else if !pastBlock}
         <div id="nextWrap">
@@ -681,13 +682,6 @@
 </div>
 
 <style>
-  .coach-copy {
-    margin: 10px 0 18px;
-    color: var(--ink-dim);
-    font-size: 0.86rem;
-    line-height: 1.6;
-    white-space: pre-line;
-  }
   .opening-changes {
     padding-inline-start: 1.2rem;
     font-size: 0.86rem;
