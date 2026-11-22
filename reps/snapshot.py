@@ -202,7 +202,10 @@ def sessions_view(c, days, flags):
                               "sets": sets})
         out.append({"date": w["date"], "workout_id": w["id"], "status": w["status"],
                     "slot_label": match["day"], "notes": w["notes"], "exercises": exercises,
-                    "duration_min": session_duration_min([s["created"] for s in rows])})
+                    "duration_min": session_duration_min(
+                        [s["created"] for s in rows],
+                        w["reported_duration_min"] if w["status"] == "done" else None,
+                    )})
     return out
 
 

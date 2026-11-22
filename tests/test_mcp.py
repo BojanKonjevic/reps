@@ -34,7 +34,10 @@ def test_tool_surface_is_domain_shaped(log_module):
 
 def test_session_lifecycle_through_mcp(log_module):
     log = log_module
-    assert call("session_start", {"note": "mcp test"})["ok"] is True
+    started = call("session_start", {"note": "mcp test"})
+    assert started["ok"] is True
+    duration = {"workout_id": started["data"]["workout_id"], "duration_min": 73}
+    assert call("session_set_duration", duration)["ok"] is False
     logged = call("session_log_set", {"exercise": "bench", "weight": 80, "reps": 5,
                                       "muscles": "chest"})
     assert logged["ok"] is True
@@ -49,6 +52,10 @@ def test_session_lifecycle_through_mcp(log_module):
     assert call("program_split_reconcile", {"day": "Upper A"})["ok"] is True
     ended = call("session_end", {"note": "mcp done"})
     assert ended["ok"] is True
+    assert call("session_set_duration", {**duration, "duration_min": 0})["ok"] is False
+    corrected = call("session_set_duration", duration)
+    assert corrected["ok"] is True
+    assert corrected["data"]["reported_duration_min"] == 73
 
 
 def test_refusals_surface_as_errors(log_module):

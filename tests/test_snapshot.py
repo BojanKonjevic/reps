@@ -80,6 +80,14 @@ def test_sessions_view_carries_duration(log_module):
     sess = log.export_snapshot()["sessions"]
     assert len(sess) == 1 and sess[0]["duration_min"] == 0.0
 
+    from reps.sessions import set_workout_duration
+
+    workout_id = sess[0]["workout_id"]
+    set_workout_duration(workout_id, 70)
+    assert log.export_snapshot()["sessions"][0]["duration_min"] == 70
+    set_workout_duration(workout_id, None)
+    assert log.export_snapshot()["sessions"][0]["duration_min"] == 0.0
+
 
 def test_pr_flags_first_set_baseline(log_module):
     """PR definition: first set per lift is baseline, later sets need strictly greater e1RM."""

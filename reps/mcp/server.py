@@ -153,6 +153,19 @@ def session_update_workout(workout_id: int, field: WorkoutField, value: str) -> 
 
 
 @mcp.tool()
+def session_set_duration(workout_id: int, duration_min: int | None) -> dict:
+    """Record the actual duration of a completed workout logged after training.
+    Ask the user for the duration if they have not supplied it. Live logging
+    uses set timestamps by default.
+
+    Args:
+        workout_id: Exact completed workout id.
+        duration_min: Positive whole minutes, or null to use timestamps again.
+    """
+    return call_domain(_sessions.set_workout_duration, workout_id, duration_min)
+
+
+@mcp.tool()
 def session_delete_set(set_id: int) -> dict:
     """Delete one set by id. Confirm the exact id in chat first.
     Logged to the audit log with timestamp and args.

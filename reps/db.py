@@ -12,7 +12,7 @@ DB = os.environ.get("REPS_DB", os.path.join(ROOT, "workouts.db"))
 CFG = os.path.join(os.path.expanduser("~"), ".config", "reps", "config.json")
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def _check_lists():
@@ -50,7 +50,11 @@ CREATE TABLE IF NOT EXISTS workouts (
   id INTEGER PRIMARY KEY,
   date TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ({ck['workout_status']})),
-  notes TEXT NOT NULL DEFAULT ''
+  notes TEXT NOT NULL DEFAULT '',
+  reported_duration_min INTEGER CHECK (
+    typeof(reported_duration_min) = 'integer' AND reported_duration_min > 0
+    OR reported_duration_min IS NULL
+  )
 );
 CREATE TABLE IF NOT EXISTS sets (
   id INTEGER PRIMARY KEY,

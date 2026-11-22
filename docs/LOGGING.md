@@ -41,6 +41,10 @@ Core principle: a wrong log poisons every future analysis, a question costs noth
 
 Units are kg unless user says otherwise. Never invent sets. If a message is ambiguous, hold the log and ask. Partial logging is allowed only when the clear part is unambiguous, the unclear part waits for an answer. Tool arguments take plain multi-word names as ordinary strings, no quoting layer exists.
 
+## Workouts logged after training
+
+If the user logs a workout after training, ask how many minutes it lasted unless they already gave the duration. After closing the workout, record that answer with `session_set_duration` before syncing the dashboard. For workouts logged during training, leave duration to the set timestamps.
+
 ## Naming
 
 You own the ontology. There is no alias list in code.

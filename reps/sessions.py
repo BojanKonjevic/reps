@@ -60,13 +60,30 @@ def last_done(c):
         "ORDER BY w.date DESC, w.id DESC LIMIT 1").fetchone()
 
 
-def session_duration_min(created):
-    """First-to-last-set span in minutes: the session length.
+def set_workout_duration(workout_id: int, duration_min: int | None) -> dict:
+    """Record the user's elapsed time for an already completed workout."""
+    if duration_min is not None and (type(duration_min) is not int or not 0 < duration_min <= 2**63 - 1):
+        raise RepsError("duration must be a positive whole number of minutes")
+    c = conn()
+    with c:
+        updated = c.execute(
+            "UPDATE workouts SET reported_duration_min = ? WHERE id = ? AND status = 'done'",
+            (duration_min, workout_id),
+        )
+        if not updated.rowcount:
+            raise RepsError("duration can only be set for a completed workout")
+    return {"workout_id": workout_id, "reported_duration_min": duration_min}
+
+
+def session_duration_min(created, reported_duration_min: int | None = None):
+    """Reported minutes if provided, otherwise the first-to-last-set span.
 
     Prompt chatter and the closing note don't count, only set timestamps.
     A lone set spans 0.0, no sets is None. Unparseable stamps are ignored,
     never invented.
     """
+    if reported_duration_min is not None:
+        return reported_duration_min
     stamps = []
     for raw in created:
         try:
