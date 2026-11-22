@@ -46,7 +46,7 @@ Phrases that switch modes, each documented where it lives:
 
 ## Reasoning modes
 
-`session_context`, `session_stats`, `session_calendar`, `session_get`, `session_range`, and `session_history` give ground truth numbers. Gym mode reasons from `plan` state, `docs/MEMORY.md`, `session_today`, and the `lifts` array only. Rotation adherence is computed (`plan`'s `adherence`, `program_rotation_status` for ranges); drift asks for a re-anchor, it never re-anchors silently. Review mode may pull hundreds of sessions at once with `session_range` or `session_notes`, that output feeds agent reasoning for chat answers and postplan docs, it is never shown raw. Then add your own read on top: trend, e1RM direction, volume per muscle, PRs, stalls, caveats (small sample, pain notes, missed sessions). Keep it short and honest. Numbers first, take second.
+`session_context`, `session_stats`, `session_calendar`, `session_get`, `session_range`, and `session_history` give ground truth numbers. Gym mode reasons from `plan` state, `docs/MEMORY.md`, `session_today`, and the `lifts` array only. Rotation adherence is computed (`plan`'s `adherence`, `program_rotation_status` for ranges); drift asks for a re-anchor, it never re-anchors silently. Review mode may pull hundreds of sessions at once with `session_range` or `session_notes`, Use that output to answer in chat without pasting raw rows. Then add your own read on top: trend, e1RM direction, volume per muscle, PRs, stalls, caveats (small sample, pain notes, missed sessions). Keep it short and honest. Numbers first, take second.
 
 ## Development
 
